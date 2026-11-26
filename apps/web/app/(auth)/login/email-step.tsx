@@ -2,33 +2,8 @@ import { SIGN_IN_BUTTON_HEIGHT } from '@orbit/shared/theme'
 import { AppleSignInLogo } from '@/components/auth/apple-sign-in-logo'
 import { GoogleMark } from '@/components/auth/google-mark'
 import Link from 'next/link'
-import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
-import { Input } from '@/components/ui/input'
 import { PillButton } from '@/components/ui/pill-button'
-import { KeyboardRevealGroup } from '@/components/ui/keyboard-reveal-group'
-import { deriveLoginEmailErrors } from '@orbit/shared/utils'
-import { LoginOfflineNotice } from './login-sections'
-
-interface EmailStepProps {
-  email: string
-  emailFocusRequest: number
-  onEmailChange: (email: string) => void
-  isSubmitting: boolean
-  isGoogleLoading: boolean
-  isAppleLoading?: boolean
-  isOnline: boolean
-  canSubmitTurnstile: boolean
-  turnstileWidget: ReactNode
-  fieldError?: string
-  errorKey: string | null
-  errorMessage: string | null
-  onSendCode: () => void
-  onSignInWithGoogle: () => void
-  onSignInWithApple?: () => void
-  t: ReturnType<typeof useTranslations>
-  sendCodeLabel?: string
-}
 
 /** The two provider ways in, with the offline reason and the provider failure under them. */
 export function LoginProviderActions({ disabled, isGoogleLoading, isAppleLoading, isOnline, error, onSignInWithGoogle, onSignInWithApple, t }: Readonly<{
@@ -62,38 +37,5 @@ export function LoginLegalConsent({ t }: Readonly<{ t: ReturnType<typeof useTran
         privacy: (chunks) => <Link href="/about" className={LEGAL_LINK_CLASS_WITH_FOCUS_ROOM}>{chunks}</Link>,
       })}
     </p>
-  )
-}
-
-export function EmailStep({ email, emailFocusRequest, onEmailChange, isSubmitting, isGoogleLoading, isAppleLoading = false, isOnline,
-  canSubmitTurnstile, turnstileWidget, errorKey, errorMessage, fieldError: backendFieldError, onSendCode, onSignInWithGoogle, onSignInWithApple, t, sendCodeLabel }: Readonly<EmailStepProps>) {
-  const isBusy = isSubmitting || isGoogleLoading || isAppleLoading
-  const { field: fieldError, provider: googleError, send: sendError } = deriveLoginEmailErrors({ isOnline, fieldError: backendFieldError, errorKey, errorMessage })
-  return (
-    <div data-testid="login-email-step-stack" className="flex flex-col gap-6">
-      <KeyboardRevealGroup testID="login-field-action"><form noValidate className="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); onSendCode() }}>
-        <Input label={t('auth.email')} value={email} onChange={onEmailChange} kind="email" name="email" focusRequest={emailFocusRequest}
-          autoComplete="email" placeholder={t('auth.emailPlaceholder')}
-          disabled={isBusy} error={fieldError ?? undefined} />
-        {turnstileWidget}
-        <div className="flex flex-col gap-3">
-          {!isOnline && <LoginOfflineNotice t={t} />}
-          {sendError && <p role="alert" className="text-sm text-[var(--status-bad-text)]">{sendError}</p>}
-          <PillButton disabled={isBusy || !email.trim() || !isOnline || !canSubmitTurnstile} loading={isSubmitting}>
-            {sendCodeLabel ?? t('auth.sendCode')}
-          </PillButton>
-        </div>
-      </form></KeyboardRevealGroup>
-      <div aria-hidden className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-[var(--hairline)]" />
-        <span className="font-mono text-xs text-[var(--fg-3)]">{t('auth.orContinueWith')}</span>
-        <span className="h-px flex-1 bg-[var(--hairline)]" />
-      </div>
-      <div className="flex flex-col gap-2">
-        <LoginProviderActions disabled={isBusy || !isOnline} isGoogleLoading={isGoogleLoading} isAppleLoading={isAppleLoading} isOnline={isOnline}
-          error={googleError} onSignInWithGoogle={onSignInWithGoogle} onSignInWithApple={onSignInWithApple} t={t} />
-      </div>
-      <LoginLegalConsent t={t} />
-    </div>
   )
 }

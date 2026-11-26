@@ -474,7 +474,6 @@
       "openApp": "Open Orbit"
     },
     "signIn": "Sign in",
-    "enterCode": "Enter the code",
     "email": "What is your email?",
     "emailPlaceholder": "name@example.com",
     "sendCode": "Continue",
@@ -484,14 +483,12 @@
     "turnstileExpired": "Security check expired.",
     "turnstileRetry": "Try again",
     "codeSent": "Code sent.",
-    "codeSentTo": "We sent a 6-digit code to {email}.",
     "verificationCode": "What code did you get?",
     "verify": "Sign in",
     "resendCode": "Resend code",
     "resendIn": "You can ask for another code in {time}",
     "changeEmail": "Change email",
     "genericError": "An error occurred. Please try again.",
-    "orContinueWith": "or",
     "openInOrbit": "Open in Orbit",
     "continueInApp": "Continue in the Orbit app",
     "signInWithGoogle": "Continue with Google",
@@ -522,14 +519,11 @@
       "unknownError": "Something went wrong. Please try again.",
       "sendFailed": "The code was not sent. Try again."
     },
-    "emailTitle": "Sign in with your email",
     "codeResent": "A new code was sent.",
     "codeHint": "The code lasts 5 minutes.",
     "googleOffline": "Google needs a connection to open.",
     "onboarding": {
       "title": "Sign in to save your plan",
-      "subtitle": "It leaves this device and joins your account.",
-      "habitOne": "1 habit waiting on this device.",
       "habits": "{count, plural, one {# habit waiting on this device.} other {# habits waiting on this device.}}",
       "continue": "Continue and save"
     },
@@ -822,8 +816,6 @@
     "autoLogParentConfirm": "Log habit",
     "autoSkipParentMessage": "Would you like to skip \"{name}\" too?",
     "autoSkipParentConfirm": "Skip habit",
-    "checklistCompleteTitle": "Checklist complete",
-    "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log habit",
     "checklistCompleteQuestion": "Log this habit?",
     "bulkDeleteTitle": "Delete Habits",
@@ -1315,8 +1307,6 @@
     "bestStreak": "Best",
     "totalLogs": "Logged",
     "missedCount": "Not logged",
-    "emptyMonth": "No habit was scheduled in this month.",
-    "futureMonth": "This month has not arrived yet.",
     "emptyStat": "no data",
     "loading": "Loading",
     "loadError": "Could not load the calendar. Please try again.",
@@ -2899,7 +2889,6 @@
       "reviewDeletion": "Review deletion",
       "deleteData": "Delete data",
       "heading": "Fresh Start",
-      "confirmHeading": "This erases everything",
       "willDelete": "What will be deleted",
       "willKeep": "What stays",
       "description": "Start over with a clean slate. This permanently deletes what you track, and keeps your account.",
@@ -2975,7 +2964,6 @@
     }
   },
   "shareCard": {
-    "title": "Share your progress",
     "entry": "Share progress",
     "loading": "Preparing your card…",
     "empty": "Log a few habits first to build a card worth sharing.",
@@ -3217,7 +3205,6 @@
     "retry": "Try again",
     "askOrbit": "Review summary",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits.",
     "guided": {
       "freePrompt": "Pro gets a daily summary of your habits."
     }
@@ -3506,7 +3493,6 @@
       }
     },
     "wizard": {
-      "calendarTitle": "Import from Google Calendar",
       "calendarQuestion": "Import from Google Calendar?",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
       "calendarButton": "Import calendar",
@@ -3938,8 +3924,6 @@
       "unit": "Unit",
       "unitPlaceholder": "e.g. books",
       "deadline": "Deadline",
-      "deadlineOptional": "Optional",
-      "addDeadline": "Add deadline",
       "removeDeadline": "Remove deadline",
       "deadlineInPast": "This deadline is in the past.",
       "progressExceedsTarget": "Value exceeds the target. It will be capped at 100%.",
@@ -3953,9 +3937,7 @@
       "progressNoteTooLong": "Shorten the note to 500 characters or fewer.",
       "type": "Goal type",
       "typeStandard": "Progress",
-      "typeStandardDescription": "Track a measurable target step by step. Update progress manually or link habits that count toward it.",
       "typeStreak": "Streak",
-      "typeStreakHintGood": "Link a habit: streak grows each day you complete it. Miss a day and it resets to zero.",
       "typeStreakHintBad": "Link a habit you want to avoid. Your streak grows each day without slips. Log a slip and it resets to zero.",
       "streakTarget": "How many days in a row?",
       "streakTargetPlaceholder": "e.g. 30, 60, 90",
@@ -4408,7 +4390,6 @@
   "stepUp": {
     "operationDelete": "Delete account",
     "operationKeys": "API keys",
-    "eyebrow": "Confirming: {operation}",
     "title": "Enter the code we sent",
     "body": "We sent a 6-digit code to {email}. It confirms only this action.",
     "codeLabel": "What code did you get?",
@@ -4432,7 +4413,6 @@
     "successPro": "Deletion of this Pro account is scheduled for {date}.",
     "signOut": "Sign out",
     "neverShare": "Orbit never asks for this code in a conversation, by email or by message. It is only ever asked for here.",
-    "cancel": "Cancel this action",
     "genericError": "We could not check that code. Try again.",
     "requestError": "We could not send another code. Try again.",
     "apiKeyHandoff": "Creating an API key requires a code sent to your email.",

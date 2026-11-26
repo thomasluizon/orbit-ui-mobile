@@ -20,7 +20,6 @@ import { HabitRow } from '@/components/habits/habit-row'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
 import { HabitRowTrailing } from '@/components/habits/habit-row-trailing'
 import { SelectionTray } from '@/components/habits/selection-tray'
-import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { OrbitButton } from '@/components/shell/orbit-button'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
@@ -36,8 +35,6 @@ vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }))
-
-const schedule = { frequencyUnit: 'Week' as const, frequencyQuantity: 3, intervalWeeks: 2, days: [], isGeneral: false, isFlexible: true, dueTime: '' }
 
 const parentRing = { hasChildren: true, childProgress: { done: 1, total: 3 }, state: 'empty', isDone: false, canLog: true, onMenuSelect: vi.fn(),
   actions: { onLog: vi.fn(), onUnlog: vi.fn() } as never, onToggleStatus: vi.fn(), completionReadOnly: false, completionStatusUnavailable: false } as const
@@ -60,9 +57,6 @@ function markupOf(node: ReactElement) {
 }
 
 const controls: [string, () => ReactElement, (page: Page) => Locator][] = [
-  ['the onboarding proposal card', () => <OnboardingCreateHabit title="Walk outside" emoji="🚶" schedule={schedule} proposed correcting={false} canSaveRepeatWeeks atLimit={false} allowance={5}
-    onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()} />,
-  (page) => page.getByRole('button', { name: 'Correct schedule. Emoji proposed by Orbit', exact: true })],
   ['the pricing stay-free link', () => <PricingSection profile={null} plans={null} isLoadingPlans isPlansError={false} isOnline trialDaysLeft={null}
     checkoutLoading={null} checkoutError="" discountedAmount={(amount) => amount} onCheckout={vi.fn()} onStayFree={vi.fn()} onRetryPlans={vi.fn()}
     t={((key: string) => key) as never} />, (page) => page.getByRole('link', { name: 'upgrade.convert.stayFree', exact: true })],

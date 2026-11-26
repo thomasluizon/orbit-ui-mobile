@@ -172,9 +172,9 @@ describe('layout streamed route navigation', () => {
     await registered.page!({ page: appDocument.page, javaScriptEnabled: true }, async (page) => { await page.goto('/') })
     expect(appDocument.steps).toEqual(['probe', 'goto', 'hydration'])
 
-    const staticFixture = recordedNavigation('http://orbit-layout.test/sign-in-gap-fixture')
+    const staticFixture = recordedNavigation('http://orbit-layout.test/static-fixture')
     await registered.page!({ page: staticFixture.page, javaScriptEnabled: true }, async (page) => {
-      await page.goto('http://orbit-layout.test/sign-in-gap-fixture')
+      await page.goto('http://orbit-layout.test/static-fixture')
     })
     expect(staticFixture.steps).toEqual(['probe', 'goto'])
 

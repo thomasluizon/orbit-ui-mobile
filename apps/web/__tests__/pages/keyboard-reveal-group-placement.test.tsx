@@ -1,9 +1,7 @@
 import { act, render, screen } from '@testing-library/react'
-import { NextIntlClientProvider, createTranslator } from 'next-intl'
+import { NextIntlClientProvider } from 'next-intl'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
-import { EmailStep } from '@/app/(auth)/login/email-step'
-import { CodeStep } from '@/app/(auth)/login/code-step'
 import { SupportForm } from '@/app/(app)/support/_components/support-form'
 
 vi.mock('motion/react-m', async () => {
@@ -12,8 +10,6 @@ vi.mock('motion/react-m', async () => {
 })
 vi.mock('motion/react', () => ({ useReducedMotion: () => true }))
 
-const t = createTranslator({ locale: 'en', messages: en })
-const check = <div data-testid="check" />
 const scrollIntoView = vi.fn()
 
 class FakeVisualViewport extends EventTarget {
@@ -27,21 +23,6 @@ function withIntl(children: React.ReactNode) {
 }
 
 const surfaces = {
-  'sign-in e-mail step': {
-    render: () => withIntl(<EmailStep email="ana@example.com" emailFocusRequest={0} onEmailChange={vi.fn()} isSubmitting={false} isGoogleLoading={false}
-      isOnline canSubmitTurnstile turnstileWidget={check} errorKey={null} errorMessage={null} onSendCode={vi.fn()} onSignInWithGoogle={vi.fn()} t={t} />),
-    field: () => screen.getByRole('textbox', { name: en.auth.email }),
-    action: () => screen.getByRole('button', { name: en.auth.sendCode }),
-    group: 'login-field-action',
-  },
-  'sign-in code step': {
-    render: () => withIntl(<CodeStep email="ana@example.com" codeDigits={['1', '2', '3', '4', '5', '6']} isSubmitting={false} isResending={false} canResend={false}
-      resendCountdown={30} lockCountdown={0} codeFailure={null} errorSignal={null} successMessage={null} isOnline canSubmitTurnstile turnstileWidget={check}
-      onVerifyCode={vi.fn()} onCodeChange={vi.fn()} onBackToEmail={vi.fn()} onResendCode={vi.fn()} t={t} />),
-    field: () => screen.getByRole('textbox', { name: en.auth.verificationCode }),
-    action: () => screen.getByRole('button', { name: en.auth.verify }),
-    group: 'login-field-action',
-  },
   'support form': {
     render: () => withIntl(<SupportForm email="ana@example.com" subject="problem" message="It stops" messageAsked appVersion="1.0.0" messageMaxLength={2000}
       messageOverLimitHint={null} error={null} subjectError={null} messageError={null} isSending={false} isOnline disabled={false} disabledReason={null}
@@ -75,7 +56,6 @@ describe('web field and action groups', () => {
     const group = screen.getByTestId(surface.group)
     expect(group.contains(surface.field())).toBe(true)
     expect(group.contains(surface.action())).toBe(true)
-    if (name !== 'support form') expect(group.contains(screen.getByTestId('check'))).toBe(true)
     act(() => surface.field().focus())
     act(() => {
       viewport.height = 380

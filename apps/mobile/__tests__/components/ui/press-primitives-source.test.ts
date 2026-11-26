@@ -40,7 +40,7 @@ const LISTED_PRESS_CONTROLS = [
   'components/habits/habit-form-fields/reminder-section.tsx',
   'components/habits/habit-form-fields/scheduled-reminder-section.tsx',
   'components/habits/create-habit-modal/sub-habit-editor.tsx',
-  'components/onboarding/onboarding-create-habit.tsx',
+  'components/onboarding/onboarding-stepper.tsx',
   'components/goals/goal-detail-sections.tsx',
   'components/shell/composer.tsx',
   'components/message-bubble.tsx',

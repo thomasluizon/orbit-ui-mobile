@@ -59,7 +59,6 @@ describe.each(authLocales)('guided sign-in in %s', (locale) => {
     expect(screen.getAllByRole('heading')).toHaveLength(1)
     const field = screen.getByRole<HTMLInputElement>('textbox', { name: question })
     expect([...field.labels!].map((label) => label.textContent)).toEqual([question])
-    expect(container).not.toHaveTextContent(t('auth.emailTitle'))
     expect(container.querySelector('[data-asset="orbit-lockup"]')).toBeNull()
   })
 

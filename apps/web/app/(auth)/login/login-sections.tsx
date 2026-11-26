@@ -1,31 +1,9 @@
 'use client'
 
-import * as m from 'motion/react-m'
-import type { ReactNode } from 'react'
 import type { useTranslations } from 'next-intl'
-import { AnimatePresence } from 'motion/react'
-import type { ResolvedMotionPreset } from '@orbit/shared/theme'
 import { WifiOff } from '@/components/ui/icons'
 
 type Translate = ReturnType<typeof useTranslations>
-
-export function LoginHeader({ step, t, fromOnboarding = false, pendingHabitCount = 0 }: Readonly<{
-  step: 'email' | 'code'; t: Translate; fromOnboarding?: boolean; pendingHabitCount?: number
-}>) {
-  const onboarding = fromOnboarding && step === 'email'
-  const title = onboarding ? t('auth.onboarding.title') : t(step === 'email' ? 'auth.emailTitle' : 'auth.enterCode')
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="font-display text-[22px] font-medium leading-[1.2] tracking-[-0.02em] text-[var(--fg-1)]">{title}</h1>
-      {onboarding && <>
-        <p className="text-base leading-normal text-[var(--fg-2)]">{t('auth.onboarding.subtitle')}</p>
-        <p className="font-mono text-xs text-[var(--fg-3)]" data-mock>
-          {pendingHabitCount === 1 ? t('auth.onboarding.habitOne') : t('auth.onboarding.habits', { count: pendingHabitCount })}
-        </p>
-      </>}
-    </div>
-  )
-}
 
 export function ReferralBanner({ t }: Readonly<{ t: Translate }>) {
   return (
@@ -45,26 +23,6 @@ export function LoginOfflineNotice({ t }: Readonly<{ t: Translate }>) {
     </div>
   )
 }
-
-export function LoginStepStage({ step, motionPreset, children }: Readonly<{
-  step: string; motionPreset: ResolvedMotionPreset; children: ReactNode
-}>) {
-  const reduced = motionPreset.reducedMotionEnabled
-  const shift = reduced ? 0 : motionPreset.shift * (step === 'email' ? -1 : 1)
-  const enterSeconds = reduced ? 0 : motionPreset.enterDuration / 2 / 1000
-  const exitSeconds = reduced ? 0 : motionPreset.exitDuration / 2 / 1000
-  return (
-    <AnimatePresence initial={false} mode="wait">
-      <m.div key={step}
-        initial={{ opacity: reduced ? 1 : 0, x: shift }}
-        animate={{ opacity: 1, x: 0, transition: { duration: enterSeconds, ease: motionPreset.enterEasing } }}
-        exit={{ opacity: reduced ? 1 : 0, x: shift,
-          transition: { duration: exitSeconds, ease: motionPreset.exitEasing } }}
-      >{children}</m.div>
-    </AnimatePresence>
-  )
-}
-
 
 export function LoginValidationMessage({ message, isOnline }: Readonly<{ message?: string; isOnline: boolean }>) {
   const visibleMessage = isOnline ? message : undefined

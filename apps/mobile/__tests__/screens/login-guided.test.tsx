@@ -78,7 +78,6 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     const question = t('auth.email')
     expect(heading().map(textOf)).toEqual([question])
     expect(inputs().map((input) => input.props.accessibilityLabel)).toEqual([question])
-    expect(allText()).not.toContain(t('auth.emailTitle'))
     expect(tree!.root.findAll((node) => node.props['data-asset' as never] === 'orbit-lockup')).toHaveLength(0)
   })
 

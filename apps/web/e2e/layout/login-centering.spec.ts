@@ -17,7 +17,7 @@ for (const [locale, messages] of [['en', en], ['pt-BR', ptBr]] as const) {
           await completeInstallOnboarding(page)
           await page.goto(path)
           await expect(page.getByRole('heading', {
-            name: step === 'code' ? messages.auth.enterCode : messages.auth.emailTitle,
+            name: step === 'code' ? messages.auth.verificationCode : messages.auth.email,
           })).toBeVisible()
           await page.evaluate(() => document.fonts.ready)
 

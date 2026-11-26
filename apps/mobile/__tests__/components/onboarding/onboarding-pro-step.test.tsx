@@ -66,9 +66,6 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   useOnboardingIsLive: () => true,
 }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
-vi.mock('@/components/onboarding/onboarding-welcome', () => ({ OnboardingWelcome: () => null }))
-vi.mock('@/components/onboarding/onboarding-create-habit', () => ({ OnboardingCreateHabit: () => null }))
-vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: () => null }))
 vi.mock('expo-router', () => ({ useRouter: () => ({ navigate: vi.fn(), replace: vi.fn() }) }))
 vi.mock('@/hooks/use-habit-suggestion', () => ({ useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({ usePushNotifications: () => ({ isSupported: false }) }))

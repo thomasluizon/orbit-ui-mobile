@@ -53,7 +53,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { Stepper } from './onboarding-create-habit'
+import { Stepper } from './onboarding-stepper'
 import type { OnboardingDecisionProps } from './onboarding-flow'
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const

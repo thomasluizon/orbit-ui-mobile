@@ -9,7 +9,6 @@ export interface SegmentCallSite {
 
 export const SEGMENT_GEOMETRY_OWNERS = [
   'components/today/habit-view-switch.tsx',
-  'components/onboarding/onboarding-create-habit.tsx',
   'components/upgrade/plan-selection.tsx',
   'components/upgrade/guided-pricing-section.tsx',
 ] as const

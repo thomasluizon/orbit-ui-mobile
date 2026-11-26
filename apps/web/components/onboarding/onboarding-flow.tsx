@@ -2,8 +2,6 @@
 
 import type { OrbitAllowance } from '@orbit/shared/utils'
 
-import { IconButton } from '@/components/ui/icon-button'
-
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { Dialog } from '@base-ui/react/dialog'
 import { useLocale, useTranslations } from 'next-intl'
@@ -16,9 +14,7 @@ import {
   changeOnboardingScheduleMode,
   clampOnboardingRepeatWeeks,
   getClientTimeZone,
-  getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
-  getHabitPhraseTitle,
   isOnboardingHabitDueToday,
   onboardingScheduleFromSaved,
   ONBOARDING_DONE_STEP,
@@ -35,14 +31,9 @@ import {
   type OnboardingScheduleMode,
 } from '@orbit/shared/utils'
 import { BottomTabBar } from '@/components/navigation/bottom-tab-bar'
-import { FlowShell } from '@/components/shell/flow-shell'
 import { ShellWide } from '@/components/shell/shell-wide'
 import { DESTINATION_ICONS, SHELL_DESTINATION_IDS, SHELL_DESTINATION_PATHS } from '@orbit/shared/utils'
 import { DestinationIcon } from '@/components/navigation/destination-icon'
-import { ActionRow } from '@/components/ui/action-row'
-import { ArrowLeft, RefreshCw } from '@/components/ui/icons'
-import { PillButton } from '@/components/ui/pill-button'
-import { ErrorState } from '@/components/ui/error-state'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { AppToastHost } from '@/components/ui/app-toast-host'
 import { OrbitOverlayLayer } from '@/components/ui/orbit-overlay-layer'
@@ -61,10 +52,6 @@ import { setOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import { buildConversationEntryHref } from '@/lib/conversation-entry-query'
 import { OnboardingComplete } from './onboarding-complete'
-import { OnboardingStepStage } from './onboarding-step-stage'
-import { OnboardingCreateHabit } from './onboarding-create-habit'
-import { OnboardingRemind } from './onboarding-remind'
-import { OnboardingWelcome } from './onboarding-welcome'
 import { useOnboardingActions, useOnboardingIsLive } from './onboarding-actions-context'
 import { GuidedOnboardingFlow, type GuidedOnboardingProps } from './guided-onboarding-flow'
 import { GuidedOnboardingResult } from './guided-onboarding-result'
@@ -82,10 +69,6 @@ function DoneContent({ step, proContent, doneContent }: Readonly<{ step: number;
 
 type ReminderDecision = 'idle' | 'allowing' | 'declining'
 interface SavedOnboardingHabit { sentence: string; emoji: string; schedule: OnboardingSchedule }
-
-function FlowActions({ primary, secondary, reason }: Readonly<{ primary: ReactNode; secondary?: ReactNode; reason?: ReactNode }>) {
-  return <div className="flex w-full flex-col gap-2"><ActionRow>{secondary}{primary}</ActionRow>{reason}</div>
-}
 
 const DONE_TAB_ROUTES: Record<string, string> = { orbit: buildConversationEntryHref('open'), ...SHELL_DESTINATION_PATHS }
 
@@ -138,49 +121,6 @@ export interface OnboardingDecisionProps {
   onEditSchedule: () => void
 }
 
-function DecisionContent(props: Readonly<OnboardingDecisionProps>) {
-  if (props.step === ONBOARDING_WHAT_STEP) return <OnboardingWelcome sentence={props.sentence} marks={props.marks} onChange={props.onSentence} />
-  if (props.step === ONBOARDING_WHEN_STEP) return <OnboardingCreateHabit title={getHabitPhraseTitle(props.sentence, props.locale)} emoji={props.emoji} schedule={props.schedule} proposed={props.proposed} correcting={props.correcting} canSaveRepeatWeeks={props.isLive} atLimit={props.atLimit} allowance={props.allowance} allowancePeriod={props.allowancePeriod} onCorrect={props.onCorrect} onToggleDay={props.onToggleDay} onTimeChange={props.onTime} onModeChange={props.onMode} onFrequencyUnitChange={props.onFrequencyUnit} onQuantityChange={props.onQuantity} onIntervalWeeksChange={props.onIntervalWeeks} />
-  return <OnboardingRemind state={props.reminderState} title={props.createdTitle} dueTime={props.dueTime} isLive={props.isLive} />
-}
-
-function DecisionAction(props: Readonly<OnboardingDecisionProps>) {
-  const t = useTranslations('onboarding.flow')
-  const decisionPending = props.reminderDecision !== 'idle'
-  const allowing = props.reminderDecision === 'allowing'
-  const declining = props.reminderDecision === 'declining'
-  if (props.step === ONBOARDING_WHAT_STEP) {
-    const empty = !props.sentence.trim()
-    return <FlowActions primary={<>
-      <PillButton disabled={empty} loading={props.suggestionPending} descriptionId={empty ? 'onboarding-continue-reason' : undefined} onClick={props.onContinueWhat}>{t('continue')}</PillButton>
-    </>} reason={empty ? <p id="onboarding-continue-reason" className="m-0 text-center text-sm text-[var(--fg-3)]">{t('what.continueReason')}</p> : null} secondary={!props.isLive ? <>
-      {/* eslint-disable-next-line local/max-button-words -- The granted onboarding drawing uses this account action label. */}
-      <PillButton variant="ghost" onClick={props.onAccount}>{t('what.haveAccount')}</PillButton>
-    </> : undefined} />
-  }
-  if (props.step === ONBOARDING_WHEN_STEP) return <PillButton loading={props.creating} onClick={props.onSave}>{props.createFailed ? t('retry') : t('create')}</PillButton>
-  if (props.reminderState === 'ask') return <FlowActions primary={<PillButton disabled={declining} loading={allowing} onClick={props.onAllow}>{t('remind.allow')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.deny')}</PillButton>} />
-  if (props.reminderState === 'failed') return <FlowActions primary={<IconButton label={t('retry')} disabled={declining} loading={allowing} onClick={props.onAllow}><RefreshCw size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} />
-  if (props.reminderState === 'no-time' || props.reminderState === 'no-day') return <FlowActions primary={<PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>} secondary={<PillButton variant="ghost" disabled={decisionPending} onClick={props.onEditSchedule}>{t(props.reminderState === 'no-day' ? 'remind.setDays' : 'remind.setTime')}</PillButton>} />
-  return <PillButton loading={declining} onClick={props.onContinueWithout}>{t('remind.continue')}</PillButton>
-}
-
-function OnboardingHeader({ step, onBack, onSkip, completionPending }: Readonly<{ step: number; onBack?: () => void; onSkip?: () => void; completionPending: boolean }>) {
-  const t = useTranslations('onboarding.flow')
-  const displayStep = getOnboardingDisplayStep(step)
-  return <div className="flex min-h-14 items-center justify-between gap-4 px-4 min-[1024px]:px-0">
-    <div className="flex shrink-0 items-center gap-2">
-      {onBack && (step === ONBOARDING_WHEN_STEP || step === ONBOARDING_REMIND_STEP) ? <button type="button" aria-label={t('back')} disabled={completionPending} onClick={onBack}
-        className="grid min-h-[48px] w-[48px] shrink-0 touch-manipulation transition-[background-color] duration-[var(--dur-hover-control)] ease-[var(--ease-standard)] place-items-center rounded-full text-[var(--fg-1)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-40">
-        <ArrowLeft size={20} aria-hidden="true" focusable="false" className="translate-x-px rtl:-translate-x-px rtl:-scale-x-100" />
-      </button> : null}
-      <span className="font-mono text-xs tracking-[0.04em] text-[var(--fg-3)] tabular-nums"><span translate="no">Orbit</span> · <span className="text-[var(--fg-1)]">{String(displayStep).padStart(2, '0')}</span> / {String(getOnboardingDisplayTotal()).padStart(2, '0')}</span><span className="sr-only" role="status">{t('step', { current: displayStep, total: getOnboardingDisplayTotal() })}</span></div>
-    <div className="min-w-0 flex-1"><ActionRow>
-      {onSkip ? <PillButton variant="ghost" size="sm" loading={completionPending} onClick={onSkip}>{t('skip')}</PillButton> : null}
-    </ActionRow></div>
-  </div>
-}
-
 function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: boolean) {
   const completed = conditions.every(Boolean)
   useLayoutEffect(() => {
@@ -190,7 +130,6 @@ function useGuidedRunCompletion(conditions: readonly boolean[], usedAiRead: bool
 }
 
 interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip'> {
-  legacy: ReactNode
   resolvingDeferredPush: boolean
   habitCreated: boolean
   onStepBack: () => void
@@ -198,7 +137,6 @@ interface StepsPhaseProps extends Omit<GuidedOnboardingProps, 'onBack' | 'onSkip
 }
 
 function StepsPhase({ resolvingDeferredPush, habitCreated, onStepBack, onLeave, ...props }: Readonly<StepsPhaseProps>) {
-  
   return <GuidedOnboardingFlow {...props} onBack={resolvingDeferredPush ? undefined : onStepBack} onSkip={habitCreated ? undefined : onLeave} />
 }
 
@@ -514,7 +452,7 @@ export function OnboardingFlow({ finalStepOnly = false, onExit }: Readonly<{ fin
   const overlay = step >= ONBOARDING_DONE_STEP ? (
     <DoneShell modalId={modalId} loginHref={isLive ? undefined : getOnboardingLoginUrl(searchQuery, true)} onSelect={(id) => completeAndLeave(isLive ? DONE_TAB_ROUTES[id] : undefined)}><DoneContent step={step} proContent={<OnboardingProStep ref={proStepRef} onFinish={finishAndLeave} />} doneContent={<OnboardingComplete createdHabit={createdTitle} emoji={emoji || '◎'} remindersOff={remindersOff} skipped={skipped} signedOut={!isLive} continuesToPro={isLive && getCurrentPlan(profile) !== 'Pro'} dueToday={createdDueToday} general={createdGeneral} onFinish={() => completeAndLeave()} />} /></DoneShell>
   ) : (
-    <StepsPhase legacy={<FlowShell nav={false} landmark={false} mode="onboarding" header={<OnboardingHeader completionPending={completionPending} step={step} onBack={resolvingDeferredPush ? undefined : goBack} onSkip={createdId ? undefined : () => void skip()} />} action={<div className="contents" inert={completionPending || undefined}><DecisionAction {...decisionProps} /></div>} notice={<><UpdateAvailableBanner modalId={modalId} inset={false} />{createFailed ? <ErrorState message={t('createFailed')} /> : null}<AppToastHost placement="modal" modalId={modalId} /></>}><div className="contents" inert={completionPending || undefined}><OnboardingStepStage step={step}><DecisionContent {...decisionProps} /></OnboardingStepStage>{suggestion.verification}</div></FlowShell>} {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
+    <StepsPhase {...decisionProps} habitEmoji={emoji} emojiProposed={emojiProposed} onEmoji={(value) => { setEmoji(value); setEmojiProposed(false) }} completionPending={completionPending} offline={!isOnline}
       notices={<><UpdateAvailableBanner modalId={modalId} inset={false} /><AppToastHost placement="modal" modalId={modalId} />{suggestion.verification}</>}
       leaveFailed={leaveFailed} resolvingDeferredPush={resolvingDeferredPush} habitCreated={createdId !== null} onStepBack={goBack} onLeave={() => void skip()} />
   )

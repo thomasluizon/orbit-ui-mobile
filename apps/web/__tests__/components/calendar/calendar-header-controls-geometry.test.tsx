@@ -21,8 +21,6 @@ import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { ShellWide } from '@/components/shell/shell-wide'
 import * as Menu from '@/components/ui/dropdown-menu'
 import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
-import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
-import { FlowShell } from '@/components/shell/flow-shell'
 import type { SegmentedControlProps } from '@orbit/shared/contracts/navigation'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
@@ -59,26 +57,6 @@ function inventoryOptions(keys: string[], messages: typeof en | typeof ptBR): Se
   if (keys.length === 2) return [option(0), option(1)]
   if (keys.length === 3) return [option(0), option(1), option(2)]
   return [option(0), option(1), option(2), option(3)]
-}
-
-function renderOnboardingSegments(locale: string, messages: typeof en | typeof ptBR, mode: string) {
-  return render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC"><FlowShell nav={false} mode="onboarding"><OnboardingCreateHabit
-      title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
-      schedule={{ frequencyUnit: mode === 'oneTime' ? null : mode === 'fixed' ? 'Day' : 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: mode === 'fixed' ? ['Monday'] : [], isGeneral: false, isFlexible: mode === 'flexible', dueTime: '' }}
-      onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()}
-    /></FlowShell></NextIntlClientProvider>)
-}
-
-function expectOnboardingRows(geometry: { group: number; top: number; groupWidth: number; width: number; textWidth: number }[], mode: string, contentWidth: number) {
-  const groups = new Set(geometry.map((label) => label.group))
-  expect(groups.size).toBe(mode === 'flexible' || mode === 'interval' ? 2 : 1)
-  for (const group of groups) {
-    const row = geometry.filter((label) => label.group === group)
-    expect(new Set(row.map((label) => label.top)).size).toBe(1)
-    const remaining = row.map((label) => label.width - label.textWidth)
-    expect(Math.max(...remaining) - Math.min(...remaining)).toBeLessThan(0.1)
-  }
-  for (const label of geometry) expect(label.groupWidth).toBe(contentWidth)
 }
 
 describe('Calendar header geometry in Chromium', () => {
@@ -446,43 +424,6 @@ describe('Calendar header geometry in Chromium', () => {
     } finally { await page.close() }
   })
 
-  it.each([{ locale: 'en', messages: en }, { locale: 'pt-BR', messages: ptBR }].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].map((mode) => ({ ...locale, width, mode })))))('fits compact onboarding $mode containers in $locale at $width', async ({ locale, messages, width, mode }) => {
-    const { container } = renderOnboardingSegments(locale, messages, mode)
-    const page = await harness.browser.newPage({ viewport: { width, height: 915 } })
-    try {
-      await page.setContent(`<style>${harness.stylesheet}</style>${container.innerHTML}`)
-      await loadAppFonts(page)
-      await mountMeasuredSegmentedControls(page)
-      for (const scale of [1, 2]) {
-        await page.evaluate((scale) => { document.documentElement.style.fontSize = `${16 * scale}px` }, scale)
-        await vi.waitFor(async () => {
-          expect(await page.evaluate(measureSplitSegmentWords)).toEqual([])
-          const geometry = await page.evaluate(() => [...document.querySelectorAll<HTMLButtonElement>('[role="radio"]')].map((button) => {
-            const label = button.querySelector('span')!
-            const range = document.createRange()
-            range.selectNodeContents(label)
-            const bounds = range.getBoundingClientRect()
-            const box = label.getBoundingClientRect()
-            return { text: label.textContent, fits: bounds.width <= box.width + 1, right: bounds.right, lines: range.getClientRects().length, overflow: label.scrollWidth > label.clientWidth,
-              ellipsis: getComputedStyle(label).textOverflow === 'ellipsis', width: button.getBoundingClientRect().width, textWidth: bounds.width, textHeight: bounds.height, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, group: button.closest('[role="radiogroup"]')!.getBoundingClientRect().top, groupWidth: button.closest('[role="radiogroup"]')!.getBoundingClientRect().width }
-          }))
-          for (const label of geometry) {
-            expect(label.fits, JSON.stringify(geometry)).toBe(true)
-            expect(label.overflow).toBe(false)
-            expect(label.ellipsis).toBe(false)
-            if (scale === 1) expect(label.lines).toBe(1)
-            expect(label.textHeight).toBeLessThanOrEqual(label.height)
-            expect(label.right).toBeLessThanOrEqual(width - 16)
-          }
-          if (scale === 1) {
-            const contentWidth = await page.locator('[data-flow-mode="onboarding"]').evaluate((column) => column.clientWidth - parseFloat(getComputedStyle(column).paddingLeft) - parseFloat(getComputedStyle(column).paddingRight))
-            expectOnboardingRows(geometry, mode, contentWidth)
-          }
-        }, { timeout: 2000 })
-      }
-    } finally { await page.close() }
-  })
-
   it.each([{ width: 412, height: 56 }, { width: 1280, height: 48 }])('retains shared menu row height at $width', async ({ width, height }) => {
     render(<NextIntlClientProvider locale="pt-BR" messages={ptBR} timeZone="UTC"><Menu.Root open={true}><Menu.Trigger asChild><button type="button" aria-label="Menu trigger" /></Menu.Trigger><Menu.Content presentation="sheet" title={ptBR.calendar.options} items={[{ id: 'legend', label: ptBR.calendar.legendTitle }]}  /></Menu.Root></NextIntlClientProvider>)
     await screen.findByRole('menu')
@@ -630,7 +571,7 @@ describe('Calendar header geometry in Chromium', () => {
 
   it.each([false, true])('folds rem-scaled segments before whole words overflow, fullWidth %s', async (fullWidth) => {
     const keys = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'web')
-      .find((site) => site.optionKeys.includes('onboarding.flow.when.fixedMode'))!.optionKeys
+      .find((site) => site.optionKeys.length === 4)!.optionKeys
     const choices = inventoryOptions(keys, ptBR)
     const { container } = render(<div style={{ width: 740 }}><SegmentedControl fullWidth={fullWidth} label="Schedule" value="0" onChange={vi.fn()} options={choices} /></div>)
     const page = await harness.browser.newPage({ viewport: { width: 840, height: 915 } })

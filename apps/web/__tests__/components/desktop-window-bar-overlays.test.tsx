@@ -39,11 +39,6 @@ vi.mock('@/hooks/use-push-notification-preferences', () => ({
   subscribeToPushNotifications: vi.fn(),
   requestWebPushPermission: vi.fn(),
 }))
-vi.mock('@/components/onboarding/onboarding-welcome', () => ({
-  OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) =>
-    <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
-}))
-
 const PLATFORMS = ['windows', 'macos'] as const
 const WINDOWS = [{ width: 800, height: 600 }, { width: 1280, height: 800 }] as const
 

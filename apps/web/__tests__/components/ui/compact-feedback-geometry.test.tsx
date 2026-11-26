@@ -9,7 +9,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
-import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
 import { WrappedCover } from '@/app/(app)/wrapped/_components/wrapped-cover'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { CalendarHeader } from '@/app/(app)/calendar/_components/calendar-shell'
@@ -52,13 +51,12 @@ describe('compact feedback in its owning composition', () => {
   afterAll(async () => { await closeChrome(launch) }, 30_000)
 
   it.each([320, 480, 840, 1100, 1440].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale =>
-    (['onboarding', 'wrapped'] as const).map(surface => ({ width, locale, surface })),
+    (['wrapped'] as const).map(surface => ({ width, locale, surface })),
   )))('keeps $surface paint clear at $width in $locale', async ({ width, locale, surface }) => {
     const messages = locale === 'en' ? en : ptBR
     const markup = renderToStaticMarkup(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
       <main style={{ padding: 16, maxWidth: 740, margin: 'auto' }}>
-        {surface === 'onboarding' ? <OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />
-          : <WrappedCover period="week" state="ready" onSelectPeriod={vi.fn()} onStart={vi.fn()} onRetry={vi.fn()} />}
+        <WrappedCover period="week" state="ready" onSelectPeriod={vi.fn()} onStart={vi.fn()} onRetry={vi.fn()} />
       </main>
     </NextIntlClientProvider>)
     const page = await browser.newPage({ viewport: { width, height: 915 }, reducedMotion: 'reduce' })

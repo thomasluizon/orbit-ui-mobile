@@ -601,7 +601,6 @@ The glyph primitives provide the asset; their consumers below own its placement.
 | `shell/shell-wide` (web) | Retained the sidebar conversation entry. Android uses its composer entry instead. |
 | `shell/composer` | Retained the habit-detail conversation entry. In the compact shell, Hoje uses the conversation entry stacked directly above the create FAB, centred, `ORBIT_BUTTON_GAP` apart, with no drag, no move action and no stored position (#2005, #2042, #2077); wide web retains the sidebar Orbit row. |
 | `profile/profile-nav-icon` | Draws `OrbitMascot` as the Orbit settings row's leading icon (#1780). The labelled settings row remains aligned with its neighbours. |
-| `onboarding/onboarding-create-habit` | Removed the proposal-heading glyph; the attribution text and proposed treatment remain. |
 | `habits/habit-create-frame` | Removed the origin glyph; the conversation-origin text remains. |
 | `habits/habit-form-fields/tag-suggestions` | Removed the suggestion-action glyph; its localized label, loading, proposals, acceptance and retry remain. |
 | `habits/habit-form-fields/habit-emoji-selector` | Replaced the icon-only suggestion action with its localized text. Loading, focus, retry and error behavior remain. |

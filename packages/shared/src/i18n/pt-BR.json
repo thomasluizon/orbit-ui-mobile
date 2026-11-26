@@ -474,7 +474,6 @@
       "openApp": "Abrir Orbit"
     },
     "signIn": "Entrar",
-    "enterCode": "Digite o código",
     "email": "Qual é o seu e-mail?",
     "emailPlaceholder": "nome@exemplo.com",
     "sendCode": "Continuar",
@@ -484,14 +483,12 @@
     "turnstileExpired": "A verificação de segurança expirou.",
     "turnstileRetry": "Tentar novamente",
     "codeSent": "Código enviado.",
-    "codeSentTo": "Enviamos um código de 6 dígitos para {email}.",
     "verificationCode": "Qual código você recebeu?",
     "verify": "Entrar",
     "resendCode": "Reenviar código",
     "resendIn": "Você pode pedir outro código em {time}",
     "changeEmail": "Trocar e-mail",
     "genericError": "Ocorreu um erro. Tente de novo.",
-    "orContinueWith": "ou",
     "openInOrbit": "Abrir no Orbit",
     "continueInApp": "Continue no app do Orbit",
     "signInWithGoogle": "Continuar com o Google",
@@ -522,14 +519,11 @@
       "unknownError": "Algo deu errado. Tente de novo.",
       "sendFailed": "O código não foi enviado. Tente de novo."
     },
-    "emailTitle": "Entre com o seu e-mail",
     "codeResent": "Um novo código foi enviado.",
     "codeHint": "O código vale 5 minutos.",
     "googleOffline": "Precisa de conexão para abrir o Google.",
     "onboarding": {
       "title": "Entre para salvar o seu plano",
-      "subtitle": "Ele sai deste aparelho e vai para a sua conta.",
-      "habitOne": "1 hábito esperando neste aparelho.",
       "habits": "{count, plural, =0 {# hábitos esperando neste aparelho.} one {# hábito esperando neste aparelho.} other {# hábitos esperando neste aparelho.}}",
       "continue": "Continuar e salvar"
     },
@@ -822,8 +816,6 @@
     "autoLogParentConfirm": "Registrar hábito",
     "autoSkipParentMessage": "Quer pular \"{name}\" também?",
     "autoSkipParentConfirm": "Pular hábito",
-    "checklistCompleteTitle": "Checklist concluído",
-    "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar hábito",
     "checklistCompleteQuestion": "Quer registrar este hábito?",
     "bulkDeleteTitle": "Apagar hábitos",
@@ -1315,8 +1307,6 @@
     "bestStreak": "Recorde",
     "totalLogs": "Registros",
     "missedCount": "Sem registro",
-    "emptyMonth": "Nenhum hábito estava programado neste mês.",
-    "futureMonth": "Este mês ainda não chegou.",
     "emptyStat": "sem dados",
     "loading": "Carregando",
     "loadError": "Não foi possível carregar o calendário. Tente de novo.",
@@ -2899,7 +2889,6 @@
       "reviewDeletion": "Revisar",
       "deleteData": "Apagar dados",
       "heading": "Recomeçar",
-      "confirmHeading": "Isso apaga tudo",
       "willDelete": "O que será apagado",
       "willKeep": "O que continua",
       "description": "Comece do zero. Isso apaga para sempre o que você acompanha, mas mantém a sua conta.",
@@ -2975,7 +2964,6 @@
     }
   },
   "shareCard": {
-    "title": "Compartilhe seu progresso",
     "entry": "Compartilhar progresso",
     "loading": "Preparando seu card…",
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
@@ -3217,7 +3205,6 @@
     "retry": "Tentar de novo",
     "askOrbit": "Analisar resumo",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
     "guided": {
       "freePrompt": "O Pro traz um resumo diário dos seus hábitos."
     }
@@ -3506,7 +3493,6 @@
       }
     },
     "wizard": {
-      "calendarTitle": "Importar do Google Agenda",
       "calendarQuestion": "Importar do Google Agenda?",
       "calendarDescription": "Já tem eventos no Google Agenda? Importe como hábitos no Orbit de uma vez só.",
       "calendarButton": "Importar calendário",
@@ -3938,8 +3924,6 @@
       "unit": "Unidade",
       "unitPlaceholder": "ex: livros",
       "deadline": "Prazo",
-      "deadlineOptional": "Opcional",
-      "addDeadline": "Adicionar prazo",
       "removeDeadline": "Remover prazo",
       "deadlineInPast": "Esse prazo já passou.",
       "progressExceedsTarget": "Valor acima da meta. Vai ser limitado a 100%.",
@@ -3953,9 +3937,7 @@
       "progressNoteTooLong": "Encurte a nota para até 500 caracteres.",
       "type": "Tipo de meta",
       "typeStandard": "Progresso",
-      "typeStandardDescription": "Acompanhe uma meta mensurável passo a passo. Atualize o progresso na mão ou vincule hábitos que contam para ela.",
       "typeStreak": "Sequência",
-      "typeStreakHintGood": "Vincule um hábito: a sequência cresce a cada dia que você concluir. Se perder um dia, ela volta a zero.",
       "typeStreakHintBad": "Vincule um hábito que você quer evitar. A sequência cresce a cada dia sem deslizes. Se registrar um deslize, ela volta a zero.",
       "streakTarget": "Quantos dias seguidos?",
       "streakTargetPlaceholder": "ex: 30, 60, 90",
@@ -4408,7 +4390,6 @@
   "stepUp": {
     "operationDelete": "Apagar a conta",
     "operationKeys": "Chaves de API",
-    "eyebrow": "Confirmar: {operation}",
     "title": "Digite o código que enviamos",
     "body": "Enviamos um código de 6 dígitos para {email}. Ele vale só para esta ação.",
     "codeLabel": "Qual código você recebeu?",
@@ -4432,7 +4413,6 @@
     "successPro": "Esta conta Pro será apagada em {date}.",
     "signOut": "Sair",
     "neverShare": "O Orbit nunca pede este código em uma conversa, nem por e-mail ou mensagem. Só pedimos o código nesta tela.",
-    "cancel": "Cancelar esta ação",
     "genericError": "Não foi possível conferir o código. Tente de novo.",
     "requestError": "Não foi possível enviar outro código. Tente de novo.",
     "apiKeyHandoff": "Para criar uma chave de API, você precisa de um código enviado ao seu e-mail.",

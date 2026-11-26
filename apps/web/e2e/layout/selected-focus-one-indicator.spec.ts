@@ -224,7 +224,6 @@ for (const width of [412, 1352]) {
           const goal = page.getByRole('dialog', { name: words.goals.create, exact: true })
           const types = goal.getByRole('radiogroup', { name: words.goals.form.typeQuestion, exact: true }).getByRole('radio')
           await checkChoice(page, types.nth(0), types.nth(1))
-          await goal.getByRole('button', { name: words.goals.form.addDeadline, exact: true }).click()
           await goal.locator('button[aria-haspopup="dialog"]').click()
           const datePicker = page.getByRole('dialog', { name: words.common.selectDate, exact: true })
           const today = datePicker.locator(`button[data-day="${LAYOUT_FIXED_TIME.slice(0, 10)}"]`)

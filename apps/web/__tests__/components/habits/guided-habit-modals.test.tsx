@@ -7,6 +7,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
+import { createApiClientError } from '@orbit/shared/utils'
 
 const state = vi.hoisted(() => ({
   locale: 'pt-BR' as 'en' | 'pt-BR', online: true, clock24: true,
@@ -776,6 +777,63 @@ describe('the edit surface', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(save()).toBeEnabled()
     expect(save()).toHaveAttribute('aria-busy', 'true')
+  })
+
+  describe('a save that loses its response', () => {
+    async function changeTimeAndSave() {
+      await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+      await press(/^Hora/)
+      await press('20:00')
+      await press(ptBR.common.save)
+    }
+
+    it('keeps the draft, asks for a fresh readback and retries only after the readback answers', async () => {
+      state.update.mockRejectedValue(new Error('timeout'))
+      const { closed } = mountEdit()
+      await changeTimeAndSave()
+      expect(state.update).toHaveBeenCalledTimes(1)
+      expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+      expect(screen.getByText(ptBR.habits.form.saveUncertain)).toBeVisible()
+      expect(screen.queryByRole('dialog', { name: ptBR.result.title })).not.toBeInTheDocument()
+      expect(closed).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /^Hora/ })).toHaveTextContent('20:00')
+      state.update.mockResolvedValue({})
+      state.saved = { ...storedHabit, dueTime: '20:00' }
+      state.refetchDetail.mockResolvedValueOnce({ isSuccess: true, data: { ...storedHabit, parentId: null } })
+      await press(ptBR.common.save)
+      expect(state.update).toHaveBeenCalledTimes(2)
+      expect(state.refetchDetail.mock.invocationCallOrder[1]).toBeLessThan(state.update.mock.invocationCallOrder[1]!)
+      expect(await screen.findByRole('dialog', { name: ptBR.result.title })).toHaveAccessibleDescription(ptBR.result.habit.updated)
+      expect(screen.queryByText(ptBR.habits.form.saveUncertain)).not.toBeInTheDocument()
+    })
+
+    it('refuses the retry while the authoritative readback is unavailable', async () => {
+      state.update.mockRejectedValue(new Error('timeout'))
+      state.refetchDetail.mockResolvedValue({ isSuccess: false, data: { ...storedHabit, parentId: null } })
+      mountEdit()
+      await changeTimeAndSave()
+      expect(state.update).toHaveBeenCalledTimes(1)
+      await press(ptBR.common.save)
+      expect(state.update).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole('button', { name: /^Hora/ })).toHaveTextContent('20:00')
+      expect(screen.getByText(ptBR.habits.form.saveUncertain)).toBeVisible()
+    })
+
+    it.each([[500], [408]])('treats a %i answer as a save with an unknown outcome', async (status) => {
+      state.update.mockRejectedValue(createApiClientError(status, {}, 'Failed'))
+      mountEdit()
+      await changeTimeAndSave()
+      expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+      expect(screen.getByText(ptBR.habits.form.saveUncertain)).toBeVisible()
+    })
+
+    it('states a definitive refusal with its own message and asks for no readback', async () => {
+      state.update.mockRejectedValue(createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))
+      mountEdit()
+      await changeTimeAndSave()
+      expect(state.refetchDetail).not.toHaveBeenCalled()
+      expect(screen.queryByText(ptBR.habits.form.saveUncertain)).not.toBeInTheDocument()
+    })
   })
 
   it('shows the stored values and an enabled save once the details load', async () => {

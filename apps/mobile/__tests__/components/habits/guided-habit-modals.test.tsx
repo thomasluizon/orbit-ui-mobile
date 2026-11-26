@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import { createApiClientError } from '@orbit/shared/utils'
 import type { HabitPhraseReadResponse } from '@orbit/shared/types'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
@@ -777,6 +778,73 @@ describe('the Android edit surface', () => {
     expect(alerts(tree)).toHaveLength(0)
     expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: false, busy: true })
     tree.unmount()
+  })
+
+  describe('a save that loses its response', () => {
+    const shows = (tree: Tree, text: string) => tree.hosts().some((node) => node.props.children === text)
+    async function changeTimeAndSave(tree: Tree) {
+      await settle()
+      expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+      await tap(tree, /^Hora,/)
+      await tap(tree, '20:00')
+      await primary(tree)
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+    }
+
+    it('keeps the draft, asks for a fresh readback and retries only after the readback answers', async () => {
+      state.update.mockRejectedValue(new Error('timeout'))
+      const onClose = vi.fn()
+      const tree = mountEdit(onClose)
+      await changeTimeAndSave(tree)
+      expect(state.update).toHaveBeenCalledTimes(1)
+      expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+      expect(shows(tree, ptBR.habits.form.saveUncertain)).toBe(true)
+      expect(shows(tree, ptBR.result.habit.updated)).toBe(false)
+      expect(onClose).not.toHaveBeenCalled()
+      expect(control(tree, /^Hora,/)?.props.accessibilityLabel).toContain('20:00')
+      state.update.mockResolvedValue({})
+      state.saved = { ...storedHabit, dueTime: '20:00', children: [] }
+      state.refetchDetail.mockResolvedValueOnce({ isSuccess: true, data: { ...storedHabit, parentId: null } })
+      await primary(tree)
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(state.update).toHaveBeenCalledTimes(2)
+      expect(state.refetchDetail.mock.invocationCallOrder[1]).toBeLessThan(state.update.mock.invocationCallOrder[1]!)
+      expect(shows(tree, ptBR.result.habit.updated)).toBe(true)
+      expect(shows(tree, ptBR.habits.form.saveUncertain)).toBe(false)
+      tree.unmount()
+    })
+
+    it('refuses the retry while the authoritative readback is unavailable', async () => {
+      state.update.mockRejectedValue(new Error('timeout'))
+      state.refetchDetail.mockResolvedValue({ isSuccess: false, data: { ...storedHabit, parentId: null } })
+      const tree = mountEdit()
+      await changeTimeAndSave(tree)
+      expect(state.update).toHaveBeenCalledTimes(1)
+      await primary(tree)
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(state.update).toHaveBeenCalledTimes(1)
+      expect(control(tree, /^Hora,/)?.props.accessibilityLabel).toContain('20:00')
+      expect(shows(tree, ptBR.habits.form.saveUncertain)).toBe(true)
+      tree.unmount()
+    })
+
+    it.each([[500], [408]])('treats a %i answer as a save with an unknown outcome', async (status) => {
+      state.update.mockRejectedValue(createApiClientError(status, {}, 'Failed'))
+      const tree = mountEdit()
+      await changeTimeAndSave(tree)
+      expect(state.refetchDetail).toHaveBeenCalledTimes(1)
+      expect(shows(tree, ptBR.habits.form.saveUncertain)).toBe(true)
+      tree.unmount()
+    })
+
+    it('states a definitive refusal with its own message and asks for no readback', async () => {
+      state.update.mockRejectedValue(createApiClientError(409, { errorCode: 'CONCURRENT_UPDATE_CONFLICT' }, 'Conflict'))
+      const tree = mountEdit()
+      await changeTimeAndSave(tree)
+      expect(state.refetchDetail).not.toHaveBeenCalled()
+      expect(shows(tree, ptBR.habits.form.saveUncertain)).toBe(false)
+      tree.unmount()
+    })
   })
 
   it('shows the stored values and an enabled save once the details load', async () => {

@@ -50,7 +50,6 @@ const mocks = vi.hoisted(() => {
     anonymous: vi.fn(),
     anonymousAvailable: false,
     locale: 'en',
-    realProposal: false,
     subscribe: vi.fn(),
     requestPermissionOnly: vi.fn(),
     navigate: vi.fn(),
@@ -122,19 +121,6 @@ vi.mock('@/components/ui/pill-button', () => ({
   PillButton: ({ children, label, onClick, disabled, loading, variant = 'primary', size = 'md', descriptionId }: { children: React.ReactNode; label?: string; onClick: () => void; disabled?: boolean; loading?: boolean; variant?: string; size?: string; descriptionId?: string }) => <button type="button" aria-label={label} disabled={disabled || loading} onClick={onClick} data-variant={variant} data-size={size} aria-describedby={descriptionId}>{children}</button>,
 }))
 vi.mock('@/components/ui/toast', () => ({ Toast: ({ message, actionLabel, onAction }: { message: string; actionLabel?: string; onAction?: () => void }) => <div role="status">{message}{actionLabel ? <button type="button" onClick={onAction}>{actionLabel}</button> : null}</div> }))
-vi.mock('@/components/onboarding/onboarding-welcome', () => ({
-  OnboardingWelcome: ({ sentence, onChange }: { sentence: string; onChange: (value: string) => void }) => <input aria-label="sentence" value={sentence} onChange={(event) => onChange(event.target.value)} />,
-}))
-vi.mock('@/components/onboarding/onboarding-create-habit', async (importOriginal) => {
-  const original = await importOriginal<typeof import('@/components/onboarding/onboarding-create-habit')>()
-  return {
-  OnboardingCreateHabit: (props: React.ComponentProps<typeof original.OnboardingCreateHabit>) => {
-    if (mocks.realProposal) return <original.OnboardingCreateHabit {...props} />
-    const { emoji, proposed, schedule, canSaveRepeatWeeks, onToggleDay, onTimeChange } = props
-    return <div data-testid="schedule" data-emoji={emoji} data-proposed={proposed} data-can-save-repeat-weeks={String(canSaveRepeatWeeks)} data-interval-weeks={String(schedule.intervalWeeks)}><button type="button" onClick={() => onToggleDay('Monday')}>Monday</button><input aria-label="time" onChange={(event) => onTimeChange(event.target.value)} /></div>
-  }
-} })
-vi.mock('@/components/onboarding/onboarding-remind', () => ({ OnboardingRemind: ({ state }: { state: string }) => <div data-testid="reminder-state">{state}</div> }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: ({ onFinish, ref }: { onFinish: (destination?: string) => Promise<void>; ref?: React.Ref<{ exit: (destination?: string) => void }> }) => {
   mocks.finalFinish = onFinish
   React.useImperativeHandle(ref, () => ({ exit: (destination?: string) => { void onFinish(destination) } }))
@@ -172,39 +158,11 @@ function mount(isLive: boolean) {
   return render(<OnboardingActionsProvider actions={actions()} isLive={isLive}><OnboardingFlow /></OnboardingActionsProvider>)
 }
 
-async function reachReminder(isLive: boolean) {
-  if (isLive) mocks.profile.aiMessagesUsed = mocks.profile.aiMessagesLimit
-  mount(isLive)
-  fireEvent.change(screen.getByLabelText('sentence'), { target: { value: 'Walk every Monday at 18:00' } })
-  fireEvent.click(screen.getByRole('button', { name: 'continue' }))
-  fireEvent.click(await screen.findByRole('button', { name: 'create' }))
-  await screen.findByTestId('reminder-state')
-}
-
-const COUNTER_PATTERN = /^Orbit · \d{2} \/ \d{2}$/
-const originalTimeZone = process.env.TZ
-
-function isCounter(element: Element | null): boolean {
-  return element?.tagName === 'SPAN' && COUNTER_PATTERN.test(String(element.textContent))
-}
-
-function headerCounter(): string {
-  return String(screen.getByText((_, element) => isCounter(element)).textContent)
-}
-
-async function reachDone(isLive: boolean) {
-  await reachReminder(isLive)
-  fireEvent.click(screen.getByRole('button', { name: 'remind.deny' }))
-  await screen.findByTestId('done')
-}
-
 describe('OnboardingFlow state model', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
     Reflect.deleteProperty(navigator, 'serviceWorker')
-    if (originalTimeZone === undefined) delete process.env.TZ
-    else process.env.TZ = originalTimeZone
   })
 
   beforeEach(() => {
@@ -223,7 +181,6 @@ describe('OnboardingFlow state model', () => {
     mocks.profile.aiMessagesUsed = 0
     mocks.profile.timeZone = 'UTC'
     mocks.locale = 'en'
-    mocks.realProposal = false
     mocks.anonymousAvailable = false
     mocks.anonymous.mockReset()
     mocks.profileAvailable = true

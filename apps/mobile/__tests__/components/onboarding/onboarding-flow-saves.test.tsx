@@ -38,6 +38,7 @@ vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
   useOnboardingActions: () => ({ createHabit: mocks.createHabit, updateHabit: mocks.updateHabit, deferPushRegistration: vi.fn(), finishOnboarding: mocks.finishOnboarding }),
   useOnboardingIsLive: () => mocks.isLive,
 }))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({ OnboardingComplete: (props: Record<string, unknown>) => React.createElement('Done', props) }))
 vi.mock('@/components/onboarding/onboarding-pro-step', () => ({ OnboardingProStep: () => React.createElement('ProStep') }))
 vi.mock('@/components/shell/flow-shell', () => ({
   FlowShell: ({ header, action, notice, children }: { header: React.ReactNode; action: React.ReactNode; notice?: React.ReactNode; children: React.ReactNode }) => React.createElement('FlowShell', null, header, notice, children, action),
@@ -50,6 +51,7 @@ const TestRenderer: { create(element: React.ReactNode): TestTree; act(callback: 
 ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 
 const flow = en.onboarding.flow
+const originalTimeZone = process.env.TZ
 const trees: TestTree[] = []
 const hosts = (tree: TestTree) => tree.root.findAll((node) => typeof node.type === 'string')
 const textOf = (node: TestNode): string => node.children.map((child) => typeof child === 'string' ? child : textOf(child as TestNode)).join('')
@@ -69,10 +71,10 @@ async function press(tree: TestTree, label: string) {
   await TestRenderer.act(async () => { (button.props.onPress as () => void)(); await Promise.resolve(); await Promise.resolve() })
 }
 
-async function reachReminder(): Promise<TestTree> {
+async function reachReminder(phrase = 'Walk every Monday at 18:00'): Promise<TestTree> {
   const tree = await mount()
   const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === flow.guided.what.question)!
-  await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)('Walk every Monday at 18:00') })
+  await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(phrase) })
   await press(tree, flow.continue)
   await press(tree, flow.create)
   expect(texts(tree)).toContain(flow.guided.remind.line)
@@ -94,6 +96,8 @@ beforeEach(() => {
 })
 afterEach(async () => {
   vi.useRealTimers()
+  if (originalTimeZone === undefined) delete process.env.TZ
+  else process.env.TZ = originalTimeZone
   await TestRenderer.act(() => { for (const tree of trees.splice(0)) tree.unmount() })
 })
 
@@ -168,5 +172,49 @@ describe('guided onboarding keeps each reminder decision apart', () => {
     await press(tree, flow.remind.deny)
     expect(mocks.permission).not.toHaveBeenCalled()
     expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: false }))
+  })
+})
+
+const done = (tree: TestTree) => tree.root.findAll((node) => node.type === 'Done')[0]!.props
+
+describe('guided onboarding tells the done screen if the habit is due today', () => {
+  it('says a weekday habit that skips today is not in the day', async () => {
+    vi.setSystemTime(new Date(2026, 8, 16))
+    mocks.isLive = false
+    const tree = await reachReminder('Walk every Monday and Thursday at 18:00')
+    await press(tree, flow.remind.deny)
+    expect(done(tree)).toMatchObject({ dueToday: false, general: false })
+  })
+
+  it.each([
+    ['UTC', '2026-09-14T02:00:00.000Z', 'America/Sao_Paulo', false],
+    ['America/Sao_Paulo', '2026-09-14T00:30:00.000Z', 'UTC', true],
+  ])('uses the %s device at %s with the %s profile weekday', async (deviceTimeZone, instant, profileTimeZone, dueToday) => {
+    process.env.TZ = deviceTimeZone
+    vi.setSystemTime(new Date(instant))
+    mocks.timeZone = profileTimeZone
+    const tree = await reachReminder()
+    await press(tree, flow.remind.deny)
+    expect(done(tree).dueToday).toBe(dueToday)
+  })
+
+  it('reads the weekday in the timezone the profile loads after the wait', async () => {
+    process.env.TZ = 'UTC'
+    vi.setSystemTime(new Date('2026-09-14T02:00:00.000Z'))
+    mocks.profileAvailable = false
+    mocks.refetchProfile.mockResolvedValue({ data: { timeZone: 'America/Sao_Paulo' } })
+    const tree = await reachReminder()
+    await press(tree, flow.remind.deny)
+    expect(done(tree).dueToday).toBe(false)
+  })
+
+  it('reads the weekday in the device timezone it queues for a null profile timezone', async () => {
+    process.env.TZ = 'America/Sao_Paulo'
+    vi.setSystemTime(new Date('2026-09-14T00:30:00.000Z'))
+    Object.assign(mocks, { timeZone: null })
+    vi.mocked(performQueuedApiMutation).mockResolvedValue({})
+    const tree = await reachReminder()
+    await press(tree, flow.remind.deny)
+    expect(done(tree).dueToday).toBe(false)
   })
 })

@@ -85,7 +85,7 @@ const PRESS_FILL_FILES = [
   'components/habits/habit-form-fields/tag-suggestions.tsx',
   'components/habits/goal-linking-field.tsx',
   'components/ui/weekday-picker.tsx',
-  'components/onboarding/onboarding-create-habit.tsx',
+  'components/onboarding/onboarding-stepper.tsx',
 ] as const
 
 const PICKER_ROW_CALLERS = [

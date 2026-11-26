@@ -9,7 +9,6 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { INTERACTION_FILL_CLEARANCE } from '@orbit/shared/theme'
 import { getSegmentedControlLayout } from '@orbit/shared/utils'
-import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { FlowShell } from '@/components/shell/flow-shell'
 import { CalendarHeader } from '@/app/(tabs)/calendar/_components/calendar-shell'
 import { PlanSelection } from '@/components/upgrade/plan-selection'
@@ -168,37 +167,6 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty', init: () => undefined },
   useTranslation: () => ({ t: i18n.t.bind(i18n), i18n }),
 }))
-
-it.each(['en', 'pt-BR'].flatMap((locale) => [320, 360, 384, 412].flatMap((width) => ['fixed', 'flexible', 'interval', 'oneTime'].flatMap((mode) => [1, 1.3, 1.6, 2].map((fontScale) => ({ locale, width, mode, fontScale }))))))('fits the onboarding $mode containers in $locale at $width and scale $fontScale', async ({ locale, width, mode, fontScale }) => {
-  await i18n.changeLanguage(locale)
-  __setWindowDimensions({ width, height: 915, scale: 1, fontScale })
-  let tree!: SegmentTree
-  await TestRenderer.act(() => { tree = TestRenderer.create(<FlowShell nav={false}><OnboardingCreateHabit
-    title="Walk" emoji="" proposed={false} correcting canSaveRepeatWeeks atLimit={false} allowance={5}
-    schedule={{ frequencyUnit: mode === 'oneTime' ? null : mode === 'fixed' ? 'Day' : 'Week', frequencyQuantity: 1, intervalWeeks: 1, days: mode === 'fixed' ? ['Monday'] : [], isGeneral: false, isFlexible: mode === 'flexible', dueTime: '' }}
-    onCorrect={vi.fn()} onToggleDay={vi.fn()} onTimeChange={vi.fn()} onModeChange={vi.fn()} onFrequencyUnitChange={vi.fn()} onQuantityChange={vi.fn()} onIntervalWeeksChange={vi.fn()}
-  /></FlowShell>) as typeof tree })
-  const { layout, labels, radios, groups } = await measureSegments(tree, width, fontScale)
-  try {
-    layout.calculateLayout(width, 915, Yoga.DIRECTION_LTR)
-    expect(groups).toHaveLength(mode === 'flexible' || mode === 'interval' ? 2 : 1)
-    for (const { node: group, radios: options } of groups) {
-      expect(new Set(options.map((node) => node.getComputedTop())).size).toBe(1)
-      expect(group.getComputedWidth()).toBe(width - 32)
-      for (const radio of options) {
-        expect(radio.getComputedHeight()).toBeGreaterThanOrEqual(48)
-        expect(radio.getComputedWidth()).toBeGreaterThanOrEqual(48)
-        expect(radio.getComputedLeft() + radio.getComputedWidth()).toBeLessThanOrEqual(group.getComputedWidth())
-        const label = labels[radios.indexOf(radio)]!
-        expect(label.node.getComputedWidth(), 'A segment must fit each whole word').toBeGreaterThanOrEqual(label.intrinsic)
-        if (fontScale > 1.3) {
-          expect(label.host.props.numberOfLines).toBeUndefined()
-          expect(label.node.getComputedHeight()).toBeLessThanOrEqual(radio.getComputedHeight())
-        }
-      }
-    }
-  } finally { layout.freeRecursive(); await TestRenderer.act(() => tree.unmount()) }
-})
 
 const segmentSites = collectSegmentCallSites(resolve(process.cwd(), '../..'), 'mobile')
 

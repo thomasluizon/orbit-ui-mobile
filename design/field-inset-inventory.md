@@ -111,8 +111,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/mobile/components/habits/habit-form-fields/tag-picker-field.tsx` | 87 | `BottomSheetAppTextInput` | standard | 16 |
 | `apps/mobile/components/habits/repeat-reminder-detail.tsx` | 70 | `TimeField` | time | 16 |
 | `apps/mobile/components/onboarding/guided-onboarding-flow.tsx` | 234 | `TimeField` | time | 16 |
-| `apps/mobile/components/onboarding/onboarding-create-habit.tsx` | 99 | `TimeField` | time | 16 |
-| `apps/mobile/components/onboarding/onboarding-welcome.tsx` | 22 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/api-key-create-flow.tsx` | 182 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/api-key-create-flow.tsx` | 185 | `Input` | standard | 16 |
 | `apps/mobile/components/profile/preferences-sections.tsx` | 120 | `BottomSheetAppTextInput` | standard | 16 |
@@ -200,8 +198,6 @@ Paths are repository-relative. Repeated rows are separate controls within one ow
 | `apps/web/components/habits/habit-list/move-parent-overlay.tsx` | 145 | `Input` | standard | 16 |
 | `apps/web/components/habits/repeat-reminder-detail.tsx` | 65 | `TimeField` | time | 16 |
 | `apps/web/components/onboarding/guided-onboarding-flow.tsx` | 219 | `TimeField` | time | 16 |
-| `apps/web/components/onboarding/onboarding-create-habit.tsx` | 131 | `TimeField` | time | 16 |
-| `apps/web/components/onboarding/onboarding-welcome.tsx` | 25 | `Input` | standard | 16 |
 | `apps/web/components/profile/api-key-create-flow.tsx` | 178 | `Input` | standard | 16 |
 | `apps/web/components/profile/api-key-create-flow.tsx` | 181 | `Input` | standard | 16 |
 | `apps/web/components/profile/profile-api-keys.tsx` | 124 | `Input` | standard | 16 |

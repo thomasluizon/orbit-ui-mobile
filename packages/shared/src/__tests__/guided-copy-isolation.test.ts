@@ -11,7 +11,6 @@ function read(words: Words, key: string): unknown {
 const BASE_COPY: ReadonlyArray<{ key: string; guidedKey: string; en: string; ptBR: string }> = [
   { key: 'todayOrbit.offline', guidedKey: 'todayOrbit.guided.offline', en: 'Orbit needs a connection. Habit logging still works offline.', ptBR: 'O Orbit precisa de conexão. Você ainda pode registrar hábitos offline.' },
   { key: 'todayOrbit.offlineLog', guidedKey: 'todayOrbit.guided.offlineLog', en: 'Saved on this device. Orbit will sync it when you reconnect.', ptBR: 'Salvo neste aparelho. O Orbit sincroniza quando você se reconectar.' },
-  { key: 'summary.freePrompt', guidedKey: 'summary.guided.freePrompt', en: 'Pro gets a daily summary of your habits.', ptBR: 'No Pro, você recebe um resumo diário dos seus hábitos.' },
   { key: 'habits.detail.loadError', guidedKey: 'habits.detail.orbit.loadError', en: 'We could not load this habit.', ptBR: 'Não foi possível carregar este hábito.' },
 ]
 

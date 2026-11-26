@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest'
 import { createTokensV2 } from '@/lib/theme'
 import { createLoginStyles } from '@/app/login-styles'
 import {
-  LoginHeader,
   ReferralBanner,
   LoginSuccessMessage,
 } from '@/components/auth/login-sections'
@@ -39,20 +38,6 @@ function createTranslator(copy: Record<string, string>): (key: string) => string
 function findText(root: TestNode, style: unknown): TestNode {
   return root.find((node) => node.type === 'Text' && node.props.style === style)
 }
-
-describe('LoginHeader', () => {
-  it('marks the step title as an accessibility header', () => {
-    const t = (key: string) => key
-
-    const tree = render(<LoginHeader step="email" t={t} styles={styles} />)
-
-    const heading = tree.root.find(
-      (node) => node.props.accessibilityRole === 'header',
-    )
-
-    expect(heading.props.children).toBe('auth.emailTitle')
-  })
-})
 
 describe('ReferralBanner', () => {
   it('announces the localized referral invite through a polite live region', () => {

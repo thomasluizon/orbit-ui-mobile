@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from '@testing-library/react'
-import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
 import { NotificationList } from '@/components/navigation/notification-list'
 
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key }))
@@ -21,12 +20,6 @@ function stateMascotWidths(container: HTMLElement) {
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('state surface Orbit size', () => {
-  it.each([[1023, '96'], [1024, '128']] as const)('draws the onboarding welcome Orbit at %ipx as %s', (width, size) => {
-    stubViewportWidth(width)
-    const { container } = render(<OnboardingWelcome sentence="" marks={[]} onChange={vi.fn()} />)
-    expect(stateMascotWidths(container)).toEqual([size])
-  })
-
   it.each([[1023, '96'], [1024, '128']] as const)('draws the empty notification list Orbit at %ipx as %s', (width, size) => {
     stubViewportWidth(width)
     const { container } = render(

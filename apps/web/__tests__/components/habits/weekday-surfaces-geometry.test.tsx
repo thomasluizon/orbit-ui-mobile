@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { makeCreateHabitsPreview } from '@orbit/shared/test-support/pending-operation-preview-fixtures'
-import { OnboardingCreateHabit } from '@/components/onboarding/onboarding-create-habit'
 import { PendingOperationCard } from '@/components/chat/pending-operation-card'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -20,14 +19,8 @@ vi.mock('@/hooks/use-time-format', () => ({ useTimeFormat: () => ({ displayTime:
 vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/sheet-double'))
 
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const onboarding = {
-  title: 'Read', emoji: '', schedule: { days: weekdays, frequencyUnit: 'Day' as const, frequencyQuantity: 1, intervalWeeks: 1, isGeneral: false, isFlexible: false, dueTime: '' },
-  proposed: false, correcting: true, canSaveRepeatWeeks: true, atLimit: false, allowance: 5,
-  onCorrect: vi.fn(), onToggleDay: vi.fn(), onTimeChange: vi.fn(), onModeChange: vi.fn(), onFrequencyUnitChange: vi.fn(), onQuantityChange: vi.fn(), onIntervalWeeksChange: vi.fn(),
-}
-
 const cases = [320, 360, 393, 412].flatMap(width => (['en', 'pt-BR'] as const).flatMap(locale => [1, 2].flatMap(scale =>
-  (['onboarding', 'proposal', 'orbit'] as const).map(surface => ({ width, locale, scale, surface })),
+  (['orbit'] as const).map(surface => ({ width, locale, scale, surface })),
 )))
 
 describe('weekday surface geometry', () => {
@@ -49,13 +42,12 @@ describe('weekday surface geometry', () => {
     const item = operation.items![0]!
     operation.items = [{ ...item, fields: [{ ...item.fields[0]!, field: 'days', newValue: 'Monday', proposedValue: ['Monday'] }] }]
     render(<NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
-      {surface === 'orbit' ? <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
-        : <OnboardingCreateHabit {...onboarding} proposed={surface === 'proposal'} correcting={surface !== 'proposal'} />}
+      <PendingOperationCard pendingOperation={operation} onRevise={vi.fn()} onConfirmExecute={vi.fn()} onPrepareStepUp={vi.fn()} onVerifyStepUp={vi.fn()} />
     </NextIntlClientProvider>)
-    if (surface === 'orbit') fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
-    const names = Object.values(surface === 'orbit' ? messages.dates.daysLong : messages.onboarding.flow.when.daysLong)
+    fireEvent.click(screen.getByRole('button', { name: messages.chat.operation.edit }))
+    const names = Object.values(messages.dates.daysLong)
     const controls = [...document.querySelectorAll('button')].filter(button => names.includes(button.getAttribute('aria-label') ?? '') || names.includes(button.textContent))
-    const row = surface === 'proposal' ? document.querySelector(`[aria-label="${messages.onboarding.flow.when.daysLabel}"]`)! : controls[0]!.parentElement!
+    const row = controls[0]!.parentElement!
     const page = await browser.newPage({ viewport: { width, height: 1200 } })
     try {
       await page.setContent(`<style>${stylesheet}:root{font-size:${16 * scale}px}</style><main style="padding:16px"><section style="padding:24px">${row.outerHTML}</section></main>`)
@@ -71,7 +63,7 @@ describe('weekday surface geometry', () => {
       bounds.forEach((box, index) => {
         expect(box.top).toBe(bounds[0]!.top)
         expect(box.width).toBeGreaterThanOrEqual(24)
-        expect(box.height).toBeGreaterThanOrEqual(surface === 'proposal' ? 36 : 48)
+        expect(box.height).toBeGreaterThanOrEqual(48)
         expect(box.textLeft).toBeGreaterThanOrEqual(box.left - 0.1)
         expect(box.textRight).toBeLessThanOrEqual(box.right + 0.1)
         expect(box.textBottom).toBeLessThanOrEqual(box.bottom + 0.1)

@@ -172,7 +172,7 @@ for (const { width, height } of windows) {
       await completeInstallOnboarding(page)
       await page.goto('/login')
       await loadAppFonts(page)
-      await expect(page.getByRole('heading', { name: en.auth.emailTitle })).toBeVisible()
+      await expect(page.getByRole('heading', { name: en.auth.email })).toBeVisible()
       await page.evaluate(() => document.fonts.ready)
       const geometry = await page.locator('main > div').first().evaluate((element) => {
         const bounds = element.getBoundingClientRect()

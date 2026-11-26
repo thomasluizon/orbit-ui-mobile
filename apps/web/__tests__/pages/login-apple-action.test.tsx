@@ -3,7 +3,7 @@ import { NextIntlClientProvider, createTranslator } from 'next-intl'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
-import { EmailStep } from '@/app/(auth)/login/email-step'
+import { LoginProviderActions } from '@/app/(auth)/login/email-step'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 
 vi.mock('motion/react-m', async () => {
@@ -16,19 +16,18 @@ const t = createTranslator({ locale: 'en', messages: en })
 
 afterEach(() => { vi.unstubAllEnvs() })
 
-function renderEmailStep(isAppleLoading: boolean) {
+function renderProviderActions(isAppleLoading: boolean) {
   vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'client-id')
   render(<NextIntlClientProvider locale="en" messages={en} timeZone="UTC">
-    <EmailStep email="ana@example.com" emailFocusRequest={0} onEmailChange={vi.fn()} isSubmitting={false} isGoogleLoading={false} isAppleLoading={isAppleLoading}
-      isOnline canSubmitTurnstile turnstileWidget={null} errorKey={null} errorMessage={null} onSendCode={vi.fn()} onSignInWithGoogle={vi.fn()}
-      onSignInWithApple={vi.fn()} t={t} />
+    <LoginProviderActions disabled={false} isGoogleLoading={false} isAppleLoading={isAppleLoading} isOnline error={null}
+      onSignInWithGoogle={vi.fn()} onSignInWithApple={vi.fn()} t={t} />
   </NextIntlClientProvider>)
   return { apple: screen.getByRole('button', { name: en.auth.signInWithApple }), google: screen.getByRole('button', { name: en.auth.signInWithGoogle }) }
 }
 
 describe('web Apple sign-in action', () => {
   it('draws Apple\'s custom button rules at the Google pill height and shape', () => {
-    const { apple, google } = renderEmailStep(false)
+    const { apple, google } = renderProviderActions(false)
     for (const action of [apple, google]) {
       expect(action.style).toMatchObject({ height: '', minHeight: `${SMALL_PILL_VISIBLE_MIN}px`, borderRadius: `${SMALL_PILL_VISIBLE_MIN / 2}px`, whiteSpace: 'normal' })
     }
@@ -48,13 +47,13 @@ describe('web Apple sign-in action', () => {
   })
 
   it('shows Apple sign-in as busy while it starts, as the Google action and the mobile Apple action do', () => {
-    const { apple, google } = renderEmailStep(true)
+    const { apple, google } = renderProviderActions(true)
     expect(apple).toHaveAttribute('aria-busy', 'true')
     expect(google).not.toHaveAttribute('aria-busy')
   })
 
   it('keeps Apple\'s face, logo and title on a busy action and dims it to the disabled opacity, as the iPhone control does', () => {
-    const { apple } = renderEmailStep(true)
+    const { apple } = renderProviderActions(true)
     expect(apple).toBeDisabled()
     expect(apple).toHaveAttribute('aria-busy', 'true')
     expect(apple.style.backgroundColor).toBe('var(--apple-sign-in-fill)')
