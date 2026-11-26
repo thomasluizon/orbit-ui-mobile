@@ -6,6 +6,7 @@ import { makeHabitDetail } from '@orbit/shared/test-support/habit-detail-fixture
 import { habitDetailSchema } from '@orbit/shared/types/habit'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { test } from './upgrade-fixtures'
+import { openOptionalStep, reachCreateSummary } from './guided-habit-steps'
 
 async function expectAddGeometry(scope: Locator, messages: typeof en | typeof ptBR) {
   const input = scope.getByRole('textbox', { name: messages.habits.form.checklistPlaceholder, exact: true })
@@ -43,9 +44,9 @@ for (const width of [320, 412, 1352]) {
 
         test('keeps the create field separate before and after keyboard additions', async ({ page }) => {
           await page.goto('/habits/new')
-          const screen = page.locator('[data-habit-create-screen]')
-          await screen.getByRole('button', { name: messages.habits.form.moreDetails }).click()
-          const disclosure = screen.locator('.habit-form-disclosure[data-open="true"]')
+          await reachCreateSummary(page, messages)
+          await openOptionalStep(page, messages, 'checklist')
+          const disclosure = page.locator('[data-question-flow]')
           const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
           const add = disclosure.getByRole('button', { name: messages.common.add, exact: true })
           await expect(add).toBeDisabled()
@@ -70,7 +71,9 @@ for (const width of [320, 412, 1352]) {
           )
           await page.goto(`/habits/${habit.id}`)
           await page.getByRole('button', { name: messages.habits.editHabit }).click()
-          const disclosure = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
+          const dialog = page.getByRole('dialog', { name: messages.habits.editHabit, exact: true })
+          await openOptionalStep(page, messages, 'checklist')
+          const disclosure = dialog.locator('[data-question-flow]')
           const input = disclosure.getByPlaceholder(messages.habits.form.checklistPlaceholder)
           const add = disclosure.getByRole('button', { name: messages.common.add, exact: true })
           await expect(disclosure.getByRole('textbox', { name: messages.habits.form.checklistItemLabel.replace('{n}', '1'), exact: true })).toHaveValue('Prepare coffee')
