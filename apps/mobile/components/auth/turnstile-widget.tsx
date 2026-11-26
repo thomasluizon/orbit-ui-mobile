@@ -76,7 +76,8 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   const [load, setLoad] = useState(0)
   const onTokenRef = useRef(onToken)
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const loadDeadline = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const stopDeadline = useRef<() => void>(() => {})
+  const [appActive, setAppActive] = useState(() => AppState.currentState === 'active')
   const deadlineLive = useRef(false)
   const bridgeStage = useRef<TurnstileBridgeStage | null>(null)
   const { recordFailure, startReport } = useLoadFailureReport(resetKey)
@@ -91,37 +92,31 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   }, [resetKey])
 
   useEffect(() => {
-    deadlineLive.current = true
-    const arm = () => {
-      loadDeadline.current = setTimeout(() => {
-        loadDeadline.current = undefined
-        deadlineLive.current = false
-        clearTimeout(reloadTimer.current)
-        recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
-        onTokenRef.current(null)
-        setState('failed')
-      }, TURNSTILE_LOAD_DEADLINE_MS)
-    }
+    const subscription = AppState.addEventListener('change', (next) => setAppActive(next === 'active'))
+    return () => subscription.remove()
+  }, [])
+
+  useEffect(() => { deadlineLive.current = true }, [resetKey, load])
+
+  useEffect(() => {
     // WHY: Android pauses a WebView whose activity is not in front (the Google sign-in browser), so a deadline that runs there reports a failure the person never saw https://developer.android.com/reference/android/webkit/WebView#onPause()
-    if (AppState.currentState === 'active') arm()
-    const subscription = AppState.addEventListener('change', (next) => {
-      clearTimeout(loadDeadline.current)
-      loadDeadline.current = undefined
-      if (next === 'active' && deadlineLive.current) arm()
-    })
-    return () => {
-      subscription.remove()
-      clearTimeout(loadDeadline.current)
-      loadDeadline.current = undefined
-    }
-  }, [resetKey, load, bridgeHost, recordFailure])
+    if (!appActive || !deadlineLive.current) return
+    const deadline = setTimeout(() => {
+      deadlineLive.current = false
+      clearTimeout(reloadTimer.current)
+      recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
+      onTokenRef.current(null)
+      setState('failed')
+    }, TURNSTILE_LOAD_DEADLINE_MS)
+    stopDeadline.current = () => clearTimeout(deadline)
+    return () => clearTimeout(deadline)
+  }, [resetKey, load, appActive, bridgeHost, recordFailure])
 
   useEffect(() => () => clearTimeout(reloadTimer.current), [])
 
   function endLoad() {
     clearTimeout(reloadTimer.current)
-    clearTimeout(loadDeadline.current)
-    loadDeadline.current = undefined
+    stopDeadline.current()
     deadlineLive.current = false
   }
 

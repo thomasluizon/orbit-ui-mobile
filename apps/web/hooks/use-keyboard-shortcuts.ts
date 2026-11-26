@@ -28,6 +28,7 @@ export function useKeyboardShortcuts(enabled = true): void {
   const chordArmed = useRef(false)
   const chordTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the cleanup runs clearChord, which clears chordTimer; RD does not follow a timer armed in a key handler. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (!enabled) return
 
