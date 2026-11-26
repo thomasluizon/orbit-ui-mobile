@@ -5,6 +5,7 @@ import { appendFile, cp, mkdir, readFile, writeFile, rm } from 'node:fs/promises
 import { basename, dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { request as requestHttp } from 'node:http'
+import { createInterface } from 'node:readline'
 import { buildHermeticWeb } from './runner.mjs'
 import { readFixtures } from './build.mjs'
 import { startProxy } from './server.mjs'
@@ -21,7 +22,12 @@ const record = (path, value) => writeFile(path, `${JSON.stringify(value, null, 2
 async function nativeTool(output) {
   const executable = join(output, 'accessibility')
   if (!windows) await execute('clang', ['-fobjc-arc', '-framework', 'AppKit', '-framework', 'ApplicationServices', join(directory, 'acceptance-ax.m'), '-o', executable])
+  const senders = new Map()
   return async (pid, command, menuCommandId, { title, label, action, invoke = false, openCenter = false, executable: target, capture, bundle } = {}) => {
+    if (!windows && ['down', 'escape', 'palette'].includes(command)) {
+      if (!senders.has(pid)) senders.set(pid, keySender(executable, pid))
+      return senders.get(pid)(command)
+    }
     const reply = windows
       ? await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-File', join(directory, 'acceptance-uia.ps1'), '-TargetProcessId', String(pid), '-Command', command,
         ...(menuCommandId === undefined ? [] : ['-MenuCommandId', String(menuCommandId)]),
@@ -30,6 +36,21 @@ async function nativeTool(output) {
       : await execute(executable, [String(pid), command, ...(title === undefined ? [] : [title, label, invoke ? '1' : '0', openCenter ? '1' : '0']),
         ...(bundle === undefined ? [] : [bundle])])
     return reply.trim() ? JSON.parse(reply) : null
+  }
+}
+
+// One macOS sender posts every key of an app process. It outlives each post, and the run cleanup stops it.
+function keySender(executable, pid) {
+  const handle = start(executable, [String(pid), 'keyboard'], { stdio: ['pipe', 'pipe', 'pipe'] })
+  const replies = createInterface({ input: handle.child.stdout })[Symbol.asyncIterator]()
+  return async (command) => {
+    handle.child.stdin.write(`${command}\n`)
+    const reply = await replies.next()
+    if (reply.done) {
+      await handle.done
+      throw new Error(`The macOS key sender closed before it replied to ${command}`)
+    }
+    return JSON.parse(reply.value)
   }
 }
 

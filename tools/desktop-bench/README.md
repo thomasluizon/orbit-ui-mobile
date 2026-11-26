@@ -461,7 +461,10 @@ Each run also logs `Runner vCPUs: N` (the length of Node's `os.cpus()`, one entr
 it in `report.json` `runner.cpus`, because native keys are lost more often on the 5 vCPU macOS runner class.
 
 On macOS, the AX helper posts every key into the event stream of the installed process with
-`CGEventPostToPid`, and the key window of the shell receives it as a typed key. A key posted at the HID
+`CGEventPostToPid`, and the key window of the shell receives it as a typed key. One `keyboard` helper process posts every
+key of an app process: it reads one key name per line, writes one reply line, and stays alive until the run stops it.
+`CGEventPostToPid` returns no delivery result, and a one-shot helper that exits at once can end before its key arrives.
+A key posted at the HID
 event tap gets its target from the session routing of the window server. On hosted runners, that routing
 lost whole keys while the shell was the focused application with a key window and a blinking caret.
 The helper first reads the focused application from the system-wide AX element. If the installed process
