@@ -26,7 +26,7 @@ import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -51,6 +51,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --probe     run one probe and print the reading (utilization, resetsAt, age)
   --allow-over-limit [main|worker]  let one account continue over 90% in its current week, with 1 worker. The owner session
               runs it when the owner says so. It takes the main account with no word. A new week of that account ends it.
+  --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
+              and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
               the owner still gets its needs:owner label and one comment, and the driver keeps working on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
@@ -74,6 +76,7 @@ const MAX_WORKERS = 3
 const SLOT_EPSILON = 1e-9
 const RESET_TOLERANCE_SECONDS = 3600
 const ALLOW_FILE = "over-limit.json"
+const PACE_SETTING_FILE = "pace-setting.json"
 const SLEEP_FILE = "sleep.json"
 const SLEEP_ITEMS_FILE = "sleep-items.json"
 const QUESTIONS_FILE = "questions.json"
@@ -379,6 +382,27 @@ const reportSleep = async (env) => {
 }
 
 /** Writes `sleep.json` for `--sleep on` or `--sleep off` and prints the state it reads back. */
+/** The owner's pace setting: the accounts whose weekly pace is off. A missing or unreadable file keeps the pace on for both. */
+export const readUnpaced = (stateDir) => {
+  try {
+    const saved = JSON.parse(readFileSync(join(stateDir, PACE_SETTING_FILE), "utf8"))
+    return ACCOUNT_NAMES.filter((name) => saved?.[name]?.paced === false)
+  } catch {
+    return []
+  }
+}
+
+/** Writes the pace setting of one account and keeps the other account's. */
+export const setPace = (env, name, word, { out }) => {
+  const unpaced = new Set(readUnpaced(env.stateDir))
+  if (word === "off") unpaced.add(name)
+  else unpaced.delete(name)
+  writeFileSync(join(env.stateDir, PACE_SETTING_FILE), `${JSON.stringify(Object.fromEntries(ACCOUNT_NAMES.map((account) => [account, { paced: !unpaced.has(account) }])))}\n`)
+  const off = readUnpaced(env.stateDir).includes(name)
+  out(off ? `The ${name} account runs ${MAX_WORKERS} workers with no weekly pace until a worker ends on its usage limit.` : `The ${name} account follows the weekly pace.`)
+  return off === (word === "off") ? 0 : 3
+}
+
 export const setSleep = (env, word, { out }) => {
   const before = readSleep(env.stateDir)
   writeFileSync(join(env.stateDir, SLEEP_FILE), `${JSON.stringify({ on: word === "on", since: word === "on" && before.on ? before.since : new Date(env.now()).toISOString() })}\n`)
@@ -1512,7 +1536,7 @@ const admit = async (env, mem, tickets, states, { running, room, full }) => {
  * of the week and `limitedUntil` is the stop after a worker hit a usage limit; `stopped` is either. The worker account is
  * `absent` (0 slots) while no second login exists. The slots that the account's own running workers hold come off its free slots.
  */
-const decidePace = (env, mem, running, allowances, name) => {
+const decidePace = (env, mem, running, allowances, name, unpaced = []) => {
   const state = stateOf(mem, name)
   const busy = running.workers.filter(({ record }) => nameOfKey(mem, record.account) === name).length
   if (name === WORKER && state.account === null) return { name, key: null, state: "absent", utilization: null, resetsAt: null, line: null, slots: 0, weekly: false, limitedUntil: null, stopped: false, running: busy, free: 0 }
@@ -1521,7 +1545,9 @@ const decidePace = (env, mem, running, allowances, name) => {
   // While a probe is owed the status-line snapshot may belong to another organization of the same email, so only a reading of this account's key counts.
   const reading = newestReading(own, state.probeOwed ? null : snapshot)
   const allowance = allowances[name]
-  const pace = paceState({ reading, now: env.now(), allowance, workersRun: busy > 0 })
+  const pace = unpaced.includes(name)
+    ? { state: "unpaced", utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, line: null, slots: MAX_WORKERS, stopped: false }
+    : paceState({ reading, now: env.now(), allowance, workersRun: busy > 0 })
   const stopped = pace.stopped || state.stoppedUntil !== null
   return { ...pace, name, key: state.account?.key ?? null, weekly: pace.stopped, limitedUntil: state.stoppedUntil, stopped, running: busy, free: stopped ? 0 : Math.max(0, pace.slots - busy) }
 }
@@ -1724,8 +1750,9 @@ export const tick = async (env, mem) => {
   const paused = pauseIssue(tickets)
   if (account.ok) readRunningReadings(env, mem, running)
   const allowances = readAllowances(env)
+  const unpaced = readUnpaced(env.stateDir)
   const paces = {}
-  for (const name of ACCOUNT_NAMES) paces[name] = decidePace(env, mem, running, allowances, name)
+  for (const name of ACCOUNT_NAMES) paces[name] = decidePace(env, mem, running, allowances, name, unpaced)
   // One probe for each account, only at a start with no reading, or each hour while the driver is paused or the account is stopped
   // by a usage limit. The weekly stop runs none. The pause is the main account's: Pullfrog runs on it.
   for (const name of ACCOUNT_NAMES) {
@@ -1734,7 +1761,7 @@ export const tick = async (env, mem) => {
     const owed = paces[name].state === "unknown" || state.probeOwed || state.stoppedUntil !== null || (name === MAIN && paused && paces[name].running === 0)
     if (!account.ok || env.dryRun || paces[name].weekly || paces[name].state === "absent" || !probeDue || !owed) continue
     await runProbe(env, mem, tickets, name).catch((error) => log(env, "probe", "error", error.message))
-    paces[name] = decidePace(env, mem, running, allowances, name)
+    paces[name] = decidePace(env, mem, running, allowances, name, unpaced)
   }
   // The weekly stop of the main account holds Pullfrog requests, and its issue is the owner's to lift.
   if (account.ok) await syncStop(env, tickets, paces.main)
@@ -1915,6 +1942,12 @@ export const parseArguments = (argv) => {
     if (!SLEEP_WORDS.includes(argv[sleepAt + 1]) || rest.length > 0) return { error: `--sleep takes one word, on or off, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "sleep", word: argv[sleepAt + 1] }
   }
+  const paceAt = argv.indexOf("--pace")
+  if (paceAt >= 0) {
+    const rest = argv.filter((argument, index) => index < paceAt || index > paceAt + 2).filter((argument) => argument !== "--help" && argument !== "-h")
+    if (!ACCOUNT_NAMES.includes(argv[paceAt + 1]) || !SLEEP_WORDS.includes(argv[paceAt + 2]) || rest.length > 0) return { error: `--pace takes an account, main or worker, then on or off, and no other argument` }
+    return { help: argv.includes("--help") || argv.includes("-h"), mode: "pace", account: argv[paceAt + 1], word: argv[paceAt + 2] }
+  }
   const allowAt = argv.indexOf("--allow-over-limit")
   if (allowAt >= 0 && ACCOUNT_NAMES.includes(argv[allowAt + 1])) {
     const rest = argv.filter((argument, index) => index !== allowAt && index !== allowAt + 1 && argument !== "--help" && argument !== "-h")
@@ -2024,6 +2057,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   env.selfUpdate = parsed.mode === "loop"
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
+  if (parsed.mode === "pace") return setPace(env, parsed.account, parsed.word, { out })
   if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
   if (parsed.mode === "release-now") {
     const running = requestTrain(env.stateDir)

@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, recordStart, resultText, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -1806,6 +1806,12 @@ const sleepCases = async () => {
   same("drive: --sleep on writes sleep.json, prints the state, and a second on keeps the first start", [on, readSleep(cli.env.stateDir), since, outputs.length, /^Sleep is on since /.test(outputs[0])], [0, { on: true, since }, iso(0), 2, true])
   same("drive: --sleep takes on or off and nothing else", [parseArguments(["--sleep", "on"]), parseArguments(["--sleep", "off"]).word, parseArguments(["--sleep"]).error !== undefined, parseArguments(["--sleep", "maybe"]).error !== undefined, parseArguments(["--sleep", "on", "--once"]).error !== undefined], [{ help: false, mode: "sleep", word: "on" }, "off", true, true, true])
   same("drive: the usage states the sleep flag", /--sleep on\|off/.test(await usageText()), true)
+  const paceOutputs = []
+  const paceOff = setPace(cli.env, "worker", "off", { out: (line) => paceOutputs.push(line) })
+  const afterOff = readUnpaced(cli.env.stateDir)
+  const paceOn = setPace(cli.env, "worker", "on", { out: (line) => paceOutputs.push(line) })
+  same("drive: --pace worker off turns off only the worker account's pace, and on turns it back on", [paceOff, afterOff, paceOn, readUnpaced(cli.env.stateDir), paceOutputs], [0, ["worker"], 0, [], ["The worker account runs 3 workers with no weekly pace until a worker ends on its usage limit.", "The worker account follows the weekly pace."]])
+  same("drive: --pace takes an account and on or off, and nothing else", [parseArguments(["--pace", "worker", "off"]), parseArguments(["--pace", "main", "on"]).account, parseArguments(["--pace", "worker"]).error !== undefined, parseArguments(["--pace", "other", "off"]).error !== undefined, parseArguments(["--pace", "worker", "off", "--once"]).error !== undefined], [{ help: false, mode: "pace", account: "worker", word: "off" }, "main", true, true, true])
 }
 
 const QUESTIONS_ORDER = "/questions --auto"
@@ -2070,6 +2076,12 @@ const twoAccountCases = async () => {
   const line = both.messages.find((entry) => entry.includes(" pace "))
   same("drive: the pace line names both accounts by key with their slots and stop state", [line.includes(`main ${ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no`), line.includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2, stop no`)], [true, true])
   same("drive: no log line, issue or notification holds an email of either account", JSON.stringify([both.messages, both.calls]).match(/@example/g), null)
+
+  const unpaced = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10)], reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: stoppedReading })
+  writeFileSync(join(unpaced.env.stateDir, "pace-setting.json"), `${JSON.stringify({ main: { paced: true }, worker: { paced: false } })}\n`)
+  await unpaced.run()
+  const unpacedLine = unpaced.messages.find((entry) => entry.includes(" pace "))
+  same("drive: the worker account with its pace off runs 3 workers over 90%, and the main account keeps its 90% stop", [unpaced.launched.map(accountOfLaunch), unpacedLine.includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.920, line unknown, slots 3, running 0, free 3, stop no`), unpacedLine.includes(`main ${ACCOUNT.key}: utilization 0.920`) && unpacedLine.includes("stop yes")], [[WORKER_DIRECTORY, WORKER_DIRECTORY, WORKER_DIRECTORY], true, true])
 
   const running = scenario({ tickets: [ticket(7), ticket(8), ticket(9)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   leftBehind(running, {}, "", "chore-ticket-6")
