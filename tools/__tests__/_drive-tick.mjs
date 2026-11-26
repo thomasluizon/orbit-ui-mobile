@@ -584,8 +584,9 @@ const ownerAndBodyCases = async () => {
   const answered = scenario({ tickets: [ticket(7, { comments: [...launches, comment(null, "Use the second option for the label.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await answered.run()
   same("drive: an owner comment after the cap grants no launch of its own: the capped pull request gets one Opus launch and no label", [answered.launched.length, answered.launched[0]?.invocation.model, answered.launched[0]?.order.includes("Use the second option for the label."), only(answered.calls, "editLabels").length], [1, "claude-opus-5-5", false, 0])
-  const opus = launchComment("fix", branch, -20 * MINUTE).body.replace("}", ',"model":"claude-opus-5-5"}')
-  const spent = scenario({ tickets: [ticket(7, { comments: [...launches, comment("launch", opus.split("\n")[1], -20 * MINUTE), comment(null, "One more try.", -10 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const opus = launchComment("fix", branch, -20 * MINUTE, null, { model: "claude-opus-5-5" })
+  same("drive: the Opus launch fixture reads back as one launch record with its model", launchesOf(ticket(7, { comments: [opus] })), [{ kind: "fix", part: null, branch, model: "claude-opus-5-5" }])
+  const spent = scenario({ tickets: [ticket(7, { comments: [...launches, opus, comment(null, "One more try.", -10 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await spent.run()
   same("drive: after the Opus launch an owner comment grants no launch, and nothing is written", [spent.launched.length, only(spent.calls, "editLabels").length, only(spent.calls, "comment").length, only(spent.calls, "notify").length], [0, 0, 0, 0])
 
@@ -1439,7 +1440,7 @@ const unreadLogCases = async () => {
   same("drive: a failed Pullfrog log that could not be read is read again on the next tick and pauses the driver", only(scene.calls, "createTicket").length, 1)
 }
 
-const launchComment = (kind, branch, offset = -3600 * 1000, part = null) => comment("launch", JSON.stringify({ kind, part, branch }), offset)
+const launchComment = (kind, branch, offset = -3600 * 1000, part = null, extra = {}) => comment("launch", JSON.stringify({ kind, part, branch, ...extra }), offset)
 const mergedPull = (number, branch, remaining) => ({ number: 40, body: `Tracks ${REPOSITORY}#${number}\n\n${remaining}`, mergedAt: iso(-60 * 1000), headRefName: branch })
 const mergedRoute = (number, history) => ["--state merged", (args) => (args.join(" ").includes(`#${number}"`) ? JSON.stringify(history) : "[]")]
 const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
