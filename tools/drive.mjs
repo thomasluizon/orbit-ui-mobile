@@ -17,12 +17,12 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, renderOrder, renderResumeOrder } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
@@ -1076,6 +1076,32 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
   return path
 }
 
+/** Gives a new worktree its dependencies: a clone of the main checkout's, or one `npm ci`. A failure only logs, because the worker installs for itself. */
+const provisionDependencies = async (env, repoKey, ticket, worktree) => {
+  const item = `ticket#${ticket.number}`
+  const result = await env.dependencies(env.config.repos[repoKey], worktree)
+  if (result.action === "clone") log(env, item, "worktree deps clone", `${result.ms} ms, ${result.directories.length} directories`)
+  else if (result.action === "install") log(env, item, "worktree deps install", `${result.ms} ms, ${result.reason}`)
+  else if (result.action === "failed") log(env, item, "worktree deps failed", `${result.ms} ms, ${result.reason}`)
+}
+
+/**
+ * The session that a fix, ci-fix or merge-forward launch resumes, or null for a cold start. The newest session that a worker of the branch
+ * left must belong to the same account, hold at most `RESUME_TOKEN_LIMIT` tokens and still have its transcript on disk.
+ */
+const resumableSession = (env, ticket, { kind, branch, account, invocation, worktree }) => {
+  const item = `ticket#${ticket.number}`
+  const cold = (reason) => { log(env, item, "fix cold start", `${kind}, ${reason}`); return null }
+  const saved = recordsOf(ticket, "launch-session").findLast((record) => record.branch === branch)
+  if (saved === undefined) return cold("no session of the branch is recorded")
+  if (saved.account !== account) return cold("the session belongs to another account")
+  if (!(saved.tokens <= workerApi.RESUME_TOKEN_LIMIT)) return cold(`the session holds ${saved.tokens} tokens`)
+  const configDirectory = invocation.environment.CLAUDE_CONFIG_DIR ?? join(env.home, ".claude")
+  if (!env.worker.sessionExists({ configDirectory, worktree, sessionId: saved.session })) return cold("the session transcript is gone")
+  log(env, item, `fix resume ${saved.session}`, `${kind}, ${saved.tokens} tokens`)
+  return saved.session
+}
+
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
 /** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. Returns null when the worker started, else the reason it did not. */
@@ -1100,14 +1126,19 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
+  if (!location.listed) await provisionDependencies(env, repoKey, ticket, worktree)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
-  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
-  const invocation = await env.invocation(token, accountName)
+  const baseInvocation = await env.invocation(token, accountName)
   const account = stateOf(mem, accountName).account?.key ?? null
+  const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, account, invocation: baseInvocation, worktree }) : null
+  const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
+  const text = session === null
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
+    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
@@ -1230,6 +1261,15 @@ const stopAndRefund = async (env, mem, ticket, exit, result) => {
   log(env, `ticket#${ticket.number}`, "launch-refund", `${kind} on ${branch} starts again on the other account`)
 }
 
+/** Records the session that a worker leaves and the size of its context on the ticket, so a later fix of the branch can resume it. A log with no usage records nothing. */
+const recordSession = async (env, ticket, { kind, partNumber, branch, prNumber, account, logFile }, sessionId) => {
+  const tokens = env.worker.logContextTokens(logFile)
+  if (tokens === null) return
+  const body = marked("launch-session", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber, session: sessionId, account, tokens }))
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "launch-session", body, createdAt: new Date(env.now()).toISOString() })
+}
+
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
 const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logEvent(logFile), result: workerApi.logFinalResult(logFile) })
 
@@ -1250,6 +1290,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     if (knownAccounts(mem).length > 1 && account !== null) return stopAndRefund(env, mem, ticket, exit, result)
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
+  if (kind !== "find" && result.sessionId) await recordSession(env, ticket, exit, result.sessionId).catch((error) => log(env, item, "error", `the session is not recorded: ${error.message}`))
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
@@ -2013,6 +2054,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
     findRepositories,
+    dependencies: installDependencies,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     notify: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
     keychain: async (service) => { const result = await runBounded("security", ["find-generic-password", "-s", service, "-w"], { timeoutMs: 15 * 1000 }); return result.status === 0 && result.stdout.trim() !== "" ? result.stdout.trim() : null },

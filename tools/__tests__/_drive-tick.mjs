@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings } from "../lib/github.mjs"
-import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
+import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
@@ -53,7 +53,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -83,6 +83,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
+      logContextTokens, sessionExists: (options) => (calls.push(["sessionExists", options]), sessions),
       processDirectories: () => (calls.push(["directories"]), directories),
       directoryHolders,
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
@@ -99,6 +100,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     notify: async (message) => { calls.push(["notify", message]) },
     findRepositories: (path) => [path],
+    dependencies: async (source, target) => { calls.push(["dependencies", source, target]); return dependencies },
     keychain: async () => null,
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
@@ -515,6 +517,88 @@ const worktreeOccupantCases = async () => {
   const fixOccupied = scenario({ tickets: [ticket(7)], occupants: [4242], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "x" }] })] })] }, gitRoutes: [["worktree list", `worktree /r/wt\nHEAD ${HEAD}\nbranch refs/heads/chore/ticket-7-30\n`]] })
   await fixOccupied.run()
   same("drive: a fix order waits while a process holds the worktree of its pull request, and nothing merges into it", [fixOccupied.launched.length, only(fixOccupied.calls, "git").some((entry) => entry.join(" ").includes("merge --ff-only"))], [0, false])
+}
+
+/** The usage line of one assistant record: the context holds 100000 tokens. */
+const assistantUsage = (extra = 0) => `${JSON.stringify({ type: "assistant", message: { usage: { input_tokens: 2, cache_creation_input_tokens: 300 + extra, cache_read_input_tokens: 99698 } } })}\n`
+
+const resumeCases = async () => {
+  const branch = "chore/ticket-7-30"
+  const blocking = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const saved = (extra = {}) => comment("launch-session", JSON.stringify({ kind: "build", part: null, branch, pr: 30, session: "sess-1", account: ACCOUNT.key, tokens: 90000, ...extra }))
+  const fixScene = (comments, options = {}) => scenario({ tickets: [ticket(7, { comments })], pulls: { ui: [pull(30, { headRef: branch, reviews: [blocking] })] }, ...options })
+  const argsOf = (scene) => scene.launched[0]?.invocation.command.args
+  const said = (scene, text) => scene.messages.some((line) => line.includes(text))
+
+  const resumed = fixScene([saved()])
+  await resumed.run()
+  same("drive: a fix launch with a stored session resumes it", argsOf(resumed), ["--resume", "sess-1"])
+  T("drive: a resumed fix order holds the new findings and not the ticket or the brief", /## This order \(fix, resumed\)/.test(orderText(resumed)) && /tools\/a\.mjs:3/.test(orderText(resumed)) && !/## Brief/.test(orderText(resumed)) && !/Do the work\./.test(orderText(resumed)), orderText(resumed))
+  T("drive: a resume logs fix resume with the session", said(resumed, "ticket#7 fix resume sess-1 (fix, 90000 tokens)"), resumed.messages.join("\n"))
+  same("drive: the transcript check reads the config directory of the main account and the worktree of the launch", only(resumed.calls, "sessionExists")[0]?.[1], { configDirectory: "/home/x/.claude", worktree: "/r/orbit-worktrees/ui/chore-ticket-7-30", sessionId: "sess-1" })
+
+  const cold = async (label, comments, options = {}, reason = "") => {
+    const scene = fixScene(comments, options)
+    await scene.run()
+    same(`drive: a fix launch starts cold when ${label}`, [argsOf(scene), /## Brief/.test(orderText(scene)), said(scene, `fix cold start (fix, ${reason}`)], [[], true, true])
+  }
+  await cold("no session of the branch is recorded", [], {}, "no session of the branch is recorded")
+  await cold("the session of another branch is recorded", [saved({ branch: "chore/ticket-7-31" })], {}, "no session of the branch is recorded")
+  await cold("the transcript is gone", [saved()], { sessions: false }, "the session transcript is gone")
+  await cold("the session holds over 200000 tokens", [saved({ tokens: 200001 })], {}, "the session holds 200001 tokens")
+  await cold("the session has no token count", [saved({ tokens: undefined })], {}, "the session holds undefined tokens")
+  await cold("the session belongs to another account", [saved({ account: "other-account" })], {}, "the session belongs to another account")
+  const atLimit = fixScene([saved({ tokens: 200000 })])
+  await atLimit.run()
+  same("drive: a session of exactly 200000 tokens resumes", argsOf(atLimit), ["--resume", "sess-1"])
+  const newest = fixScene([saved(), saved({ session: "sess-2", kind: "fix" })])
+  await newest.run()
+  same("drive: the newest session of the branch resumes", argsOf(newest), ["--resume", "sess-2"])
+
+  const ci = scenario({ tickets: [ticket(7, { comments: [saved()] })], pulls: { ui: [pull(30, { headRef: branch, checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] } })
+  await ci.run()
+  same("drive: a ci-fix launch resumes the session too", [ci.launched.length, argsOf(ci), /## This order \(ci-fix, resumed\)/.test(orderText(ci))], [1, ["--resume", "sess-1"], true])
+  const build = scenario({ tickets: [ticket(7, { comments: [saved({ branch: "chore/ticket-7" })] })] })
+  await build.run()
+  same("drive: a build launch never resumes", argsOf(build), [])
+
+  const onWorker = fixScene([saved({ account: WORKER_ACCOUNT.key })], { workerAuth: WORKER_AUTH, reading: { utilization: 0.9, resetsAt: RESETS_AT, at: NOW - MINUTE }, workerReading: { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await onWorker.run()
+  same("drive: a launch on the worker account looks for the transcript in its own config directory", [onWorker.launched.length, only(onWorker.calls, "sessionExists")[0]?.[1].configDirectory, argsOf(onWorker)], [1, WORKER_DIRECTORY, ["--resume", "sess-1"]])
+
+  const fresh = fixScene([])
+  await fresh.run()
+  same("drive: a new worktree gets its dependencies from the main checkout before the worker starts", [only(fresh.calls, "dependencies"), fresh.launched.length], [[["dependencies", "/r/ui", "/r/orbit-worktrees/ui/chore-ticket-7-30"]], 1])
+  T("drive: the clone logs worktree deps clone with its time", said(fresh, "ticket#7 worktree deps clone (40 ms, 2 directories)"), fresh.messages.join("\n"))
+  const order = fresh.calls.findIndex((entry) => entry[0] === "dependencies")
+  T("drive: the dependencies are in place after the worktree is added", fresh.calls.findIndex((entry) => entry[0] === "git" && entry.includes("worktree") && entry.includes("add")) < order)
+  const listed = fixScene([], { gitRoutes: [["worktree list", `worktree /r/wt\nHEAD ${HEAD}\nbranch refs/heads/${branch}\n`]] })
+  await listed.run()
+  same("drive: a worktree that exists already gets no dependency step", [only(listed.calls, "dependencies").length, listed.launched.length], [0, 1])
+  const install = scenario({ tickets: [ticket(7)], dependencies: { action: "install", ms: 90000, directories: [""], reason: "the lock file differs from the main checkout" } })
+  await install.run()
+  T("drive: a different lock file logs worktree deps install", said(install, "ticket#7 worktree deps install (90000 ms, the lock file differs from the main checkout)"), install.messages.join("\n"))
+  const failed = scenario({ tickets: [ticket(7)], dependencies: { action: "failed", ms: 5, directories: [], reason: "npm ci exit 1: boom" } })
+  await failed.run()
+  same("drive: a failed dependency step logs and the worker still starts", [failed.launched.length, said(failed, "ticket#7 worktree deps failed (5 ms, npm ci exit 1: boom)")], [1, true])
+  const none = scenario({ tickets: [ticket(7)], dependencies: { action: "none", ms: 0, directories: [], reason: "no lock file" } })
+  await none.run()
+  same("drive: a repository with no lock file logs no dependency event", none.messages.some((line) => line.includes("worktree deps")), false)
+
+  const recorder = (log) => {
+    const scene = scenario({ tickets: [ticket(7)] })
+    scene.env.worker.launch = (options) => { writeFileSync(options.logFile, log); return Promise.resolve(clean) }
+    return scene
+  }
+  const used = recorder(assistantUsage() + assistantUsage(1000) + resultLine("done"))
+  await used.run()
+  await used.run()
+  const written = commentsOf(used.calls, 7).filter((text) => text.includes("orbit-drive:launch-session"))
+  same("drive: a worker exit records its session and the context of its last message on the ticket", [written.length, JSON.parse(written[0]?.split("\n")[1] ?? "{}")], [1, { kind: "build", part: null, branch: "chore/ticket-7", pr: null, session: "s1", account: ACCOUNT.key, tokens: 101000 }])
+  const silent = recorder(resultLine("done"))
+  await silent.run()
+  await silent.run()
+  same("drive: a worker log with no usage records no session", commentsOf(silent.calls, 7).filter((text) => text.includes("launch-session")).length, 0)
 }
 
 const capCases = async () => {
@@ -2332,6 +2416,7 @@ export const driverUnit = async () => {
   await questionsCases()
   await usageLimitCases()
   await workerCases()
+  await resumeCases()
   await capCases()
   await classCases()
   await baseMergeCases()
