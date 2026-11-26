@@ -47,6 +47,7 @@ jobs:
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
+      unit-skip: ${{ steps.plan.outputs.unit-skip }}
       # A pull request that changes only tools, .claude or documents that no test task reads runs no unit group: unit-skip counts as a hit.
       web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-unit-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}
       mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.merged.outputs.mobile-unit-hit == 'true' || steps.plan.outputs.unit-skip == 'true' }}
@@ -283,7 +284,7 @@ jobs:
 
       - name: Test CI workflow behavior
         if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
-        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
+        run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs .github/scripts/workflow-needs-outputs.test.mjs
 
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.
