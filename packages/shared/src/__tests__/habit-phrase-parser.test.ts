@@ -242,7 +242,6 @@ describe('readHabitPhrase', () => {
   it.each([
     ['Ler todo dia ao meio-dia e meia-noite', 'pt-BR'],
     ['Ler todo dia ao meio-dia menos domingo', 'pt-BR'],
-    ['Ler todo dia ao meio-dia e 18h', 'pt-BR'],
     ['Ler todo dia para o meio-dia', 'pt-BR'],
     ['Treinar rapidez para o meio-dia', 'pt-BR'],
     ['Walk to noon mass every day', 'en'],
@@ -271,6 +270,35 @@ describe('readHabitPhrase', () => {
     for (const variant of [input, input.toUpperCase(), input.normalize('NFD').replace(/\p{M}/gu, '')]) {
       expect(readHabitPhrase(variant, locale)).toMatchObject({ cadence, days, dueTime: time })
     }
+  })
+
+  it.each([
+    ['Ler às 6 da manhãzinha', 'pt-BR', '06:00', 'Ler da manhãzinha'],
+    ['Caminhar todo dia às 5 da tardezinha', 'pt-BR', '05:00', 'Caminhar da tardezinha'],
+    ['Ler todo dia às 8 da noitezinha', 'pt-BR', '08:00', 'Ler da noitezinha'],
+    ['Ler 7:30 da madrugadinha', 'pt-BR', '07:30', 'Ler da madrugadinha'],
+    ['Ler 7h da manhãs', 'pt-BR', '07:00', 'Ler da manhãs'],
+  ] as const)('keeps a longer word after the hour out of the time token: %s', (input, locale, dueTime, title) => {
+    expect(readHabitPhrase(input, locale).dueTime).toBe(dueTime)
+    expect(getHabitPhraseTitle(input, locale)).toBe(title)
+  })
+
+  it.each([
+    ['Remédio do meio-dia às 12h30', 'pt-BR', '12:30'],
+    ['Remédio do meio-dia 12:30', 'pt-BR', '12:30'],
+    ['Caminhar depois do meio-dia às 14h', 'pt-BR', '14:00'],
+    ['Noon meds at 12:30', 'en', '12:30'],
+    ['Walk after noon at 2pm', 'en', '14:00'],
+    ['Ler todo dia ao meio-dia e 18h', 'pt-BR', '18:00'],
+  ] as const)('reads an explicit clock time before a noon word: %s', (input, locale, dueTime) => {
+    expect(readHabitPhrase(input, locale).dueTime).toBe(dueTime)
+  })
+
+  it.each([
+    ['Remédio do meio-dia às 12h30', 'pt-BR', 'Remédio do meio-dia'],
+    ['Noon meds at 12:30', 'en', 'Noon meds'],
+  ] as const)('keeps the noon word in the title when a clock time exists: %s', (input, locale, title) => {
+    expect(getHabitPhraseTitle(input, locale)).toBe(title)
   })
 
   it.each(['at 8:99', 'at 8:3', 'at 13pm', 'at 0am', 'at 7:30:20'])('does not consume part of an invalid clock: %s', (input) => {

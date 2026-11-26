@@ -28,6 +28,7 @@ interface LocalePatterns {
   weeklySuffix: RegExp
   monthDays: RegExp[]
   times: RegExp[]
+  noon: RegExp
   numberWords: Readonly<Record<string, number>>
 }
 
@@ -49,7 +50,7 @@ const MONTH_DAY_LIST_END = '(?=\\s*(?:[,.;!?]|$|a partir\\b|comecando\\b|from\\b
 const EN_MONTH_DAY = '\\d{1,2}(?:st|nd|rd|th)'
 const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:the\\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = '(?:\\s+d[ae]\\s+(manha|tarde|noite|madrugada))?'
+const PT_DAY_PART = '(?:\\s+d[ae]\\s+(manha|tarde|noite|madrugada)\\b)?'
 const EN_MERIDIEM = '(?:\\s*(am|pm)|\\s+(in the (?:morning|afternoon|evening)|at night))?'
 const PT_OFFSET = '(?:um quarto|meia hora|cinco|dez|quinze|vinte|trinta|quarenta|cinquenta|\\d{1,2}(?![\\d:h]))'
 const PT_NOON = `\\b(?:(?:ao|as|a)\\s+)?(?<!\\b(?:${PT_OFFSET}|minutos?|horas?)\\s+(?:para|pra|pro|antes|depois)\\s+(?:(?:o|do)\\s+)?)meio-dia(?:\\s+e\\s+mei[ao]\\b(?!-))?\\b(?!\\s+(?:e|menos)\\s+${PT_OFFSET}\\b)`
@@ -112,8 +113,8 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_DAY_PART}(?![:\\dh]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
-      new RegExp(PT_NOON, 'gu'),
     ],
+    noon: new RegExp(PT_NOON, 'gu'),
     numberWords: PORTUGUESE_NUMBERS,
   },
   en: {
@@ -140,8 +141,8 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)${EN_MERIDIEM}\\b(?![:\\d]|[.,]\\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
-      new RegExp(EN_NOON, 'gu'),
     ],
+    noon: new RegExp(EN_NOON, 'gu'),
     numberWords: ENGLISH_NUMBERS,
   },
 }
@@ -220,7 +221,7 @@ function parseTime(match: RegExpExecArray): string | null {
 }
 
 function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
-  const match = firstMatch(patterns.times, remaining)
+  const match = firstMatch(patterns.times, remaining) ?? firstMatch([patterns.noon], remaining)
   const dueTime = match ? parseTime(match) : null
   if (!match || !dueTime) return { dueTime: null, token: null, remaining }
   return {
