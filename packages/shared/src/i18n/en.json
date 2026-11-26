@@ -3250,7 +3250,7 @@
     "calendar": {
       "imported": "{count, plural, one {# habit was created from your calendar.} other {# habits were created from your calendar.}}"
     },
-    "seeToday": "View in Today",
+    "seeToday": "View today's habits",
     "account": {
       "freshStart": "Everything you tracked was deleted. Your account, plan and preferences stay.",
       "freshStartQueued": "Everything you tracked will be deleted when the connection returns. Your account, plan and preferences stay.",

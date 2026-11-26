@@ -75,5 +75,19 @@ describe.each(['pt-BR', 'en'])('the guided habit flow block in %s', (language) =
       const block = boxes.get('block')!
       expect(Math.abs((block.top + block.bottom) / 2 - (free.top + free.bottom) / 2)).toBeLessThanOrEqual(1)
     })
+
+    it('gives the two result dialog actions the same width and height, one above the other', async () => {
+      mocks.language = language
+      __setWindowDimensions({ width, height: HEIGHT, scale: 1, fontScale: 1 })
+      await act(() => { tree = create(<View style={{ width, height: HEIGHT }}><ResultDialog title="Pronto!" sentence="A tarefa foi criada para amanhã às 8:00." primaryLabel={language === 'en' ? "View today's habits" : 'Ver hábitos de hoje'} onPrimary={() => {}} secondaryLabel="Criar outro" onSecondary={() => {}} onClose={() => {}} /></View>) as GeometryTree })
+      const boxes = measureSafeArea(tree!.toJSON(), (host) => host.props.testID?.startsWith('button-primary') ? 'primary' : host.props.testID?.startsWith('button-ghost') ? 'ghost' : host.props.testID === 'result-dialog' ? 'panel' : undefined, { width, height: HEIGHT })
+      const primary = boxes.get('primary')!
+      const ghost = boxes.get('ghost')!
+      const panel = boxes.get('panel')!
+      expect(ghost.width).toBeCloseTo(primary.width, 1)
+      expect(ghost.bottom - ghost.top).toBeCloseTo(primary.bottom - primary.top, 1)
+      expect(primary.width).toBeGreaterThan(panel.width / 2)
+      expect(ghost.top - primary.bottom).toBeCloseTo(12, 1)
+    })
   })
 })
