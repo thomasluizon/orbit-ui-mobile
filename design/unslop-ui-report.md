@@ -47,7 +47,7 @@ None. Every fix is a deletion, so no string needs `/second-opinion` approval.
 
 A drawing in `design/canvas/` and `DESIGN.md` outrank the skill. A hit that is code, a style definition or test text is not copy.
 
-- `packages/shared/src/i18n/en.json:761` (U3): `habits.allDoneHint` "Everything for today is done." is the `allDoneLine` of `Orbit Hoje.dc.html`, paired with the title at 8px. It is read by `HabitListAllDone` on web and mobile. The drawing outranks the skill.
+- `packages/shared/src/i18n/en.json:762` (U3): `habits.allDoneHint` "Everything for today is done." is the `allDoneLine` of `Orbit Hoje.dc.html`, paired with the title at 8px. It is read by `HabitListAllDone` on web and mobile. The drawing outranks the skill.
 - `apps/web/app/step-up/step-up-screen.tsx:358` (U1): "Confirming: {operation}" is the `eyebrow` field of `Orbit Verificacao.dc.html`. It names the operation the code authorises, so the screen does not read as a phishing page.
 - `apps/mobile/app/step-up.tsx:502` (U1): the same drawn line on mobile.
 - `apps/web/app/globals.css:1257` (U1): the `.t-eyebrow` type role, a row of the `DESIGN.md` type scale. It is a style definition, not copy.
