@@ -140,11 +140,11 @@ describe('readHabitWhenWords: a bare weekday', () => {
     expect(readHabitWhenWords('sexta', { ...wednesday, itemType: 'task', deliberateType: 'habit' }).kind).toBe('repeat')
   })
 
-  it.each(['na sexta', 'nesta sexta', 'pra sexta', 'sexta às 9', 'sexta que vem', 'sexta, às 9h'])('reads "%s" as the next Friday for a task', (words) => {
+  it.each(['na sexta', 'nesta sexta', 'pra sexta', 'sexta às 9', 'sexta que vem', 'sexta, às 9h', 'sexta às 9 da manhã', 'sexta às 3 da tarde', 'sexta às 8 da noite', 'sexta-feira às 10 da manhã', 'sexta às 9 horas', 'sexta ao meio-dia', 'sexta pela manhã'])('reads "%s" as the next Friday for a task', (words) => {
     expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
   })
 
-  it.each(['this friday', 'on friday', 'by friday', 'friday at 9', 'friday morning'])('reads "%s" as the next Friday for a task', (words) => {
+  it.each(['this friday', 'on friday', 'by friday', 'friday at 9', 'friday morning', 'friday at 9 in the morning', 'friday at 3 in the afternoon', 'friday at noon'])('reads "%s" as the next Friday for a task', (words) => {
     expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
   })
 
@@ -241,6 +241,45 @@ describe('readHabitWhenWords: a weekday full name and its qualifiers', () => {
   it('never reads a weekday out of a word that is not a weekday', () => {
     expect(readHabitWhenWords('depois de ter tempo', { ...wednesday, itemType: 'task' })).toEqual({ kind: 'unresolved' })
     expect(readHabitWhenWords('feira', { ...wednesday, itemType: 'task' })).toEqual({ kind: 'unresolved' })
+  })
+})
+
+describe('readHabitWhenWords: a weekday with a time or a part of the day', () => {
+  const wednesday = { ...context, referenceDate: '2026-11-25' }
+  const english = { ...wednesday, locale: 'en', language: 'en' as const }
+  const portuguese = ['sexta às 9 da manhã', 'sexta às 3 da tarde', 'sexta às 8 da noite', 'sexta-feira às 10 da manhã', 'sexta às 9 horas', 'sexta ao meio-dia', 'sexta pela manhã']
+  const englishWords = ['friday at 9 in the morning', 'friday at 3 in the afternoon', 'friday at noon']
+
+  it.each(portuguese)('reads "%s" as one date for a task and with no type, and as the weekly repeat for a habit', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords(words, wednesday)).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'habit' })).toMatchObject({ kind: 'repeat', read: { days: ['Friday'] } })
+  })
+
+  it.each(englishWords)('reads "%s" as one date for a task and with no type, and as the weekly repeat for a habit', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords(words, english)).toEqual({ kind: 'date', date: '2026-11-27' })
+    expect(readHabitWhenWords(words, { ...english, itemType: 'habit' })).toMatchObject({ kind: 'repeat', read: { days: ['Friday'] } })
+  })
+
+  it.each(['toda sexta às 9 da manhã', 'sextas às 9 da manhã'])('keeps "%s" a repeat for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it('keeps "every friday at noon" a repeat for a task', () => {
+    expect(readHabitWhenWords('every friday at noon', { ...english, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it('keeps "sexta da semana que vem" a repeat for a task', () => {
+    expect(readHabitWhenWords('sexta da semana que vem', { ...wednesday, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it.each(['friday the 27th', 'friday in two weeks'])('keeps "%s" a repeat for a task', (words) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' }).kind).toBe('repeat')
+  })
+
+  it('keeps "primeira sexta do mês" unresolved', () => {
+    expect(readHabitWhenWords('primeira sexta do mês', { ...wednesday, itemType: 'task' })).toEqual({ kind: 'unresolved' })
   })
 })
 
