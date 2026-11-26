@@ -285,7 +285,8 @@ jobs:
           cache-read-only: true
 
       - name: Install dependencies from the lockfile
-        run: npm ci --prefer-offline --no-audit --fund=false
+        # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+        run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
 
       - name: Validate Expo dependency compatibility
         if: ${{ inputs.validate_expo_dependencies }}

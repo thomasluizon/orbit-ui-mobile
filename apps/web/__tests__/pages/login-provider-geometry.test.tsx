@@ -12,7 +12,6 @@ import { SIGN_IN_BUTTON_HEIGHT } from '@orbit/shared/theme'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
-import { settlePage } from '@/__tests__/support/settled-page'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const mocks = vi.hoisted(() => ({ flow: {} as Record<string, unknown> }))
@@ -71,7 +70,6 @@ async function readSignIn(chrome: { browser: Browser; stylesheet: string }, mark
   try {
     await page.setContent(`<style>${chrome.stylesheet}</style>${markup}`)
     await loadAppFonts(page)
-    await settlePage(page)
     const geometry = await page.evaluate(() => {
       const panel = document.querySelector('[data-field-surface="responsive-card"]')!
       const padding = getComputedStyle(panel)
@@ -110,7 +108,6 @@ describe('Login provider geometry in Chromium', () => {
     try {
       await page.setContent(`<style>${stylesheet}</style>${container.innerHTML}`)
       await loadAppFonts(page)
-      await settlePage(page)
       const [primary, ...providers] = await page.getByRole('button').evaluateAll(buttons => buttons.map(button => {
         const bounds = button.getBoundingClientRect()
         return { left: bounds.left, right: bounds.right, top: bounds.top, bottom: bounds.bottom, width: bounds.width }

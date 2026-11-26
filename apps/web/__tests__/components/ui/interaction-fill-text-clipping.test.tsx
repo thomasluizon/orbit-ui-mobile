@@ -14,7 +14,6 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveWebThemeVariables } from '@/lib/theme-dom'
 import { inspectInteractionFill } from '@/e2e/layout/interaction-fill-geometry'
 import { readControlPaint } from '@/e2e/layout/control-paint'
-import { settlePage } from '@/__tests__/support/settled-page'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 
 const loginFlow = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
@@ -42,13 +41,12 @@ describe('visible neighbouring text in the interaction clearance inspector', () 
     try {
       const variables = Object.entries(resolveWebThemeVariables('orange', 'dark')).map(([key, value]) => `${key}:${value}`).join(';')
       await page.setContent(`<html style="${variables}"><style>${stylesheet}</style>${markup}</html>`)
-      await settlePage(page)
+      await page.evaluate(() => document.fonts.ready)
       const links = page.getByRole('link')
       expect(await links.count()).toBe(2)
       await page.keyboard.press('Tab')
       for (const link of await links.all()) {
         await link.focus()
-        await settlePage(page)
         expect(await link.evaluate((element) => element.matches(':focus-visible'))).toBe(true)
         const result = await link.evaluate(inspectInteractionFill, INTERACTION_FILL_CLEARANCE)
         expect(result.hasFill).toBe(true)
