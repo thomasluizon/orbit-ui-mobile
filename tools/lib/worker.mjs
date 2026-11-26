@@ -115,6 +115,22 @@ export const readWorkerToken = async ({ run = runBounded } = {}) => {
   return result.status === 0 && token !== "" ? token : null
 }
 
+/** The variables that make `gh auth token` print an environment token in place of the keyring login. */
+const GH_TOKEN_VARIABLES = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]
+
+/**
+ * The owner's own `gh` login from its keyring, or null when there is none. The worker token sees only the code repositories,
+ * so the questions run needs this one to read `thomasluizon/orbit-tickets`. The token variables leave the environment of the read,
+ * because `gh auth token` prints one of them first when it is set. The token is never logged.
+ */
+export const readOwnerToken = async ({ run = runBounded, parentEnvironment = process.env } = {}) => {
+  const env = { ...parentEnvironment }
+  for (const name of GH_TOKEN_VARIABLES) delete env[name]
+  const result = await run("gh", ["auth", "token", "--hostname", "github.com"], { env, timeoutMs: 15 * 1000 })
+  const token = typeof result.stdout === "string" ? result.stdout.trim() : ""
+  return result.status === 0 && token !== "" ? token : null
+}
+
 /** The config directory of the worker account: the second Claude login, beside the main one. */
 export const workerConfigDirectory = (home) => join(home, ".claude-orbit-workers")
 
@@ -135,7 +151,7 @@ export const workerInvocation = ({ home, parentEnvironment, token, configDirecto
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
 
-/** The command and the environment of the questions run: the worker's settings and token, the coordinator model, and the `questions` skill on. */
+/** The command and the environment of the questions run: the worker's settings, the coordinator model, and the `questions` skill on. The token is the owner's login, never the worker token. */
 export const questionsInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills: QUESTIONS_SKILLS })
 
 /**

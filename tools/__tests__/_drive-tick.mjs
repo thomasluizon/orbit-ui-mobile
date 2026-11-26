@@ -53,7 +53,7 @@ const partComment = (number, total, extra = "") => comment(null, `Part ${number}
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null } = {}) => {
   const calls = []
   const messages = []
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
@@ -78,6 +78,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     },
     worker: {
       readWorkerToken: async () => token,
+      readOwnerToken: async () => ownerToken,
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
@@ -93,7 +94,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main") => ({ command: { executable: "claude", args: [] }, environment: name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {} }),
+    invocation: async (token, name = "main") => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) } }),
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     notify: async (message) => { calls.push(["notify", message]) },
@@ -1818,7 +1819,7 @@ const questionsCases = async () => {
   const [run] = questionRuns(first)
   same("drive: questions: one held item with sleep on starts exactly one run", questionRuns(first).length, 1)
   same("drive: questions: the run is headless in the driver worktree and its order is the slash command", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "questions-"))], ["/r/driver", QUESTIONS_ORDER, join(first.env.stateDir, "questions.pid"), true])
-  same("drive: questions: the run uses the coordinator model on the worker token", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5"], "token"])
+  same("drive: questions: the run uses the coordinator model on the owner login, not the worker token", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5"], "owner-token"])
   same("drive: questions: the start time is kept beside the other state files and the launch is logged", [startedFile(first), questionLines(first)], [iso(0), ["questions launch"]])
   await first.run()
   same("drive: questions: the next tick starts none while the run is live", [questionRuns(first).length, questionLines(first)], [1, ["questions launch"]])
@@ -1855,8 +1856,14 @@ const questionsCases = async () => {
   const pausedTicket = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null })
   await held("a paused driver starts none", 0, { tickets: [pausedTicket, heldTicket(8)], probeReading: { utilization: 0.1, resetsAt: RESETS_AT, status: "rejected" } })
   await held("a signed-out login starts none", 0, { tickets: [heldTicket(8)], auth: { ...AUTH, loggedIn: false } })
-  const noToken = await held("a missing worker token starts none", 0, { tickets: [heldTicket(8)], token: null })
-  same("drive: questions: a missing token is logged and the start time stays unwritten", [questionLines(noToken), startedFile(noToken)], [["questions refused (no worker token in the Keychain)"], null])
+  const noLogin = await held("a missing owner login starts none", 0, { tickets: [heldTicket(8)], ownerToken: null })
+  same("drive: questions: a missing owner login is logged once and the start time stays unwritten", [questionLines(noLogin), startedFile(noLogin)], [["questions refused (no owner gh login: run gh auth login)"], null])
+  const noLoginWithWorker = await held("a missing owner login with a worker token still starts none", 0, { tickets: [heldTicket(8)], ownerToken: null, token: "worker-token" })
+  same("drive: questions: a missing owner login never falls back to the worker token", noLoginWithWorker.launched.length, 0)
+  const workerRun = scenario({ driver: {}, tickets: [ticket(7), heldTicket(8)], token: "worker-token" })
+  await workerRun.run()
+  await workerRun.mem.questions
+  same("drive: questions: a worker launch keeps the worker token while the questions run carries the owner login", [workerRun.launched.filter((entry) => entry.order !== QUESTIONS_ORDER).map((entry) => entry.invocation.environment.GH_TOKEN), questionRuns(workerRun).map((entry) => entry.invocation.environment.GH_TOKEN)], [["worker-token"], ["owner-token"]])
   await held("the dry run starts none", 0, { tickets: [heldTicket(8)], dryRun: true })
 
   const live = scenario({ driver: {}, tickets: [heldTicket(8)] })
