@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { buildOnboardingHabitInput, buildOnboardingScheduleFromPhrase } from '@orbit/shared/utils'
 import { holdAccount } from '@/__tests__/support/account-change'
 
@@ -203,6 +204,40 @@ describe.each(locales)('guided onboarding in $locale', ({ locale, messages }) =>
     expect(heading()).toBe(guided.summary.question)
     press(flow.back)
     expect(heading()).toBe(flow.when.daysLabel)
+  })
+
+  it('offers the repeat interval on the days step of a live run, moves it by one and stops at MAX_HABIT_INTERVAL_WEEKS', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages)
+    await typePhrase(messages, locale === 'en' ? 'Meditate' : 'Meditar')
+    press(guided.mode.fixed)
+    expect(heading()).toBe(flow.when.daysLabel)
+    expect(screen.queryByRole('button', { name: flow.when.intervalMore })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: flow.when.daysLong.monday }))
+    const less = screen.getByRole('button', { name: flow.when.intervalLess })
+    const more = screen.getByRole('button', { name: flow.when.intervalMore })
+    expect(less).toBeDisabled()
+    fireEvent.click(more)
+    expect(less).toBeEnabled()
+    expect(more).toBeEnabled()
+    fireEvent.click(less)
+    expect(less).toBeDisabled()
+    for (let weeks = 1; weeks < MAX_HABIT_INTERVAL_WEEKS; weeks += 1) fireEvent.click(more)
+    expect(more).toBeDisabled()
+    fireEvent.click(more)
+    expect(more).toBeDisabled()
+    expect(screen.getByText(String(MAX_HABIT_INTERVAL_WEEKS))).toBeInTheDocument()
+  })
+
+  it('hides the repeat interval from a run that cannot save one', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mount(locale, messages, { isLive: false })
+    await typePhrase(messages, locale === 'en' ? 'Meditate' : 'Meditar')
+    press(guided.mode.fixed)
+    expect(heading()).toBe(flow.when.daysLabel)
+    fireEvent.click(screen.getByRole('button', { name: flow.when.daysLong.monday }))
+    expect(screen.queryByRole('button', { name: flow.when.intervalMore })).toBeNull()
+    expect(screen.queryByRole('button', { name: flow.when.intervalLess })).toBeNull()
   })
 
   it('fills the phrase and advances in one press of a starter', async () => {

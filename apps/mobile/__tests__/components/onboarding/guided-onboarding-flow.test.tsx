@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
+import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { buildOnboardingHabitInput, buildOnboardingScheduleFromPhrase } from '@orbit/shared/utils'
 import { testI18n } from '@/__tests__/support/i18n'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
@@ -162,6 +163,39 @@ describe.each([{ language: 'en', messages: en }, { language: 'pt-BR', messages: 
     expect(heading(tree)).toBe(flow.when.daysLabel)
     await press(tree, guided.days.everyDay)
     expect(heading(tree)).toBe(guided.summary.question)
+  })
+
+  const stepButton = (tree: TestTree, label: string) => hosts(tree).find((node) => node.props.accessibilityRole === 'button' && node.props.accessibilityLabel === label)
+
+  it('offers the repeat interval on the days step of a live run, moves it by one and stops at MAX_HABIT_INTERVAL_WEEKS', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.fixed)
+    expect(heading(tree)).toBe(flow.when.daysLabel)
+    expect(stepButton(tree, flow.when.intervalMore)).toBeUndefined()
+    await press(tree, flow.when.daysLong.monday)
+    expect(stepButton(tree, flow.when.intervalLess)!.props.disabled).toBe(true)
+    await press(tree, flow.when.intervalMore)
+    expect(stepButton(tree, flow.when.intervalLess)!.props.disabled).toBe(false)
+    expect(stepButton(tree, flow.when.intervalMore)!.props.disabled).toBe(false)
+    await press(tree, flow.when.intervalLess)
+    expect(stepButton(tree, flow.when.intervalLess)!.props.disabled).toBe(true)
+    for (let weeks = 1; weeks < MAX_HABIT_INTERVAL_WEEKS; weeks += 1) await press(tree, flow.when.intervalMore)
+    expect(stepButton(tree, flow.when.intervalMore)!.props.disabled).toBe(true)
+    expect(texts(tree)).toContain(String(MAX_HABIT_INTERVAL_WEEKS))
+  })
+
+  it('hides the repeat interval from a run that cannot save one', async () => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mocks.isLive = false
+    const tree = await mount()
+    await typePhrase(tree, messages, language === 'en' ? 'Meditate' : 'Meditar')
+    await press(tree, guided.mode.fixed)
+    expect(heading(tree)).toBe(flow.when.daysLabel)
+    await press(tree, flow.when.daysLong.monday)
+    expect(stepButton(tree, flow.when.intervalMore)).toBeUndefined()
+    expect(stepButton(tree, flow.when.intervalLess)).toBeUndefined()
   })
 
   it('fills the phrase and advances in one press of a starter', async () => {

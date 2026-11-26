@@ -31,7 +31,7 @@ const LEGAL_LINK_CLASS_WITH_FOCUS_ROOM = 'mx-1 whitespace-nowrap text-[var(--fg-
 /** The legal consent line: the one place a person agrees to anything. */
 export function LoginLegalConsent({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
   return (
-    <p className="text-xs leading-[2] text-[var(--fg-3)]">
+    <p className="text-xs leading-[2.5] text-[var(--fg-3)]">
       {t.rich('auth.legalConsent', {
         terms: (chunks) => <Link href="/about" className={LEGAL_LINK_CLASS_WITH_FOCUS_ROOM}>{chunks}</Link>,
         privacy: (chunks) => <Link href="/about" className={LEGAL_LINK_CLASS_WITH_FOCUS_ROOM}>{chunks}</Link>,
