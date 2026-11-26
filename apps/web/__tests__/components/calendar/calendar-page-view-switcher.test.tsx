@@ -151,6 +151,8 @@ const agendaViewProps: {
   isLoading?: boolean
 } = {}
 let rangeLoading = false
+let rangeError: string | null = null
+const rangeRefresh = vi.fn()
 let rangeFetching = false
 let rangeDayMap = new Map<string, CalendarDayEntry[]>()
 const calendarRangeViewProps: { current: Record<string, unknown> | null } = { current: null }
@@ -189,8 +191,8 @@ vi.mock('@/hooks/use-calendar-data', async (importOriginal) => {
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: rangeFetching,
-    error: null,
-    refresh: vi.fn(),
+    error: rangeError,
+    refresh: rangeRefresh,
   }),
 })
 })
@@ -978,6 +980,8 @@ describe('CalendarPage view switcher', () => {
     agendaViewProps.isLoading = undefined
     rangeLoading = false
     rangeFetching = false
+    rangeError = null
+    rangeRefresh.mockReset()
     rangeDayMap = new Map()
     calendarRangeViewProps.current = null
   })
@@ -1081,6 +1085,50 @@ describe('CalendarPage view switcher', () => {
     const expectedLoadingRows = buildCalendarMonthModel(loadedMonth, new Map(), 1, formatAPIDate(now)).gridDays.length / 7
     expect(loadingRows).toBe(expectedLoadingRows)
     expect(loadedHeight).toBe('')
+  })
+
+  it('shows a retryable error card when the month query fails and clears the error flag on leaving', () => {
+    monthQueryState.error = 'network down'
+    const page = render(<CalendarPage />)
+
+    expect(useUIStore.getState().calendarHasError).toBe(true)
+    expect(screen.queryByTestId('month-view')).toBeNull()
+    expect(screen.getByText('calendar.orbit.loadError')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
+    expect(rangeRefresh).not.toHaveBeenCalled()
+    page.unmount()
+    expect(useUIStore.getState().calendarHasError).toBe(false)
+  })
+
+  it('shows the error of the range query, not the month query, in the range view, and retries the range', () => {
+    rangeError = 'range network down'
+    render(<CalendarPage />)
+    expect(screen.queryByText('calendar.orbit.loadError')).toBeNull()
+    expect(useUIStore.getState().calendarHasError).toBe(false)
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.range' }))
+    expect(useUIStore.getState().calendarHasError).toBe(true)
+    expect(screen.getByText('calendar.orbit.loadError')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(rangeRefresh).toHaveBeenCalledTimes(1)
+    expect(monthQueryState.refresh).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'calendar.view.month' }))
+    expect(screen.queryByText('calendar.orbit.loadError')).toBeNull()
+    expect(useUIStore.getState().calendarHasError).toBe(false)
+  })
+
+  it('shows a retryable error when the profile request fails and retries the profile only', () => {
+    profileQueryState.profile = undefined
+    profileQueryState.error = new Error('profile unavailable')
+    render(<CalendarPage />)
+
+    expect(screen.getByText('calendar.orbit.loadError')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(profileQueryState.refetch).toHaveBeenCalledTimes(1)
+    expect(monthQueryState.refresh).not.toHaveBeenCalled()
   })
 
   it('renders the agenda at phone width without folding it back to month', () => {
