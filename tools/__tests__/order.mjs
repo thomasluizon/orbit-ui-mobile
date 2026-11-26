@@ -83,5 +83,8 @@ export const cases = async () => {
   T("lib/order.mjs: a build brief says to commit and push after each finished step and to open the pull request after the first push", build.includes("Commit and push after each finished step, and open the pull request after the first push."))
   const fix = renderBrief({ kind: "fix", place: PLACE, ticket: TICKET })
   T("lib/order.mjs: a fix brief says to push to the open pull request and does not say to open one", !fix.includes("open the pull request after the first push") && fix.includes("Push to the branch of the open pull request."))
+  const stated = ["never \`Closes\`", "--no-verify", "CI runs every full suite", "Never start Vitest without a file name", "Never run the complete tools suite", "node tools/test-tools.mjs", "against \`BRAND.md\`", "needs the label \`parity:exempt\`"]
+  T("lib/order.mjs: a brief holds no line that CLAUDE.md already states", ORDER_KINDS.every((kind) => { const brief = renderBrief({ kind, place: PLACE, ticket: TICKET }); return stated.every((line) => !brief.includes(line)) }))
+  T("lib/order.mjs: a build brief keeps the facts that CLAUDE.md does not state", build.includes("Tracks owner/tickets#9") && build.includes("Remaining: none") && build.includes("Start Vitest with `--run` and a file name.") && build.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
 }
