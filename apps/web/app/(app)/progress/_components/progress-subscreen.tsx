@@ -21,7 +21,7 @@ export function ProgressSubscreen({ screen, children, hideHeader = false }: Read
   const [layerElement, setLayerElement] = useState<HTMLDivElement | null>(null)
   const [layerActive, setLayerActive] = useState(false)
   const layerHost = useMemo(() => ({ element: layerElement, active: layerActive, setActive: setLayerActive }), [layerElement, layerActive])
-  return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col" data-progress-screen={screen}>
+  return <div className="mx-auto flex w-full min-w-0 max-w-[740px] flex-1 flex-col" data-progress-screen={screen} data-page-viewport={layerActive ? '' : undefined}>
     <div hidden={layerActive} className="flex min-w-0 flex-1 flex-col">
       {!hideHeader ? <PageHeader title={t(`progressScreen.sections.${screen}`)} backLabel={t('progressScreen.back')} onBack={() => router.replace('/progress')} /> : null}
       <div className="flex min-w-0 flex-1 flex-col gap-section-stack-gap px-screen-gutter py-4"><SubscreenLayerContext value={layerHost}>{children}</SubscreenLayerContext></div>
