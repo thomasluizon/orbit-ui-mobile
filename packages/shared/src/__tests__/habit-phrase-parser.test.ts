@@ -764,6 +764,8 @@ describe('spoken part of the day', () => {
     ['pt-BR', 'toda sexta às 3 à tarde', '15:00'],
     ['en', 'every friday at 3 o\'clock in the afternoon', '15:00'],
     ['en', 'every friday at 9 o\'clock at night', '21:00'],
+    ['en', 'every friday at 3 o’clock in the afternoon', '15:00'],
+    ['en', 'every friday at 9 o’clock at night', '21:00'],
   ] as const)('reads the part of the day after horas, à or o\'clock in %s "%s" as %s', (locale, input, time) => {
     expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days: ['Friday'], dueTime: time })
     expect(getHabitPhraseTitle(`Read ${input}`, locale, { cadence: true, dueTime: true })).toBe('Read')

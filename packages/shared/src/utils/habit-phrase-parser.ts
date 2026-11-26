@@ -84,7 +84,7 @@ const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
 }
 const PT_PERIOD = '(?:(?:\\s+horas?)?\\s+(?:da|de|pela|a)\\s+(manha|tarde|noite|madrugada)\\b)?'
-const EN_PERIOD = "(?:(?:\\s+o'clock)?\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?"
+const EN_PERIOD = "(?:(?:\\s+o['’]clock)?\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?"
 
 interface WeekdayAlternation {
   start: number
