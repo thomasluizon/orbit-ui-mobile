@@ -1007,16 +1007,21 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
     try {
+      // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
+      const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey)), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
-      const planned = await planPull(env, mem, { ...ctx, runs }, pull)
-      const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      const planAgain = async () => {
+        const planned = await planPull(env, mem, { ...ctx, runs }, pull)
+        return stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      }
+      const plan = await planAgain()
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const limit = await readPullfrogLimit(env, mem, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       // The act step applies the limit only after every plan ends. This flag tells the early launch at once.
       if (limit.found) limitSeen.found = true
-      return { pull, item, plan, limit }
+      return { pull, item, plan, limit, ownerAtPlan, planAgain }
     } catch (error) {
       return { pull, item, error }
     }
@@ -1027,7 +1032,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
 /** Runs the plans of one repository in number order. Returns the order candidates. The first merge ends the repository's turn. */
 const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
   const orders = []
-  for (const { pull, item, plan, limit, error } of planned) {
+  for (const { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain } of planned) {
     if (error) {
       log(env, item, "error", error.message)
       continue
@@ -1035,6 +1040,10 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
     try {
       for (const id of limit.read) mem.checkedRuns.add(id)
       if (limit.found) await applyPullfrogLimit(env, mem, tickets, ctx.repoKey, limit.found)
+      // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
+      // The first plan marked the threads resolved in memory, so its resolve step stays.
+      const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       if (isWaiting(pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       for (const action of plan) {

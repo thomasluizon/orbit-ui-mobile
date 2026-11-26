@@ -1563,6 +1563,12 @@ const planShapeCases = async () => {
   await mergeable.run()
   same("drive: the first merge in number order ends the turn of its repository", only(mergeable.calls, "merge").map((entry) => entry[2]), [30])
 
+  // An earlier pull request of a ticket labels the ticket needs:owner in the act step, so a later pull request of the ticket plans again against the label.
+  const missedTwice = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
+  const labelled = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwice }), pull(31, { headRef: "chore/ticket-7-31" })] } })
+  const labelledTick = await labelled.run()
+  same("drive: a pull request that follows a needs:owner report of its ticket in the same tick waits on the label and does not merge", [labelledTick.lines.filter((line) => line.startsWith("pull ui#31:")), only(labelled.calls, "merge").map((entry) => entry[2])], [["pull ui#31: wait: the bar fails: needs-owner"], []])
+
   // Each pull request reads only the Pullfrog runs that name it, from the one list of its repository.
   const named = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun(77, 30), failedRun(78, 99)], routes: [["run view 77 ", "boring failure"], ["run view 78 ", LIMIT_LOG]] })
   named.env.github.runsNaming = runsNaming
