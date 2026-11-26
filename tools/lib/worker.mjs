@@ -95,13 +95,14 @@ export const workerCommand = (settingsJson, model = MODEL) => ({
   ],
 })
 
-/** The main-account environment plus the worker's own switches and its GitHub token. */
+/** The main-account environment plus the worker's own switches and its GitHub token. `BRAIN_SESSION_CAPTURE` makes the user SessionEnd hook skip the brain capture of a worker session. */
 export const workerEnvironmentFor = (parentEnvironment, token) => {
   if (typeof token !== "string" || token === "") throw new Error("a worker needs a GitHub token")
   const environment = {
     ...workerEnvironment(parentEnvironment),
     CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
     CLAUDE_CODE_DISABLE_BUNDLED_SKILLS: "1",
+    BRAIN_SESSION_CAPTURE: "1",
     GH_TOKEN: token,
   }
   if (parentEnvironment.CLAUDE_CODE_TMPDIR) environment.CLAUDE_CODE_TMPDIR = parentEnvironment.CLAUDE_CODE_TMPDIR
