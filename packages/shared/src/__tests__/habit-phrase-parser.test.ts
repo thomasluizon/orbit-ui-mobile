@@ -611,3 +611,43 @@ describe('weekday qualifiers', () => {
     expect(read.consumed.map((token) => token.kind).sort((left, right) => left.localeCompare(right))).toEqual(['interval', 'time', 'weekday'])
   })
 })
+
+describe('weekday ranges', () => {
+  const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+  it.each([
+    { input: 'Correr segunda a sexta', locale: 'pt-BR' },
+    { input: 'Correr de segunda-feira a sexta-feira', locale: 'pt-BR' },
+    { input: 'Correr segunda à sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda até sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda-sexta', locale: 'pt-BR' },
+    { input: 'Run monday to friday', locale: 'en' },
+    { input: 'Run monday through friday', locale: 'en' },
+    { input: 'Run monday-friday', locale: 'en' },
+    { input: 'Run Mon - Fri', locale: 'en' },
+  ] as const)('reads $input as every day from Monday to Friday', ({ input, locale }) => {
+    for (const read of [readHabitPhrase(input, locale), readTypedHabitPhrase(input, locale, 'habit', false)]) {
+      expect(read.cadence).toBe('fixed')
+      expect(read.days).toEqual(workWeek)
+    }
+  })
+
+  it.each([
+    { input: 'Correr segunda e sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda, sexta', locale: 'pt-BR' },
+    { input: 'Run monday and friday', locale: 'en' },
+  ] as const)('keeps $input as a list of two days', ({ input, locale }) => {
+    expect(readTypedHabitPhrase(input, locale, 'habit', false).days).toEqual(['Monday', 'Friday'])
+  })
+
+  it('wraps a range past Sunday and mixes a range with a list', () => {
+    expect(readHabitPhrase('Correr sexta a segunda', 'pt-BR').days).toEqual(['Friday', 'Saturday', 'Sunday', 'Monday'])
+    expect(readHabitPhrase('Run monday to wednesday and saturday', 'en').days).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Saturday'])
+  })
+
+  it('consumes the whole range and keeps the title words outside it', () => {
+    const read = readHabitPhrase('Correr segunda a sexta às 7', 'pt-BR')
+    expect(segmentHabitPhrase('Correr segunda a sexta às 7', read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text)).toEqual(['Correr ', ' '])
+    expect(read.dueTime).toBe('07:00')
+  })
+})
