@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
 import { backendFormFieldFocusRequest, resolveBackendFormFieldMessage } from '@orbit/shared/hooks'
+import type { WhenPreview } from '@orbit/shared/hooks/guided-habit-flow-core'
 import { buildHabitUnderstandingSentence, describeHabitFlowSummary, phraseLineKey, proposedWhenChoice, summaryValueStep, toTime24, HABIT_TIME_OPTIONS, type HabitFlowAnswerFields, type HabitWhenChoice, type HabitFormCommonProps } from '@orbit/shared/utils'
 import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
@@ -94,12 +95,23 @@ export function usePhraseView({ flow, formHelpers }: Readonly<ViewInput>): FlowS
   }
 }
 
+const WHEN_REFUSAL_KEYS = {
+  past: 'habits.flow.when.past',
+  unresolved: 'habits.flow.when.unresolved',
+  taskRepeat: 'habits.form.recurrenceRequiresHabit',
+} as const
+
 export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowStepView {
   const t = useTranslations()
   const [text, setText] = useState<string | null>(null)
   const [issue, setIssue] = useState<string | undefined>()
+  const [held, setHeld] = useState<{ step: string; preview: WhenPreview | null } | null>(null)
   const { form } = formHelpers
   const dueDate = form.watch('dueDate') ?? ''
+  const preview = held?.step === flow.current.step ? held.preview : null
+  const setPreview = (value: WhenPreview | null) => setHeld({ step: flow.current.step, preview: value })
+  const shownDate = preview?.kind === 'date' ? preview.date : dueDate
+  const repeatWords = preview?.kind === 'repeat' ? preview.text : undefined
   const summary = useSummaryValues(formHelpers)
   const proposed = flow.proposals.schedule
   const guess = proposed ? proposedWhenChoice(form.watch()) : null
@@ -108,12 +120,18 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
   const submitText = () => {
     if (keeping || (shownText.trim() === '' && dueDate !== '')) { flow.keepProposedWhen(); return }
     const refusal = flow.readWhenWords(shownText)
-    setIssue(refusal ? t(refusal === 'past' ? 'habits.flow.when.past' : 'habits.flow.when.unresolved') : undefined)
+    if (!refusal) setPreview(null)
+    setIssue(refusal ? t(WHEN_REFUSAL_KEYS[refusal]) : undefined)
+  }
+  const typeText = (value: string) => {
+    setText(value)
+    setIssue(undefined)
+    setPreview(flow.previewWhenWords(value))
   }
   const proposedLabel = t('habits.detail.proposed')
   const quick = (choice: HabitWhenChoice, label: string) => (
     <Proposed key={choice} proposed={guess === choice} scope="row" label={proposedLabel}>
-      <OptionCard label={label} selected={guess === choice} onSelect={() => flow.answerWhen(choice)} />
+      <OptionCard label={label} selected={guess === choice} onSelect={() => { setPreview(null); flow.answerWhen(choice) }} />
     </Proposed>
   )
   return {
@@ -127,9 +145,9 @@ export function useWhenView({ flow, formHelpers }: Readonly<ViewInput>): FlowSte
     </>,
     free: <>
       <Proposed proposed={keeping && guess === null} scope="field" label={proposedLabel}>
-        <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={shownText} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} onChange={(value) => { setText(value); setIssue(undefined) }} onSubmit={submitText} />
+        <Input label={t('habits.flow.when.freeLabel')} name="datePhrase" value={shownText} placeholder={t('habits.flow.when.freePlaceholder')} error={issue} hint={issue ? undefined : repeatWords} onChange={typeText} onSubmit={submitText} />
       </Proposed>
-      <DateField label={t('habits.flow.when.calendar')} value={dueDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) flow.chooseDate(date) }} />
+      <DateField label={t('habits.flow.when.calendar')} value={shownDate} minDate={flow.mode === 'create' ? flow.today : undefined} onChange={(date) => { if (date) { setPreview(null); flow.chooseDate(date) } }} />
       {proposed ? null : <PrimaryActionSlot><PillButton variant="ghost" onClick={submitText}>{t('habits.flow.continue')}</PillButton></PrimaryActionSlot>}
     </>,
     ...(proposed ? { primary: { label: t('habits.flow.continue'), onPress: submitText } } : {}),

@@ -5,6 +5,8 @@ import {
   createTurnstileTokenState,
   receiveTurnstileToken,
   takeTurnstileToken,
+  TURNSTILE_BRIDGE_RETRY_STATUSES,
+  turnstileBridgeRetryDelayMs,
   TurnstileTokenController,
 } from '../hooks/turnstile-token-core'
 
@@ -105,4 +107,12 @@ it('reports a failure again in the next load', () => {
   createTurnstileLoadFailureReporter(capture)({ kind: 'script', host: 'challenges.cloudflare.com' })
   createTurnstileLoadFailureReporter(capture)({ kind: 'script', host: 'challenges.cloudflare.com' })
   expect(capture).toHaveBeenCalledTimes(2)
+})
+
+it('waits 2, 4 and 8 s and then 8 s again before it loads a bridge that answered a retry status', () => {
+  expect([0, 1, 2, 3, 4, 20].map(turnstileBridgeRetryDelayMs)).toEqual([2000, 4000, 8000, 8000, 8000, 8000])
+})
+
+it('retries only 502, 503 and 504 of the bridge host', () => {
+  expect([...TURNSTILE_BRIDGE_RETRY_STATUSES].sort((a, b) => a - b)).toEqual([502, 503, 504])
 })
