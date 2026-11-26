@@ -29,6 +29,7 @@ interface LocalePatterns {
   monthDays: RegExp[]
   times: RegExp[]
   noon: RegExp
+  isNoonOffset: (before: string, after: string) => boolean
   numberWords: Readonly<Record<string, number>>
 }
 
@@ -40,21 +41,28 @@ const ENGLISH_NUMBERS: Readonly<Record<string, number>> = {
   one: 1, once: 1, two: 2, twice: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
   eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20,
 }
-const PT_NUMBER = '(?:\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)'
-const EN_NUMBER = '(?:\\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)'
+const PT_NUMBER = String.raw`(?:\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)`
+const EN_NUMBER = String.raw`(?:\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)`
 
-const PT_MONTH_DAY = '\\d{1,2}(?![\\d:h])'
-const PT_MONTH_DAY_LIST = `${PT_MONTH_DAY}(?:(?:\\s*,\\s*(?:e\\s+)?|\\s+e\\s+)(?:(?:o\\s+)?dia\\s+)?${PT_MONTH_DAY})*`
-const PT_MONTH_SUFFIX = '\\s+(?:de cada|de todo|do|todo|a cada|cada)\\s+mes'
-const MONTH_DAY_LIST_END = '(?=\\s*(?:[,.;!?]|$|a partir\\b|comecando\\b|from\\b|starting\\b))'
-const EN_MONTH_DAY = '\\d{1,2}(?:st|nd|rd|th)'
-const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:the\\s+)?${EN_MONTH_DAY})*`
+const PT_MONTH_DAY = String.raw`\d{1,2}(?![\d:h])`
+const PT_MONTH_DAY_LIST = String.raw`${PT_MONTH_DAY}(?:(?:\s*,\s*(?:e\s+)?|\s+e\s+)(?:(?:o\s+)?dia\s+)?${PT_MONTH_DAY})*`
+const PT_MONTH_SUFFIX = String.raw`\s+(?:de cada|de todo|do|todo|a cada|cada)\s+mes`
+const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|from\b|starting\b))`
+const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
+const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = '(?:\\s+d[ae]\\s+(manha|tarde|noite|madrugada)\\b)?'
-const EN_MERIDIEM = '(?:\\s*(am|pm)|\\s+(in the (?:morning|afternoon|evening)|at night))?'
-const PT_OFFSET = '(?:um quarto|meia hora|cinco|dez|quinze|vinte|trinta|quarenta|cinquenta|\\d{1,2}(?![\\d:h]))'
-const PT_NOON = `\\b(?:(?:ao|as|a)\\s+)?(?<!\\b(?:${PT_OFFSET}|minutos?|horas?)\\s+(?:para|pra|pro|antes|depois)\\s+(?:(?:o|do)\\s+)?)meio-dia(?:\\s+e\\s+mei[ao]\\b(?!-))?\\b(?!\\s+(?:e|menos)\\s+${PT_OFFSET}\\b)`
-const EN_NOON = '\\b(?:at\\s+)?(?<!\\b(?:half|quarter|five|ten|fifteen|twenty|mins?|minutes?|hours?|\\d{1,2})[\\s-]+(?:past|after|to|before|till?|until)\\s+)noon\\b'
+const PT_DAY_PART = String.raw`(?:\s+d[ae]\s+(manha|tarde|noite|madrugada)\b)?`
+const EN_MERIDIEM = String.raw`(?:\s*(am|pm)|\s+(in the (?:morning|afternoon|evening)|at night))?`
+const PT_NOON = String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
+const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
+
+const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
+const PT_OFFSET_CONNECTORS = new Set(['para', 'pra', 'pro', 'antes', 'depois'])
+const PT_OFFSET_ARTICLES = new Set(['o', 'do'])
+const EN_OFFSET_WORDS = new Set([
+  'half', 'quarter', 'five', 'ten', 'fifteen', 'twenty', 'min', 'mins', 'minute', 'minutes', 'hour', 'hours',
+])
+const EN_OFFSET_CONNECTORS = new Set(['past', 'after', 'to', 'before', 'till', 'til', 'until'])
 
 const WEEKDAY_NEGATIONS = new Set([
   'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
@@ -89,6 +97,27 @@ interface WeekdayAlternation {
   scope: 'weekday' | 'following' | 'list'
 }
 
+function isPortugueseNoonOffset(before: string, after: string): boolean {
+  const words = before.endsWith(' ') ? before.trimEnd().split(' ') : []
+  if (PT_OFFSET_ARTICLES.has(words.at(-1) ?? '')) words.pop()
+  const connector = words.pop() ?? ''
+  const offset = words.pop() ?? ''
+  if (PT_OFFSET_CONNECTORS.has(connector) && (PT_OFFSET_WORDS.has(offset) || /^\d{1,2}$/u.test(offset))) return true
+  const next = /^ (?:e|menos) (\d{1,2}(?![\w:])|[a-z]+)(?: ([a-z]+))?/u.exec(after)
+  if (!next) return false
+  const [, first = '', second] = next
+  if (first === 'um') return second === 'quarto'
+  if (first === 'meia') return second === 'hora'
+  return PT_OFFSET_WORDS.has(first) || /^\d/u.test(first)
+}
+
+function isEnglishNoonOffset(before: string): boolean {
+  const words = before.endsWith(' ') ? before.trimEnd().split(/[\s-]+/u) : []
+  const connector = words.pop() ?? ''
+  const offset = words.pop() ?? ''
+  return EN_OFFSET_CONNECTORS.has(connector) && (EN_OFFSET_WORDS.has(offset) || /^\d{1,2}$/u.test(offset))
+}
+
 const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   'pt-BR': {
     weekdays: [
@@ -101,20 +130,21 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       { day: 'Saturday', pattern: /\bsab(?:ado)?s?\b/gu },
     ],
     daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
-    count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
-    interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
+    count: new RegExp(String.raw`\b(${PT_NUMBER})\s*(?:vez|vezes|x)\s*(?:(?:por|na|a|em)\s*)?semana\b`, 'gu'),
+    interval: new RegExp(String.raw`\ba\s+cada\s+(${PT_NUMBER})\s+semanas?\b`, 'gu'),
     weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
     monthDays: [
-      new RegExp(`\\b(?:todo|todos os|em todo|cada|a cada)\\s+dias?\\s+${PT_MONTH_DAY_LIST}(?:${PT_MONTH_SUFFIX}(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
-      new RegExp(`\\b(?:(?:no|nos|em|todo)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}${PT_MONTH_SUFFIX}(?![\\w:])`, 'gu'),
-      new RegExp(`\\b(?:todo|cada|a cada)\\s+mes,?\\s+(?:(?:no|nos|em)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
+      new RegExp(String.raw`\b(?:todo|todos os|em todo|cada|a cada)\s+dias?\s+${PT_MONTH_DAY_LIST}(?:${PT_MONTH_SUFFIX}(?![\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+      new RegExp(String.raw`\b(?:(?:no|nos|em|todo)\s+)?dias?\s+${PT_MONTH_DAY_LIST}${PT_MONTH_SUFFIX}(?![\w:])`, 'gu'),
+      new RegExp(String.raw`\b(?:todo|cada|a cada)\s+mes,?\s+(?:(?:no|nos|em)\s+)?dias?\s+${PT_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
     ],
     times: [
-      new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_DAY_PART}(?![:\\dh]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_DAY_PART}(?![:\\d]|[.,]\\d)`, 'gu'),
+      new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
     ],
     noon: new RegExp(PT_NOON, 'gu'),
+    isNoonOffset: isPortugueseNoonOffset,
     numberWords: PORTUGUESE_NUMBERS,
   },
   en: {
@@ -128,21 +158,22 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       { day: 'Saturday', pattern: /\b(?:sat|saturday)s?\b/gu },
     ],
     daily: /\b(every day|daily|each day|every morning|every evening)\b/gu,
-    count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
-    interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
+    count: new RegExp(String.raw`\b(?:(once|twice)|(${EN_NUMBER})\s*(?:time|times|x))\s*(?:(?:a|per|each)\s*)?week\b`, 'gu'),
+    interval: new RegExp(String.raw`\bevery\s+(${EN_NUMBER})\s+weeks?\b`, 'gu'),
     weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
     monthDays: [
-      new RegExp(`\\b(?:on\\s+)?(?:the\\s+)?${EN_MONTH_DAY_LIST}\\s+(?:(?:of\\s+)?(?:every|each)\\s+month|monthly)\\b`, 'gu'),
-      new RegExp(`\\b(?:(?:every|each)\\s+month|monthly),?\\s+on\\s+(?:the\\s+)?${EN_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
-      new RegExp(`\\bevery\\s+${EN_MONTH_DAY_LIST}(?:\\s+of\\s+the\\s+month(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+      new RegExp(String.raw`\b(?:on\s+)?(?:the\s+)?${EN_MONTH_DAY_LIST}\s+(?:(?:of\s+)?(?:every|each)\s+month|monthly)\b`, 'gu'),
+      new RegExp(String.raw`\b(?:(?:every|each)\s+month|monthly),?\s+on\s+(?:the\s+)?${EN_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
+      new RegExp(String.raw`\bevery\s+${EN_MONTH_DAY_LIST}(?:\s+of\s+the\s+month(?![\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
     ],
     times: [
-      new RegExp(`\\bat\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?${EN_MERIDIEM}\\b(?![:\\dh]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)${EN_MERIDIEM}\\b(?![:\\d]|[.,]\\d)`, 'gu'),
+      new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}\b(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}\b(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
     ],
     noon: new RegExp(EN_NOON, 'gu'),
+    isNoonOffset: isEnglishNoonOffset,
     numberWords: ENGLISH_NUMBERS,
   },
 }
@@ -195,6 +226,15 @@ function firstMatch(patterns: readonly RegExp[], text: string): RegExpExecArray 
   return matches.sort((left, right) => left.index - right.index || right[0].length - left[0].length)[0] ?? null
 }
 
+function firstNoonMatch(text: string, patterns: LocalePatterns): RegExpExecArray | null {
+  patterns.noon.lastIndex = 0
+  const matches = Array.from(text.matchAll(patterns.noon))
+  return matches.find((match) => {
+    const before = text.slice(0, match.index)
+    return !patterns.isNoonOffset(before, text.slice(match.index + match[0].length))
+  }) ?? null
+}
+
 function parseNumber(value: string, words: Readonly<Record<string, number>>): number {
   return words[value] ?? Number.parseInt(value, 10)
 }
@@ -205,8 +245,8 @@ function readDayPartHour(hour: number, dayPart: string): number | null {
   const agreesAsWritten = !meridiem && (hour === 0 ? /manha|madrugada|noite|morning|night/u.test(dayPart) : hour > 12 && afternoon)
   if (agreesAsWritten) return hour
   if (hour < 1 || hour > 12) return null
-  const namesMidnight = hour === 12 && /noite|night/u.test(dayPart)
-  return namesMidnight ? 0 : hour % 12 + (afternoon ? 12 : 0)
+  if (hour === 12 && /noite|night/u.test(dayPart)) return 0
+  return hour % 12 + (afternoon ? 12 : 0)
 }
 
 function parseTime(match: RegExpExecArray): string | null {
@@ -221,7 +261,7 @@ function parseTime(match: RegExpExecArray): string | null {
 }
 
 function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
-  const match = firstMatch(patterns.times, remaining) ?? firstMatch([patterns.noon], remaining)
+  const match = firstMatch(patterns.times, remaining) ?? firstNoonMatch(remaining, patterns)
   const dueTime = match ? parseTime(match) : null
   if (!match || !dueTime) return { dueTime: null, token: null, remaining }
   return {

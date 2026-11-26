@@ -240,6 +240,14 @@ describe('readHabitPhrase', () => {
   })
 
   it.each([
+    ['dez para ao meio-dia', 'pt-BR'],
+    ['quinze para as meio-dia', 'pt-BR'],
+    ['meia hora antes ao meio-dia', 'pt-BR'],
+  ] as const)('does not save noon for an offset before a noon word with an article: %s', (input, locale) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ dueTime: null, consumed: [] })
+  })
+
+  it.each([
     ['Ler todo dia ao meio-dia e meia-noite', 'pt-BR'],
     ['Ler todo dia ao meio-dia menos domingo', 'pt-BR'],
     ['Ler todo dia para o meio-dia', 'pt-BR'],
