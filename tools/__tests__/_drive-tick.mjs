@@ -2409,6 +2409,23 @@ const quietLogCases = async () => {
     await deterministic.run()
     same(`drive: ${name} that failed at ${steps[0]} is never rerun and gets one ci-fix order`, [only(deterministic.calls, "rerunFailed").length, deterministic.launched.length, commentsOf(deterministic.calls, 30).filter((text) => text.includes("driver rerun")).length], [0, 1, 0])
   }
+
+  // The merge bar names `needs-owner` and `behind:N`. A pull request that carries `needs:owner` waits with one stable reason, so the log holds no `needs-owner` line for it.
+  const approved = pull(30, { labels: [OWNER_LABEL], mergeState: "BEHIND", behindBy: 1 })
+  const behindScene = scenario({ tickets: [ticket(7)], pulls: { ui: [approved] } })
+  for (const behindBy of [1, 1, 2, 3]) {
+    approved.behindBy = behindBy
+    await behindScene.run()
+  }
+  for (const behindBy of [4, 5]) {
+    approved.behindBy = behindBy
+    const fresh = createMemory()
+    fresh.reading = behindScene.mem.reading
+    fresh.lastIntakeAt = NOW
+    await tick(behindScene.env, fresh)
+    await Promise.all(fresh.running.values())
+  }
+  same("drive: an approved pull request that carries needs:owner and falls behind logs no needs-owner line across ticks and fresh memories", [behindScene.messages.filter((line) => line.includes("needs-owner")).length, behindScene.messages.filter((line) => line.includes("ui#30 wait (carries needs:owner)")).length, only(behindScene.calls, "merge").length, only(behindScene.calls, "updateBranch").length], [0, 3, 0, 0])
 }
 
 const noticeCases = async () => {
