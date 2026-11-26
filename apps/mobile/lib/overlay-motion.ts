@@ -17,7 +17,8 @@ export function useOverlayMotion(open: boolean, scenario: MotionScenario) {
       easing: toAnimatedEasing(open ? preset.enterEasing : preset.exitEasing),
     })
     animation.start()
-    const timer = !open ? setTimeout(() => setRetained(false), duration) : undefined
+    let timer: ReturnType<typeof setTimeout> | undefined
+    if (!open) timer = setTimeout(() => setRetained(false), duration)
     return () => { animation.stop(); clearTimeout(timer) }
   }, [open, preset.enterDuration, preset.exitDuration, preset.enterEasing, preset.exitEasing, preset.reducedMotionEnabled, progress])
 

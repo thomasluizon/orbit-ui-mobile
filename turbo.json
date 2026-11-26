@@ -81,6 +81,7 @@
         "$TURBO_ROOT$/tsconfig.base.json",
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/apps/web/test-support/hermetic/**",
+        "$TURBO_ROOT$/apps/web/hooks/use-{keyboard-shortcuts,stripe-checkout-return}.ts",
         "$TURBO_ROOT$/apps/web/tsconfig.json",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/colors.css",
         "$TURBO_ROOT$/packages/shared/src/**",
