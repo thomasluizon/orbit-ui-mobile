@@ -587,7 +587,6 @@ describe.each(['en', 'pt-BR'] as const)('production smoke adapters in %s', (loca
   it('returns only after the create route closes, on the day the account shows when UTC is a day ahead', async () => {
     const saved = mocks.saved
     vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-26T02:00:00Z') })
-    mocks.guided = true
     mocks.profile = createMockProfile({ hasCompletedOnboarding: true, hasImportedCalendar: true, hasSeenImportPrompt: true, timeZone: 'America/Sao_Paulo' })
     mocks.create.mockImplementation(async (input: { dueDate: string }) => {
       mocks.saved = { ...saved, dueDate: input.dueDate }
