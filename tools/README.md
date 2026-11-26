@@ -5,6 +5,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 ## Delivery driver
 
 - `drive.mjs`: the delivery driver. Each tick it reads GitHub, acts on every open pull request and fills every free worker slot. It runs workers on two Claude accounts: the main account and the worker account (`CLAUDE_CONFIG_DIR=$HOME/.claude-orbit-workers`). Each account has its own pace line, its own 90% stop and its own `--allow-over-limit [main|worker]`.
+- `lib/telegram.mjs`: sends each driver notice to the owner's phone with the Telegram Bot API, with the Keychain items `telegram-bot-token` and `telegram-chat-id`. With one of them missing, the driver shows a macOS notification.
 - `lib/driver-pin.mjs`: the commit that the driver worktree holds, and the crash count of a new version.
 - `lib/release-train.mjs`: the release train of the driver. Every 4 hours, when a service has unreleased work, it releases API, web, landing and mobile, staging first and then production. It reuses `release-plan.mjs` and `wait-release.mjs`. `drive.mjs --release-now` starts a train at once and `--release-status` prints the newest one.
 - `lib/worker.mjs`: starts and watches one headless worker.

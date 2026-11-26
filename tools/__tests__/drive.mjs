@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
-import { existsSync, mkdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
@@ -35,6 +35,7 @@ import {
 } from "../lib/github.mjs"
 import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
+import { sendTelegram } from "../lib/telegram.mjs"
 import {
   finalResult,
   isUsageLimitMessage,
@@ -1050,7 +1051,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1067,12 +1068,31 @@ const skillMarkerCases = () => {
   same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
-  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes("gh issue edit --body-file") && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   const drivers = skillText("driver")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
+  // Run from a code checkout, gh reads the issues of that repository, so each issue command of a skill names the ticket repository.
+  const skillNames = readdirSync(join(REPO_ROOT, ".claude", "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
+  const issueCommands = skillNames.flatMap((name) => [...skillText(name).matchAll(/`(gh issue [^`]*)`/g)].map((match) => [name, match[1]]))
+  same("skills: every gh issue command names the ticket repository", issueCommands.filter(([, command]) => !command.includes(`--repo ${TICKET_REPOSITORY}`)), [])
+  const progress = skillText("progress")
+  // A part is a comment of its ticket, and `partNumber` is the number in its first line, never an issue number.
+  T("skills/progress: the part title comes from the part comment of the ticket", progress.includes(`gh issue view <ticketNumber> --repo ${TICKET_REPOSITORY} --json title,comments`) && progress.includes("Part <partNumber> of <m>") && !/for the part\b/.test(progress), "the skill reads the part as an issue")
+  T("skills/progress: the next ticket in line comes from the next ticket line of the dry run", progress.includes("`next ticket `") && progress.includes("`next ticket none`") && !progress.includes("action is `admit`"), "the skill reads another line")
+}
+
+const telegramUnit = async () => {
+  const requests = []
+  const keychain = async (item) => ({ "telegram-bot-token": "123456:bot-secret", "telegram-chat-id": "4242" })[item] ?? null
+  const answering = (status, body) => async (url, init) => { requests.push({ url, init }); return { status, json: async () => body } }
+  same("lib/telegram.mjs: an ok answer is a sent message", await sendTelegram("a".repeat(5000), { keychain, fetch: answering(200, { ok: true, result: {} }) }), { status: "sent" })
+  same("lib/telegram.mjs: one JSON POST holds the chat id and a text cut to the limit", [requests.length, requests[0].init.method, requests[0].init.headers["content-type"], JSON.parse(requests[0].init.body).chat_id, JSON.parse(requests[0].init.body).text.length], [1, "POST", "application/json", "4242", 4096])
+  same("lib/telegram.mjs: a refusal gives the status and the description", await sendTelegram("text", { keychain, fetch: answering(400, { ok: false, description: "Bad Request: chat not found" }) }), { status: "failed", reason: "HTTP 400: Bad Request: chat not found" })
+  same("lib/telegram.mjs: an answer that is no JSON is a failure", await sendTelegram("text", { keychain, fetch: async () => ({ status: 502, json: async () => { throw new SyntaxError("no JSON") } }) }), { status: "failed", reason: "HTTP 502: no description" })
+  same("lib/telegram.mjs: a missing Keychain item makes no request and names the item", [await sendTelegram("text", { keychain: async () => null, fetch: answering(200, { ok: true }) }), requests.length], [{ status: "unset", missing: "telegram-bot-token" }, 2])
 }
 
 const orderUnit = async () => {
@@ -1081,7 +1101,7 @@ const orderUnit = async () => {
   skillMarkerCases()
 }
 
-const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
+const UNITS = { "drive.mjs": driverUnit, "lib/driver-pin.mjs": pinUnit, "lib/telegram.mjs": telegramUnit, "lib/config.mjs": configUnit, "lib/github.mjs": githubUnit, "lib/worker.mjs": workerUnit, "lib/order.mjs": orderUnit }
 
 export const cases = async () => {
   for (const unit of Object.values(UNITS)) await unit()
