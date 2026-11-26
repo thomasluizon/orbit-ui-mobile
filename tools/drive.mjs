@@ -1111,16 +1111,19 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
-      for (const action of plan) {
-        if (action.type === "order") orders.push(action)
-        else if (action.type !== "none") {
-          log(env, item, describe(action))
-          if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
+      try {
+        for (const action of plan) {
+          if (action.type === "order") orders.push(action)
+          else if (action.type !== "none") {
+            log(env, item, describe(action))
+            if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
+          }
+          if (ctx.merged) break
         }
-        if (ctx.merged) break
+      } finally {
+        // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
+        if (isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
-      // Read after the actions, so a hold that this tick wrote counts and a report that wrote no hold stays on the stall clock.
-      if (isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
     } catch (error) {
       log(env, item, "error", error.message)
     }

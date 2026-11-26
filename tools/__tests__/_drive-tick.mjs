@@ -720,11 +720,12 @@ const checkOnlyCases = async () => {
 const STALL = "Driver stalled: no worker, request or merge for 60 minutes"
 
 const stallCases = async () => {
-  const stalled = async (offset, { extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false } = {}) => {
+  const stalled = async (offset, { extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false, refusesMerge = false } = {}) => {
     const stateDirectory = join(root, `drive-stall-${++scenarios}`)
     mkdirSync(stateDirectory, { recursive: true })
     if (offset !== null) writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW + offset }))
     const scene = scenario({ tickets, runs, stateDirectory, sleeping, pulls: { ui: [withoutApprovalCheck(extra)] } })
+    if (refusesMerge) scene.env.github.merge = async (...args) => { scene.calls.push(["merge", ...args]); throw new Error("gh pr merge failed: a repository rule refuses the merge") }
     await scene.run()
     scene.stateDirectory = stateDirectory
     return scene
@@ -751,6 +752,8 @@ const stallCases = async () => {
   same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
   const merging = await stalled(-61 * MINUTE, { runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
   same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
+  const refused = await stalled(-61 * MINUTE, { runs: [], refusesMerge: true, extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
+  same("drive: a pull request whose merge throws on every tick still opens one stall issue", [only(refused.calls, "merge").length, created(refused).length], [1, 1])
 }
 
 const mergeCases = async () => {
