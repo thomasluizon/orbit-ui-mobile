@@ -17,6 +17,9 @@ const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
 const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
 const MARKER = /^<!-- orbit-drive:([a-z-]+) -->/
+/** The comment of the Deleted test guard job. It holds the head sha of the pull request and lists the lost tests that only the review can judge. */
+const GUARD_MARKER = /^<!-- deleted-test-guard:([0-9a-f]{40}) -->/
+const GUARD_AUTHOR = "github-actions"
 const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
@@ -179,6 +182,7 @@ const normalizeComment = (comment) => ({
   body: comment.body,
   createdAt: comment.createdAt,
   kind: MARKER.exec(comment.body)?.[1] ?? null,
+  guardHead: GUARD_MARKER.exec(comment.body)?.[1] ?? null,
 })
 
 const normalizePull = (raw, ticketRepository) => {
@@ -216,7 +220,7 @@ const normalizePull = (raw, ticketRepository) => {
     })),
     threads: nodes(raw.reviewThreads).map((thread) => ({ id: thread.id, resolved: thread.isResolved, author: botLogin(thread.comments?.nodes?.[0]?.author) })),
     threadsComplete: raw.reviewThreads?.pageInfo?.hasNextPage === false,
-    comments: nodes(raw.comments).filter((comment) => MARKER.test(comment.body) || /@pullfrog review/.test(comment.body)).map(normalizeComment),
+    comments: nodes(raw.comments).filter((comment) => MARKER.test(comment.body) || GUARD_MARKER.test(comment.body) || /@pullfrog review/.test(comment.body)).map(normalizeComment),
   }
 }
 
@@ -345,9 +349,15 @@ const checkFailures = (pull) => {
 
 const inWholeDiffWindow = (body) => Buffer.from(body).subarray(0, WHOLE_DIFF_WINDOW_BYTES).toString().includes("Whole diff:")
 
-/** True when the pull request needs an approval-head whole-diff pass: a fix launch, over 30 changed files, or a dependency manifest. */
+/** True when the Deleted test guard commented on the head: a lost test that only the review can judge. */
+export const guardOwesReview = (pull) => (pull.comments ?? []).some((comment) => comment.guardHead === pull.headSha && comment.author === GUARD_AUTHOR)
+
+/**
+ * True when the pull request needs an approval-head whole-diff pass: a fix launch, over 30 changed files, a dependency manifest,
+ * or a lost test that the Deleted test guard cannot judge. The review reads the comment of the guard in that pass.
+ */
 export const needsWholeDiff = (pull, { fixLaunches = 0 } = {}) =>
-  fixLaunches > 0 || pull.changedFiles > WHOLE_DIFF_FILES || pull.files.some((file) => MANIFEST_FILE.test(file))
+  fixLaunches > 0 || pull.changedFiles > WHOLE_DIFF_FILES || pull.files.some((file) => MANIFEST_FILE.test(file)) || guardOwesReview(pull)
 
 /**
  * An APPROVED whole-diff review submitted after the driver's request for its own commit. It covers the head at that

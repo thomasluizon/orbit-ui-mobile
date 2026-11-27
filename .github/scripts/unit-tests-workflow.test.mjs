@@ -849,3 +849,23 @@ test("the web test key holds only the desktop files its coverage measures and th
   assert.equal(JSON.parse(readFileSync(join(root, "apps/web/package.json"), "utf8")).scripts["test:cross-app"], "vitest run --project=cross-app")
   assert.equal(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.test, "turbo run test test:cross-app")
 })
+
+test("the Deleted test guard job starts only when the plan finds a lost test, comments for the AI review and keeps the guard exit code", () => {
+  const job = workflow.jobs["deleted-test-guard"]
+  const action = yaml.load(readFileSync(resolve(root, ".github/actions/deleted-test-guard/action.yml"), "utf8"))
+  assert.equal(job.name, "Deleted test guard")
+  assert.equal(job.if, "needs.plan.outputs.deleted-test-guard == 'true'")
+  assert.equal(job.needs, "plan")
+  assert.deepEqual(job.permissions, { contents: "read", "pull-requests": "write" })
+  assert.equal(workflow.jobs.plan.outputs["deleted-test-guard"], "${{ steps.plan.outputs.deleted-test-guard }}")
+  const plan = stepNamed(workflow.jobs.plan.steps, "Hash the test tasks and read the changed paths").run
+  assert.match(plan, /node tools\/deleted-test-guard\.mjs --plan --base HEAD\^1 --head HEAD; else echo "deleted-test-guard=false"; fi \| tee -a "\$GITHUB_OUTPUT"/, "a pull request reads the plan of the guard and every other event starts no job")
+  assert.equal(job.steps[0].uses, "actions/checkout@v7")
+  assert.equal(job.steps[0].with["fetch-depth"], 2, "the base is the first parent of the merge commit")
+  assert.equal(job.steps[1].uses, "./.github/actions/deleted-test-guard")
+  const run = stepNamed(action.runs.steps, "Run the deleted test guard").run
+  assert.match(run, /--base HEAD\^1 --budget-minutes 10/)
+  assert.match(run, /--comment-sha "\$HEAD_SHA"/, "the comment names the head of the pull request, not the merge commit")
+  assert.match(run, /gh pr comment "\$PULL_REQUEST" --repo "\$GITHUB_REPOSITORY" --body-file/)
+  assert.match(run, /exit "\$status"$/m, "a failed guard fails the job after the comment")
+})

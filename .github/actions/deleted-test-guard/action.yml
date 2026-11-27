@@ -1,0 +1,30 @@
+name: Run the deleted test guard
+description: Install the dependencies, run the guard against the first parent of the merge commit and comment for the AI review
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v7
+      with:
+        node-version: 22
+        package-manager-cache: false
+    - uses: ./.github/actions/restore-npm-cache
+    - name: Install the dependencies
+      shell: bash
+      run: npm ci || npm ci
+    # The comment names the head of the pull request, never the merge commit. The merge bar reads that sha. A failed guard fails
+    # the job after the comment.
+    - name: Run the deleted test guard
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        PULL_REQUEST: ${{ github.event.pull_request.number }}
+      run: |
+        status=0
+        node tools/deleted-test-guard.mjs --base HEAD^1 --budget-minutes 10 --summary-file "$RUNNER_TEMP/guard-summary.md" \
+          --comment-file "$RUNNER_TEMP/guard-comment.md" --comment-sha "$HEAD_SHA" || status=$?
+        cat "$RUNNER_TEMP/guard-summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+        if [ -s "$RUNNER_TEMP/guard-comment.md" ]; then
+          gh pr comment "$PULL_REQUEST" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/guard-comment.md"
+        fi
+        exit "$status"

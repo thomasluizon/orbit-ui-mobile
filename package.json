@@ -20,6 +20,8 @@
     "decode-uri-component": "file:packages/decode-uri-component"
   },
   "devDependencies": {
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
     "@swc/helpers": "^0.5.15",
     "ajv": "^8.20.0",
     "ajv-formats": "^2.1.1",
