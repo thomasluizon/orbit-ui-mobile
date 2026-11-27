@@ -74,7 +74,8 @@ const hardCapCases = () => {
   T("worker-size-hook: at 399 lines an Edit of a file in the diff is allowed", denied(pre("Edit", { file_path: join(directory, "a.ts"), old_string: "a", new_string: "b" })) === null)
   write("a.ts", lines(400))
   same("worker-size-hook: at 400 lines an Edit of a file in the diff is denied", denied(pre("Edit", { file_path: join(directory, "a.ts"), old_string: "a", new_string: "b" })), capText(400, 1))
-  T("worker-size-hook: at 400 lines a Write outside the worktree is denied", denied(pre("Write", { file_path: join(root, "size-hook", "outside.mjs"), content: "x" })) !== null)
+  T("worker-size-hook: at 400 lines a Write outside the worktree is allowed, so the pull request text can be written", denied(pre("Write", { file_path: join(root, "size-hook", "body.md"), content: "x" })) === null)
+  T("worker-size-hook: at 400 lines a Write of a body file inside the worktree is denied", denied(pre("Write", { file_path: join(directory, "body.md"), content: "x" })) !== null)
   const bash = (command) => denied(pre("Bash", { command }))
   for (const command of [
     "npx vitest --run a.test.ts",
@@ -88,6 +89,16 @@ const hardCapCases = () => {
     "git add a.ts && git commit -m \"a > b\"",
     "git -C /work log --oneline",
     "git diff --stat 2>&1",
+    "git push -u origin work",
+    "git -C . push",
+    "git status; git push",
+    "gh pr create --fill",
+    "gh pr create --title t --body-file /tmp/body.md --label parity:exempt",
+    "gh pr edit --body-file /tmp/body.md",
+    "gh pr edit 50 --add-label parity:exempt",
+    "gh pr comment --body-file /tmp/note.md",
+    "gh pr checks 2>&1",
+    "gh pr view 50 --json body",
     "npx tsc --noEmit 2>/dev/null && git status",
   ]) T(`worker-size-hook: at 400 lines ${JSON.stringify(command)} is allowed`, bash(command) === null, String(bash(command)))
   for (const command of [
@@ -95,9 +106,12 @@ const hardCapCases = () => {
     "echo x >> a.ts",
     "git log > a.ts",
     "git status && echo x > a.ts",
-    "git push origin work",
-    "git -C . push",
-    "git status; git push",
+    "gh pr create --fill > body.md",
+    "gh pr merge 50",
+    "gh run download 1",
+    "gh issue edit 9 --body x",
+    "gh api repos/o/r/pulls",
+    "gh pr checkout 50",
     "npm install left-pad",
     "npx prettier --write a.ts",
     "npx -c 'echo x > a.ts'",

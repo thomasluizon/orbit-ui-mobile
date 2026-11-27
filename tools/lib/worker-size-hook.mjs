@@ -19,8 +19,8 @@ const ASSIGNMENT = /^[A-Za-z_]\w*\+?=/
 const CHECK_SCRIPT = /^(?:\.\/)?tools\/check-[^/\s]+\.mjs$/
 const GATE_SCRIPTS = new Set(["type-check", "lint"])
 const GATE_PROGRAMS = new Set(["tsc", "eslint", "vitest"])
-/** The `git` options that take the next word as their value. */
-const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--config-env"])
+/** The `gh pr` verbs of a worker delivery: it opens, edits and comments on its own pull request and reads its checks. */
+const DELIVERY_VERBS = new Set(["create", "edit", "comment", "checks", "view", "diff", "list", "status"])
 
 const git = (cwd, args) => {
   const result = spawnSync("git", args, { cwd, encoding: "utf8", windowsHide: true })
@@ -64,19 +64,14 @@ const programWords = (words) => {
   return start === -1 ? [] : words.slice(start)
 }
 
-/** The `git` subcommand of a list of words that starts with `git`. */
-const gitSubcommand = (words) => {
-  for (let index = 1; index < words.length; index++) {
-    if (GIT_VALUE_OPTIONS.has(words[index])) index++
-    else if (!words[index].startsWith("-")) return words[index]
-  }
-  return null
-}
-
-/** True for `git` with a subcommand other than `push`, and for each gate command. */
+/**
+ * True for `git`, a gate command and a `gh pr` delivery call. `git push` and `gh pr create` pass because a worker still delivers
+ * its own work until the driver pushes (Part 5 of #2334 removes them). `worker-gh-hook.mjs` polices every `gh` write.
+ */
 const isAllowedAtCap = (words) => {
   const [program, first, second] = words
-  if (program === "git") return gitSubcommand(words) !== "push"
+  if (program === "git") return true
+  if (program === "gh") return first === "pr" && DELIVERY_VERBS.has(second)
   if (program === "npx") {
     const name = words.slice(1).find((word) => !word.startsWith("-"))
     return GATE_PROGRAMS.has(name)
@@ -109,18 +104,19 @@ const shellAllowedAtCap = (command) => {
 
 /**
  * Why the call may not run, or null. `input` is the PreToolUse input and `counted` is the measure of its worktree. A new path
- * is a path that the diff does not hold. At the soft cap or at the file cap no new path is allowed. At the hard cap only
- * `git` (but not `git push`) and a gate command run.
+ * is a path that the diff does not hold. At the soft cap or at the file cap no new path is allowed. At the hard cap no file
+ * in the worktree changes, and only `git`, a gate command and a `gh pr` delivery call run. A file outside the worktree adds
+ * nothing to the diff, so a worker can still write the text of its pull request there.
  */
 export const preDenial = (input, counted) => {
   const tool = input.tool_name
   const atHardCap = counted.lines >= MAX_CHANGED_LINES
   const atSoftCap = counted.lines >= SOFT_CHANGED_LINES || counted.files >= MAX_CHANGED_FILES
   if (FILE_TOOLS.has(tool)) {
-    if (atHardCap) return capText(counted)
     if (!atSoftCap) return null
     const path = worktreePath(counted.top, input.cwd, String(input.tool_input.file_path))
-    return path !== null && !counted.paths.includes(path) ? capText(counted) : null
+    if (path === null) return null
+    return atHardCap || !counted.paths.includes(path) ? capText(counted) : null
   }
   if (SHELL_TOOLS.has(tool) && atHardCap && !shellAllowedAtCap(String(input.tool_input.command))) return capText(counted)
   return null
