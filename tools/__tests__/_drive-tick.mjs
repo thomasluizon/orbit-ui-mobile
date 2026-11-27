@@ -760,6 +760,21 @@ const reviewCases = async () => {
   await second.run()
   same("drive: a second review with no BLOCKING gives needs:owner", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").length], [0, 1])
 
+  // Pullfrog edits the body of a review after it submits it, so a review whose run is not settled waits.
+  const unsettledPull = (run) => scenario({ tickets: [ticket(7)], runs: [run], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)], comments: [comment("ticket", "T")] })] } })
+  const inProgress = unsettledPull(pullfrogRun(5, -6 * MINUTE, -1 * MINUTE, "in_progress"))
+  await inProgress.run()
+  same("drive: a CHANGES_REQUESTED review with no finding whose run is in progress waits and gives no needs:owner", [commentsOf(inProgress.calls, 30).length, only(inProgress.calls, "editLabels").length, inProgress.launched.length], [0, 0, 0])
+  const justDone = unsettledPull(pullfrogRun(5, -6 * MINUTE, -2 * MINUTE))
+  await justDone.run()
+  same("drive: a CHANGES_REQUESTED review with no finding whose run completed less than the settle time ago waits and gives no needs:owner", [commentsOf(justDone.calls, 30).length, only(justDone.calls, "editLabels").length, justDone.launched.length], [0, 0, 0])
+  const settled = unsettledPull(pullfrogRun(5, -16 * MINUTE, -12 * MINUTE))
+  await settled.run()
+  same("drive: a CHANGES_REQUESTED review with no finding whose run settled gives needs:owner", [commentsOf(settled.calls, 30).length, only(settled.calls, "editLabels").length], [0, 1])
+  const edited = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(5, -16 * MINUTE, -12 * MINUTE)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1)] })], comments: [comment("ticket", "T")] })] } })
+  await edited.run()
+  T("drive: a review that gets its BLOCKING line by an edit in its run gives a fix order and no needs:owner", edited.launched.length === 1 && only(edited.calls, "editLabels").length === 0)
+
   const fresh = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: [] })] } })
   await fresh.run()
   const posted = commentsOf(fresh.calls, 30)
