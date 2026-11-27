@@ -190,7 +190,7 @@ const codexHookCases = () => {
   const other = join(root, "gh-hook", "other-tree")
   spawnSync("git", ["init", "--quiet", "--initial-branch", "fix/ticket-8", other])
   const codexHome = join(root, "gh-hook", "codex-home")
-  writeCodexHome({ codexHome, hookPath: fileURLToPath(new URL("../lib/worker-gh-hook.mjs", import.meta.url)), skillFolders: [], denyPrefixes: [] })
+  writeCodexHome({ codexHome, hookPath: fileURLToPath(new URL("../lib/worker-gh-hook.mjs", import.meta.url)), sizeHookPath: fileURLToPath(new URL("../lib/worker-size-hook.mjs", import.meta.url)), gateHookPath: fileURLToPath(new URL("../lib/worker-gate-hook.mjs", import.meta.url)), skillFolders: [], denyPrefixes: [] })
   const [{ hooks: [hook] }] = JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8")).hooks.PreToolUse
   const identity = { ORBIT_WORKER_WORKTREE: worktree, ORBIT_WORKER_BRANCH: OWN.branch }
   const call = (command, { cwd = worktree, worker = identity, shell = hook.command } = {}) => spawnSync("sh", ["-c", shell], { env: { ...env, ...worker }, input: JSON.stringify({ session_id: "s", turn_id: "t", cwd, hook_event_name: "PreToolUse", model: "m", tool_name: "Bash", tool_use_id: "c", tool_input: { command } }), encoding: "utf8" })

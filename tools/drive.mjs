@@ -2170,11 +2170,12 @@ const exitFromLog = (env, { logFile, runner }) => ({ spawnError: null, exitCode:
 /**
  * The gate result of a launch: `gate green` or `gate red`, from the record that the `Stop` hook wrote in the git directory of the worktree.
  * A record of another launch, a record for another head, a missing record and a worktree with an uncommitted file read as red,
- * because a run that never passed its gate has no green result. A `find` or `replan` run and a Codex launch have no gate, so they give null.
+ * because a run that never passed its gate has no green result. A `find` or `replan` run has no gate, so it gives null.
+ * A Claude launch and a Codex launch write the same record: the gate hook runs in the `Stop` event of both.
  * The status comes from `worktreeStatus` of the gate hook, so the driver and the hook see the same files.
  */
 export const gateResultOf = async (env, { kind, worktree, logFile, runner }, headAfter) => {
-  if (kind === "find" || kind === "replan" || runnerOfRecord({ runner }) === "codex") return null
+  if (kind === "find" || kind === "replan") return null
   const dir = await env.git(worktree, ["rev-parse", "--absolute-git-dir"])
   if (dir.status !== 0) return "gate red"
   const record = readGate(dir.stdout.trim())
@@ -3410,10 +3411,10 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
-    // A run with no `own` (a probe) writes no code, so it gets no gate hook. A Codex run has no `Stop` hook, so it takes none.
+    // A run with no `own` (a probe) writes no code, so it gets no gate hook. A Codex run reads its gate from its environment.
     invocation: async (token, name = MAIN, own = null, model = undefined, runner = "claude", gate = own === null ? null : undefined) => {
       const workerToken = token ?? (await workerApi.readWorkerToken()) ?? "probe-only"
-      if (name === WORKER && runner === "codex") return workerApi.codexInvocation({ home, parentEnvironment: process.env, token: workerToken, own })
+      if (name === WORKER && runner === "codex") return workerApi.codexInvocation({ home, parentEnvironment: process.env, token: workerToken, own, gate: gate ?? null })
       return workerApi.workerInvocation({ home, parentEnvironment: process.env, token: workerToken, configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model, gate })
     },
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),

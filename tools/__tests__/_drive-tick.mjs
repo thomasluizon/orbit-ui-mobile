@@ -111,7 +111,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       },
     },
     invocation: async (token, name = "main", own = null, model = undefined, runner = "claude", gate = undefined) => (name === "worker" && runner === "codex"
-      ? { command: { executable: "codex", args: [] }, environment: { CODEX_HOME: CODEX_DIRECTORY, ...(token ? { GH_TOKEN: token } : {}) }, own, model: undefined, codex: { home: CODEX_DIRECTORY } }
+      ? { command: { executable: "codex", args: [] }, environment: { CODEX_HOME: CODEX_DIRECTORY, ...(token ? { GH_TOKEN: token } : {}) }, own, gate, model: undefined, codex: { home: CODEX_DIRECTORY } }
       : { command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model, gate }),
     git: async (cwd, args) => {
       calls.push(["git", ...args])
@@ -2673,8 +2673,12 @@ const gateFactsCases = async () => {
   rmSync(join(repo, "hidden.ts"), { force: true })
   git("config", "--unset", "core.excludesFile")
   const codex = await reapedFacts({ run: "chore-ticket-7-left" }, { runner: "codex" })
+  same("drive: a reaped Codex launch with a green record gets gate green, as a Claude launch does", [codex.gate, codex.runner, codex.headAfter], ["gate green", "codex", head])
+  same("drive: a reaped Codex launch with a record of another run or a red record gets gate red", [await gateOf({ run: "chore-ticket-7-other" }, { runner: "codex" }), await gateOf({ run: "chore-ticket-7-left", green: false }, { runner: "codex" })], ["gate red", "gate red"])
+  rmSync(join(gitDirectory, "orbit-gate.json"), { force: true })
+  same("drive: a reaped Codex launch with no record gets gate red", await gateOf(null, { runner: "codex" }), "gate red")
   const finder = await reapedFacts({ run: "chore-ticket-7-left" }, { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1" })
-  same("drive: a reaped Codex launch and a find launch have no gate field in their facts", ["gate" in codex, "gate" in finder, codex.headAfter], [false, false, head])
+  same("drive: a reaped find launch has no gate field in its facts", ["gate" in finder, finder.headAfter], [false, head])
 }
 
 const unreadLogCases = async () => {
@@ -4458,6 +4462,7 @@ const codexRunnerCases = async () => {
   const scene = codexScene({ tickets: [ticket(7), ticket(8), ticket(9)] })
   await scene.run()
   same("drive: with runner codex the worker slots run on the Codex home and the main account takes the rest", scene.launched.map(homeOf), [CODEX_DIRECTORY, CODEX_DIRECTORY, null])
+  same("drive: a Codex launch gets the gate of its own run and head, as a Claude launch does", scene.launched.slice(0, 2).map((options) => [options.invocation.gate?.run.startsWith("chore-ticket-"), options.invocation.gate?.head]), [[true, HEAD], [true, HEAD]])
   same("drive: the login of the worker slot is read from the chosen runner", scene.authRunners.filter(([name]) => name === "worker").map(([, runner]) => runner), ["codex"])
   const record = JSON.parse(readFileSync(join(scene.env.stateDir, "chore-ticket-7.launch.json"), "utf8"))
   same("drive: the launch record of a Codex worker names the Codex account key and the runner", [record.account, record.runner], [WORKER_ACCOUNT.key, "codex"])

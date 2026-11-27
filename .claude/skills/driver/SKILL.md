@@ -82,6 +82,7 @@ The switch `--runner claude|codex` sets what runs in the worker slots. The main 
 - `codex` runs `codex exec` on the private Codex home `$HOME/.codex-orbit-workers`. The pace, the slot count, the 90% stop and `--pace worker on|off` work on the Codex weekly reading.
 - The next tick reads the setting, with no restart.
 - A Codex order starts cold. It never resumes a session.
+- A Codex launch runs the same size hooks and the same gate hook as a Claude launch. Each hook reads the worktree, the run and the head from the `ORBIT_WORKER_*` variables of the launch.
 - The worker model is the constant `CODEX_MODEL` in `tools/lib/codex-runner.mjs`. Only the owner changes it.
 
 Owner steps to move the worker slots to Codex:
