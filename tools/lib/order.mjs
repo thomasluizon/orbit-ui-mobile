@@ -1,8 +1,8 @@
-/** The delivery driver's work orders: the six kinds of order and the one generic brief that every worker reads. */
+/** The delivery driver's work orders: the seven kinds of order and the one generic brief that every worker reads. */
 
 import { parityExemptTerms } from "./parity-scope.mjs"
 
-export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
+export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find", "replan"])
 
 /** The first line of an owner's part comment: heading marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
 const PART_HEADING = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Part\s+(\d+)\s+of\s+(\d+)/i
@@ -57,6 +57,49 @@ export const ownerParts = (comments) => {
   return newest === null ? [] : parts.filter((comment) => partOf(comment).total === partOf(newest).total)
 }
 
+/**
+ * The highest total that any part comment announces, or 0 when the ticket holds none. A set that an older comment set up and a
+ * newer set replaced still counts: a new set with its total would read as a second live set.
+ */
+export const highestTotal = (comments) => Math.max(0, ...comments.map((comment) => partOf(comment)?.total ?? 0))
+
+/** The line that starts the answer of a re-plan run. The last such line is the answer. */
+const PLAN_LINE = /^Plan:\s*(fresh|split)\s*$/i
+
+/**
+ * The answer of a re-plan run: `Plan: fresh` with a note, or `Plan: split` with a new part set. A part starts at a line that
+ * reads as a part heading and ends before the next one. A missing or unreadable answer is `fresh` with no note.
+ */
+export const parseReplanAnswer = (text) => {
+  const lines = String(text ?? "").split("\n")
+  const at = lines.findLastIndex((line) => PLAN_LINE.test(line.trim()))
+  if (at < 0) return { plan: "fresh", note: "", parts: [] }
+  const rest = lines.slice(at + 1)
+  if (PLAN_LINE.exec(lines[at].trim())[1].toLowerCase() === "fresh") return { plan: "fresh", note: rest.join("\n").trim(), parts: [] }
+  const chunks = []
+  for (const line of rest) {
+    if (partOf({ body: line }) !== null) chunks.push([line])
+    else chunks.at(-1)?.push(line)
+  }
+  return { plan: "split", note: "", parts: chunks.map((chunk) => chunk.join("\n").trim()) }
+}
+
+/**
+ * The reason that a split answer is no usable part set, or null. The set must number its parts 1 to m with one total m, and m
+ * must be higher than the highest total of any part set on the ticket: an older set with the same total would read as a second live set.
+ */
+export const splitProblem = (parts, highest) => {
+  const heads = parts.map((body) => partOf({ body }))
+  if (heads.length < 2 || heads.some((head) => head === null)) return "the answer holds fewer than 2 part headings"
+  const total = heads.length
+  if (heads.some((head, index) => head.number !== index + 1 || head.total !== total)) return "the parts are not numbered 1 to the total, or the totals differ"
+  if (total <= highest) return `the new total ${total} is not higher than the total ${highest} of a part set on the ticket`
+  return null
+}
+
+/** A part comment with its total changed, so a merged part keeps its number and its text in the new set. */
+export const withTotal = (body, total) => body.replace(/^(#{0,6}\s*(?:#\d+\s+)?\**\s*Part\s+\d+\s+of\s+)\d+/i, `$1${total}`)
+
 const trimmed = (text) => text.replace(/\s*$/, "")
 
 /** The heading of a part comment as a list item or a section title, without its leading `#` marks. */
@@ -73,6 +116,12 @@ const partSection = (partComments, partNumber) => {
     ...(others.length === 0 ? [] : [`Other parts, first line only:\n\n${others.map((comment) => `- ${headingOf(comment)}`).join("\n")}`]),
   ]
   return `\n\n## Parts\n\n${sections.join("\n\n")}`
+}
+
+/** Every part in force, in full: a re-plan run reads the whole set. */
+const wholePartSection = (partComments) => {
+  const parts = ownerParts(partComments)
+  return parts.length === 0 ? "" : `\n\n## Parts\n\n${parts.map((comment) => `### ${headingOf(comment)}\n\n${trimmed(comment.body)}`).join("\n\n")}`
 }
 
 /** The `findings` comments that an apply part applies, in full. */
@@ -94,7 +143,7 @@ export const CLASS_RULE = "Fix the whole class of each finding in this round. Na
 const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/main\`. The branch was green at \`${baseMerge.before}\` before the merge. The merge brought in these base commits:\n\n${baseMerge.commits.map((line) => `- ${line}`).join("\n")}\n\nThe cause is one of these commits and how it meets this branch. Find it and fix it.\n\n`
 
 /** The part of the order that belongs to one kind: what to do first and what to fix. */
-const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => {
+const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, replan }) => {
   switch (kind) {
     case "build":
       return "Build the ticket. Rebase on `origin/main` before the first push."
@@ -108,6 +157,12 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => 
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":
       return `Read only the slice that the part names. Your final message is the area list, then the findings table with one row per finding as \`path:line | class | fix\`, and nothing after the table. Commit nothing, push nothing and open no pull request.`
+    case "replan": {
+      const listed = (numbers) => (numbers.length === 0 ? "none" : numbers.join(", "))
+      const merged = listed(replan.mergedParts)
+      const open = listed(replan.openParts ?? [])
+      return `The plan on the branch \`${replan.stuckBranch}\` used its launches and still fails. The earlier launches are below. Merged parts: ${merged}. Total of the part set in force: ${replan.currentTotal}. Highest total of any part set on the ticket: ${replan.highestTotal}. Open parts: ${open}.\n\nRead only. Commit nothing, push nothing and open no pull request. Choose how the work goes on. End your final message with exactly one answer and nothing after it.\n\n- \`Plan: fresh\` on its own line, then a short note for the next worker. The same scope goes on a new branch from \`origin/main\`.\n- \`Plan: split\` on its own line, then the full new part set. Each part starts with \`## Part n of m: <title>\`. Number the parts 1 to m, and make m higher than ${replan.highestTotal}. Write the merged parts and the open parts with their number and title, and add the new, smaller parts after them.`
+    }
     default:
       throw new Error(`unknown order kind: ${kind}`)
   }
@@ -173,7 +228,7 @@ const deliverySection = ({ ticket, kind }) => {
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
 export const renderBrief = ({ kind, place, ticket }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
-  const reads = kind === "find"
+  const reads = kind === "find" || kind === "replan"
   const pushes = pushesToOpenPull(kind)
   const brief = `## Brief
 
@@ -195,7 +250,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
 
 **Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. Search with the Grep tool. Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`. Run no command that Claude Code holds for an approval.
 
-**Report.** ${reads ? "Your final message is the area list and the findings table of \"This order\", with nothing after the table." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL."}
+**Report.** ${kind === "replan" ? "Your final message is the answer of \"This order\", with nothing after it." : reads ? "Your final message is the area list and the findings table of \"This order\", with nothing after the table." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL."}
 `
   if (Buffer.byteLength(brief) > BRIEF_LIMIT_BYTES) throw new Error(`the brief is ${Buffer.byteLength(brief)} bytes, over the ${BRIEF_LIMIT_BYTES} byte limit`)
   return brief
@@ -223,14 +278,15 @@ export const renderResumeOrder = ({ kind, pull, review = null, failure = null, o
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null, replan = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
+  if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
   assertFixInputs({ kind, pull, review, failure })
   if ((kind === "build part" || kind === "find") && !ownerParts(partComments).some((comment) => partOf(comment).number === partNumber)) {
     throw new Error(`the ticket has no comment for part ${partNumber}`)
   }
-  const parts = kind === "build" ? "" : partSection(partComments, partNumber)
+  const parts = kind === "build" ? "" : kind === "replan" ? wholePartSection(partComments) : partSection(partComments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
 }

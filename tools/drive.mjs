@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, partProblem, renderOrder, renderResumeOrder } from "./lib/order.mjs"
+import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -113,6 +113,11 @@ const MAX_FIX_LAUNCHES = 2
 /** The wait before a branch whose worktree was not prepared is tried again. Its slot is free for another order meanwhile. */
 const PREPARE_RETRY_MS = 10 * 60 * 1000
 const WAITS_FOR_REPLAN = "waits for the re-plan"
+/** Re-plans of one ticket before it parks. A re-plan is one Opus run, so this bounds the tokens that one ticket can spend. */
+const MAX_REPLANS = 2
+const PARKED = "parked"
+const PARKED_LABEL = { name: PARKED, color: "FBCA04", description: "The driver parked it after its re-plans. The daily harness review re-plans it." }
+const ANSWER_KEPT_CHARS = 8000
 const FLAKE_LOG_LINES = 40
 const BASE_COMMIT_LIMIT = 30
 const MERGED_TTL_MS = 10 * 60 * 1000
@@ -1072,6 +1077,35 @@ const factsFileOf = (logFile) => logFile.replace(/\.log$/, ".facts.json")
 /** True when a launch record names the coordinator model: the launch at a cap runs it once. */
 const ranOpus = (entry) => entry.model === workerApi.COORDINATOR_MODEL
 
+/** The `replan` records of a ticket, oldest first: the plan that a re-plan run chose, the branch it left and its count. */
+const replansOf = (ticket) => recordsOf(ticket, "replan")
+
+/**
+ * The launches of re-plan runs since the newest `parked` comment: a review that takes the ticket back removes `parked`, so the count starts again.
+ * The bound reads the launch records, which `startWorker` writes before the spawn, and never the `replan` records, which a step after the
+ * run writes: a run whose record fails to land still counts. A launch that a usage limit refunded counts for nothing.
+ */
+const replansSincePark = (ticket) => launchesOf(ticket, newestOf(ticket.comments, PARKED)).filter((entry) => entry.kind === "replan")
+
+/** The branches that a re-plan left. A branch that no merged pull request used still counts as used, so the next plan takes a new one. */
+const replannedBranches = (ticket) => new Set(replansOf(ticket).map((record) => record.branch))
+
+/** The branch of the re-plan run of a ticket. The run is read only and its worktree goes when the run ends. */
+const replanBranch = (ticket) => `chore/ticket-${ticket.number}-replan`
+
+/** True while a re-plan run of the ticket works. */
+const replanRunning = (running, ticketNumber) => running.workers.some(({ record }) => record.kind === "replan" && record.ticketNumber === ticketNumber)
+
+/**
+ * What a plan does when its ladder ends (2 launches on the worker model, then 1 on the coordinator model): one re-plan run, or
+ * the park once the ticket used its re-plans. A running re-plan run makes the plan wait.
+ */
+const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches, pulls }) => {
+  if (replanRunning(running, ticket.number)) return { type: "none", reason: WAITS_FOR_REPLAN }
+  if (replansSincePark(ticket).length >= MAX_REPLANS) return { type: "park", repoKey, ticket, reason: `the plan on ${branch} used its launches after ${MAX_REPLANS} re-plans` }
+  return { type: "order", kind: "replan", repoKey, ticket, pull, part, branch: replanBranch(ticket), stuckBranch: branch, model: workerApi.COORDINATOR_MODEL, openParts: openPartNumbers(ticket, partsOf(ticket), pulls, running.workers, branch), history: failureHistory(env, launches) }
+}
+
 /**
  * The owner comments on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
  * and holds `stopText`: the conflict report of one head. Each owner comment after it grants one more launch, and a later stop
@@ -1110,8 +1144,12 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
   const blockers = ticket?.blockedBy.filter((blocker) => blocker.open).map((blocker) => blocker.number) ?? []
   if (blockers.length > 0) return [{ type: "none", reason: `blocked by ${blockers.join(", ")}` }]
+  if (pull.labels.includes(PARKED) || ticket?.labels.includes(PARKED)) return [{ type: "none", reason: PARKED }]
   // A worker that runs on the branch pushes more commits, so a review, an update or a merge at the current head answers a head that changes.
   if (running.branches.has(pull.headRef)) return [{ type: "none", reason: "a worker runs on the branch" }]
+  // A re-plan record names the branch that it left. A pull request that is still open on it closes now, whatever step of the re-plan failed.
+  const replanned = ticket === null ? undefined : replansOf(ticket).findLast((record) => record.branch === pull.headRef)
+  if (replanned !== undefined) return [{ type: "close-stuck", plan: replanned.plan, count: replanned.count }]
   const hasTicketComment = pull.comments.some((entry) => entry.kind === "ticket")
   // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
   const runBusy = runs.some((run) => run.status !== "completed")
@@ -1144,7 +1182,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
     // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
     if (!counted.some(ranOpus)) return [...actions, { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }]
-    return [...actions, { type: "none", reason: WAITS_FOR_REPLAN }]
+    const part = partsOf(ticket).find((entry) => partBranch(ticket.number, entry.number).test(pull.headRef)) ?? null
+    return [...actions, ladderEnd(env, { ticket, repoKey, pull, part, branch: pull.headRef, running, launches, pulls: state.pulls })]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.skip) logChange(env, mem, { scope: `review-skip ${item}`, signature: `${pull.headSha} ${need.skip}`, item, action: "review skip", reason: need.skip })
@@ -1238,6 +1277,8 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
+    case "park": return parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action)
+    case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
@@ -1253,13 +1294,16 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
 
 /** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
 const isWaiting = (env, pull, tickets) => {
   const ticket = tickets.find((entry) => entry.number === pull.tracks)
-  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !heldByReport(env, pull, ticket)
+  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !pull.labels.includes(PARKED) && !ticket?.labels.includes(PARKED) && !heldByReport(env, pull, ticket)
 }
+
+/** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
+const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
 
 /** The pull requests of a repository that the plan reads: tracked or not, in number order. */
 const planOrder = (state) => [...state.pulls].sort((left, right) => left.number - right.number)
@@ -1279,7 +1323,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
     const item = `${repoKey}#${pull.number}`
     try {
       // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
-      const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const ownerAtPlan = pull.tracks !== null && holdsTicket(ticketMap.get(pull.tracks))
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
@@ -1316,7 +1360,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       if (limit.found) await applyPullfrogLimit(env, mem, tickets, ctx.repoKey, limit.found)
       // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
       // The first plan marked the threads resolved in memory, so its resolve step stays.
-      const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const labelled = !ownerAtPlan && pull.tracks !== null && holdsTicket(ctx.ticketMap.get(pull.tracks))
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
       const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
@@ -1451,6 +1495,35 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
   return path
 }
 
+/** The notes of the `fresh` re-plans of a ticket, added to a build order so the next worker reads what the re-plan run found. */
+const withReplanNotes = (ticket, extra) => {
+  const notes = ticket.comments.filter((entry) => entry.kind === "replan-note").map((entry) => bodyAfterMarker(entry).trim()).filter(Boolean)
+  return notes.length === 0 ? extra : `${extra === "" ? "" : `${extra}\n\n`}## Notes of the re-plan\n\n${notes.join("\n\n")}`
+}
+
+/** True when a part is done: its merged branch (a find part: its findings comment) exists. */
+const partIsDone = (ticket, entry, mergedBranches) => (entry.find
+  ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`)
+  : [...mergedBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
+
+/**
+ * The numbers of the parts that stand in flight apart from the stuck plan: a part with an open tracking pull request on a branch
+ * other than `exceptBranch`, or a part build that a worker runs. A split keeps each of them with its number, as it keeps a merged
+ * part, because the pull request of the part still merges under that number.
+ */
+const openPartNumbers = (ticket, parts, pulls, workers, exceptBranch) => parts
+  .filter((entry) => pulls.some((pull) => pull.tracks === ticket.number && pull.headRef !== exceptBranch && partBranch(ticket.number, entry.number).test(pull.headRef))
+    || workers.some(({ record }) => record.ticketNumber === ticket.number && record.partNumber === entry.number && record.kind === "build part" && record.branch !== exceptBranch))
+  .map((entry) => entry.number)
+
+/** The facts that a re-plan order names: the merged parts (read fresh), the open parts that the order carries, and the total of the part set in force. */
+const replanFacts = async (env, mem, ticket, stuck, openParts) => {
+  const history = await mergedHistory(env, mem, ticket, { fresh: true })
+  const parts = partsOf(ticket)
+  const merged = new Set(history.map((entry) => entry.headRefName))
+  return { stuckBranch: stuck.branch, openParts, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
+}
+
 /** Gives a new worktree its dependencies: a clone of the main checkout's, or one `npm ci`. A failure only logs, because the worker installs for itself. */
 const provisionDependencies = async (env, repoKey, ticket, worktree) => {
   const item = `ticket#${ticket.number}`
@@ -1511,7 +1584,11 @@ const holdUnprepared = async (env, mem, { repoKey, ticket, branch }, error) => {
  */
 const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = () => null) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
-  const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
+  const { kind, repoKey, ticket, part = null, branch } = order
+  // A re-plan run reads the code in a worktree of its own: it never builds on the pull request that it replaces.
+  const pull = kind === "replan" ? null : order.pull ?? null
+  const stuck = kind === "replan" ? { branch: order.stuckBranch, pr: order.pull?.number ?? null, partNumber: part?.number ?? null } : null
+  const extra = kind === "build" || kind === "build part" ? withReplanNotes(ticket, order.extra ?? "") : order.extra ?? ""
   const token = await env.worker.readWorkerToken()
   if (token === null) {
     await say(env, { key: "worker-token", lines: ["Orbit cannot start work.", "The Keychain item orbit-worker-github-token is missing on the Mac."] })
@@ -1527,6 +1604,7 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
+  const replan = kind === "replan" ? await replanFacts(env, mem, ticket, stuck, order.openParts ?? []) : null
   const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
   const model = order.model ?? workerApi.WORKER_MODEL
   const startedIso = new Date(env.now()).toISOString()
@@ -1559,13 +1637,13 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree }) : null
   const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
   const text = session === null
-    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], ownerNote: order.ownerNote ?? null, place, partNumber: kind === "replan" ? null : part?.number ?? null, replan })
     : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
   writeFileSync(factsFileOf(logFile), `${JSON.stringify({ kind, model, at: startedIso, headBefore, blocking: order.review?.blocking ?? [], checks: order.failure?.checks ?? [] })}\n`)
-  writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, worktree, headBefore, logFile, account, startedAt })}\n`)
+  writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, ...(stuck === null ? {} : { stuck }), worktree, headBefore, logFile, account, startedAt })}\n`)
   const running = env.worker.launch({ invocation, worktree, order: text, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
   log(env, `ticket#${ticket.number}`, `launch ${kind} model ${model}`, `branch ${branch}, worktree ${worktree}`)
   mem.running.set(stem, running.then((result) => {
@@ -1718,6 +1796,122 @@ const recordExit = async (env, { worktree, logFile }, result) => {
   } catch { /* no facts file means a launch from before the facts files */ }
 }
 
+/** Closes the pull request that a re-plan replaces, with a marked `replan` comment, and deletes its remote branch. The branch name stays used through the `replan` record. */
+const closeStuck = async (env, { repoKey, ticketNumber, number, branch, plan, count }) => {
+  await env.github.comment(repoKey, number, marked("replan", `Closed by the driver: the plan on \`${branch}\` used its launches. Re-plan ${count} of ${MAX_REPLANS} chose ${plan}. The answer of the re-plan run is on ${issueLink(env, ticketNumber)}.`))
+  await env.github.closePull(repoKey, number)
+  try { await env.github.deleteBranch(repoKey, branch) } catch (error) { log(env, `${repoKey}#${number}`, "branch-delete-failed", error.message) }
+  await removeWorktrees(env, repoKey, [branch]).catch((error) => log(env, repoKey, "worktree-kept", error.message))
+}
+
+/**
+ * Applies the answer of a re-plan run. The `replan` record comes first: it names the branch that the plan left and it counts toward
+ * `MAX_REPLANS`, so a step that fails later never lets a re-plan run twice for free. Then the pull request closes, then the
+ * new part set or the note of the `fresh` plan is posted. A split that is no usable part set counts as `fresh`. The record keeps
+ * each part of a split and the note of a `fresh` plan whole, so `resumeReplans` posts what a failed post left out.
+ */
+const applyReplan = async (env, mem, states, exit, ticket, text) => {
+  const { repoKey, stuck } = exit
+  const item = `ticket#${ticket.number}`
+  if (!stuck || ticket.repoKey === undefined) return log(env, item, "replan-skipped", "the ticket is closed or the launch record names no stuck plan")
+  const answer = parseReplanAnswer(text)
+  const parts = partsOf(ticket)
+  let { plan, note } = answer
+  if (plan === "split") {
+    const problem = splitProblem(answer.parts, highestTotal(ticket.comments.filter((comment) => comment.kind === null)))
+    if (problem !== null) {
+      log(env, item, "replan-split-refused", problem)
+      plan = "fresh"
+      note = `The re-plan run asked for a split that the driver could not read: ${problem}.`
+    }
+  }
+  // The launch of this run is on the ticket already, so it is part of the count.
+  const count = Math.max(1, replansSincePark(ticket).length)
+  const recordOf = (kept) => ({ plan, branch: stuck.branch, pr: stuck.pr, part: stuck.partNumber, count, at: new Date(env.now()).toISOString(), ...kept })
+  // The new set is complete before the record, so the record holds every part that the posts below write.
+  let bodies = []
+  if (plan === "split") {
+    const merged = new Set((await mergedHistory(env, mem, ticket, { fresh: true })).map((entry) => entry.headRefName))
+    const flying = new Set(openPartNumbers(ticket, parts, states.find((entry) => entry.repositoryKey === repoKey)?.pulls ?? [], runningWorkers(env, mem).workers, stuck.branch))
+    bodies = answer.parts.map((body, index) => {
+      const kept = parts.find((entry) => entry.number === index + 1 && (partIsDone(ticket, entry, merged) || flying.has(entry.number)))
+      return kept === undefined ? body : withTotal(kept.comment.body.trim(), answer.parts.length)
+    })
+  }
+  // GitHub refuses a comment over its limit, and a record that never lands never counts. A split whose record is too long counts as fresh.
+  if (plan === "split" && marked("replan", JSON.stringify(recordOf({ parts: bodies }))).length > TICKET_COMMENT_LIMIT) {
+    log(env, item, "replan-split-refused", "the part set is too long for one record")
+    plan = "fresh"
+    note = "The re-plan run asked for a split whose part set is too long to keep on the ticket."
+    bodies = []
+  }
+  note = note.slice(0, ANSWER_KEPT_CHARS)
+  const record = recordOf(plan === "split" ? { parts: bodies } : { answer: text.slice(0, ANSWER_KEPT_CHARS), ...(note !== "" ? { note } : {}) })
+  log(env, item, `replan ${plan}`, `re-plan ${count} of ${MAX_REPLANS}, after ${stuck.branch}`)
+  await env.github.comment("tickets", ticket.number, marked("replan", JSON.stringify(record)))
+  const open = findPullByBranch(states, stuck.branch)
+  if (open !== undefined) await closeStuck(env, { repoKey, ticketNumber: ticket.number, number: open.pull.number, branch: stuck.branch, plan, count })
+  if (plan === "fresh") {
+    if (note !== "") await env.github.comment("tickets", ticket.number, marked("replan-note", note))
+    return
+  }
+  for (const body of bodies) await env.github.comment("tickets", ticket.number, body)
+}
+
+/**
+ * Posts what the newest `replan` record holds and the ticket lacks, before any plan reads the ticket: the note of a `fresh` plan,
+ * or each part of a split. A post can fail after the record, and the launch record is gone by then, so this read is the retry.
+ * A part counts as posted when a plain comment announces its number with the new total, or holds its first line (a comment that superseded it).
+ */
+const resumeReplans = async (env, tickets) => {
+  for (const ticket of tickets) {
+    const record = replansOf(ticket).at(-1)
+    if (typeof record?.note === "string" && !ticket.comments.some((entry) => entry.kind === "replan-note" && bodyAfterMarker(entry).trim() === record.note.trim())) {
+      log(env, `ticket#${ticket.number}`, "replan note-resumed", `re-plan ${record.count}`)
+      const body = marked("replan-note", record.note)
+      await env.github.comment("tickets", ticket.number, body)
+      ticket.comments.push({ kind: "replan-note", body, createdAt: new Date(env.now()).toISOString() })
+    }
+    if (!Array.isArray(record?.parts)) continue
+    const total = record.parts.length
+    for (const body of record.parts) {
+      const part = partOf({ body })
+      if (part === null) continue
+      const first = body.split("\n", 1)[0]
+      const posted = ticket.comments.some((entry) => entry.kind === null && ((partOf(entry)?.number === part.number && partOf(entry)?.total === total) || entry.body.includes(first)))
+      if (posted) continue
+      log(env, `ticket#${ticket.number}`, "replan split-resumed", `Part ${part.number} of ${total}`)
+      await env.github.comment("tickets", ticket.number, body)
+      ticket.comments.push({ kind: null, body, createdAt: new Date(env.now()).toISOString() })
+    }
+  }
+}
+
+/**
+ * Parks a ticket whose plans used their launches and re-plans: the label `parked` on the ticket and on each open pull request, and
+ * one marked `parked` comment with the reason and each plan with its launches. It sends no notice and writes no sleep item.
+ */
+const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
+  if (ticket.labels.includes(PARKED) || env.dryRun) return
+  for (const key of ["tickets", ...REPOSITORY_KEYS]) await env.github.ensureLabel(key, PARKED_LABEL)
+  const launches = launchesOf(ticket)
+  const branches = [...new Set(launches.map((entry) => entry.branch))]
+  const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
+  const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
+  const newestReplan = newestOf(ticket.comments, "replan")
+  // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
+  await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
+  ticket.labels.push(PARKED)
+  if (!(newestOf(ticket.comments, PARKED) > newestReplan)) {
+    const text = `Parked by the driver: ${reason}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
+    await env.github.comment("tickets", ticket.number, marked(PARKED, text))
+  }
+  for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
+  const today = new Date(env.now()).toISOString().slice(0, 10)
+  const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length
+  log(env, `ticket#${ticket.number}`, "parked", `${reason}; ${count} parked today`)
+}
+
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
   const { kind, repoKey, branch, partNumber, prNumber, headBefore, worktree, logFile, account, startedAt, result } = exit
@@ -1740,6 +1934,10 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
+  if (kind === "replan") {
+    await applyReplan(env, mem, states, exit, ticket, resultText(tail))
+    return removeWorktrees(env, repoKey, [branch])
+  }
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
@@ -1896,7 +2094,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const stop = (reason) => ({ reason })
   const repoLabels = labels.filter((label) => label.startsWith("repo:"))
   if (repoLabels.length !== 1) return stop("needs exactly one repo label")
-  for (const label of [OWNER, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
+  for (const label of [OWNER, PARKED, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
   const open = ticket.blockedBy.filter((blocker) => blocker.open)
   if (open.length > 0) return stop(`blocked by ${open.map((blocker) => blocker.number).join(", ")}`)
   const waiting = runsLastOpen(tickets, ticket)
@@ -1919,7 +2117,8 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
   // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line goes to the owner.
-  const ownBranch = (part) => branchName(ticket, part, doneBranches)
+  const usedBranches = new Set([...doneBranches, ...replannedBranches(ticket)])
+  const ownBranch = (part) => branchName(ticket, part, usedBranches)
   const untracked = (branch) => state.pulls.find((pull) => pull.headRef === branch && pull.tracks !== ticket.number)
   const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, owner: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
   if (parts.length === 0) {
@@ -1930,7 +2129,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
-  const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
+  const partDone = (entry) => partIsDone(ticket, entry, doneBranches)
   const inFlight = (entry) => tracking.some((pull) => partBranch(ticket.number, entry.number).test(pull.headRef)) || working.some(({ record }) => record.partNumber === entry.number)
   const pending = parts.filter((entry) => !partDone(entry) && !inFlight(entry))
   const openParts = parts.filter(inFlight)
@@ -1963,7 +2162,7 @@ const closeFinishedTickets = async (env, mem, tickets, states) => {
   const closed = new Set()
   const closable = tickets.filter((ticket) => {
     const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
-    return state !== undefined && ![OWNER, "needs:conversation", "owner-work"].some((label) => ticket.labels.includes(label)) && !state.pulls.some((pull) => pull.tracks === ticket.number)
+    return state !== undefined && ![OWNER, PARKED, "needs:conversation", "owner-work"].some((label) => ticket.labels.includes(label)) && !state.pulls.some((pull) => pull.tracks === ticket.number)
   }).sort((left, right) => (mem.merged.get(left.number)?.at ?? 0) - (mem.merged.get(right.number)?.at ?? 0) || left.number - right.number)
   for (const ticket of closable) {
     try {
@@ -2021,11 +2220,23 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
     let order = verdict.order
     if (launches.length >= MAX_ORDER_LAUNCHES) {
       if (launches.some(ranOpus)) {
-        decisions.set(ticket.number, `wait: ${WAITS_FOR_REPLAN}`)
-        continue
+        // The Opus launch ran too: the ladder ends. One re-plan run, or the park after the re-plans.
+        const pulls = states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? []
+        const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, part: order.part ?? null, branch: order.branch, running, launches, pulls })
+        if (end.type === "park") {
+          await parkTicket(env, tickets, pulls.filter((entry) => entry.tracks === ticket.number), end)
+          decisions.set(ticket.number, `parked: ${end.reason}`)
+          continue
+        }
+        if (end.type === "none") {
+          decisions.set(ticket.number, `wait: ${end.reason}`)
+          continue
+        }
+        order = end
+      } else {
+        // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
+        order = { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }
       }
-      // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
-      order = { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }
     }
     chosen.push(order)
     decisions.set(ticket.number, `admit ${order.kind} on ${order.branch}${order.model ? ` on ${order.model}` : ""}`)
@@ -2340,6 +2551,8 @@ export const tick = async (env, mem) => {
     return { retried: true }
   }
   const { tickets, states } = world
+  // Before any plan reads the ticket: a re-plan that a failed post left short gets its missing note or parts.
+  if (!env.dryRun) await resumeReplans(env, tickets).catch((error) => log(env, "replan", "resume-error", error.message))
   const account = await trackAccount(env, mem, tickets, status)
   const paused = pauseIssue(tickets)
   if (account.ok) readRunningReadings(env, mem, running)
@@ -2381,6 +2594,8 @@ export const tick = async (env, mem) => {
       // A session on the main account is unusable after a Pullfrog limit, so the order starts cold on the worker account.
       const name = own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
+      // A park in this tick (the act step or admission) comes after the plan of a sibling pull request, so its order stops here.
+      if (order.ticket.labels.includes(PARKED)) { log(env, `ticket#${order.ticket.number}`, "skip", `${order.kind} on ${order.pull?.headRef ?? order.branch}: the ticket is parked`); continue }
       reached.add(order.ticket.number)
       // A plan can find a limit while a start runs. With a second account, a start on the main account then launches no worker.
       let refused = null
@@ -2412,7 +2627,10 @@ export const tick = async (env, mem) => {
   const closed = await closeFinishedTickets(env, mem, tickets, states)
   const holdReason = paused || pauseIssue(tickets) ? "the driver is paused" : account.ok ? null : account.reason
   const room = holdReason ? 0 : free.main + free.worker
-  const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef) && !preparationHeld(env, mem, order.repoKey, order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
+  // Two pull requests of one ticket can end their ladders in one tick, and one re-plan run serves the ticket.
+  const replanTickets = new Set()
+  const oneReplan = (order) => order.kind !== "replan" || (!replanTickets.has(order.ticket.number) && replanTickets.add(order.ticket.number))
+  const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef) && !preparationHeld(env, mem, order.repoKey, order.pull.headRef) && oneReplan(order)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
   const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
   const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached })
   const decisions = new Map([...admitted.decisions, ...later])
