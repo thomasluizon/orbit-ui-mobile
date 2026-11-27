@@ -540,6 +540,9 @@ const holdItem = (env, { link, reason, key = reason }) => {
 
 const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/issues/${number}`
 
+/** The body of a Bug ticket that the driver files: the text, then the class line and the permanent fix section that the ticket check needs. The worker names the code when it builds. */
+const bugBody = (text, className) => `${text}\n\nClass: ${className}\n\n## Permanent fix\n\nnone: filed by the driver, and the worker names the code that holds the class\n`
+
 /**
  * Opens the `needs:owner` issue of a driver problem, then sends its notice with the link of the issue. A create that fails
  * still sends the notice, with no link.
@@ -563,7 +566,7 @@ const openProblem = async (env, { title, body, notice }) => {
 const openBug = async (env, { title, body, notice = null }) => {
   let link = null
   try {
-    const created = await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS })
+    const created = await env.github.createTicket({ title, body: bugBody(body, "driver problem"), labels: HARNESS_BUG_LABELS })
     link = issueLink(env, created.number)
     return created
   } finally {
@@ -1317,7 +1320,7 @@ const outsideTicket = async (env, repoKey, pull) => {
   const sections = sectionsOutside(pull.reviews)
   if (sections.length === 0) return
   const slug = env.slugOf(repoKey)
-  await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, labels: [`repo:${repoKey}`, "Bug"] })
+  await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: bugBody(`Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, "defect outside a merged change"), labels: [`repo:${repoKey}`, "Bug"] })
 }
 
 const classBody = ({ key, repoKey, check, at, sentence, slug, number, closed }) => {
@@ -1380,7 +1383,7 @@ const fileFlake = async (env, ctx, pull, action) => {
   if (!ctx.tickets.some((ticket) => ticket.title === title && ticket.repoKey === ctx.repoKey) && !ctx.flaky.has(title)) {
     ctx.flaky.add(title)
     const body = `The check "${action.name}" failed on ${slug}#${pull.number} at the head \`${pull.headSha}\` and passed on a rerun of the run ${action.runId} at the same head. The test is flaky.\n\nFailed lines:\n\n\`\`\`\n${action.lines}\n\`\`\`\n\nFind the test that failed. Remove the timing or the shared state that makes it fail.`
-    await env.github.createTicket({ title, body, labels: [`repo:${ctx.repoKey}`, "Bug"] })
+    await env.github.createTicket({ title, body: bugBody(body, "flaky check"), labels: [`repo:${ctx.repoKey}`, "Bug"] })
   }
   await env.github.comment(ctx.repoKey, pull.number, marked("record", `driver flake-filed ${flakeKey(action.runId, action.name)}`))
 }
@@ -2646,7 +2649,7 @@ const intake = async (env, mem) => {
     if (earlier === null) continue
     log(env, "intake", "ticket", candidate.label)
     const body = earlier.length === 0 ? candidate.body : `${candidate.body}\n\nThe issue regressed after the fix of ${earlier.map((number) => `#${number}`).join(", ")}.`
-    if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
+    if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body: bugBody(body, "alert of an intake source"), labels: [`repo:${candidate.repoKey}`, "Bug"] })
   }
 }
 
@@ -3009,7 +3012,7 @@ const shortSha = (sha) => sha.slice(0, 9)
 /** The ticket writes of the release train: a held step and a stopped train each get one harness Bug ticket. */
 const releaseTickets = (env) => ({
   bug: async ({ title, body, repoKey }) => {
-    const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
+    const created = await env.github.createTicket({ title, body: bugBody(body, "release step stop"), labels: [`repo:${repoKey}`, "Bug"] })
     await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release stopped.", cut(title, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },

@@ -91,7 +91,13 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       readProtectionChecks: async () => ({ strict: false, checks: [] }),
       writeProtectionChecks: record("writeProtectionChecks"),
       unmetDeployFirst: async () => unmet,
-      createTicket: async (input) => { calls.push(["createTicket", input]); return { number: 99 } },
+      // The driver files its own tickets, so each body must pass the ticket check, or the first launch sends the ticket to the owner.
+      createTicket: async (input) => {
+        const problems = checkTicket({ ...input, comments: [] }, [], { primitives: null })
+        if (problems.length > 0) T(`drive: the ticket "${input.title.slice(0, 60)}" that the driver files passes the ticket check`, false, problems.join(" "))
+        calls.push(["createTicket", input])
+        return { number: 99 }
+      },
       comment: record("comment"), editLabels: record("editLabels"), merge: record("merge"), resolveThreads: record("resolveThreads"), updateBranch: record("updateBranch"), retarget: record("retarget"), rerunFailed: record("rerunFailed"), closeTicket: record("closeTicket"), closePull: record("closePull"), deleteBranch: record("deleteBranch"), ensureLabel: record("ensureLabel"),
     },
     worker: {
@@ -1369,7 +1375,7 @@ const closeCases = async () => {
   const classReview = (body) => review("APPROVED", HEAD, -5 * MINUTE, { body: `Verdict\n\n## Class checks\n\n${body}\n` })
   const TWO = "- rule-one | lint rule | src/a.mjs:3 | The test reads source text.\n- two-key | type | src/b.mjs:9 | The field has no type."
   const classScene = (reviews, extra = {}) => scenario({ tickets: [ticket(7), ...(extra.tickets ?? [])], routes: extra.routes ?? [], pulls: { ui: [pull(30, { reviews })] } })
-  const filed = (scene) => only(scene.calls, "createTicket").map((entry) => entry[1])
+  const filed = (scene) => only(scene.calls, "createTicket").map((entry) => entry[1]).filter((entry) => entry.labels.includes("Improvement"))
   const classKeys = (scene) => filed(scene).map((entry) => /^Class: (.+)$/m.exec(entry.body)?.[1])
   const listed2 = (scene) => scene.calls.filter((entry) => entry[0] === "gh" && entry[1].startsWith("issue list") && entry[1].includes("--state closed"))
   const twice = classScene([classReview(TWO)])
@@ -1440,7 +1446,7 @@ const intakeCases = async () => {
     regressed.env.keychain = async () => "sentry-token"
     regressed.env.fetchJson = async () => ({ body: [{ ...recorded.body[0], ...issue }], link: null })
     await regressed.run()
-    return only(regressed.calls, "createTicket").map((entry) => entry[1]).filter((entry) => entry.title.endsWith(" (Sentry ORBIT-API-1Q)")).map((entry) => [entry.labels, entry.body.split("\n").at(-1)])
+    return only(regressed.calls, "createTicket").map((entry) => entry[1]).filter((entry) => entry.title.endsWith(" (Sentry ORBIT-API-1Q)")).map((entry) => [entry.labels, entry.body.split("\n").find((line) => line.startsWith("The issue regressed")) ?? ""])
   }
   const closedTicket = (number, closedAt) => ({ number, state: "CLOSED", closedAt, title: "Triage", body: "Fixed ORBIT-API-1Q." })
   const openTicket = (number) => ({ number, state: "OPEN", closedAt: "0001-01-01T00:00:00Z", title: "Triage again", body: "Names ORBIT-API-1Q." })
