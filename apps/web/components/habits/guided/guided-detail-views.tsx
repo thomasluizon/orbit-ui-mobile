@@ -177,7 +177,7 @@ function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepV
     question: t('habits.flow.optional.endDate'),
     line: null,
     options: <OptionCard label={t('habits.flow.optional.none')} selected={endDate === ''} onSelect={() => { setEnd(''); flow.advance() }} />,
-    free: <div className="flex min-w-0 items-end gap-2">
+    free: <div data-end-date-row="" className="flex min-w-0 items-end gap-3">
       <div className="min-w-0 flex-1"><DateField label={t('habits.form.endDateQuestion')} value={endDate} placeholder={t('habits.form.endDatePlaceholder')} onChange={setEnd} /></div>
       {endDate ? <PillButton variant="ghost" iconOnly label={t('habits.flow.optional.removeEndDate')} onClick={() => setEnd('')}><X size={20} aria-hidden="true" /></PillButton> : null}
     </div>,

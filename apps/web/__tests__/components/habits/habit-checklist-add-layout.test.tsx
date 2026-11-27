@@ -137,4 +137,45 @@ describe('Checklist add row geometry in Chromium', () => {
       await page.close()
     }
   })
+
+  it.each(['dark', 'light'] as const)('draws the flow add row with a 56 field, a 56 square add button, radius 16 and a 12 gap in %s', async (mode) => {
+    const page = await browser.newPage()
+    try {
+      for (const locale of ['en', 'pt-BR']) {
+        language.value = locale
+        const messages = locale === 'en' ? en : ptBR
+        for (const populated of [false, true]) {
+          const mounted = render(<HabitChecklist flow items={populated ? [{ text: 'Prepare coffee', isChecked: false }] : []} editable />)
+          const markup = mounted.container.innerHTML
+          mounted.unmount()
+          const variables = Object.entries(resolveWebThemeVariables('orange', mode)).map(([key, value]) => `${key}: ${value};`).join(' ')
+          await page.setContent(`<!doctype html><style>${stylesheet} :root { ${variables} } body { margin: 0; padding: 24px; } main { max-width: 592px; margin: auto; }</style><main>${markup}</main>`)
+          for (const width of [320, 412, 1352]) {
+            await page.setViewportSize({ width, height: 915 })
+            const field = await page.getByPlaceholder(messages.habits.form.checklistPlaceholder).evaluate((element) => {
+              const perimeter = element.closest('[data-focus-perimeter]')!
+              const bounds = perimeter.getBoundingClientRect()
+              const style = getComputedStyle(perimeter)
+              return { right: bounds.right, center: bounds.y + bounds.height / 2, height: bounds.height, radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius] }
+            })
+            const add = await page.getByRole('button', { name: messages.common.add, exact: true }).evaluate((element) => {
+              const bounds = element.getBoundingClientRect()
+              const style = getComputedStyle(element)
+              return { left: bounds.left, center: bounds.y + bounds.height / 2, width: bounds.width, height: bounds.height, radii: [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius] }
+            })
+            const where = `${locale} ${width}px populated=${populated}`
+            expect(add.left - field.right, `${where} gap`).toBe(12)
+            expect(field.height, `${where} field height`).toBe(56)
+            expect(field.radii, `${where} field radius`).toEqual(['16px', '16px', '16px', '16px'])
+            expect(add.width, `${where} button width`).toBe(56)
+            expect(add.height, `${where} button height`).toBe(56)
+            expect(add.radii, `${where} button radius`).toEqual(['16px', '16px', '16px', '16px'])
+            expect(add.center, `${where} centres`).toBe(field.center)
+          }
+        }
+      }
+    } finally {
+      await page.close()
+    }
+  })
 })

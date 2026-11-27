@@ -32,6 +32,7 @@ interface HabitChecklistProps {
   items: ChecklistItem[]
   interactive?: boolean
   editable?: boolean
+  flow?: boolean
   proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
@@ -51,6 +52,7 @@ interface EditableChecklistItemProps {
   isFirst: boolean
   isLast: boolean
   duplicateDisabled: boolean
+  flow: boolean
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
 }
@@ -66,6 +68,7 @@ function EditableChecklistItem({
   isFirst,
   isLast,
   duplicateDisabled,
+  flow,
   styles,
   tokens,
 }: Readonly<EditableChecklistItemProps>) {
@@ -80,7 +83,7 @@ function EditableChecklistItem({
   }
 
   return (
-    <View style={styles.editableItem}>
+    <View style={[styles.editableItem, flow ? styles.editableItemFlow : null]}>
       <View style={styles.moveButtons}>
         <MotionPressable
           focusInset
@@ -186,6 +189,8 @@ interface ChecklistAddRowProps {
   styles: ReturnType<typeof createStyles>
   tokens: AppTokens
   disabled: boolean
+  flow: boolean
+  onClear?: () => void
 }
 
 function ChecklistAddRow({
@@ -195,8 +200,11 @@ function ChecklistAddRow({
   styles,
   tokens,
   disabled,
+  flow,
+  onClear,
 }: Readonly<ChecklistAddRowProps>) {
   const { t } = useTranslation()
+  if (flow) return <FlowAddRow value={value} onChangeText={onChangeText} onAdd={onAdd} styles={styles} tokens={tokens} disabled={disabled} onClear={onClear} />
   return (
     <View style={styles.addItemRow}>
       <View style={styles.addItemField}>
@@ -226,10 +234,57 @@ function ChecklistAddRow({
   )
 }
 
+interface FlowAddRowProps {
+  value: string
+  onChangeText: (text: string) => void
+  onAdd: () => void
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+  disabled: boolean
+  onClear?: () => void
+}
+
+function FlowAddRow({ value, onChangeText, onAdd, styles, tokens, disabled, onClear }: Readonly<FlowAddRowProps>) {
+  const { t } = useTranslation()
+  const addDisabled = disabled || !value.trim()
+  return (
+    <View testID="checklist-add-row" style={styles.flowAddRow}>
+      <View style={styles.addItemField}>
+        <Input
+          label={t('habits.form.checklistPlaceholder')}
+          hideLabel
+          radius={16}
+          name="checklistItem"
+          autoComplete="off"
+          value={value}
+          placeholder={t('habits.form.checklistPlaceholder')}
+          disabled={disabled}
+          onChange={onChangeText}
+          onSubmit={onAdd}
+        />
+      </View>
+      <MotionPressable
+        focusInset
+        testID="checklist-add-button"
+        accessibilityRole="button"
+        accessibilityLabel={t('common.add')}
+        accessibilityState={{ disabled: addDisabled }}
+        disabled={addDisabled}
+        style={({ pressed }) => [styles.squareButton, addDisabled ? { opacity: 0.4 } : null, pressed && !addDisabled ? { backgroundColor: tokens.bgHover } : null]}
+        onPress={onAdd}
+      >
+        <Plus size={24} color={tokens.fg1} strokeWidth={2} accessible={false} />
+      </MotionPressable>
+      {onClear ? <IconButton label={t('habits.form.clearChecklist')} onPress={onClear}><Trash2 size={20} strokeWidth={1.5} accessible={false} /></IconButton> : null}
+    </View>
+  )
+}
+
 export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  flow = false,
   proposedItemCount = 0,
   onItemsChange,
   onPendingItemChange,
@@ -368,6 +423,7 @@ export function HabitChecklist({
                 isFirst={index === 0}
                 isLast={index === items.length - 1}
                 duplicateDisabled={atItemLimit}
+                flow={flow}
                 styles={styles}
                 tokens={tokens}
               />
@@ -394,7 +450,7 @@ export function HabitChecklist({
         )
       )}
 
-      {editable && items.length > 0 && (
+      {editable && !flow && items.length > 0 && (
         <View style={styles.clearRow}>
           <IconButton label={t('habits.form.clearChecklist')} disabled={disabled} onPress={guard(clearAll)}><Trash2 size={20} strokeWidth={1.5} accessible={false} /></IconButton>
         </View>
@@ -408,6 +464,8 @@ export function HabitChecklist({
           styles={styles}
           tokens={tokens}
           disabled={disabled || atItemLimit}
+          flow={flow}
+          onClear={items.length > 0 ? guard(clearAll) : undefined}
         />
       )}
       {editable && atItemLimit ? (
@@ -566,6 +624,24 @@ function createStyles(tokens: AppTokens) {
   addItemField: {
     flex: 1,
     minWidth: 0,
+  },
+  flowAddRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  squareButton: {
+    overflow: 'hidden',
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: tokens.borderControl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editableItemFlow: {
+    paddingVertical: 0,
   },
   })
 }

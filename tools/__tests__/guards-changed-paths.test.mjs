@@ -95,7 +95,7 @@ for (const [jobId, stepName, path] of cases) {
 }
 
 for (const [jobId, stepName, path, options] of [
-  ["lint", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
+  ["checks", "Lint only files changed by this pull request", "apps/web/app/page.tsx",
     { binaries: { "apps/web/node_modules/.bin/eslint": "echo GATE_RAN" } }],
   ["design-guard", "Ban raw --slate-*, transition-all, h-screen in app code", "apps/web/app/page.tsx",
     { content: "transition-all\n", ownedStatus: 1, marker: "DESIGN.md ban" }],
@@ -107,7 +107,7 @@ for (const [jobId, stepName, path, options] of [
 ]) {
   test(`${jobId}: ${stepName} resolves before consuming changed paths`, () => {
     for (const mode of ["missing", "unfetched", "owned", "unowned"]) {
-      runCase(jobId, stepName, path, mode, { workflow: jobId === "lint" ? testWorkflow : workflow, ...options })
+      runCase(jobId, stepName, path, mode, { workflow: jobId === "checks" ? testWorkflow : workflow, ...options })
     }
   })
 }

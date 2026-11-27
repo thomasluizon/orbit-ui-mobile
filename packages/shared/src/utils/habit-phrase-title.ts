@@ -16,39 +16,67 @@ function trimTitleSeparators(title: string): string {
   return title.slice(start, end)
 }
 
-function removeOrphanedGlue(
-  sentence: string,
-  locale: SupportedLocale,
-  characters: string[],
-  removed: boolean[],
-  protectedCharacters: boolean[],
-): void {
-  const glue = locale === 'pt-BR'
-    ? /(?<![\p{L}\p{M}\p{N}_])(?:toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada)(?![\p{L}\p{M}\p{N}_])/giu
-    : /(?<![\p{L}\p{M}\p{N}_])(?:every|each|and|a|per|at|on|times?|week)(?![\p{L}\p{M}\p{N}_])/giu
-  const removable = [...sentence.matchAll(glue)]
-  const touchesRemoved = (start: number, direction: -1 | 1): boolean => {
-    for (let index = start; index >= 0 && index < characters.length; index += direction) {
-      if (removed[index]) return true
-      if (!/[\s,;]/u.test(characters[index]!)) return false
-    }
-    return false
+const NOT_A_WORD_BEFORE = String.raw`(?<![\p{L}\p{M}\p{N}_])`
+const NOT_A_WORD_AFTER = String.raw`(?![\p{L}\p{M}\p{N}_])`
+const GLUE_WORDS: Record<SupportedLocale, string> = {
+  'pt-BR': 'toda|todo|todas|todos|as|os|e|por|na|no|nas|nos|a|em|cada|de|da|das|do|dos|às|ás|aos',
+  en: 'every|each|and|a|per|at|on|from|times?|week',
+}
+const GLUE = Object.fromEntries(Object.entries(GLUE_WORDS).map(([locale, words]) => [
+  locale, new RegExp(`${NOT_A_WORD_BEFORE}(?:${words})${NOT_A_WORD_AFTER}`, 'giu'),
+])) as Record<SupportedLocale, RegExp>
+const DAY_SUFFIX_WORD = new RegExp(`${NOT_A_WORD_BEFORE}feiras?${NOT_A_WORD_AFTER}`, 'giu')
+
+interface TitleText {
+  characters: string[]
+  removed: boolean[]
+  protectedCharacters: boolean[]
+}
+
+function touchesRemoved({ characters, removed }: TitleText, start: number, direction: -1 | 1): boolean {
+  for (let index = start; index >= 0 && index < characters.length; index += direction) {
+    if (removed[index]) return true
+    if (!/[\s,;]/u.test(characters[index]!)) return false
   }
+  return false
+}
+
+function removeSpan({ characters, removed }: TitleText, start: number, end: number): true {
+  characters.fill(' ', start, end)
+  removed.fill(true, start, end)
+  return true
+}
+
+function isSpanOpen({ removed, protectedCharacters }: TitleText, start: number, end: number): boolean {
+  return !protectedCharacters.slice(start, end).some(Boolean) && !removed.slice(start, end).every(Boolean)
+}
+
+function removeJoiningSeparator(text: TitleText, index: number): boolean {
+  const joinsRemoved = touchesRemoved(text, index - 1, -1) && touchesRemoved(text, index + 1, 1)
+  return joinsRemoved && isSpanOpen(text, index, index + 1) && removeSpan(text, index, index + 1)
+}
+
+function removeOrphanedWord(text: TitleText, start: number, end: number): boolean {
+  if (!isSpanOpen(text, start, end)) return false
+  const trailing = text.characters.slice(end).every((character) => /[\s,;]/u.test(character))
+  const orphaned = touchesRemoved(text, end, 1) || (trailing && touchesRemoved(text, start - 1, -1))
+  return orphaned && removeSpan(text, start, end)
+}
+
+function removeDaySuffixWord(text: TitleText, start: number, end: number): boolean {
+  return isSpanOpen(text, start, end) && touchesRemoved(text, start - 1, -1) && removeSpan(text, start, end)
+}
+
+function removeOrphanedGlue(sentence: string, locale: SupportedLocale, text: TitleText): void {
+  const words = [...sentence.matchAll(GLUE[locale])]
+  const daySuffixes = locale === 'pt-BR' ? [...sentence.matchAll(DAY_SUFFIX_WORD)] : []
+  const separators = [...sentence.matchAll(/[,;\-\u2013\u2014/&+]/gu)]
   let changed = true
   while (changed) {
-    changed = false
-    for (const match of removable) {
-      const start = match.index
-      const end = start + match[0].length
-      if (protectedCharacters.slice(start, end).some(Boolean)) continue
-      if (removed.slice(start, end).every(Boolean)) continue
-      const trailing = characters.slice(end).every((character) => /[\s,;]/u.test(character))
-      if (touchesRemoved(end, 1) || (trailing && touchesRemoved(start - 1, -1))) {
-        characters.fill(' ', start, end)
-        removed.fill(true, start, end)
-        changed = true
-      }
-    }
+    const separatorsRemoved = separators.map((match) => removeJoiningSeparator(text, match.index))
+    const wordsRemoved = words.map((match) => removeOrphanedWord(text, match.index, match.index + match[0].length))
+    const suffixesRemoved = daySuffixes.map((match) => removeDaySuffixWord(text, match.index, match.index + match[0].length))
+    changed = [...separatorsRemoved, ...wordsRemoved, ...suffixesRemoved].some(Boolean)
   }
 }
 
@@ -77,7 +105,7 @@ export function getHabitPhraseTitle(
     removed.fill(true, span.start, span.end)
   }
   if (date !== null || consumed.some((token) => token.kind !== 'time')) {
-    removeOrphanedGlue(sentence, locale, characters, removed, protectedCharacters)
+    removeOrphanedGlue(sentence, locale, { characters, removed, protectedCharacters })
   }
   const title = trimTitleSeparators(characters.join('').replaceAll(/\s+/gu, ' '))
   return title || sentence.trim()

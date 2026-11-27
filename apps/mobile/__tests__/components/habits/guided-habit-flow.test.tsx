@@ -545,6 +545,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions on Android in %s',
     const tree = await toSummary()
     await openOptional(tree, 'endDate')
     await act(async () => { helpers().form.setValue('endDate', '2026-12-31', { shouldDirty: true }); await Promise.resolve() })
+    expect(StyleSheet.flatten(tree.hosts().find((node) => node.props.testID === 'end-date-row')!.props.style)).toMatchObject({ gap: 12 })
     await tap(tree, flowCopy().optional.removeEndDate)
     expect(helpers().form.getValues('endDate')).toBe('')
     await tap(tree, flowCopy().optional.none)

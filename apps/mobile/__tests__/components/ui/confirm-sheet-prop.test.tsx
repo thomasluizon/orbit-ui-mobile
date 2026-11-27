@@ -30,6 +30,12 @@ describe('ConfirmSheet controlled close', () => {
     expect(cancel).toMatchObject({ height: 44, paddingStart: BUTTON_SIZES.sm.paddingX, paddingHorizontal: BUTTON_SIZES.sm.paddingX, borderWidth: 1.5 })
     expect(cancel!.height).toBe(confirm!.height)
   })
+  it.each([[undefined, 'common.notNow'], ['Agora não', 'Agora não']])('puts the dismiss answer first and the confirm answer last in the question form with cancelLabel=%s', (cancelLabel, first) => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<ConfirmSheet open quickOptions title="Log habit" message="" cancelLabel={cancelLabel} confirmLabel="Log habit" onCancel={vi.fn()} onConfirm={vi.fn()} />) })
+    expect(sheetSlotButtons(tree.root, 'SheetActions')).toEqual([first, 'Log habit'])
+    expectSmallSheetActions(tree.root)
+  })
   it.each([[412, false, 'button-primary-sm'], [800, false, 'button-primary-sm'], [767, true, 'button-primary-sm'], [768, true, 'button-secondary-sm']] as const)('draws the confirm action at %i wide with inlineActions=%s as %s, as web does', (width, inlineActions, testID) => {
     __setWindowDimensions({ width, height: 915, scale: 1, fontScale: 1 })
     let tree: ReturnType<typeof TestRenderer.create>

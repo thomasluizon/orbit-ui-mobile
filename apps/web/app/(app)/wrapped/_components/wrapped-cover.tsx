@@ -56,10 +56,9 @@ function CurrentWrappedCover({
         <p style={coverSubtitleStyle}>{t('wrapped.coverSubtitle')}</p>
       </div>
 
-      <div
-        role="group"
+      <fieldset
         aria-label={t('wrapped.periodGroup')}
-        className="flex flex-wrap gap-2"
+        className="flex flex-wrap gap-2 min-w-0"
       >
         {RECAP_SHARE_PERIODS.map((value) => (
           <Chip
@@ -72,7 +71,7 @@ function CurrentWrappedCover({
             {t(`wrapped.periods.${value}`)}
           </Chip>
         ))}
-      </div>
+      </fieldset>
 
       <CoverBody state={state} onStart={onStart} onRetry={onRetry} />
     </div>
