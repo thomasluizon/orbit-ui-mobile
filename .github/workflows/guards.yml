@@ -221,7 +221,7 @@ jobs:
         name: "Dependency Review: Select the pull requests that change a dependency input"
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         run: |
-          if grep -Eq '(^|/)package(-lock)?\.json$|^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
+          if grep -Eq '(^|/)package(-lock)?\.json$|(^|/)Cargo\.(toml|lock)$|^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "changed=false" >> "$GITHUB_OUTPUT"

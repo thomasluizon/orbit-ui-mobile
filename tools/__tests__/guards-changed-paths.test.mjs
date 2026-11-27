@@ -203,6 +203,8 @@ test("Dependency Review runs inside Guards only when a dependency input changes"
   assert.equal(review.uses, "actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec")
   assert.deepEqual(review.with, { "fail-on-severity": "high" })
   assert.equal(review.if, "${{ !cancelled() && (github.event_name == 'pull_request') && steps.dependency-review__1.outputs.changed == 'true' }}")
+  assert.match(readFileSync(join(repositoryRoot, "TESTING.md"), "utf8"), /`Dependency Review` step runs [^\n]*`Cargo.toml`[^\n]*`Cargo.lock`/,
+    "TESTING.md names each ecosystem of the dependency graph that the step selects")
   const selected = (paths) => {
     const directory = mkdtempSync(join(tmpdir(), "dependency-review-"))
     try {
@@ -218,10 +220,12 @@ test("Dependency Review runs inside Guards only when a dependency input changes"
     }
   }
   for (const path of ["package.json", "package-lock.json", "apps/web/package.json", ".github/react-doctor/package-lock.json",
-    ".github/workflows/test.yml", ".github/actions/setup/action.yml"]) {
+    ".github/workflows/test.yml", ".github/actions/setup/action.yml",
+    "apps/desktop/src-tauri/Cargo.lock", "apps/desktop/src-tauri/Cargo.toml"]) {
     assert.equal(selected(["README.md", path]), "changed=true", path)
   }
-  for (const path of ["README.md", "apps/web/app/page.tsx", ".github/scripts/plan-test-jobs.mjs", "docs/package.json.md", "tools/package-lock.json.bak"]) {
+  for (const path of ["README.md", "apps/web/app/page.tsx", ".github/scripts/plan-test-jobs.mjs", "docs/package.json.md", "tools/package-lock.json.bak",
+    "apps/desktop/src-tauri/src/lib.rs", "docs/Cargo.lock.md"]) {
     assert.equal(selected([path]), "changed=false", path)
   }
 })
