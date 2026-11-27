@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -229,7 +230,7 @@ test("each test group starts only without a cached result, and every event looks
   assert.equal(crossSave.if, "needs.plan.outputs.web-cross-app-unit-hit != 'true'")
   const planStep = plan.steps.find((step) => step.id === "plan")
   assert.match(planStep.run, /node \.github\/scripts\/plan-test-jobs\.mjs --event "\$EVENT_NAME"/)
-  assert.match(planStep.run, /run test test:cross-app --dry=json/)
+  assert.match(planStep.run, /run test test:cross-app build --dry=json/)
   assert.equal(plan.steps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 2)
   const cached = [workflow.env.WEB_UNIT_RESULTS, workflow.env.MOBILE_UNIT_RESULTS, ...workflow.env.WORKSPACE_UNIT_RESULTS.trim().split("\n")]
   assert.deepEqual(cached, ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
@@ -299,6 +300,7 @@ test("required checks report on every pull request through job conditions, never
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
     "web-tests": [20, "Web unit holds a 16 minute step plus setup and report time: the worst shard step took 697 s on main, and 960 s step limit plus 240 s setup is 1200 s"],
+    "layout-shards": ["${{ matrix.shard == 1 && 25 || 15 }}", "Shard 1 holds 120 s of setup, 660 s of layout tests and the 480 s step limit of the Lighthouse budget: 1260 s, so 25 minutes leaves margin; the other shards keep 15 minutes"],
     "unit-tests": [16, "Unit Tests holds the tests and the scan: 619 s at worst on main, times 1.5"],
   }
   for (const [id, job] of Object.entries(workflow.jobs)) {
@@ -581,16 +583,16 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
   const upload = build.steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"))
   assert.equal(upload.with.name, "web-hermetic-build")
   assert.equal(upload.if, "github.event_name == 'pull_request'")
-  for (const id of ["layout-shards", "lighthouse"]) {
-    const job = workflow.jobs[id]
-    assert.deepEqual(job.needs, ["plan", "build"])
-    assert.equal(job.if, "github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'")
-    assert.equal(job.steps.find((step) => step.uses?.startsWith("actions/download-artifact@")).with.name, "web-hermetic-build")
-    assert.equal(job.steps.some((step) => /build:hermetic|check-hermetic-web-build|next build/.test(step.run ?? "")), false, `${id} must not build the web app again`)
-  }
+  assert.equal(workflow.jobs.lighthouse, undefined, "the Lighthouse budget runs as the last step of layout shard 1")
+  assert.equal(workflow.jobs.layout, undefined, "a red shard job reports a layout failure, so no aggregate job repeats it")
   const shards = workflow.jobs["layout-shards"]
-  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
-  assert.ok(shards.steps.some((step) => step.run === 'npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"'))
+  assert.deepEqual(shards.needs, ["plan", "build"])
+  assert.equal(shards.if, "github.event_name == 'pull_request' && needs.plan.outputs.web == 'true' && needs.plan.outputs.layout-pending != '[]'")
+  assert.equal(shards.steps.find((step) => step.uses?.startsWith("actions/download-artifact@")).with.name, "web-hermetic-build")
+  assert.equal(shards.steps.some((step) => /build:hermetic|check-hermetic-web-build|next build/.test(step.run ?? "")), false, "a layout shard must not build the web app again")
+  assert.equal(shards.strategy["fail-fast"], false)
+  assert.equal(shards.strategy.matrix.shard, "${{ fromJSON(needs.plan.outputs.layout-pending || '[]') }}")
+  assert.ok(shards.steps.some((step) => step.run === 'npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt" --max-failures=3'))
   const plan = stepNamed(shards.steps, "Plan the balanced layout shard lists")
   assert.match(plan.run, /npm run test:layout -w apps\/web -- --list --reporter=json/)
   assert.match(plan.run, /plan-layout-shards\.mjs --list "\$RUNNER_TEMP\/layout-list\.json" \\\n\s+--timings \.github\/layout-shard-timings\.json --shards 8 --out-dir "\$RUNNER_TEMP\/layout-shards"/)
@@ -604,20 +606,67 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
   assert.equal(restore.with.path, "~/.cache/ms-playwright")
   assert.equal(restore.with.key, "${{ runner.os }}-playwright-chromium-${{ steps.playwright.outputs.version }}")
   assert.match(save.if, /^github\.event_name != 'pull_request'/)
-  const gate = stepNamed(workflow.jobs.lighthouse.steps, "Run median TBT and script budget gates")
-  assert.equal(gate["timeout-minutes"], 8)
-  assert.equal(workflow.jobs.lighthouse["timeout-minutes"], 15)
 })
 
-// A unit result is the only cache that a pull request run saves: its key is the Turbo hash of the inputs, so a later push of
-// the same pull request that leaves those inputs equal skips the group.
+test("layout shard 1 runs the Lighthouse budget after the layout tests and every shard saves its pass last", () => {
+  const shards = workflow.jobs["layout-shards"]
+  assert.equal(shards["timeout-minutes"], "${{ matrix.shard == 1 && 25 || 15 }}")
+  const names = shards.steps.map((step) => step.name)
+  const gate = stepNamed(shards.steps, "Run median TBT and script budget gates")
+  assert.equal(gate["timeout-minutes"], 8)
+  assert.equal(gate.run, "node apps/web/perf/run-lighthouse.mjs")
+  const lighthouse = ["Start mock orbit-api and wait for health", "Run median TBT and script budget gates", "Report authed Today LCP", "Stop mock orbit-api", "Upload Lighthouse reports"]
+  for (const name of lighthouse) {
+    assert.match(stepNamed(shards.steps, name).if, /matrix\.shard == 1/, `${name} runs in shard 1 only`)
+    assert.ok(names.indexOf(name) > names.indexOf("Check upgrade layout"), `${name} runs after the layout tests`)
+  }
+  assert.deepEqual(names.slice(-3), ["Upload Lighthouse reports", "Record the pass for these app inputs", "Save the pass marker"])
+  const marker = stepNamed(shards.steps, "Save the pass marker")
+  assert.equal(marker.if, undefined, "the marker saves only when every earlier step passed")
+  assert.equal(marker.with.key, "${{ needs.plan.outputs.layout-key }}-${{ matrix.shard }}")
+  assert.equal(marker.with.path, ".ci-pass/layout")
+})
+
+test("the plan lists only the layout shards that have no pass marker", () => {
+  const { jobs } = workflow
+  const lookups = jobs.plan.steps.filter((step) => /^layout-\d+$/.test(step.id ?? ""))
+  assert.deepEqual(lookups.map((step) => step.id), [1, 2, 3, 4, 5, 6, 7, 8].map((shard) => `layout-${shard}`))
+  for (const [index, step] of lookups.entries()) {
+    assert.equal(step.uses, "actions/cache/restore@v6")
+    assert.deepEqual(step.with, { path: ".ci-pass/layout", key: `\${{ steps.plan.outputs.layout-key }}-${index + 1}`, "lookup-only": true })
+  }
+  assert.equal(jobs.plan.outputs["layout-pending"], "${{ steps.layout.outputs.pending }}")
+  assert.equal(jobs.plan.outputs["layout-key"], "${{ steps.plan.outputs.layout-key }}")
+  const choose = stepNamed(jobs.plan.steps, "List the layout shards without a pass")
+  const run = (hits) => {
+    const directory = mkdtempSync(join(tmpdir(), "layout-pending-"))
+    try {
+      const output = join(directory, "output.txt")
+      const env = { ...process.env, GITHUB_OUTPUT: output }
+      for (const shard of [1, 2, 3, 4, 5, 6, 7, 8]) env[`HIT_${shard}`] = hits[shard - 1] ?? ""
+      const result = spawnSync("bash", ["-e", "-c", choose.run], { env, encoding: "utf8" })
+      assert.equal(result.status, 0, result.stderr)
+      return readFileSync(output, "utf8").trim()
+    } finally {
+      rmSync(directory, { recursive: true, force: true })
+    }
+  }
+  for (const [shard, hit] of Object.entries(choose.env)) assert.equal(hit, `\${{ steps.layout-${shard.slice(4)}.outputs.cache-hit }}`)
+  assert.equal(run(["true", "true", "true", "true", "true", "true", "true", "true"]), "pending=[]")
+  assert.equal(run(["", "", "", "", "", "", "", ""]), "pending=[1,2,3,4,5,6,7,8]")
+  assert.equal(run(["true", "false", "true", "", "true", "true", "true", "true"]), "pending=[2,4]")
+})
+
+// A unit result and a layout pass marker are the only caches that a pull request run saves: each key is a hash of the inputs, so a
+// later push of the same pull request that leaves those inputs equal skips the group or the shard.
 const unitResultKeys = new Set(["web-unit-key", "web-cross-app-unit-key", "mobile-unit-key", "workspace-unit-key"].map((key) => `\${{ needs.plan.outputs.${key} }}`))
-test("pull request runs save no cache that a push to main saves, except the unit results", () => {
+test("pull request runs save no cache that a push to main saves, except the unit results and the layout pass markers", () => {
   for (const [id, job] of Object.entries(workflow.jobs)) {
     for (const step of job.steps ?? []) {
       if (step.uses?.startsWith("actions/cache@")) assert.fail(`${id}: use actions/cache/restore with a save step that pull requests skip`)
       if (!step.uses?.startsWith("actions/cache/save@")) continue
       if (id === "unit-tests" && unitResultKeys.has(step.with.key)) assert.doesNotMatch(step.if ?? "", /pull_request/, `${id}: ${step.name} saves on every event`)
+      else if (id === "layout-shards") assert.equal(step.if, undefined, `${id}: ${step.name} saves on every run of the job`)
       else assert.match(step.if ?? "", /^github\.event_name != 'pull_request'/, `${id}: ${step.name}`)
     }
   }
