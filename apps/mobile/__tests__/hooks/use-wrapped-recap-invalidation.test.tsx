@@ -5,7 +5,7 @@ import { expect, it, vi } from 'vitest'
 import type { z } from 'zod'
 import { gamificationKeys } from '@orbit/shared/query'
 import { recapWithCompletions, successfulUnlogResponse } from '@orbit/shared/__tests__/in-place-block-fixtures'
-import { useProgressRecap } from '@/hooks/use-recap'
+import { useWrapped } from '@/hooks/use-wrapped'
 import { useLogHabit } from '@/hooks/use-habits'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -24,25 +24,24 @@ it('refreshes mounted recap metrics after an ordinary undo without reward signal
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   client.setQueryData(gamificationKeys.recap('week'), recapWithCompletions(1))
   vi.mocked(apiClient).mockImplementation(<T,>(_url: string, _options?: RequestInit, schema?: z.ZodType<T>) => {
-    if (!schema) throw new Error('Expected recap validation')
-    return Promise.resolve(schema.parse(recapWithCompletions(0)))
+    return Promise.resolve(schema ? schema.parse(recapWithCompletions(0)) : recapWithCompletions(0) as T)
   })
   vi.mocked(performQueuedApiMutation).mockResolvedValue(successfulUnlogResponse)
-  let latest!: { recap: ReturnType<typeof useProgressRecap>; log: ReturnType<typeof useLogHabit> }
+  let latest!: { recap: ReturnType<typeof useWrapped>; log: ReturnType<typeof useLogHabit> }
   function Observer() {
-    latest = { recap: useProgressRecap('week'), log: useLogHabit() }
+    latest = { recap: useWrapped('week'), log: useLogHabit() }
     return null
   }
   let view!: GeometryTree
   await act(() => { view = create(<QueryClientProvider client={client}><Observer /></QueryClientProvider>) as GeometryTree })
   try {
-    expect(latest.recap.data?.metrics.totalCompletions).toBe(1)
+    expect(latest.recap.recap?.metrics.totalCompletions).toBe(1)
     expect(apiClient).not.toHaveBeenCalled()
     await act(async () => { await latest.log.mutateAsync({ habitId: 'habit-1', intent: 'unlog' }) })
     expect(performQueuedApiMutation).toHaveBeenCalledWith(expect.objectContaining({ endpoint: '/api/habits/habit-1/log', method: 'POST' }))
     await act(async () => { await vi.waitFor(() => expect(client.getQueryData<ReturnType<typeof recapWithCompletions>>(gamificationKeys.recap('week'))?.metrics.totalCompletions).toBe(0)) })
-    expect(latest.recap.data?.metrics.totalCompletions).toBe(0)
-    expect(apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=week', undefined, expect.anything())
+    expect(latest.recap.recap?.metrics.totalCompletions).toBe(0)
+    expect(apiClient).toHaveBeenCalledWith('/api/gamification/recap?period=week')
   } finally {
     await act(() => view.unmount())
     client.clear()

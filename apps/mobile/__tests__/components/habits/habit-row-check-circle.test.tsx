@@ -5,7 +5,6 @@ import { controlStyle } from '@/__tests__/support/press-feedback'
 import { describe, expect, it, vi } from 'vitest'
 import { controlContrast } from '@orbit/shared/__tests__/contrast'
 import { CheckCircle } from '@/components/habits/habit-row-check-circle'
-import { StatusDot } from '@/components/ui/status-dot'
 import { createTokensV2 } from '@/lib/theme'
 
 const theme = vi.hoisted(() => ({ currentScheme: 'orange', currentTheme: 'light' }))
@@ -29,24 +28,20 @@ function style(value: unknown): ViewStyle {
   return StyleSheet.flatten(value as StyleProp<ViewStyle>)
 }
 
-describe('completion control paint stack', () => {
+describe('habit check paint stack', () => {
   for (const mode of ['light', 'dark'] as const) {
-    for (const kind of ['habit check', 'status dot'] as const) {
+    for (const kind of ['habit check'] as const) {
       it(`retains the ${kind} contrast, target and action in ${mode}`, async () => {
         theme.currentTheme = mode
         const tokens = createTokensV2('orange', mode)
         const onToggle = vi.fn()
-        const element = kind === 'habit check'
-          ? <CheckCircle state="empty" disabled={false} onToggle={onToggle} accessibilityLabel="Log habit" />
-          : <StatusDot state="empty" onToggle={onToggle} accessibilityLabel="Log habit" />
+        const element = <CheckCircle state="empty" disabled={false} onToggle={onToggle} accessibilityLabel="Log habit" />
         let tree!: ReactTestRenderer
         await act(() => { tree = create(element) })
         try {
           const control = () => tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
           const props = () => control().props as { style: StyleProp<ViewStyle>; onPressIn: () => void; onPressOut: () => void; onPress?: () => void; accessibilityState: { disabled: boolean } }
-          const track = () => kind === 'habit check'
-            ? tree.root.findAll((node) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
-            : control().findAll((node) => String(node.type) === 'View' && node.props['data-slot'] !== 'press-scale')[0]!
+          const track = () => tree.root.findAll((node) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
           const resting = controlStyle(control())
           expect(resting.minHeight).toBe(48)
           expect(resting.width ?? resting.minWidth).toBe(48)
@@ -55,7 +50,7 @@ describe('completion control paint stack', () => {
           for (const pressed of [false, true, false]) {
             await act(() => { props()[pressed ? 'onPressIn' : 'onPressOut']() })
             const target = controlStyle(control())
-            const parent = kind === 'habit check' ? { ...target, ...style(track().props.style) } : target
+            const parent = { ...target, ...style(track().props.style) }
             const trackStyle = style(track().props.style)
             expect(trackStyle.borderColor).toBe(color)
             for (const surface of [tokens.bgCard, tokens.bg]) {
@@ -68,9 +63,7 @@ describe('completion control paint stack', () => {
           }
           await act(() => { props().onPress!() })
           expect(onToggle).toHaveBeenCalledOnce()
-          const disabled = kind === 'habit check'
-            ? <CheckCircle state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
-            : <StatusDot state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
+          const disabled = <CheckCircle state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
           await act(() => { tree.update(disabled); })
           await act(() => { props().onPressIn() })
           expect(controlStyle(control() as never).opacity).toBeCloseTo(0.4)

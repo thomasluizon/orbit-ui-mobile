@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { gamificationKeys } from '@orbit/shared/query'
 import { recapWithCompletions, successfulUnlogResponse } from '@orbit/shared/__tests__/in-place-block-fixtures'
-import { useProgressRecap } from '@/hooks/use-recap'
+import { useWrapped } from '@/hooks/use-wrapped'
 import { useLogHabit } from '@/hooks/use-habits'
 import { logHabit } from '@/lib/actions/habits'
 import { useAuthStore } from '@/stores/auth-store'
@@ -22,13 +22,13 @@ it('refreshes mounted recap metrics after an ordinary undo without reward signal
   vi.stubGlobal('fetch', request)
   vi.mocked(logHabit).mockResolvedValue(successfulUnlogResponse)
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
-  const view = renderHook(() => ({ recap: useProgressRecap('week'), log: useLogHabit() }), { wrapper })
+  const view = renderHook(() => ({ recap: useWrapped('week'), log: useLogHabit() }), { wrapper })
   try {
-    expect(view.result.current.recap.data?.metrics.totalCompletions).toBe(1)
+    expect(view.result.current.recap.recap?.metrics.totalCompletions).toBe(1)
     expect(request).not.toHaveBeenCalled()
     await act(() => view.result.current.log.mutateAsync({ habitId: 'habit-1', intent: 'unlog' }))
     expect(logHabit).toHaveBeenCalledWith('habit-1', undefined, 'account-a')
-    await waitFor(() => expect(view.result.current.recap.data?.metrics.totalCompletions).toBe(0))
+    await waitFor(() => expect(view.result.current.recap.recap?.metrics.totalCompletions).toBe(0))
     expect(request).toHaveBeenCalledWith('/api/gamification/recap?period=week', expect.any(Object))
   } finally {
     view.unmount()

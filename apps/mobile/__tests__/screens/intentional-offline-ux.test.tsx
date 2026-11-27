@@ -188,10 +188,6 @@ vi.mock('@/components/ui/list-row', () => ({
   SettingsRow: () => null,
 }))
 
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
-  ProfileNavCard: () => null,
-}))
-
 vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))

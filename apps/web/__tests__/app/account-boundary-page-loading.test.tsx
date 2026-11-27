@@ -76,7 +76,6 @@ vi.mock('@/components/calendar/calendar-range-view', async (importOriginal) => (
 }))
 vi.mock('@/components/calendar/calendar-agenda-view', () => ({ CalendarAgendaView: () => null }))
 vi.mock('@/components/calendar/calendar-load-error', () => ({ CalendarLoadError: () => null }))
-vi.mock('@/components/calendar/show-recurring-toggle', () => ({ ShowRecurringToggle: () => null }))
 vi.mock('@/components/ui/segmented-control', () => ({ SegmentedControl: () => null }))
 vi.mock('@/components/ui/pill-button', () => ({ PillButton: () => null }))
 vi.mock('@/components/ui/skeleton', () => ({ Skeleton: () => null }))

@@ -166,7 +166,6 @@ describe('Astra list cards on mobile', () => {
 })
 
 vi.mock('@/hooks/use-goals', () => ({ useGoals: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
-vi.mock('@/hooks/use-recap', () => ({ useProgressRecap: () => ({ isPending: false, isError: false, isRefetchError: false }) }))
 vi.mock('@/hooks/use-gamification', () => ({ useStreakFreeze: () => ({ streakInfo: null, streakQuery: { isPending: false, isError: false, isRefetchError: false } }) }))
 vi.mock('@/hooks/use-calendars', () => ({ useCalendars: () => ({ data: [] }) }))
 vi.mock('@/hooks/use-calendar-events', () => ({ useCalendarEvents: () => ({ isPending: false, isError: false, isRefetchError: false }) }))

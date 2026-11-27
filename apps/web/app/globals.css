@@ -713,10 +713,6 @@ select[aria-hidden="true"] {
   flex: 0 0 auto;
 }
 
-.orbit-popover-positioner {
-  z-index: var(--z-index-dropdown);
-}
-
 .orbit-sheet-panel [data-radix-popper-content-wrapper]:has(> [data-menu-sheet]) {
   display: contents;
 }

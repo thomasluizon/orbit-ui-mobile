@@ -55,9 +55,6 @@ vi.mock('@/lib/account-scope', () => ({ getAccountId: mocks.getAccountId, setAcc
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }))
 vi.mock('@/stores/referral-prompt-store', () => ({ setEngagementPromptAccountScope: () => Promise.resolve() }))
 vi.mock('@/stores/ui-store', () => ({ setUIAccountScope: () => Promise.resolve() }))
-vi.mock('@/stores/tour-store', () => ({
-  useTourStore: { getInitialState: () => ({}), setState: () => {} },
-}))
 vi.mock('@/lib/offline-runtime', () => ({ getCurrentConnectivity: mocks.getCurrentConnectivity }))
 vi.mock('@/lib/offline-state', () => ({
   upsertOfflineEntity: () => Promise.resolve(),

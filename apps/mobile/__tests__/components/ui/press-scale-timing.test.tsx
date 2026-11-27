@@ -11,9 +11,8 @@ import { Select } from '@/components/ui/select'
 import { TimeField } from '@/components/ui/time-field'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import { Chip } from '@/components/ui/chip'
-import { StatusDot } from '@/components/ui/status-dot'
 import { createTokensV2 } from '@/lib/theme'
-import { controlStyle, pressFace } from '@/__tests__/support/press-feedback'
+import { pressFace } from '@/__tests__/support/press-feedback'
 
 const motionOverride = vi.hoisted(() => ({ pressDuration: 151, enter: [0.11, 0.22, 0.33, 0.44] as const, pressScale: 0.91, reducedMotion: false }))
 
@@ -129,31 +128,4 @@ it('keeps the first checklist row move up control, which is disabled, at unit sc
     await pressIn(moveUp)
     expect(scaleLayer(moveUp).transform).toEqual([{ scale: 1 }])
   } finally { await act(() => tree.unmount()) }
-})
-
-describe('StatusDot press timing', () => {
-  afterEach(() => { motionOverride.reducedMotion = false })
-
-  const hostStyle = (target: ReactTestInstance) => controlStyle(target)
-
-  it('eases the press scale over the press duration on the enter curve and back', async () => {
-    const tree = await mount(<StatusDot state="empty" onToggle={vi.fn()} accessibilityLabel="Log habit" />)
-    try {
-      const target = pressTarget(tree, 'button', 'Log habit')
-      expect(hostStyle(target)).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
-      await pressIn(target)
-      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 0.91 }], transition: EASED })
-      await pressOut(target)
-      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 1 }], transition: EASED })
-    } finally { await act(() => tree.unmount()) }
-  })
-
-  it('keeps unit scale and no transition under reduced motion', async () => {
-    motionOverride.reducedMotion = true
-    const tree = await mount(<StatusDot state="empty" onToggle={vi.fn()} accessibilityLabel="Log habit" />)
-    try {
-      await pressIn(pressTarget(tree, 'button', 'Log habit'))
-      expect(hostStyle(pressTarget(tree, 'button', 'Log habit'))).toMatchObject({ transform: [{ scale: 1 }], transition: 'none' })
-    } finally { await act(() => tree.unmount()) }
-  })
 })

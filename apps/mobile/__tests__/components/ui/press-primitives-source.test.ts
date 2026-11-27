@@ -20,7 +20,6 @@ const PRESS_SCALE_OWNERS = ['components/ui/motion-pressable.tsx', 'components/mo
 const PRESS_SCALE_WRITE = /scale:[^,}\]]*\b0\.9[69]\b|orbitalMotion\.press\.scale|pressedScale|PressedScale/
 
 const LISTED_PRESS_CONTROLS = [
-  'components/ui/status-dot.tsx',
   'components/ui/year-picker.tsx',
   'components/ui/select-check.tsx',
   'components/ui/picker-row.tsx',
