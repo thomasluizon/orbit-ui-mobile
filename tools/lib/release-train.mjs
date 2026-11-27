@@ -11,6 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
+import { GATE_WORKFLOWS, NO_GREEN_COMMIT } from "../release-plan.mjs"
 import { apiClient, appStoreToken } from "./app-store-connect.mjs"
 
 export const TRAIN_FILE = "release-train.json"
@@ -128,14 +129,14 @@ const decideSteps = async (plan, ports, notes) => {
     const files = byName.web.deployedSha === null ? null : await ports.changedFiles("ui", byName.web.deployedSha, byName.web.plannedSha)
     if (files === null || touches(files, WEB_PATHS)) steps.push(...releaseSteps("web", byName.web))
     else notes.push("web: no apps/web or packages/shared file changed")
-  } else notes.push("web: nothing to release")
+  } else notes.push(`web: ${byName.web?.baselineError ?? "nothing to release"}`)
   if (byName.landing?.needsRelease) steps.push(...releaseSteps("landing", byName.landing))
   else notes.push("landing: nothing to release")
   if (byName.android?.needsRelease) {
     const files = byName.android.deployedSha === null ? null : await ports.changedFiles("ui", byName.android.deployedSha, byName.android.plannedSha)
     if (files === null || touches(files, MOBILE_PATHS)) steps.push(...mobileSteps(byName.android))
     else notes.push("mobile: no apps/mobile or packages/shared file changed")
-  } else notes.push("mobile: nothing to release")
+  } else notes.push(`mobile: ${byName.android?.baselineError ?? "nothing to release"}`)
   return steps
 }
 
@@ -213,8 +214,8 @@ const dispatchWith = async (ctx, state, step, args, repoKey) => {
   stepLine(ctx, step, "dispatched")
 }
 
-/** The shared version, the two Android codes and the commit of the train, read when the first mobile step dispatches. Each mobile workflow builds that commit through `source_sha`, so `main` can move. */
-const prepareMobile = async (ctx, state) => {
+/** The shared version and the two Android codes, read when the first mobile step dispatches. Each mobile workflow builds the planned commit through `source_sha`, so `main` can move. */
+const prepareMobile = async (ctx, state, plannedSha) => {
   const { ports } = ctx
   const [production, staging] = await Promise.all([ports.mobilePlan("production"), ports.mobilePlan("staging")])
   const newer = [production.nextVersion, staging.nextVersion].filter(Boolean).sort((left, right) => {
@@ -223,13 +224,13 @@ const prepareMobile = async (ctx, state) => {
   }).at(-1)
   if (!newer) throw new Error("the mobile version plan has no nextVersion")
   const newest = await ports.newestAndroidCode()
-  state.train.mobile = { appVersion: newer, sha: await ports.mainHead("ui"), stagingCode: newest + 1, productionCode: newest + 2 }
+  state.train.mobile = { appVersion: newer, sha: plannedSha, stagingCode: newest + 1, productionCode: newest + 2 }
 }
 
 const dispatchAndroid = async (ctx, state, step) => {
   const train = state.train
   if (train.mobile === null) {
-    try { await prepareMobile(ctx, state) } catch (error) { return stopTrain(ctx, state, step, `mobile version unreadable: ${error.message}`) }
+    try { await prepareMobile(ctx, state, step.plannedSha) } catch (error) { return stopTrain(ctx, state, step, `mobile version unreadable: ${error.message}`) }
     save(ctx, state)
   }
   const code = step.environment === "staging" ? train.mobile.stagingCode : train.mobile.productionCode
@@ -275,13 +276,21 @@ const resolveRun = async (ctx, step) => {
   return ctx.now() - step.dispatchedAt > RUN_FIND_MS ? { error: "no unique new run appeared for the dispatch" } : { run: null }
 }
 
-/** A refusal while `main` is at the planned commit dispatches Tests and Guards. A refusal after `main` moved dispatches nothing: the push runs at the planned commit exist and are never cancelled, so the step waits for them. */
+/** The newest listed Tests run and Guards run at the planned commit of a step, null for a workflow with none. */
+const runsAtPlanned = (step, list, since = -Infinity) => Promise.all(GATE_WORKFLOWS.map(async (workflow) => (await list(SERVICES[step.service].repoKey, workflow))
+  .filter((run) => run.headSha === step.plannedSha && Date.parse(run.createdAt) >= since)
+  .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null))
+
+const passed = (run) => run?.status === "completed" && run.conclusion === "success"
+
+/** A refusal dispatches Tests and Guards only while `main` is at a planned commit with no green runs. In every other case the step reads the runs of `main` at that commit, which are never cancelled. */
 const startTests = async (ctx, state, step) => {
+  const green = (await runsAtPlanned(step, ctx.ports.listMainRuns)).every(passed)
   const head = await ctx.ports.mainHead(SERVICES[step.service].repoKey).catch(() => null)
-  const dispatch = head === step.plannedSha
+  const dispatch = !green && head === step.plannedSha
   if (dispatch) {
     try {
-      for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
+      for (const workflow of GATE_WORKFLOWS) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
     } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
   }
   step.state = "testing"
@@ -290,21 +299,19 @@ const startTests = async (ctx, state, step) => {
   step.tests = { dispatchedAt: ctx.now(), ran: {}, readRunningAt: {}, dispatched: dispatch }
   step.retried = true
   save(ctx, state)
-  stepLine(ctx, step, dispatch ? "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml" : "refused for a missing green Tests or Guards run, and main moved: waits for the runs at the planned SHA")
+  const next = dispatch ? "dispatched test.yml and guards.yml" : green ? "the planned SHA has green runs, so the release dispatches again" : "main moved, so the step waits for the runs at the planned SHA"
+  stepLine(ctx, step, `refused for a missing green Tests or Guards run: ${next}`)
 }
 
 /** A Tests or Guards run waits in the runner queue behind the pull request runs, so the run ceiling counts the run time and the queue has its own ceiling. */
 const checkTests = async (ctx, state, step) => {
-  const repoKey = SERVICES[step.service].repoKey
-  const workflows = ["test.yml", "guards.yml"]
   // A train state written before the push wait has no `dispatched` flag and always dispatched.
   const dispatched = step.tests.dispatched !== false
-  const newest = async (workflow) => (await (dispatched ? ctx.ports.listRuns : ctx.ports.listMainRuns)(repoKey, workflow))
-    .filter((run) => run.headSha === step.plannedSha && (!dispatched || Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS))
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
-  const runs = [await newest(workflows[0]), await newest(workflows[1])]
+  const runs = dispatched
+    ? await runsAtPlanned(step, ctx.ports.listRuns, step.tests.dispatchedAt - CLOCK_SKEW_MS)
+    : await runsAtPlanned(step, ctx.ports.listMainRuns)
   if (runs.some((run) => run?.status === "completed" && run.conclusion !== "success")) return stopTrain(ctx, state, step, "the Tests or Guards run at the planned SHA failed")
-  if (runs.every((run) => run?.status === "completed")) {
+  if (runs.every(passed)) {
     step.url = null
     step.state = "pending"
     save(ctx, state)
@@ -313,7 +320,7 @@ const checkTests = async (ctx, state, step) => {
   // A run goes back to queued between its job waves, so only the time between two polls that both read in_progress counts.
   step.tests.ran ??= {} // a train state written before the run time clock has no map
   step.tests.readRunningAt ??= {}
-  workflows.forEach((workflow, index) => {
+  GATE_WORKFLOWS.forEach((workflow, index) => {
     if (runs[index]?.status === "in_progress") {
       const previous = step.tests.readRunningAt[workflow]
       if (typeof previous === "number") step.tests.ran[workflow] = (step.tests.ran[workflow] ?? 0) + ctx.now() - previous
@@ -321,7 +328,7 @@ const checkTests = async (ctx, state, step) => {
     } else step.tests.readRunningAt[workflow] = null
   })
   save(ctx, state)
-  const slow = workflows.find((workflow, index) => runs[index]?.status !== "completed" && (step.tests.ran[workflow] ?? 0) > TESTS_CEILING_MS)
+  const slow = GATE_WORKFLOWS.find((workflow, index) => runs[index]?.status !== "completed" && (step.tests.ran[workflow] ?? 0) > TESTS_CEILING_MS)
   if (slow) return stopTrain(ctx, state, step, `the ${slow} run did not finish in 90 minutes of run time`)
   if (ctx.now() - step.tests.dispatchedAt > RUN_CEILING_MS) stopTrain(ctx, state, step, "the Tests and Guards runs did not finish before the wait ceiling of 360 minutes")
 }
@@ -383,7 +390,8 @@ const startTrain = async (ctx, state, forced) => {
   save(ctx, state)
   await ports.wake(["api", "web", "landing"].map((service) => healthUrl(service, "staging")))
   const plan = await ports.plan()
-  const unreadable = plan.services.filter((service) => service.baselineError)
+  // A service with no green commit waits for a later train. Any other unreadable baseline holds the whole train, because the services release in order.
+  const unreadable = plan.services.filter((service) => service.baselineError && service.baselineError !== NO_GREEN_COMMIT)
   if (unreadable.length > 0) return ctx.log(`${iso(ctx.now())} release plan unreadable: ${unreadable.map((service) => `${service.name} ${service.baselineError}`).join("; ")}`)
   const notes = []
   const steps = await decideSteps(plan, ports, notes)
@@ -514,7 +522,7 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
       return found
     },
     dispatch: async (args) => { await gh(args) },
-    listMainRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--branch", "main", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
+    listMainRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--branch", "main", "--limit", "100", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     listRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     runStatus: async (key, runId) => parseJson("gh api run", await gh(["api", `repos/${repoOf(key)}/actions/runs/${runId}`, "--jq", "{status,conclusion,url:.html_url,headSha:.head_sha}"])),
     failedLog: async (key, runId) => (await gh(["run", "view", String(runId), "--repo", repoOf(key), "--log-failed"])).slice(-20000),
