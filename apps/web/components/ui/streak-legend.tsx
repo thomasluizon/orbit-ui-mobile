@@ -13,7 +13,7 @@ export function StreakLegend({ words, inSheet }: Readonly<Pick<FreezeBankProps, 
   const [open, setOpen] = useState(false)
   const { sheetRef } = useSheetHost()
   const legend = (
-    <div role="group" aria-label={words.legendLabel} className="flex flex-col gap-4">
+    <fieldset aria-label={words.legendLabel} className="flex flex-col gap-4 min-w-0">
       {(['active', 'frozen', 'missed'] as const).map((state) => (
         <div key={state} className="flex min-h-[48px] items-center gap-3 text-[14px] text-[var(--fg-2)]">
           {state === 'frozen' ? <Snowflake size={16} strokeWidth={1.5} color="var(--status-frozen)" aria-hidden="true" />
@@ -21,7 +21,7 @@ export function StreakLegend({ words, inSheet }: Readonly<Pick<FreezeBankProps, 
           <span>{words[state]}</span>
         </div>
       ))}
-    </div>
+    </fieldset>
   )
   if (inSheet) return legend
   return (

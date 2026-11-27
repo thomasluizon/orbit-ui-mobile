@@ -160,7 +160,7 @@ describe('the bar: no bare system noun', () => {
     const { container } = render(<Harness />)
     const texts = [
       ...screen.getAllByRole('heading').map((element) => element.textContent),
-      ...[...container.querySelectorAll('label, [role="group"]')].map((element) => element.getAttribute('aria-label') ?? element.textContent),
+      ...[...container.querySelectorAll('label, fieldset')].map((element) => element.getAttribute('aria-label') ?? element.textContent),
       ...screen.getAllByRole('button').filter((button) => !button.textContent.startsWith('Meta ')).map((button) => button.textContent),
     ].map((text) => text.trim().toLocaleLowerCase())
     expect(texts.filter((text) => BARE_NOUNS.includes(text))).toEqual([])

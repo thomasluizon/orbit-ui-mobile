@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
 import {
@@ -36,7 +36,7 @@ import {
   updateBranch,
   wholeDiffApproved,
 } from "../lib/github.mjs"
-import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
+import { ORDER_KINDS, partOf, renderBrief, renderOrder, renderResumeOrder } from "../lib/order.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { sendTelegram } from "../lib/telegram.mjs"
 import {
@@ -55,6 +55,11 @@ import {
   WORKER_DENIED_TOOLS,
   WORKER_DENY,
   WORKER_LIMITS,
+  logContextTokens,
+  RESUME_TOKEN_LIMIT,
+  resumeInvocation,
+  sessionExists,
+  sessionFile,
   WORKER_SKILLS_OFF,
   workerCommand,
   workerAccountEnvironment,
@@ -1010,7 +1015,42 @@ const directoryCases = () => {
   T("lib/worker.mjs: the real lsof lists the cwd of this process", real.some(({ pid, path }) => pid === process.pid && path === realpathSync(process.cwd())), JSON.stringify(real.filter(({ pid }) => pid === process.pid)))
 }
 
+const resumeCases = () => {
+  const invocation = { command: { executable: "claude", args: ["-p", "--model", "m"] }, environment: { A: "1" } }
+  same("lib/worker.mjs: a resume adds --resume and the session id to the worker arguments and changes nothing else", resumeInvocation(invocation, "sess-9"), { command: { executable: "claude", args: ["-p", "--model", "m", "--resume", "sess-9"] }, environment: { A: "1" } })
+  same("lib/worker.mjs: a resume leaves the invocation that it reads unchanged", invocation.command.args, ["-p", "--model", "m"])
+  mkdirSync(join(root, "resume-home", ".claude", "skills"), { recursive: true })
+  const real = workerInvocation({ home: join(root, "resume-home"), parentEnvironment: {}, token: "t" })
+  const resumed = resumeInvocation(real, "sess-9")
+  same("lib/worker.mjs: a resumed worker keeps the worker model, effort and settings", [resumed.command.args.slice(0, -2), resumed.command.args.slice(-2), resumed.environment], [real.command.args, ["--resume", "sess-9"], real.environment])
+  T("lib/worker.mjs: the resume token limit is 200000", RESUME_TOKEN_LIMIT === 200000)
+
+  const usage = (input, write, read, extra = {}) => JSON.stringify({ type: "assistant", message: { usage: { input_tokens: input, cache_creation_input_tokens: write, cache_read_input_tokens: read, ...extra } } })
+  const logOf = (name, lines) => { const path = join(root, name); writeFileSync(path, lines.join("\n")); return path }
+  const result = JSON.stringify({ type: "result", usage: { input_tokens: 9, cache_creation_input_tokens: 9, cache_read_input_tokens: 9999999 } })
+  same("lib/worker.mjs: the context is the usage of the last assistant record and not the usage of the result", logContextTokens(logOf("context-a.log", [usage(2, 300, 1000), usage(3, 400, 5000), result, ""])), 5403)
+  same("lib/worker.mjs: a usage with only some counts sums those counts", logContextTokens(logOf("context-b.log", [usage(10, undefined, 20)])), 30)
+  same("lib/worker.mjs: a log with no assistant usage gives null", [logContextTokens(logOf("context-c.log", [result])), logContextTokens(logOf("context-d.log", [JSON.stringify({ type: "assistant", message: {} })])), logContextTokens(join(root, "context-missing.log"))], [null, null, null])
+  same("lib/worker.mjs: an assistant record with a count that is no number gives null", logContextTokens(logOf("context-e.log", [usage("x", 1, 2)])), null)
+  const big = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024 + 50) } })
+  same("lib/worker.mjs: the last assistant record is found across read chunks, with no final line end", logContextTokens(logOf("context-f.log", [usage(1, 1, 1), big, usage(5, 6, 7)])), 18)
+
+  const worktree = join(root, "resume-worktree")
+  mkdirSync(worktree, { recursive: true })
+  const real1 = realpathSync(worktree)
+  const file = sessionFile({ configDirectory: "/c", worktree, sessionId: "sess-1" })
+  same("lib/worker.mjs: the transcript is under the config directory, in the real working path with each other character as a dash", file, `/c/projects/${real1.replace(/[^A-Za-z0-9]/g, "-")}/sess-1.jsonl`)
+  same("lib/worker.mjs: a path over 200 characters has no known transcript", sessionFile({ configDirectory: "/c", worktree: `/${"a".repeat(201)}`, sessionId: "s" }), null)
+  const config = join(root, "resume-config")
+  const transcript = sessionFile({ configDirectory: config, worktree, sessionId: "sess-1" })
+  const before = sessionExists({ configDirectory: config, worktree, sessionId: "sess-1" })
+  mkdirSync(dirname(transcript), { recursive: true })
+  writeFileSync(transcript, "{}\n")
+  same("lib/worker.mjs: a session exists when its transcript is on disk", [before, sessionExists({ configDirectory: config, worktree, sessionId: "sess-1" }), sessionExists({ configDirectory: config, worktree, sessionId: "sess-2" })], [false, true, false])
+}
+
 const workerUnit = async () => {
+  resumeCases()
   occupantCases()
   directoryCases()
   settingsCases()
@@ -1079,6 +1119,14 @@ const orderCases = async () => {
   const longSection = oneLong.slice(oneLong.indexOf("## Earlier launches"), oneLong.indexOf("## Brief"))
   const fenceLines = longSection.split("\n").filter((line) => /^`{3,}$/.test(line))
   T("lib/order.mjs: one earlier launch that is over 16,000 bytes drops its oldest check-log lines and keeps the result tail and every fence", Buffer.byteLength(longSection.slice(0, longSection.indexOf("\n\nThe launches above failed."))) <= 16000 + 40 && longSection.includes("RESULT-TAIL-KEPT") && !longSection.includes("CUT-AWAY") && fenceLines.length > 0 && fenceLines.length % 2 === 0 && longSection.indexOf("The launches above failed. Find why before you change code.") >= 0 && oneLong.indexOf("The launches above failed. Find why before you change code.") < oneLong.indexOf("## Brief") && longSection.includes("LOG LINE 119"), `${Buffer.byteLength(longSection)} bytes, ${fenceLines.length} fence lines`)
+
+  const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
+  T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
+  T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
+  for (const [label, call, message] of [
+    ["a build order", () => renderResumeOrder({ kind: "build" }), /does not resume a session/],
+    ["a fix order with no blocking class", () => renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [] } }), /needs its pull request/],
+  ]) T(`lib/order.mjs: a resumed order refuses ${label}`, message.test(String(((() => { try { call() } catch (error) { return error.message } return "" })()))))
 
   const build = order("build", { partComments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))

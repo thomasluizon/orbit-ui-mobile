@@ -257,12 +257,12 @@ export function StreakStrip({ streak }: Readonly<{ streak: StreakScreen }>) {
   return (
     <>
       <StreakFigure currentStreak={currentStreak} />
-      <div role="group" aria-busy={loading} aria-label={loading ? t('progressScreen.loading') : undefined} className="relative min-w-0 w-full py-1">
+      <fieldset aria-busy={loading} aria-label={loading ? t('progressScreen.loading') : undefined} className="relative min-w-0 w-full py-1">
         <div inert={loading || undefined} aria-hidden={loading || undefined} className={loading ? 'invisible' : undefined}>
           <DayStrip size={isDesktop ? 24 : 20} scope="account" days={days.map((day) => day.status)} labels={labels} label={t('progressScreen.streak.stripWindow', { count: days.length })} words={dayWords} />
         </div>
         {loading ? <div className="pointer-events-none absolute inset-0"><Skeleton variant="fill" grouped /></div> : null}
-      </div>
+      </fieldset>
     </>
   )
 }

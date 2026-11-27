@@ -142,6 +142,14 @@ describe('readHabitWhenWords: a bare weekday', () => {
     expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
   })
 
+  it.each([['seg.', '2026-11-30'], ['qui.', '2026-11-26'], ['sex.', '2026-11-27'], ['sáb.', '2026-11-28'], ['dom.', '2026-11-29'], ['na qua.', '2026-12-02']])('reads the short day "%s" with its dot as the next date for a task', (words, date) => {
+    expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date })
+  })
+
+  it.each([['mon.', '2026-11-30'], ['fri.', '2026-11-27'], ['on thu.', '2026-11-26']])('reads the short day "%s" with its dot as the next date for a task', (words, date) => {
+    expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date })
+  })
+
   it.each(['friday', 'next friday'])('reads "%s" as the next Friday for a task', (words) => {
     expect(readHabitWhenWords(words, { ...english, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
   })

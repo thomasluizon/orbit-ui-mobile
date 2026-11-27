@@ -43,12 +43,17 @@ export interface QuestionFlowProps {
     /** The tone of a step that deletes, such as the typed confirmation of a fresh start. Default primary. */
     variant?: 'caution' | 'destructive'
   }
+  /** One secondary action of the primary action row. It renders as a ghost small pill before the primary, 12 apart, and needs a `primary`. */
+  secondary?: {
+    label: string
+    onPress: () => void
+  }
   /** One quiet control under the block, such as a link. */
   footer?: React.ReactNode
 }
 
 /** What one step shows. A step owner returns it and the flow host passes it to the frame: `free` becomes the children. */
-export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'orbitState' | 'statusText'> & {
+export type FlowStepView = Pick<QuestionFlowProps, 'question' | 'line' | 'options' | 'primary' | 'secondary' | 'orbitState' | 'statusText'> & {
   free?: React.ReactNode
   /** Changes when the Orbit line changes with no step change, such as after a press on a tag. The host passes it to the frame, which cross-fades the line. */
   lineKey?: string

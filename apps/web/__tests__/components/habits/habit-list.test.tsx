@@ -531,6 +531,7 @@ import {
   recoverSameAccount,
   replaceAccountWith,
 } from '@/__tests__/support/account-change'
+import { HABIT_LIST_FOCUS_OWNER } from '../../../e2e/layout/habit-list-focus-owner'
 
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -1447,6 +1448,16 @@ describe('HabitList', () => {
       expect(row).toHaveRole('group')
       expect(row).toHaveAccessibleName(row.getAttribute('data-habit-title')!)
       expect(within(row).getAllByRole('button').length).toBeGreaterThan(0)
+    }
+  })
+
+  it('resolves the layout focus owner locator from every row to the list focus target', () => {
+    const { container } = renderKeyboardHabitList()
+    const list = container.querySelector('[data-habit-list]')
+    for (const row of screen.getAllByTestId('habit-row')) {
+      const owners = document.evaluate(HABIT_LIST_FOCUS_OWNER, row, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null)
+      expect(owners.snapshotLength).toBe(1)
+      expect(owners.snapshotItem(0)).toBe(list)
     }
   })
 

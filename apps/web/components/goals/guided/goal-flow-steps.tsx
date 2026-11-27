@@ -133,7 +133,7 @@ export function GoalSummary({ draft, mode, habitsValue, habitsEditable = true, e
   const row = (step: GoalFlowStep, label: string, value: string) =>
     <ListRow key={step} placement="field" title={label} value={value} onClick={() => onOpen(step)} />
   return (
-    <div role="group" aria-label={t('habits.flow.confirm.question')} className="flex flex-col gap-3">
+    <fieldset aria-label={t('habits.flow.confirm.question')} className="flex flex-col gap-3 min-w-0">
       {row('what', t('goals.flow.summary.what'), draft.description)}
       {mode === 'create' ? row('track', t('goals.flow.summary.track'), type) : <ListRow placement="field" readOnly title={t('goals.flow.summary.track')} value={type} />}
       {row('amount', t('goals.flow.summary.amount'), amount)}
@@ -142,6 +142,6 @@ export function GoalSummary({ draft, mode, habitsValue, habitsEditable = true, e
         ? row('habits', t('goals.linkedHabits'), habitsValue)
         : <ListRow placement="field" readOnly title={t('goals.linkedHabits')} value={habitsValue} />}
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
-    </div>
+    </fieldset>
   )
 }

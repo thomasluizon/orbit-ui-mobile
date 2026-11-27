@@ -6,7 +6,10 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { dirname } from "node:path"
+import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs"
+import { dirname, join } from "node:path"
+
+import { runBounded } from "./bounded-process.mjs"
 
 /** A worktree with installed dependencies holds several hundred thousand files. */
 const WALK_TIMEOUT_MS = 120_000
@@ -65,4 +68,66 @@ export const parseWorktreeList = (porcelain) => porcelain.split(/\r?\n(?:\r?\n)+
 export const findRepositories = (path) => {
   const result = spawnSync("find", [path, "-name", ".git", "-print0", "-prune"], { encoding: "utf8", timeout: WALK_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 })
   return result.status === 0 ? result.stdout.split("\0").filter(Boolean).map((entry) => dirname(entry)) : null
+}
+
+const CLONE_TIMEOUT_MS = 10 * 60 * 1000
+const INSTALL_TIMEOUT_MS = 15 * 60 * 1000
+
+/** The directories that can hold a `node_modules`, relative to `root`: the root itself (an empty string) and each npm workspace that its `package.json` names. A pattern `<directory>/*` names each subdirectory. */
+export const workspaceDirectories = (root) => {
+  const declared = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).workspaces ?? []
+  const patterns = Array.isArray(declared) ? declared : declared.packages ?? []
+  const directories = [""]
+  for (const pattern of patterns) {
+    if (!pattern.endsWith("/*")) { directories.push(pattern); continue }
+    const parent = pattern.slice(0, -2)
+    if (!existsSync(join(root, parent))) continue
+    for (const entry of readdirSync(join(root, parent), { withFileTypes: true })) if (entry.isDirectory()) directories.push(`${parent}/${entry.name}`)
+  }
+  return directories
+}
+
+const sameLock = (source, target) => {
+  try { return readFileSync(join(source, "package-lock.json")).equals(readFileSync(join(target, "package-lock.json"))) } catch { return false }
+}
+
+/**
+ * Gives a new worktree its dependencies before a worker starts. The worktree is a checkout of a branch, so it holds no `node_modules`.
+ * When its `package-lock.json` equals the lock of `source` (the main checkout) and `source` has installed dependencies, each
+ * `node_modules` of the root and of the workspaces is cloned with `cp -c -R` (APFS clonefile: copy-on-write, so the clone adds no
+ * disk), and only macOS clones. Any other case runs `npm ci` once in `target`. A checkout with no lock file needs no install.
+ * Never throws. Resolves `{ action, ms, directories, reason }`: `action` is `clone`, `install`, `failed` or `none`.
+ */
+export const installDependencies = async (source, target, { run = runBounded, platform = process.platform, now = () => Date.now() } = {}) => {
+  const startedAt = now()
+  const done = (action, directories = [], reason = null) => ({ action, ms: now() - startedAt, directories, reason })
+  try {
+    if (!existsSync(join(source, "package-lock.json")) || !existsSync(join(target, "package-lock.json"))) return done("none", [], "no lock file")
+    let reason = null
+    if (platform !== "darwin") reason = "this platform has no clonefile"
+    else if (!existsSync(join(source, "node_modules"))) reason = "the main checkout has no node_modules"
+    else if (!sameLock(source, target)) reason = "the lock file differs from the main checkout"
+    if (reason === null) {
+      const cloned = []
+      for (const directory of workspaceDirectories(source)) {
+        const from = join(source, directory, "node_modules")
+        const to = join(target, directory, "node_modules")
+        // A workspace that the new tree lacks, or a tree that already has dependencies, keeps what it has.
+        if (!existsSync(from) || !existsSync(join(target, directory)) || existsSync(to)) continue
+        const copied = await run("cp", ["-c", "-R", from, to], { timeoutMs: CLONE_TIMEOUT_MS })
+        if (copied.status !== 0) {
+          rmSync(to, { recursive: true, force: true })
+          reason = `cp failed for ${directory || "the root"}: ${String(copied.stderr ?? "").trim()}`
+          break
+        }
+        cloned.push(directory)
+      }
+      if (reason === null) return cloned.length > 0 ? done("clone", cloned) : done("none", [], "no node_modules to clone")
+      for (const directory of cloned) rmSync(join(target, directory, "node_modules"), { recursive: true, force: true })
+    }
+    const installed = await run("npm", ["ci"], { cwd: target, timeoutMs: INSTALL_TIMEOUT_MS })
+    return installed.status === 0 ? done("install", [""], reason) : done("failed", [], `npm ci exit ${installed.status}: ${String(installed.stderr ?? "").trim().split("\n").at(-1)}`)
+  } catch (error) {
+    return done("failed", [], error.message)
+  }
 }
