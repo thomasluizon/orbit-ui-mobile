@@ -3,13 +3,10 @@ name: Cache Budget
 # The repository cache has a 10 GB limit. Above it, GitHub evicts the least recently read entries, and the first to
 # go are the pass markers that let a pull request skip a native compile or an emulator boot. This sweep keeps the
 # total under the cap in .github/scripts/sweep-actions-caches.mjs, so that eviction never starts.
-# A closed pull request starts it, because nothing can read the entries of its merge ref again. The end of each
-# CodeQL run on main starts it, because that run saves a new overlay base database 12 to 18 minutes after the merge,
-# so at most one replaced base exists between two sweeps. The schedule clears a missed event and the other entries
-# that main replaced since the last sweep.
+# The end of each CodeQL run on main starts it, because that run saves a new overlay base database, so at most
+# one replaced base exists between two sweeps. The schedule clears the entries of every closed pull request, the
+# other entries that main replaced since the last sweep and a missed event.
 on:
-  pull_request:
-    types: [closed]
   workflow_run:
     workflows: [CodeQL]
     types: [completed]
@@ -28,9 +25,6 @@ concurrency:
 jobs:
   sweep:
     name: Sweep the Actions cache
-    # A fork pull request, or a pull request that Dependabot closes, gets a read-only token, so its deletes would fail;
-    # the hourly run sweeps its entries.
-    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     runs-on: ubuntu-latest
     # The job is one sparse checkout and three list requests, then one delete request for each selected entry.
     timeout-minutes: 3

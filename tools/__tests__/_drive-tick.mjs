@@ -910,6 +910,7 @@ const reviewCases = async () => {
   same("drive: a pull request with a fix launch gets the whole-diff request", await owed("fix", {}, true), [`${PLAIN} whole diff`])
   same("drive: a pull request with 31 changed files gets the whole-diff request", await owed("files", { changedFiles: 31 }), [`${PLAIN} whole diff`])
   same("drive: a pull request that changes package-lock.json gets the whole-diff request", await owed("lock", { files: ["package-lock.json"] }), [`${PLAIN} whole diff`])
+  same("drive: a pull request that changes Cargo.lock gets the whole-diff request", await owed("cargo", { files: ["apps/desktop/src-tauri/Cargo.lock"] }), [`${PLAIN} whole diff`])
   same("drive: a three-file pull request with no fix round gets no whole-diff request", await owed("plain", {}), [])
   const asked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -2 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE)] })] } })
   await asked.run()
@@ -1508,6 +1509,179 @@ const rateLimitBody = (core, graphql = { remaining: 4000, reset: RATE_LIMIT_RESE
 const failRepository = (scene, key, message = "gh api graphql failed: HTTP 504") => {
   const read = scene.env.github.readRepositoryState
   scene.env.github.readRepositoryState = async (name, options) => { if (name === key) throw new Error(message); return read(name, options) }
+}
+
+const healthOf = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "health.json"), "utf8"))
+const saveHealth = (scene, record) => writeFileSync(join(scene.env.stateDir, "health.json"), `${JSON.stringify(record)}\n`)
+const rateLimitReads = (scene) => only(scene.calls, "gh").filter((entry) => entry[1] === "api rate_limit").length
+const BAD_GATEWAY = "gh api graphql -f query=query { x } failed: gh: HTTP 502: Bad Gateway"
+const REFUSED_MERGE = "gh pr merge failed: a repository rule refuses the merge"
+/** A record of a good read two minutes ago, with one pull request at the bar and one blind part. */
+const LAST_HEALTH = { writtenAt: iso(-2 * MINUTE), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: null, rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "x" }, { key: "unmerged:ui#12", since: iso(-30 * MINUTE), detail: "approved, meets the bar, not merged" }] }
+/** The values of a record that only a good read changes, with the error and the problem keys of the last tick. */
+const keptHealth = (scene) => { const record = healthOf(scene); return [record.lastGoodTickAt, record.openPulls, record.oldestGreenApprovedAt, record.lastErrorClass, record.problems.map((problem) => problem.key)] }
+/** A pull request at the bar whose approval is `offset` old. */
+const approved = (number, offset, extra = {}) => pull(number, { reviews: [review("APPROVED", HEAD, offset)], ...extra })
+
+const healthReadCases = async () => {
+  const good = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })], api: [pull(40, { reviews: [] })] } })
+  await good.run()
+  same("drive: a good tick writes health.json with its read time, its pull request count and no problem", healthOf(good), { writtenAt: iso(0), lastGoodTickAt: iso(0), lastMergeAt: null, openPulls: 2, oldestGreenApprovedAt: null, lastErrorClass: null, rateLimitedUntil: null, problems: [] })
+
+  const failingApi = (message, { routes = [], sleeping = false, dryRun = false } = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], routes, sleeping, dryRun })
+    failRepository(scene, "api", message)
+    return scene
+  }
+  const first = failingApi(BAD_GATEWAY)
+  same("drive: a tick whose api read fails goes on with the other repositories", (await first.run()).retried, false)
+  same("drive: a tick that fails one read writes health.json with the error class and the blind part", healthOf(first), { writtenAt: iso(0), lastGoodTickAt: null, lastMergeAt: null, openPulls: null, oldestGreenApprovedAt: null, lastErrorClass: "server", rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(0), detail: "gh: HTTP 502: Bad Gateway" }] })
+
+  const noTickets = scenario({ tickets: [ticket(7)] })
+  noTickets.env.github.readTickets = async () => { throw new Error(BAD_GATEWAY) }
+  same("drive: a tick that fails its ticket read writes the error class and blind:tickets", [(await noTickets.run()).retried, ...keptHealth(noTickets)], [true, null, null, null, "server", ["blind:tickets"]])
+
+  // In an outage the repository reads fail at different times. A read that fails after the first one is a blind part of the same tick.
+  const outage = scenario({ tickets: [ticket(7)] })
+  const outageRead = outage.env.github.readRepositoryState
+  outage.env.github.readRepositoryState = async (key) => {
+    if (key === "ui") throw new Error(BAD_GATEWAY)
+    if (key === "api") { await new Promise((resolve) => setTimeout(resolve, 20)); throw new Error("gh api graphql failed: error connecting to api.github.com") }
+    return outageRead(key)
+  }
+  await outage.run()
+  same("drive: a tick whose repository reads fail at different times lists each failed read in health.json and takes the class of the first one", [healthOf(outage).lastErrorClass, healthOf(outage).problems.map((problem) => problem.key)], ["server", ["blind:ui", "blind:api"]])
+
+  // When every repository read fails, the class comes from the first gh error, not from the wrapped message that holds the query and its pull request numbers.
+  const allBlind = scenario({ tickets: [ticket(7)] })
+  allBlind.env.github.readRepositoryState = async () => { throw new Error("gh api graphql -f query=query { repository { pr401: pullRequest(number: 401) { id } } } failed: gh: HTTP 502: Bad Gateway") }
+  same("drive: a tick whose every repository read fails with HTTP 502 and pull request number 401 in its query has the class server", [(await allBlind.run()).retried, healthOf(allBlind).lastErrorClass, healthOf(allBlind).problems.map((problem) => [problem.key, problem.detail])], [true, "server", ["ui", "api", "landing"].map((key) => [`blind:${key}`, "gh: HTTP 502: Bad Gateway"])])
+
+  const limited = failingApi("gh api graphql failed: gh: API rate limit already exceeded for user ID 1. (HTTP 403)", { routes: [["api rate_limit", rateLimitBody({ remaining: 4000, reset: RATE_LIMIT_RESET - 60 }, { remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  saveHealth(limited, LAST_HEALTH)
+  await limited.run()
+  const limitedRecord = { writtenAt: iso(0), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: "rate-limit", rateLimitedUntil: new Date(RATE_LIMIT_RESET * 1000).toISOString(), problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "gh: API rate limit already exceeded for user ID 1. (HTTP 403)" }, LAST_HEALTH.problems[1]] }
+  same("drive: a rate limited read keeps the last good values, names the refill time and keeps the start of the blind part", healthOf(limited), limitedRecord)
+  same("drive: a rate limited tick reads gh api rate_limit once for its hold and for health.json", rateLimitReads(limited), 1)
+  limited.env.now = () => NOW + MINUTE
+  same("drive: a tick that a rate limit holds keeps the last health.json and moves only writtenAt", [(await limited.run()).held, healthOf(limited), rateLimitReads(limited)], [true, { ...limitedRecord, writtenAt: iso(MINUTE) }, 1])
+
+  const unreadLimit = failingApi("gh api graphql failed: gh: API rate limit exceeded (HTTP 403)")
+  await unreadLimit.run()
+  same("drive: a rate limit that the rate_limit read cannot name leaves rateLimitedUntil null", [healthOf(unreadLimit).lastErrorClass, healthOf(unreadLimit).rateLimitedUntil, rateLimitReads(unreadLimit)], ["rate-limit", null, 1])
+
+  const backoff = scenario({ tickets: [ticket(7)] })
+  backoff.env.github.readTickets = async () => { throw new Error(BAD_GATEWAY) }
+  for (let attempt = 0; attempt < 3; attempt += 1) await backoff.run()
+  const beforeHold = healthOf(backoff)
+  backoff.env.now = () => NOW + MINUTE
+  same("drive: a tick that the backoff holds keeps the last health.json and moves only writtenAt", [(await backoff.run()).held, healthOf(backoff)], [true, { ...beforeHold, writtenAt: iso(MINUTE) }])
+
+  // The reap reads the world too. Only the read of the tick, with each pull request checked against the bar, makes a good tick.
+  const reaping = (failsAt) => {
+    const scene = scenario({ tickets: [ticket(7)] })
+    keepWrites(scene, [ticket(7)])
+    leftBehind(scene)
+    scene.mem.account = ACCOUNT
+    saveHealth(scene, LAST_HEALTH)
+    const read = scene.env.github.readRepositoryState
+    scene.reads = 0
+    scene.env.github.readRepositoryState = async (key) => { if (failsAt(scene.reads++)) throw new Error(BAD_GATEWAY); return read(key) }
+    return scene
+  }
+  const tickBlind = reaping((index) => index >= 3)
+  same("drive: a tick whose reap read works and whose own read fails keeps the last good values of health.json", [(await tickBlind.run()).retried, tickBlind.reads, ...keptHealth(tickBlind)], [true, 6, iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["blind:ui", "blind:api", "blind:landing", "unmerged:ui#12"]])
+  const reapBlind = reaping((index) => index === 1)
+  same("drive: a tick whose reap read misses one repository is no good tick and lists the blind part", [(await reapBlind.run()).retried, reapBlind.reads, ...keptHealth(reapBlind)], [false, 6, iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["blind:api", "unmerged:ui#12"]])
+
+  const twiceBlind = reaping((index) => index === 1 || index === 4)
+  await twiceBlind.run()
+  same("drive: a part that the reap read and the tick read both miss is one blind part", healthOf(twiceBlind).problems.map((problem) => problem.key), ["blind:api", "unmerged:ui#12"])
+
+  // An error of the reap that is no read: the driver cannot end the group that a dead worker left.
+  const reapThrows = scenario({ tickets: [ticket(7)] })
+  leftBehind(reapThrows)
+  reapThrows.mem.account = ACCOUNT
+  writeFileSync(join(reapThrows.env.stateDir, "chore-ticket-7.pid"), JSON.stringify({ pid: 4242 }))
+  reapThrows.env.pidHeld = () => false
+  reapThrows.env.worker.killWorkerTree = () => { throw new Error("kill EPERM") }
+  same("drive: a tick whose reap throws with no failed read names the error as error:tick", [(await reapThrows.run()).retried, ...keptHealth(reapThrows)], [true, null, null, null, "other", ["error:tick"]])
+
+  const asleep = failingApi(BAD_GATEWAY, { sleeping: true })
+  await asleep.run()
+  same("drive: while sleep is on a failed read still writes health.json and sends no notification", [healthOf(asleep).lastErrorClass, only(asleep.calls, "notify").length], ["server", 0])
+  const dry = failingApi(BAD_GATEWAY, { dryRun: true })
+  await dry.run()
+  same("drive: a dry run writes no health.json", existsSync(join(dry.env.stateDir, "health.json")), false)
+  const unwritable = scenario({ tickets: [ticket(7)] })
+  mkdirSync(join(unwritable.env.stateDir, "health.json"))
+  same("drive: a health.json that cannot be written does not fail the tick and logs the error", [(await unwritable.run()).retried, unwritable.messages.filter((line) => / health error \(EISDIR/.test(line)).length], [false, 1])
+}
+
+const healthBarCases = async () => {
+  const refusing = (pulls, options = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: pulls }, ...options })
+    scene.env.github.merge = async () => { throw new Error(REFUSED_MERGE) }
+    return scene
+  }
+  const red = approved(32, -200 * MINUTE, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()] })
+  const unapproved = pull(33, { reviews: [] })
+  const waiting = refusing([approved(31, -40 * MINUTE), approved(30, -90 * MINUTE), red, unapproved])
+  await waiting.run()
+  same("drive: oldestGreenApprovedAt names the oldest approved pull request that meets the bar and is not merged", [healthOf(waiting).oldestGreenApprovedAt, healthOf(waiting).problems.map((problem) => [problem.key, problem.since])], [iso(-90 * MINUTE), [["unmerged:ui#30", iso(-90 * MINUTE)], ["unmerged:ui#31", iso(-40 * MINUTE)]]])
+  same("drive: a tick whose merge is refused is a good tick with no error class", keptHealth(waiting), [iso(0), 4, iso(-90 * MINUTE), null, ["unmerged:ui#30", "unmerged:ui#31"]])
+
+  const merging = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE)] } })
+  await merging.run()
+  same("drive: a merged pull request is no unmerged problem and sets lastMergeAt", [only(merging.calls, "merge").length, healthOf(merging).oldestGreenApprovedAt, healthOf(merging).problems, healthOf(merging).lastMergeAt], [1, null, [], iso(0)])
+
+  // Every ready pull request merges in one tick, so the record drops each merged one and keeps each refused one.
+  const mixed = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE), approved(31, -40 * MINUTE), approved(32, -20 * MINUTE)] } })
+  const merge = mixed.env.github.merge
+  mixed.env.github.merge = async (key, number, sha) => { if (number === 31) throw new Error(REFUSED_MERGE); return merge(key, number, sha) }
+  await mixed.run()
+  same("drive: a tick with two merges and one refused merge lists only the refused pull request as unmerged", [only(mixed.calls, "merge").map((entry) => entry[2]), healthOf(mixed).oldestGreenApprovedAt, healthOf(mixed).problems.map((problem) => problem.key), healthOf(mixed).lastMergeAt], [[30, 32], iso(-40 * MINUTE), ["unmerged:ui#31"], iso(0)])
+
+  const planThrows = refusing([approved(30, -90 * MINUTE)], { routes: [["api rate_limit", rateLimitBody({ remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  await planThrows.run()
+  planThrows.env.now = () => NOW + 2 * MINUTE
+  planThrows.env.github.pullfrogRuns = async () => { throw new Error("gh run list --repo thomasluizon/orbit-ui-mobile failed: gh: API rate limit exceeded for user ID 1. (HTTP 403)") }
+  await planThrows.run()
+  same("drive: a tick whose pull request plan throws is no good tick, names the error and keeps the last good values", [...keptHealth(planThrows), healthOf(planThrows).rateLimitedUntil], [iso(0), 1, iso(-90 * MINUTE), "rate-limit", ["unmerged:ui#30", "error:tick"], new Date(RATE_LIMIT_RESET * 1000).toISOString()])
+
+  const missedTwice = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
+  const againThrows = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwice }), pull(31)] } })
+  const againRead = againThrows.env.github.readRepositoryState
+  // The second pull request plans again after the first one labels the ticket. Only that second plan fails.
+  againThrows.env.github.readRepositoryState = async (...args) => {
+    const state = await againRead(...args)
+    const later = state.pulls.find((entry) => entry.number === 31)
+    if (later) {
+      const comments = later.comments
+      Object.defineProperty(later, "comments", { get: () => { if (only(againThrows.calls, "editLabels").length > 0) throw new Error(BAD_GATEWAY); return comments } })
+    }
+    return state
+  }
+  await againThrows.run()
+  same("drive: a pull request whose second plan throws is no good tick and names the error class", keptHealth(againThrows), [null, null, null, "server", ["error:tick"]])
+
+  // A Pullfrog limit pauses the driver before the act step reaches the bar. A failed pause leaves the pull request unchecked.
+  const unchecked = scenario({ tickets: [ticket(7)], runs: [failedRun(61, 30)], routes: [["--log-failed", LIMIT_LOG]], pulls: { ui: [approved(30, -90 * MINUTE)] } })
+  unchecked.env.github.createTicket = async () => { throw new Error("gh issue create failed: gh: HTTP 502: Bad Gateway") }
+  saveHealth(unchecked, LAST_HEALTH)
+  await unchecked.run()
+  same("drive: a pull request that an error stops before the bar check is no good tick and keeps the last good values", keptHealth(unchecked), [iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["unmerged:ui#12", "error:tick"]])
+
+  const early = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE)] }, auth: { ...AUTH, loggedIn: false } })
+  early.env.github.createTicket = async () => { throw new Error("gh issue create failed: gh: HTTP 502: Bad Gateway") }
+  saveHealth(early, LAST_HEALTH)
+  const earlyError = await early.run().then(() => null, (error) => error.message)
+  same("drive: a tick that throws between its read and the bar throws and keeps the last good values of health.json", [earlyError, ...keptHealth(early)], ["gh issue create failed: gh: HTTP 502: Bad Gateway", iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["unmerged:ui#12", "error:tick"]])
+
+  const late = scenario({ tickets: [ticket(8, { labels: ["repo:ui", "owner-work"] })] })
+  late.env.github.comment = async () => { throw new Error("gh issue comment failed: gh: HTTP 502: Bad Gateway") }
+  const lateError = await late.run().then(() => null, (error) => error.message)
+  same("drive: a tick that throws after the bar keeps its good read and names the error", [lateError, ...keptHealth(late)], ["gh issue comment failed: gh: HTTP 502: Bad Gateway", iso(0), 0, null, "server", ["error:tick"]])
 }
 
 const readFailureCases = async () => {
@@ -3998,6 +4172,8 @@ export const driverUnit = async () => {
   await robustnessCases()
   await readFailureCases()
   await holdCases()
+  await healthReadCases()
+  await healthBarCases()
   await cliCases()
   await blockingClassCases()
   await reportHoldCases()

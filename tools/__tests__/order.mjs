@@ -93,7 +93,7 @@ export const cases = async () => {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
     T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
-    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
+    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."))
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 

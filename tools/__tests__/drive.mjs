@@ -1240,7 +1240,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/driver-health.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1258,6 +1258,10 @@ const skillMarkerCases = () => {
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments and the findings. A plain answer comment reaches no worker, so the body holds every answer.
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 also records each answer with update-ticket.mjs note --decision", questions.includes("node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>"), "section 4 has no note call")
+  // A sleep decision is an answer too, so the sleep skill writes the body and the note, as section 4 says.
+  const sleep = skillText("sleep")
+  T("skills/sleep: each sleep decision goes into the ticket body and into a note --decision comment", sleep.includes("ticket body") && sleep.includes("node tools/update-ticket.mjs note --decision"), "the sleep skill misses the body write or the note call")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.

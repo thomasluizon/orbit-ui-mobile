@@ -19,7 +19,8 @@ The code of the train is `tools/lib/release-train.mjs`. It uses the tools and th
 - Each tick makes at most one dispatch or one check. The state is the file `release-train.json` in the driver state directory. A restart resumes the train and never dispatches a step twice.
 - Production of a service starts only after staging serves the planned commit with a healthy status.
 - A failed dispatch, a failed run, a failed verification or a `wait-release.mjs` ceiling stops the train at that service. Later services do not start. The driver files one Bug ticket with the run link, the step and the error.
-- A refusal for a missing green Tests or Guards run: the train dispatches `test.yml` and `guards.yml` on `main` once, waits for both, then dispatches the release again.
+- A refusal for a missing green Tests or Guards run gets one more release dispatch. If the planned commit has green runs on `main`, the train dispatches no tests. If it has no green runs and `main` is at that commit, the train dispatches `test.yml` and `guards.yml` and waits for both. If `main` moved, the train waits for the runs at that commit.
+- When no commit qualifies for web or mobile, the train skips that service and releases the others. Any other unreadable baseline starts no train.
 - An API release with a migration, or with a Terraform step under `## Manual steps`, holds only the API step. The driver cannot take a Render export. It files one `needs:owner` ticket that names the step, and the train goes on with the other services.
 - Mobile skips when no file under `apps/mobile` or `packages/shared` changed since the newest mobile production record. Web skips when no `apps/web` or `packages/shared` file changed since the served commit.
 - Sleep mode changes nothing for the train.
@@ -29,6 +30,8 @@ Run the steps below by hand only for a branch-selected staging release, or when 
 ## Plan
 
 Production uses `node tools/release-plan.mjs`, with `--track production` when the owner asks for it. Staging needs a branch: `node tools/release-plan.mjs --environment staging --branch <branch>`. Staging Android uses `internal`.
+
+Web and Android on `main` plan the newest of the last 100 `main` commits that has green `test.yml` and `guards.yml` push runs. iOS builds the Android commit. API, landing and a staging plan of another branch use the head of the branch.
 
 Show for each service:
 
