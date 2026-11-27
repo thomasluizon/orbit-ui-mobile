@@ -1001,8 +1001,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
-  // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
-  const counted = launches.filter((entry) => !entry.baseMerge)
+  // A ci-fix launch for a base merge and a merge-forward launch are no fault of the change, so the cap does not count them. A base-merge mark holds the head it ran at.
+  const counted = launches.filter((entry) => !entry.baseMerge && entry.kind !== "merge-forward")
   const actions = flakeActions(pull)
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
   const orderOrOwner = (order, classes) => {
@@ -1011,6 +1011,11 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // An owner comment after a cap report grants one more launch, and that launch carries the comment.
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+    // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
+    if (order.kind === "merge-forward") {
+      if (!launches.some((entry) => entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+      return owner(`${item} still conflicts with the base branch after a merge-forward launch at this head. Open: ${classes}`)
+    }
     const grants = capGrants(ticket, item)
     if (counted.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, counted.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[counted.length - MAX_FIX_LAUNCHES].body }]
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
@@ -1112,7 +1117,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
       mem.acted = true
-      ctx.merged = true
       mem.merged.delete(pull.tracks)
       await outsideTicket(env, repoKey, pull)
       return undefined
@@ -1131,7 +1135,7 @@ const isWaiting = (env, pull, tickets) => {
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
   // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
@@ -1162,7 +1166,6 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
             log(env, item, describe(action))
             if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
           }
-          if (ctx.merged) break
         }
       } finally {
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
@@ -1172,7 +1175,6 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
     } catch (error) {
       log(env, item, "error", error.message)
     }
-    if (ctx.merged) break
   }
   return orders
 }
