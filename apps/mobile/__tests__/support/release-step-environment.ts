@@ -37,7 +37,7 @@ if (args.includes('POST')) {
   process.stdout.write(JSON.stringify({ id: 77 }))
 } else if (path.split('?')[0].endsWith('/actions/workflows/android-release.yml/runs')) {
   const query = new URLSearchParams(path.split('?')[1])
-  const runs = JSON.parse(readFileSync(join(__dirname, 'runs.json'), 'utf8')).filter((run) => run.head_sha === query.get('head_sha'))
+  const runs = JSON.parse(readFileSync(join(__dirname, 'runs.json'), 'utf8')).filter((run) => !query.has('head_sha') || run.head_sha === query.get('head_sha'))
   process.stdout.write(JSON.stringify({ total_count: runs.length, workflow_runs: runs }))
 } else {
   const query = new URLSearchParams(path.split('?')[1])
@@ -51,7 +51,7 @@ if (args.includes('POST')) {
 /**
  * Writes an executable `gh` into `directory` that answers deployment and Android run calls offline.
  * A read returns only the records of the `task` and the `environment` the call names; an environment
- * the test did not supply fails the call. A run read returns the `runs` on the `head_sha` it names.
+ * the test did not supply fails the call. A run read returns every run, or the `runs` on the `head_sha` that it names.
  * A write returns id 77, and `readStubWrites` lists every write.
  */
 export function writeGitHubStub(directory: string, deployments: StubDeployments, runs: StubRun[] = []) {

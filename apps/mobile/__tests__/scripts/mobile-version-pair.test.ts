@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
@@ -349,6 +349,8 @@ describe('an iOS build beside the Android release', () => {
     ['a completed run', androidRun('Android Release 1.3.154 (216) to open on main', { status: 'completed', conclusion: 'failure' }), false],
     ['a run of another version', androidRun('Android Release 1.3.155 (216) to open on main'), false],
     ['a run on another commit', androidRun('Android Release 1.3.154 (216) to open on main', { head_sha: otherSha }), false],
+    ['a run of the commit through source_sha while its dispatch ref is another commit', androidRun(`Android Release 1.3.154 (216) to open on main at ${sha}`, { head_sha: otherSha }), true],
+    ['a run of another commit through source_sha while its dispatch ref is this commit', androidRun(`Android Release 1.3.154 (216) to open on main at ${otherSha}`), false],
     ['a run for the other environment', androidRun('Android Release 1.3.154 (216) to internal on main'), false],
     ['a run with another title', androidRun('Android Release'), false],
   ] as const)('counts %s as %s', (_name, run, running) => {
@@ -468,6 +470,12 @@ describe('command line', () => {
     expect(result.stdout).toContain(`Android 1.3.154 runs on ${sha} and has not recorded its upload yet. The upload step waits for that record.`)
   })
 
+  it('lets the iOS build start while the Android release of a recorded commit runs behind a moved main', () => {
+    const result = run(iosAt154('build'), androidAt153, '', [androidRun(`Android Release 1.3.154 (216) to open on main at ${sha}`, { head_sha: otherSha })])
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain(`Android 1.3.154 runs on ${sha} and has not recorded its upload yet. The upload step waits for that record.`)
+  })
+
   it('refuses the iOS build at once when no Android release of the version runs on the commit', () => {
     const result = run(iosAt154('build'), androidAt153, '', [androidRun('Android Release 1.3.154 (216) to open on main', { head_sha: otherSha })])
     expect(result.status).toBe(1)
@@ -562,7 +570,7 @@ describe('command line', () => {
 })
 
 describe('release workflows', () => {
-  interface Step { name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string> }
+  interface Step { name?: string; run?: string; uses?: string; if?: string; env?: Record<string, string>; with?: Record<string, string> }
   interface Workflow {
     on: { workflow_dispatch: { inputs: Record<string, { required?: boolean; type: string; default?: string }> } }
     permissions: Record<string, string>
@@ -603,7 +611,7 @@ describe('release workflows', () => {
     expect(guard).toBeGreaterThan(index(steps, (step) => step.uses === 'actions/checkout@v7'))
     expect(guard).toBeLessThan(index(steps, (step) => step.name === 'Install dependencies from the lockfile'))
     expect(steps[guard]!.run).toContain('mobile-version-pair.js check --platform android')
-    expect(steps[guard]!.run).toContain('--sha "$GITHUB_SHA"')
+    expect(steps[guard]!.run).toContain('--sha "$SOURCE_SHA"')
     expect(steps[guard]!.run).toContain('--platform-only-reason "$PLATFORM_ONLY_REASON"')
   })
 
@@ -611,7 +619,7 @@ describe('release workflows', () => {
     const steps = ios.jobs.release!.steps
     const validate = steps.find((step) => step.name === 'Validate the release configuration')!.run!
     expect(validate).toContain('mobile-version-pair.js check --platform ios')
-    expect(validate).toContain('--sha "$GITHUB_SHA"')
+    expect(validate).toContain('--sha "$SOURCE_SHA"')
     expect(validate).toContain('--stage build')
     expect(validate.indexOf('mobile-version-pair.js check')).toBeLessThan(validate.indexOf('set-app-version.js'))
   })
@@ -626,7 +634,7 @@ describe('release workflows', () => {
     const step = steps[wait]!
     expect(step.if).toBeUndefined()
     expect(step.run).toContain('mobile-version-pair.js check --platform ios')
-    expect(step.run).toContain('--sha "$GITHUB_SHA"')
+    expect(step.run).toContain('--sha "$SOURCE_SHA"')
     expect(step.run).toContain('--stage upload --wait-minutes 45')
   })
 
@@ -637,8 +645,8 @@ describe('release workflows', () => {
     const step = ios.jobs.release!.steps.find((candidate) => candidate.name === 'Wait for the Android upload of this version')!
     const quick = { ...step, run: step.run!.replace('--wait-minutes 45', '--wait-minutes 0') }
     const result = runStep(quick, { production: { android: [...androidRecords], ios: [record('1.3.153', 'ios-release')] } }, {
-      GH_TOKEN: 'test-token', APP_VERSION: '1.3.154', PLATFORM_ONLY_REASON: '',
-    }, { GITHUB_SHA: sha, ORBIT_APP_VARIANT: 'production' }, [androidRun('Android Release 1.3.154 (216) to open on main')])
+      GH_TOKEN: 'test-token', APP_VERSION: '1.3.154', PLATFORM_ONLY_REASON: '', SOURCE_SHA: sha,
+    }, { ORBIT_APP_VARIANT: 'production' }, [androidRun('Android Release 1.3.154 (216) to open on main')])
     expect(result.stdout + result.stderr).toContain(output)
     expect(result.status).toBe(status)
   })
@@ -666,8 +674,8 @@ describe('release workflows', () => {
   it.each(['staging', 'production'] as const)('records a %s upload in the environment of the same name', (variant) => {
     const step = ios.jobs['record-upload']!.steps.find((candidate) => candidate.name === 'Record the iOS upload')!
     const result = runStep(step, { [variant]: { android: [record('1.3.153')], ios: [] } }, {
-      GH_TOKEN: 'test-token', ORBIT_APP_VARIANT: variant, APP_VERSION: '1.3.153', IOS_BUILD_NUMBER: '7', PLATFORM_ONLY_REASON: '',
-    }, { GITHUB_SHA: 'b'.repeat(40), GITHUB_RUN_ID: '1' })
+      GH_TOKEN: 'test-token', ORBIT_APP_VARIANT: variant, APP_VERSION: '1.3.153', IOS_BUILD_NUMBER: '7', PLATFORM_ONLY_REASON: '', SOURCE_SHA: 'b'.repeat(40),
+    }, { GITHUB_RUN_ID: '1' })
     expect(result.stderr).toBe('')
     expect(result.status).toBe(0)
     const [created, status] = result.writes
@@ -686,8 +694,8 @@ describe('release workflows', () => {
       staging: { android: [record('1.3.139')], ios: iosRecords(options.stagingIos) },
     }, {
       GH_TOKEN: 'test-token', APP_VERSION: options.androidVersion,
-      PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track,
-    }, { GITHUB_SHA: options.commit ?? sha })
+      PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', RELEASE_TRACK: options.track, SOURCE_SHA: options.commit ?? sha,
+    })
   }
 
   it.each([
@@ -719,6 +727,57 @@ describe('release workflows', () => {
 
   it('keeps the Android run title format the release skills parse', () => {
     const raw = readFileSync(resolve('../../.github/workflows/android-release.yml'), 'utf8')
-    expect(raw).toContain('run-name: Android Release ${{ inputs.app_version }} (${{ inputs.android_version_code }}) to ${{ inputs.track }} on ${{ github.ref_name }}')
+    expect(raw).toContain('run-name: Android Release ${{ inputs.app_version }} (${{ inputs.android_version_code }}) to ${{ inputs.track }} on ${{ github.ref_name }}${{ inputs.source_sha && format(\' at {0}\', inputs.source_sha) || \'\' }}')
+  })
+
+  it.each([['android-release', android], ['ios-release', ios]] as const)('%s accepts an optional source commit and builds that commit', (name, workflow) => {
+    expect(workflow.on.workflow_dispatch.inputs.source_sha).toMatchObject({ type: 'string', required: false })
+    const job = Object.values(workflow.jobs).find((candidate) => candidate.steps.some((step) => step.uses === 'actions/checkout@v7' && step.with?.ref))!
+    const checkouts = job.steps.filter((step) => step.uses === 'actions/checkout@v7')
+    expect(checkouts.map((step) => step.with?.ref), name).toEqual(['${{ inputs.source_sha || github.sha }}'])
+    const readsDispatchRef = Object.values(workflow.jobs).flatMap((candidate) => candidate.steps).filter((step) => (step.run ?? '').includes('GITHUB_SHA')).map((step) => step.name)
+    expect(readsDispatchRef, name).toEqual(name === 'android-release' ? ['Show release parameters'] : [])
+  })
+
+  describe.each([['android-release', android, 'release-android'], ['ios-release', ios, 'release']] as const)('%s source commit check', (_name, workflow, jobName) => {
+    const step = workflow.jobs[jobName]!.steps.find((candidate) => candidate.name === 'Validate the source commit')!
+    const validate = (source: string, relation: string) => {
+      const directory = mkdtempSync(join(tmpdir(), 'orbit-source-check-'))
+      try {
+        writeFileSync(join(directory, 'gh'), '#!/bin/sh\necho "$@" > "$(dirname "$0")/arguments.txt"\necho "$RELATION"\n', { mode: 0o755 })
+        const result = spawnSync('/bin/bash', ['-c', step.run!], {
+          cwd: directory, encoding: 'utf8',
+          env: { PATH: `${directory}:${process.env.PATH ?? ''}`, NODE_ENV: 'test', GITHUB_REPOSITORY: 'owner/repository', RELATION: relation, ...declaredStepEnvironment(step, { GH_TOKEN: 'test-token', SOURCE_SHA: source }) },
+        })
+        const called = existsSync(join(directory, 'arguments.txt')) ? readFileSync(join(directory, 'arguments.txt'), 'utf8').trim() : null
+        return { status: result.status, text: result.stdout + result.stderr, called }
+      } finally {
+        rmSync(directory, { recursive: true, force: true })
+      }
+    }
+
+    it('runs only when the dispatch sets source_sha, and runs first', () => {
+      expect(step.if).toBe("${{ inputs.source_sha != '' }}")
+      expect(workflow.jobs[jobName]!.steps[0]).toBe(step)
+    })
+
+    it.each(['ahead', 'identical'])('accepts a commit of main that the compare reports as %s', (relation) => {
+      const result = validate(sha, relation)
+      expect(result.status).toBe(0)
+      expect(result.called).toBe(`api repos/owner/repository/compare/${sha}...main --jq .status`)
+    })
+
+    it.each(['behind', 'diverged'])('refuses a commit that the compare reports as %s', (relation) => {
+      const result = validate(sha, relation)
+      expect(result.status).toBe(1)
+      expect(result.text).toContain('source_sha must be a commit of main')
+    })
+
+    it.each(['abc1234', 'A'.repeat(40), `${sha}0`, 'main'])('refuses %j before any GitHub call', (source) => {
+      const result = validate(source, 'ahead')
+      expect(result.status).toBe(1)
+      expect(result.text).toContain('source_sha must be a full 40 character commit SHA')
+      expect(result.called).toBeNull()
+    })
   })
 })

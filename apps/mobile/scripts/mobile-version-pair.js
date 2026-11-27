@@ -49,8 +49,9 @@ const RECORD_ATTEMPTS = 3;
 const STAGES = ["build", "upload"];
 const WAIT_INTERVAL_MS = 30_000;
 const MAXIMUM_WAIT_MINUTES = 120;
-/** The run name of android-release.yml: `Android Release <app_version> (<versionCode>) to <track> on <ref>`. */
-const ANDROID_RUN_TITLE = /^Android Release (\d+\.\d+\.\d+) \(\d+\) to (internal|open|production) on /;
+/** The run name of android-release.yml: `Android Release <app_version> (<versionCode>) to <track> on <ref>`, with ` at <commit>` after a run of `source_sha`. */
+// A run of a recorded commit ends its title with ` at <commit>`: its head is the dispatch ref, and the commit it builds is the one in the title.
+const ANDROID_RUN_TITLE = /^Android Release (\d+\.\d+\.\d+) \(\d+\) to (internal|open|production) on \S*?(?: at ([a-f0-9]{40}))?$/;
 const TRACK_ENVIRONMENTS = { internal: "staging", open: "production", production: "production" };
 
 function parseVersion(value) {
@@ -169,12 +170,12 @@ function awaitsAndroid({ platform, appVersion, platformOnlyReason, platformRecor
     .every((newest) => newest === null || compareVersions(appVersion, newest) > 0);
 }
 
-/** True when an android-release.yml run of `appVersion` for `environment` on commit `sha` is not completed. */
+/** True when an android-release.yml run of `appVersion` for `environment` that builds commit `sha` is not completed. */
 function androidReleaseRunning(runs, { appVersion, environment, sha }) {
   if (!Array.isArray(runs?.workflow_runs)) throw new Error("GitHub returned an unexpected workflow runs response");
   return runs.workflow_runs.some((run) => {
     const title = ANDROID_RUN_TITLE.exec(typeof run?.display_title === "string" ? run.display_title : "");
-    return title !== null && run.head_sha === sha && run.status !== "completed"
+    return title !== null && (title[3] ?? run.head_sha) === sha && run.status !== "completed"
       && title[1] === appVersion && TRACK_ENVIRONMENTS[title[2]] === environment;
   });
 }
@@ -338,7 +339,7 @@ function decideCheck(options, repository) {
   const input = readInput();
   const decision = checkVersionPair(input);
   if (decision.allowed || !awaitsAndroid(input)) return decision;
-  const runs = readGitHub(`repos/${repository}/actions/workflows/${ANDROID_WORKFLOW}/runs?head_sha=${options.sha}&per_page=100`);
+  const runs = readGitHub(`repos/${repository}/actions/workflows/${ANDROID_WORKFLOW}/runs?per_page=100`);
   if (androidReleaseRunning(runs, { appVersion, environment: options.environment, sha: options.sha })) {
     return { allowed: false, platformOnly: false, pending: true, message: `Android ${appVersion} runs on ${options.sha} and has not recorded its upload yet.` };
   }
