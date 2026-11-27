@@ -69,6 +69,7 @@ import {
   workerConfigDirectory,
   workerEnvironmentFor,
   questionsInvocation,
+  harnessReviewInvocation,
   workerInvocation,
   workerSettings,
   worktreeOccupants,
@@ -855,6 +856,17 @@ const skillAndEnvironmentCases = async () => {
   same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "questions").map((name) => [name, "off"])) })
   same("lib/worker.mjs: the questions run keeps the shared deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
   T("lib/worker.mjs: the questions run writes ticket bodies, so it gets no GitHub hook and no code worker rule", !("hooks" in questionsSettings) && !questionsSettings.permissions.deny.includes("Bash(gh issue edit*)"))
+  const reviewHome = join(root, "drive-worker", "review-home")
+  for (const name of ["pdf", "humanizer", "ticket"]) {
+    mkdirSync(join(reviewHome, ".claude", "skills", name), { recursive: true })
+    writeFileSync(join(reviewHome, ".claude", "skills", name, "SKILL.md"), "x")
+  }
+  const review = harnessReviewInvocation({ home: reviewHome, parentEnvironment: parent, token: "owner-login-token" })
+  const reviewSettings = JSON.parse(review.command.args.at(-1))
+  same("lib/worker.mjs: the harness review uses claude-opus-5-5 at effort high and no other argument changes", [review.command.args.slice(0, 5), review.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
+  same("lib/worker.mjs: the harness review keeps the ticket skill and the humanizer skill on and turns off the rest", reviewSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "ticket").map((name) => [name, "off"])) })
+  same("lib/worker.mjs: the harness review keeps the shared deny list and environment, with the owner token", [reviewSettings.permissions.deny, review.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  T("lib/worker.mjs: the harness review writes tickets and labels, so it gets no GitHub hook", !("hooks" in reviewSettings))
   const ownSettings = JSON.parse(workerInvocation({ home, parentEnvironment: parent, token: TOKEN, own: { worktree: "/work/tree", branch: "chore/ticket-9" } }).command.args.at(-1))
   T("lib/worker.mjs: the invocation of a launch names its working tree and branch to the hook", ownSettings.hooks.PreToolUse[0].hooks[0].command.endsWith("--worktree '/work/tree' --branch 'chore/ticket-9' || exit 2"), ownSettings.hooks.PreToolUse[0].hooks[0].command)
   same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
@@ -1252,6 +1264,9 @@ const skillMarkerCases = () => {
   const skillNames = readdirSync(join(REPO_ROOT, ".claude", "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
   const issueCommands = skillNames.flatMap((name) => [...skillText(name).matchAll(/`(gh issue [^`]*)`/g)].map((match) => [name, match[1]]))
   same("skills: every gh issue command names the ticket repository", issueCommands.filter(([, command]) => !command.includes(`--repo ${TICKET_REPOSITORY}`)), [])
+  const parkedRun = skillText("ticket").split("\n## --auto --parked\n")[1] ?? ""
+  T("skills/ticket: the --auto --parked section writes an owner step with the needs-owner marker that the driver reads, and names the owner list of /questions", parkedRun.includes("<!-- orbit-drive:needs-owner -->") && parkedRun.includes(".claude/skills/questions/SKILL.md"), "the section is missing or incomplete")
+  T("skills/ticket: the --auto --parked section removes parked from pull requests and tickets as its last step", /8\. Remove `parked` last.*gh pr edit .*--remove-label parked.*gh issue edit .*--remove-label parked/.test(parkedRun), parkedRun)
   const progress = skillText("progress")
   // A part is a comment of its ticket, and `partNumber` is the number in its first line, never an issue number.
   T("skills/progress: the part title comes from the part comment of the ticket", progress.includes(`gh issue view <ticketNumber> --repo ${TICKET_REPOSITORY} --json title,comments`) && progress.includes("Part <partNumber> of <m>") && !/for the part\b/.test(progress), "the skill reads the part as an issue")

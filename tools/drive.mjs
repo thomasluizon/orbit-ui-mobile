@@ -46,6 +46,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
 
   A pull request or an order that used its 2 launches gets one more launch on claude-opus-5-5. Its order holds the failure
   history of every earlier launch, from the driver's own records. No label, no notice and no sleep hold follows a launch cap.
+  While an open ticket or pull request carries parked, the driver starts one headless harness review by itself, at most once
+  in 24 hours: /ticket --auto --parked on claude-opus-5-5, on the main account, with no worker slot. The review re-plans each
+  parked item and removes parked. A branch that launched before a park counts as used, so the new plan takes a new branch.
 
   A notification goes to the owner's phone through the Telegram Bot API, with the Keychain items telegram-bot-token and
   telegram-chat-id. With one of them missing it is a macOS notification. When Telegram refuses one, it shows on the Mac
@@ -84,6 +87,7 @@ const FAILED_TICKS_BEFORE_BACKOFF = 3
 const BACKOFF_MS = 10 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 const WEEK_MS = 7 * 24 * HOUR_MS
+const HARNESS_REVIEW_EVERY_MS = 24 * HOUR_MS
 const WEEKLY_CAP = 0.9
 const SLOT_STEP = 0.1
 const MAX_WORKERS = 3
@@ -101,9 +105,13 @@ const DETAIL_LIMIT = 300
 /** The lengths that the reason of a held item tries, longest first, until the list fits one message. */
 const SLEEP_REASON_LIMITS = [100, 60, 30]
 const HEAD_IN_REASON = / at [0-9a-f]{40}(?=:)/
-const QUESTIONS_FILE = "questions.json"
-const QUESTIONS_STEM = "questions"
-const QUESTIONS_ORDER = "/questions --auto"
+/**
+ * The headless runs on the coordinator model. `stem` names the state file, the pid file, the log, the worktree and the log lines.
+ * `slot` is the member of the memory that holds the live run, and `order` is the prompt.
+ */
+const QUESTIONS_RUN = Object.freeze({ stem: "questions", slot: "questions", order: "/questions --auto" })
+const HARNESS_REVIEW_RUN = Object.freeze({ stem: "harness-review", slot: "harnessReview", order: "/ticket --auto --parked" })
+const COORDINATOR_RUNS = Object.freeze([QUESTIONS_RUN, HARNESS_REVIEW_RUN])
 const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
@@ -349,7 +357,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -376,10 +384,10 @@ const forgetUnseen = (mem) => {
   mem.loggedSeen.clear()
 }
 
-/** The start of the last questions run in epoch milliseconds, or 0 when no run started. `questions.json` keeps it, so a restart does not run again for the same reports. */
-const readQuestionsStart = (stateDir) => {
+/** The start of the last run of a coordinator run in epoch milliseconds, or 0 when no run started. `<stem>.json` keeps it, so a restart does not run again for the same cause. */
+const readRunStart = (stateDir, { stem }) => {
   try {
-    const at = Date.parse(JSON.parse(readFileSync(join(stateDir, QUESTIONS_FILE), "utf8")).startedAt)
+    const at = Date.parse(JSON.parse(readFileSync(join(stateDir, `${stem}.json`), "utf8")).startedAt)
     return Number.isFinite(at) ? at : 0
   } catch {
     return 0
@@ -1087,8 +1095,15 @@ const replansOf = (ticket) => recordsOf(ticket, "replan")
  */
 const replansSincePark = (ticket) => launchesOf(ticket, newestOf(ticket.comments, PARKED)).filter((entry) => entry.kind === "replan")
 
-/** The branches that a re-plan left. A branch that no merged pull request used still counts as used, so the next plan takes a new one. */
-const replannedBranches = (ticket) => new Set(replansOf(ticket).map((record) => record.branch))
+/**
+ * The branches that a plan left: the branch of each re-plan record, and each branch with a launch before the newest `parked` comment.
+ * A branch that no merged pull request used still counts as used, so the next plan takes a new one with its own launches.
+ */
+const leftBranches = (ticket) => {
+  const parkedAt = newestOf(ticket.comments, PARKED)
+  const beforePark = launchesOf({ comments: ticket.comments.filter((entry) => Date.parse(entry.createdAt) <= parkedAt) })
+  return new Set([...replansOf(ticket), ...beforePark].map((entry) => entry.branch))
+}
 
 /** The branch of the re-plan run of a ticket. The run is read only and its worktree goes when the run ends. */
 const replanBranch = (ticket) => `chore/ticket-${ticket.number}-replan`
@@ -1747,17 +1762,17 @@ const enforceOrphanClocks = async (env, mem) => {
 }
 
 /**
- * A questions run that this process did not start has no timer here, so each tick checks its hard ceiling from its pid file.
+ * A coordinator run that this process did not start has no timer here, so each tick checks its hard ceiling from its pid file.
  * It gets SIGTERM at the ceiling and SIGKILL on the next tick if it still lives.
  */
-const enforceQuestionsCeiling = (env, mem) => {
-  if (env.dryRun || mem.questions !== null) return
-  const file = pidFileOf(env, QUESTIONS_STEM)
-  if (file === null) return void mem.orphans.delete(QUESTIONS_STEM)
-  if (mem.orphans.has(QUESTIONS_STEM)) return env.worker.killWorkerTree(file.pid, "SIGKILL")
+const enforceRunCeiling = (env, mem, { stem, slot }) => {
+  if (env.dryRun || mem[slot] !== null) return
+  const file = pidFileOf(env, stem)
+  if (file === null) return void mem.orphans.delete(stem)
+  if (mem.orphans.has(stem)) return env.worker.killWorkerTree(file.pid, "SIGKILL")
   if (env.now() - Date.parse(file.startedAt) < env.worker.WORKER_LIMITS.hardCeilingMs) return
-  mem.orphans.set(QUESTIONS_STEM, { reason: "hard-ceiling" })
-  log(env, "questions", "kill", `a run that this process did not start ${env.worker.KILL_REASONS["hard-ceiling"]}`)
+  mem.orphans.set(stem, { reason: "hard-ceiling" })
+  log(env, stem, "kill", `a run that this process did not start ${env.worker.KILL_REASONS["hard-ceiling"]}`)
   env.worker.killWorkerTree(file.pid, "SIGTERM")
 }
 
@@ -2117,7 +2132,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
   // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line goes to the owner.
-  const usedBranches = new Set([...doneBranches, ...replannedBranches(ticket)])
+  const usedBranches = new Set([...doneBranches, ...leftBranches(ticket)])
   const ownBranch = (part) => branchName(ticket, part, usedBranches)
   const untracked = (branch) => state.pulls.find((pull) => pull.headRef === branch && pull.tracks !== ticket.number)
   const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, owner: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
@@ -2478,10 +2493,10 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
   tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
 }
 
-/** The detached worktree of the questions run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
-const questionsWorktree = async (env) => {
+/** The detached worktree of a coordinator run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
+const runWorktree = async (env, { stem }) => {
   const repoPath = env.config.repos.ui
-  const path = join(dirname(repoPath), "orbit-worktrees", "ui", QUESTIONS_STEM)
+  const path = join(dirname(repoPath), "orbit-worktrees", "ui", stem)
   await gitText(env, repoPath, ["fetch", "origin", "main"])
   const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])).some((entry) => resolve(entry.path) === resolve(path))
   if (listed) await gitText(env, path, ["checkout", "--detach", "origin/main"])
@@ -2489,35 +2504,67 @@ const questionsWorktree = async (env) => {
   return path
 }
 
+/** True while this process holds the run, or its pid file names a live run that an earlier driver process started. */
+const runLive = (env, mem, { stem, slot }) => mem[slot] !== null || pidFileOf(env, stem) !== null
+
 /**
- * Starts one headless `/questions --auto` run when a held item (`heldWithNewReport`) has a `needs-owner` report newer than the
- * start of the last run, and no run is live. The run takes no worker slot. It runs in its own worktree (`questionsWorktree`), not in the
- * driver worktree, so a driver switch does not wait for it. It runs on the main account with the coordinator model and the owner's gh login,
- * and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * Starts one headless coordinator run. The run takes no worker slot. It runs in its own worktree (`runWorktree`), not in the driver
+ * worktree, so a driver switch does not wait for it. It runs on the main account with the coordinator model and the owner's gh login.
+ * The start goes to `<stem>.json` before the launch.
+ */
+const startRunOf = async (env, mem, run, invocationOf) => {
+  const { stem, slot, order } = run
+  // The worker token cannot read the ticket repository, so the run uses the owner's gh login and never falls back to the worker token.
+  const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
+  if (token === null) return log(env, stem, "refused", "no owner gh login: run gh auth login")
+  const invocation = invocationOf({ home: env.home, parentEnvironment: process.env, token })
+  const worktree = await runWorktree(env, run)
+  const startedAt = env.now()
+  writeFileSync(join(env.stateDir, `${stem}.json`), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
+  const logFile = join(env.stateDir, "logs", `${stem}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
+  const running = env.worker.launch({ invocation, worktree, order, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
+  log(env, stem, "launch")
+  mem[slot] = running.then((result) => {
+    mem[slot] = null
+    log(env, stem, "exit", String(result.exitCode ?? result.spawnError ?? result.killReason ?? "none"))
+    mem.woken = true
+    mem.wake()
+  })
+}
+
+/**
+ * Starts one `/questions --auto` run when a held item (`heldWithNewReport`) has a `needs-owner` report newer than the start of the
+ * last run, and no run is live. It stops with the main account at 90% like a worker.
  * A live pid file means a run that an earlier driver process started: the new process adopts it and starts no second one.
  * The skill reads `sleep.json` itself, so the driver passes no sleep state.
  */
 const startQuestions = async (env, mem, { tickets, states, blocked }) => {
-  if (!env.driverWorktree || mem.questions !== null || pidFileOf(env, QUESTIONS_STEM) !== null) return
-  const held = heldWithNewReport(env, tickets, states, readQuestionsStart(env.stateDir))
+  if (!env.driverWorktree || runLive(env, mem, QUESTIONS_RUN)) return
+  const held = heldWithNewReport(env, tickets, states, readRunStart(env.stateDir, QUESTIONS_RUN))
   if (held.length === 0) return
-  if (blocked !== null) return log(env, "questions", "wait", `${blocked}: ${held.join(", ")}`)
-  // The worker token cannot read the ticket repository, so the run uses the owner's gh login and never falls back to the worker token.
-  const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
-  if (token === null) return log(env, "questions", "refused", "no owner gh login: run gh auth login")
-  const invocation = env.worker.questionsInvocation({ home: env.home, parentEnvironment: process.env, token })
-  const worktree = await questionsWorktree(env)
-  const startedAt = env.now()
-  writeFileSync(join(env.stateDir, QUESTIONS_FILE), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
-  const logFile = join(env.stateDir, "logs", `${QUESTIONS_STEM}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
-  const running = env.worker.launch({ invocation, worktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
-  log(env, "questions", "launch")
-  mem.questions = running.then((result) => {
-    mem.questions = null
-    log(env, "questions", "exit", String(result.exitCode ?? result.spawnError ?? result.killReason ?? "none"))
-    mem.woken = true
-    mem.wake()
-  })
+  if (blocked !== null) return log(env, QUESTIONS_RUN.stem, "wait", `${blocked}: ${held.join(", ")}`)
+  await startRunOf(env, mem, QUESTIONS_RUN, env.worker.questionsInvocation)
+}
+
+/** The open tickets and pull requests that carry `parked`. */
+const parkedItems = (tickets, states) => [
+  ...tickets.filter((ticket) => ticket.labels.includes(PARKED)).map((ticket) => `ticket#${ticket.number}`),
+  ...states.flatMap((state) => state.pulls.filter((pull) => pull.labels.includes(PARKED)).map((pull) => `${state.repositoryKey}#${pull.number}`)),
+]
+
+/**
+ * Starts one `/ticket --auto --parked` run, the harness review, when an open item carries `parked`, no review is live and the last
+ * start is more than 24 hours old. It stops with the main account at 90% like a worker. No owner run starts it, and the driver
+ * sends no notice and keeps no sleep item for it.
+ */
+const startHarnessReview = async (env, mem, { tickets, states, blocked }) => {
+  if (!env.driverWorktree || runLive(env, mem, HARNESS_REVIEW_RUN)) return
+  if (env.now() - readRunStart(env.stateDir, HARNESS_REVIEW_RUN) <= HARNESS_REVIEW_EVERY_MS) return
+  const parked = parkedItems(tickets, states)
+  if (parked.length === 0) return
+  const { stem } = HARNESS_REVIEW_RUN
+  if (blocked !== null) return logChange(env, mem, { scope: `wait ${stem}`, signature: blocked, item: stem, action: "wait", reason: `${blocked}: ${parked.join(", ")}` })
+  await startRunOf(env, mem, HARNESS_REVIEW_RUN, env.worker.harnessReviewInvocation)
 }
 
 export const tick = async (env, mem) => {
@@ -2529,7 +2576,7 @@ export const tick = async (env, mem) => {
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
-  enforceQuestionsCeiling(env, mem)
+  for (const run of COORDINATOR_RUNS) enforceRunCeiling(env, mem, run)
   if (env.now() < mem.holdUntil) {
     logChange(env, mem, { scope: "tick held", signature: mem.holdUntil, item: "tick", action: "held", reason: `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}` })
     return { retried: true, held: true }
@@ -2649,8 +2696,9 @@ export const tick = async (env, mem) => {
       env.lines[env.lines.findIndex((line) => line.startsWith(prefix))] = `${prefix}wait: ${stoppedBy}`
     }
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
-    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
-    await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
+    const runBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
+    await startQuestions(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, QUESTIONS_RUN.stem, "error", error.message))
+    await startHarnessReview(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, HARNESS_REVIEW_RUN.stem, "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock, also while its branch waits.
     const unprepared = [...mem.unprepared.values()].filter((entry) => entry.until > env.now()).map((entry) => entry.line)
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...new Set([...unstarted, ...unprepared])]
@@ -2737,12 +2785,13 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
  * At the end of a tick, moves the driver to the newer driver commit of origin/main, while workers run. A worker is a detached
  * process with its own pid file, launch record and worktree, so the restarted driver adopts it from them. The new commit must
  * start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when the driver must
- * exit with code 0, so launchd starts the new version. The questions run is detached like a worker, so the new driver adopts it from its
+ * exit with code 0, so launchd starts the new version. A coordinator run is detached like a worker, so the new driver adopts it from its
  * pid file. No switch happens in a dry run, while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
  */
 const switchDriver = async (env, mem) => {
   if (!env.selfUpdate || env.dryRun || mem.results.size > 0) return false
-  if ([...mem.running.keys(), ...(mem.questions === null ? [] : [QUESTIONS_STEM])].some((stem) => pidFileOf(env, stem) === null)) return false
+  const liveRuns = COORDINATOR_RUNS.filter(({ slot }) => mem[slot] !== null).map(({ stem }) => stem)
+  if ([...mem.running.keys(), ...liveRuns].some((stem) => pidFileOf(env, stem) === null)) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)
@@ -2968,7 +3017,7 @@ const runDriver = async (env, mem, mode, err) => {
     let result = null
     try { result = await tick(env, mem) } catch (error) { log(env, "tick", "error", error.message) }
     if (mode === "dry-run") return 0
-    if (mode === "once") { await Promise.all([...mem.running.values(), mem.questions]); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
+    if (mode === "once") { await Promise.all([...mem.running.values(), ...COORDINATOR_RUNS.map(({ slot }) => mem[slot])]); await reapExits(env, mem).catch((error) => log(env, "tick", "error", error.message)); return 0 }
     if (result?.switched) return 0
     // A worker that exited during the tick frees its slot, so the next tick starts at once.
     if (!stopping && !mem.woken) await env.sleep(TICK_MS, mem)
