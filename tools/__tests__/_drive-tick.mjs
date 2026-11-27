@@ -4021,6 +4021,10 @@ const replanCases = async () => {
     await siblingScene.run()
     same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and closes both pull requests with their branches kept`, [siblingScene.launched.length, only(siblingScene.calls, "closePull").map((entry) => entry.slice(1, 3)).sort(), only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)), only(siblingScene.calls, "deleteBranch").length, recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], [["tickets", 7]], 0, 1, [0, 0, 0, 0]])
   }
+  // A pull request that left OPEN earlier in the tick stays in the list of the repository. A park never closes it, comments on it or lists it.
+  const mergedSibling = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(29, { headRef: "chore/ticket-7-part-2" })] } })
+  await mergedSibling.run()
+  same("drive: a park after a sibling merged in the same tick closes only the open pull request and lists only it", [only(mergedSibling.calls, "merge").map((entry) => entry[2]), only(mergedSibling.calls, "closePull").map((entry) => entry.slice(1)), commentsOf(mergedSibling.calls, 29).filter((text) => text.startsWith(marked("parked", ""))).length, recordsOn(mergedSibling, "parked").map((text) => [text.includes("- ui#30: branch"), text.includes("ui#29")])], [[29], [["ui", 30]], 0, [[true, false]]])
   const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
   const admitPark = scenario({ tickets: [buildSpent], pulls: { ui: [pull(31, { headRef: "chore/ticket-7-part-1", reviews: [finding] })] } })
   await admitPark.run()

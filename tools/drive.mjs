@@ -1654,12 +1654,17 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
-    case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
+    case "close-stuck":
+      await closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
+      pull.state = "CLOSED"
+      return undefined
     // Two triggers update a branch: a retargeted child still holds its parent's commits, so main is merged in before the first pass reads its diff,
     // and a merge candidate whose changed code path main gained after the CI started needs a new CI on the new base.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
+      // The list of the repository keeps the pull request for this tick, so its state says that it left OPEN.
+      pull.state = "MERGED"
       mem.health.merged = true
       await recordMergeSamples(env, mem, { repoKey, pull, ticket })
       mem.merged.delete(pull.tracks)
@@ -2279,7 +2284,8 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   const branches = [...new Set(launches.map((entry) => entry.branch))]
   const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
   const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
-  const closing = pulls.filter((pull) => pull.headRef)
+  // A pull request that merged or closed earlier in this tick is still in the list, and a park leaves it alone.
+  const closing = pulls.filter((pull) => pull.state === "OPEN" && pull.headRef)
   const closed = closing.map((pull) => `- ${repoKey}#${pull.number}: branch \`${pull.headRef}\``)
   // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
   await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
@@ -2291,6 +2297,7 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
     try {
       await env.github.comment(repoKey, pull.number, marked(PARKED, `Closed by the driver: ${issueLink(env, ticket.number)} is parked. The branch \`${pull.headRef}\` stays. The daily harness review re-plans the ticket.`))
       await env.github.closePull(repoKey, pull.number)
+      pull.state = "CLOSED"
     } catch (error) { log(env, `${repoKey}#${pull.number}`, "park-close-failed", error.message) }
   }
   const today = new Date(env.now()).toISOString().slice(0, 10)
