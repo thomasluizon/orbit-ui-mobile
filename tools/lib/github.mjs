@@ -483,17 +483,31 @@ const dependabotFailures = (types) => {
 /** The newest check of the given name, or null when none ran. */
 const newestCheckNamed = (pull, name) => newestChecks(pull.checks).filter((check) => check.name === name).reduce((first, second) => (first === null || second.at > first.at ? second : first), null)
 
+/** True while a check has no result: a check run that is not COMPLETED, or a status that is pending or expected. */
+const isUnfinished = (node) => (node.__typename === "CheckRun" ? node.status !== "COMPLETED" : node.state === "PENDING" || node.state === "EXPECTED")
+
+/**
+ * True while the head can still get its lint check: a check has no result, or a required check other than the lint check did
+ * not report. GitHub creates the check run of a job only after the jobs that it needs end. The Pullfrog check reports only on
+ * request, so its absence is no sign of a check to come.
+ */
+const awaitsChecks = (pull, lintCheck) => {
+  const newest = newestChecks(pull.checks)
+  return newest.some((check) => isUnfinished(check.node)) ||
+    requiredOf(pull).some((need) => need.context !== lintCheck && need.context !== PULLFROG_APPROVAL.context && !reportsCheck(newest, need))
+}
+
 /**
  * The failures that the git diff of the pull request settles: a diff the driver did not read, a lintable path with no green Lint,
- * and a closing line for a ticket in the body or a commit message. Only the driver closes a ticket. A Lint that still runs is
- * already a `check-not-green` failure, so it adds none.
+ * and a closing line for a ticket in the body or a commit message. Only the driver closes a ticket. `lint-missing` is a final
+ * result: a Lint that runs or can still come, and a check list that ends early, already fail the bar, so they add none.
  */
 const diffFailures = (pull, context) => {
   if (!Array.isArray(pull.files) || !Array.isArray(pull.commitMessages)) return ["diff-unknown"]
   const failed = []
-  if (context.lintCheck && pull.files.some((file) => LINTABLE_PATH.test(file))) {
+  if (context.lintCheck && pull.checksComplete && pull.files.some((file) => LINTABLE_PATH.test(file))) {
     const lint = newestCheckNamed(pull, context.lintCheck)
-    const running = lint !== null && lint.node.__typename === "CheckRun" && lint.node.status !== "COMPLETED"
+    const running = lint === null ? awaitsChecks(pull, context.lintCheck) : isUnfinished(lint.node)
     const green = lint !== null && (lint.node.__typename === "CheckRun" ? lint.node.status === "COMPLETED" && lint.node.conclusion === "SUCCESS" : lint.node.state === "SUCCESS")
     if (!green && !running) failed.push("lint-missing")
   }

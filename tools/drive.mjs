@@ -1267,7 +1267,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
-  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure))
+  // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
+  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
   if (ownerFailures.length > 0) return owner(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}, which only the owner clears.`, `bar-${ownerFailures.join("-")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))

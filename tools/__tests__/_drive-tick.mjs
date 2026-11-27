@@ -4172,6 +4172,15 @@ const diffBarCases = async () => {
   same("drive: a SKIPPED Lint with a lintable path goes to the owner and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").length], [0, 1, 1])
   T("drive: the owner report names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
 
+  // GitHub creates the `Checks` run only after `Plan` ends, so a head has no lint check for its first minutes.
+  const planning = await settled({ pull: { files: ["apps/web/a.ts"], checks: [check("Plan", null, { status: "IN_PROGRESS" }), approvalCheck()] } })
+  same("drive: a lintable path with no lint check yet while Plan runs waits with no needs:owner", [only(planning.calls, "merge").length, owned(planning).length, only(planning.calls, "editLabels").length], [0, 0, 0])
+  const absent = await settled({ pull: { files: ["apps/web/a.ts"] } })
+  same("drive: a lint check that is absent after every other check ended goes to the owner", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
+  const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", draft: true }), pull(30, { baseRef: "chore/ticket-7-part-1", files: ["apps/web/a.ts"] })] } })
+  await child.run()
+  same("drive: a child of an open pull request gets no lint check before its retarget, so it waits", [only(child.calls, "merge").length, owned(child).length, only(child.calls, "editLabels").length], [0, 0, 0])
+
   // A repository with no lint check can never turn one green, so the bar asks for none there.
   for (const repoKey of ["api", "landing"]) {
     const other = await settled({ pull: { files: ["tools/generate-bimi-logo.mjs", "infra/production-values.test.mjs", "src/app.ts"] } }, [], repoKey)
