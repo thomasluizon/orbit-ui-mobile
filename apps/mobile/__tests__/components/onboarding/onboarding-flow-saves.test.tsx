@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   isLive: true, profileAvailable: true, timeZone: 'UTC',
   createHabit: vi.fn(), updateHabit: vi.fn(), finishOnboarding: vi.fn(), permission: vi.fn(), refetchProfile: vi.fn(),
   saved: undefined as Record<string, unknown> | undefined,
+  push: { isSupported: true, permissionStatus: 'undetermined', permissionCanAskAgain: true },
 }))
 
 vi.mock('react-i18next', async (importOriginal) => ({
@@ -30,7 +31,7 @@ vi.mock('@/hooks/use-profile', () => ({
 }))
 vi.mock('@/hooks/use-onboarding-suggestion', () => ({ useOnboardingSuggestion: () => ({ available: false, mutateAsync: vi.fn(), verification: null, cancel: vi.fn() }) }))
 vi.mock('@/hooks/use-push-notifications', () => ({
-  usePushNotifications: () => ({ isLoading: false, isSupported: true, permissionStatus: 'undetermined', permissionCanAskAgain: true, registrationStatus: 'idle', requestPermissionOutcome: mocks.permission }),
+  usePushNotifications: () => ({ isLoading: false, ...mocks.push, registrationStatus: 'idle', requestPermissionOutcome: mocks.permission }),
 }))
 vi.mock('@/lib/queued-api-mutation', () => ({ performQueuedApiMutation: vi.fn() }))
 vi.mock('@/hooks/use-habit-queries', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/hooks/use-habit-queries')>()), useHabitDetail: (id: string | null) => ({ data: id ? mocks.saved : undefined }) }))
@@ -71,13 +72,13 @@ async function press(tree: TestTree, label: string) {
   await TestRenderer.act(async () => { (button.props.onPress as () => void)(); await Promise.resolve(); await Promise.resolve() })
 }
 
-async function reachReminder(phrase = 'Walk every Monday at 18:00'): Promise<TestTree> {
+async function reachReminder(phrase = 'Walk every Monday at 18:00', asks = true): Promise<TestTree> {
   const tree = await mount()
   const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === flow.guided.what.question)!
   await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)(phrase) })
   await press(tree, flow.continue)
   await press(tree, flow.create)
-  expect(texts(tree)).toContain(flow.guided.remind.line)
+  if (asks) expect(texts(tree)).toContain(flow.guided.remind.line)
   return tree
 }
 
@@ -87,6 +88,7 @@ beforeEach(() => {
   mocks.isLive = true
   mocks.profileAvailable = true
   mocks.timeZone = 'UTC'
+  mocks.push = { isSupported: true, permissionStatus: 'undetermined', permissionCanAskAgain: true }
   mocks.createHabit.mockResolvedValue({ id: 'habit-1', title: 'Walk' })
   mocks.updateHabit.mockResolvedValue(undefined)
   mocks.finishOnboarding.mockResolvedValue(undefined)
@@ -216,5 +218,108 @@ describe('guided onboarding tells the done screen if the habit is due today', ()
     const tree = await reachReminder()
     await press(tree, flow.remind.deny)
     expect(done(tree).dueToday).toBe(false)
+  })
+})
+
+const remindCopy = (state: Parameters<typeof getOnboardingRemindCopy>[0]) => {
+  const { titleKey, bodyKey } = getOnboardingRemindCopy(state, true)
+  return { title: en.onboarding.flow.remind[titleKey as keyof typeof en.onboarding.flow.remind], body: en.onboarding.flow.remind[bodyKey as keyof typeof en.onboarding.flow.remind] }
+}
+const buttonLabels = (tree: TestTree) => hosts(tree).filter((node) => node.props.accessibilityRole === 'button').map((node) => (node.props.accessibilityLabel as string | undefined) ?? textOf(node))
+
+describe('guided onboarding offers no reminder the device or the habit cannot carry', () => {
+  it('offers no Allow when the device already refused notifications', async () => {
+    mocks.push = { isSupported: true, permissionStatus: 'denied', permissionCanAskAgain: false }
+    const tree = await reachReminder(undefined, false)
+    const refused = remindCopy('refused')
+    expect(texts(tree)).toContain(refused.title)
+    expect(texts(tree)).toContain(refused.body)
+    expect(buttonLabels(tree)).not.toContain(flow.guided.remind.allow)
+    expect(buttonLabels(tree)).toContain(flow.remind.continue)
+    expect(mocks.permission).not.toHaveBeenCalled()
+  })
+
+  it('offers no Allow on a device that cannot register', async () => {
+    mocks.push = { isSupported: false, permissionStatus: 'undetermined', permissionCanAskAgain: true }
+    const tree = await reachReminder(undefined, false)
+    const unsupported = remindCopy('unsupported')
+    expect(texts(tree)).toContain(unsupported.title)
+    expect(texts(tree)).not.toContain(remindCopy('refused').title)
+    expect(buttonLabels(tree)).not.toContain(flow.guided.remind.allow)
+  })
+
+  it('offers days, and no Allow, to a habit with no day of its own', async () => {
+    const tree = await mount()
+    const field = hosts(tree).find((node) => node.type === 'TextInput' && node.props.accessibilityLabel === flow.guided.what.question)!
+    await TestRenderer.act(() => { (field.props.onChangeText as (value: string) => void)('Meditate at 07:00') })
+    await press(tree, flow.continue)
+    await press(tree, flow.guided.mode.fixed)
+    await press(tree, flow.continue)
+    await press(tree, flow.create)
+    const noDay = remindCopy('no-day')
+    expect(texts(tree)).toContain(noDay.title)
+    expect(buttonLabels(tree)).toContain(flow.remind.setDays)
+    expect(buttonLabels(tree)).not.toContain(flow.guided.remind.allow)
+  })
+})
+
+describe('guided onboarding finishes a push registration that failed before sign-in', () => {
+  const deferredFailure = () => useOnboardingDraftStore.setState({ habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })
+
+  it('states the failure with no Back, retries the registration and finishes onboarding', async () => {
+    deferredFailure()
+    const tree = await mount()
+    expect(texts(tree)).toContain(remindCopy('failed').title)
+    expect(buttonLabels(tree)).not.toContain(flow.back)
+    await press(tree, flow.retry)
+    expect(mocks.permission).toHaveBeenCalledWith(true)
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+  })
+
+  it('saves no habit when the retry is denied and states the denial', async () => {
+    deferredFailure()
+    mocks.permission.mockResolvedValue('denied')
+    const tree = await mount()
+    await press(tree, flow.retry)
+    expect(texts(tree)).toContain(remindCopy('denied').title)
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+    expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+  })
+
+  it('finishes onboarding with no registration when the person continues without reminders', async () => {
+    deferredFailure()
+    const tree = await mount()
+    await press(tree, flow.remind.continue)
+    expect(mocks.permission).not.toHaveBeenCalled()
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+  })
+})
+
+describe('guided onboarding locks both reminder choices while one runs', () => {
+  it('ignores Not now until Allow completes, then saves reminders on once', async () => {
+    let resolvePermission!: (value: 'granted') => void
+    mocks.permission.mockReturnValue(new Promise((resolve) => { resolvePermission = resolve }))
+    const tree = await reachReminder()
+    await press(tree, flow.guided.remind.allow)
+    await press(tree, flow.remind.deny)
+    expect(mocks.updateHabit).not.toHaveBeenCalled()
+    await press(tree, flow.guided.remind.allow)
+    expect(mocks.permission).toHaveBeenCalledOnce()
+    await TestRenderer.act(async () => { resolvePermission('granted'); await Promise.resolve(); await Promise.resolve() })
+    expect(mocks.updateHabit).toHaveBeenCalledOnce()
+    expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true }))
+  })
+
+  it('ignores Allow until Not now completes', async () => {
+    let resolveUpdate!: () => void
+    mocks.updateHabit.mockReturnValue(new Promise<void>((resolve) => { resolveUpdate = resolve }))
+    const tree = await reachReminder()
+    await press(tree, flow.remind.deny)
+    await press(tree, flow.guided.remind.allow)
+    expect(mocks.permission).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => { resolveUpdate(); await Promise.resolve(); await Promise.resolve() })
+    expect(mocks.updateHabit).toHaveBeenCalledOnce()
   })
 })

@@ -1,0 +1,77 @@
+import React from 'react'
+import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from 'react-native'
+import { controlStyle } from '@/__tests__/support/press-feedback'
+import { describe, expect, it, vi } from 'vitest'
+import { controlContrast } from '@orbit/shared/__tests__/contrast'
+import { CheckCircle } from '@/components/habits/habit-row-check-circle'
+import { createTokensV2 } from '@/lib/theme'
+
+const theme = vi.hoisted(() => ({ currentScheme: 'orange', currentTheme: 'light' }))
+vi.mock('@/lib/use-app-theme', () => ({ useAppTheme: () => theme }))
+vi.mock('react-native', async (importOriginal) => {
+  const native = await importOriginal<typeof import('react-native')>()
+  const { createElement, useState } = await import('react')
+  return { ...native, Pressable: ({ style, children, disabled, onPress, onPressIn, onPressOut, ...props }: PressableProps) => {
+    const [pressed, setPressed] = useState(false)
+    return createElement('Pressable', {
+      ...props, disabled,
+      style: typeof style === 'function' ? style({ pressed }) : style,
+      onPressIn: (event: GestureResponderEvent) => { if (!disabled) setPressed(true); onPressIn?.(event) },
+      onPressOut: (event: GestureResponderEvent) => { setPressed(false); onPressOut?.(event) },
+      onPress: disabled ? undefined : onPress,
+    }, typeof children === 'function' ? children({ pressed }) : children)
+  } }
+})
+
+function style(value: unknown): ViewStyle {
+  return StyleSheet.flatten(value as StyleProp<ViewStyle>)
+}
+
+describe('habit check paint stack', () => {
+  for (const mode of ['light', 'dark'] as const) {
+    for (const kind of ['habit check'] as const) {
+      it(`retains the ${kind} contrast, target and action in ${mode}`, async () => {
+        theme.currentTheme = mode
+        const tokens = createTokensV2('orange', mode)
+        const onToggle = vi.fn()
+        const element = <CheckCircle state="empty" disabled={false} onToggle={onToggle} accessibilityLabel="Log habit" />
+        let tree!: ReactTestRenderer
+        await act(() => { tree = create(element) })
+        try {
+          const control = () => tree.root.findAll((node) => String(node.type) === 'Pressable')[0]!
+          const props = () => control().props as { style: StyleProp<ViewStyle>; onPressIn: () => void; onPressOut: () => void; onPress?: () => void; accessibilityState: { disabled: boolean } }
+          const track = () => tree.root.findAll((node) => String(node.type) === 'AnimatedView' && node.props.testID === 'habit-check')[0]!
+          const resting = controlStyle(control())
+          expect(resting.minHeight).toBe(48)
+          expect(resting.width ?? resting.minWidth).toBe(48)
+          const color = String(style(track().props.style).borderColor)
+          expect(color).toBe(tokens.statusEmpty)
+          for (const pressed of [false, true, false]) {
+            await act(() => { props()[pressed ? 'onPressIn' : 'onPressOut']() })
+            const target = controlStyle(control())
+            const parent = { ...target, ...style(track().props.style) }
+            const trackStyle = style(track().props.style)
+            expect(trackStyle.borderColor).toBe(color)
+            for (const surface of [tokens.bgCard, tokens.bg]) {
+              const measured = controlContrast(color, parent.backgroundColor === 'transparent' || !parent.backgroundColor ? 'rgba(0,0,0,0)' : String(parent.backgroundColor), [tokens.bg, surface], Number(parent.opacity ?? 1), Number(trackStyle.opacity ?? 1))
+              expect(measured.graphic).toBeGreaterThanOrEqual(3)
+              if (pressed) expect(measured.step).toBeGreaterThanOrEqual(1.25)
+            }
+            expect(target.width ?? target.minWidth).toBe(48)
+            expect(target.minHeight).toBe(48)
+          }
+          await act(() => { props().onPress!() })
+          expect(onToggle).toHaveBeenCalledOnce()
+          const disabled = <CheckCircle state="empty" disabled onToggle={onToggle} accessibilityLabel="Log habit" />
+          await act(() => { tree.update(disabled); })
+          await act(() => { props().onPressIn() })
+          expect(controlStyle(control() as never).opacity).toBeCloseTo(0.4)
+          expect(props().accessibilityState.disabled).toBe(true)
+          expect(props().onPress).toBeUndefined()
+          expect(onToggle).toHaveBeenCalledOnce()
+        } finally { await act(() => tree.update(<></>)) }
+      })
+    }
+  }
+})

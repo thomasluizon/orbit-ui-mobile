@@ -6,6 +6,8 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { createApiClientError } from '@orbit/shared/utils'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { i18n } from '@/lib/i18n'
+import { dismissTopOverlay } from '@/lib/overlay-stack'
+import { requestHabitCreateNavigation } from '@/hooks/use-habit-create-navigation-guard'
 import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
@@ -146,4 +148,89 @@ describe('the create boundary of the guided create on Android', () => {
     tree.unmount()
   })
 
+})
+
+describe('the dismissal guard of the guided create on the Android create screen', () => {
+  const mountScreen = () => {
+    const onClose = vi.fn()
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open presentation="screen" onClose={onClose} /></QueryClientProvider>)
+    return { tree, onClose }
+  }
+  const discardOpen = (tree: Tree) => tree.hosts().some((node) => node.props.children === ptBR.common.discardChangesTitle)
+  const systemBack = (): boolean => { let handled = false; act(() => { handled = dismissTopOverlay('system-back') }); return handled }
+
+  it('leaves on a clean close with no discard sheet', async () => {
+    const { tree, onClose } = mountScreen()
+    await settle()
+    await tap(tree, ptBR.habits.flow.close)
+    expect(discardOpen(tree)).toBe(false)
+    expect(onClose).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it('guards Android Back on a draft, keeps editing, then leaves only after discard', async () => {
+    const { tree, onClose } = mountScreen()
+    await settle()
+    await phrase(tree, 'Beber água')
+    expect(systemBack()).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(discardOpen(tree)).toBe(true)
+    await act(async () => { press(pillNamed(tree, ptBR.common.keepEditing)!); await Promise.resolve() })
+    expect(discardOpen(tree)).toBe(false)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(systemBack()).toBe(true)
+    expect(discardOpen(tree)).toBe(true)
+    await act(async () => { press(pillNamed(tree, ptBR.common.discardChangesAction)!); await Promise.resolve() })
+    expect(onClose).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it.each(['keep', 'discard'] as const)('guards a notification bell press on a draft and handles %s without leaving the draft in history', async (choice) => {
+    const { tree, onClose } = mountScreen()
+    await settle()
+    await phrase(tree, 'Beber água')
+    const action = vi.fn()
+    const creationExit = vi.fn()
+    act(() => requestHabitCreateNavigation(action, creationExit))
+    expect(discardOpen(tree)).toBe(true)
+    expect(action).not.toHaveBeenCalled()
+    expect(creationExit).not.toHaveBeenCalled()
+    if (choice === 'keep') {
+      await act(async () => { press(pillNamed(tree, ptBR.common.keepEditing)!); await Promise.resolve() })
+      expect(discardOpen(tree)).toBe(false)
+      expect(creationExit).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    } else {
+      await act(async () => { press(pillNamed(tree, ptBR.common.discardChangesAction)!); await Promise.resolve(); await Promise.resolve() })
+      expect(creationExit).toHaveBeenCalledOnce()
+      expect(action).not.toHaveBeenCalled()
+      expect(onClose).not.toHaveBeenCalled()
+    }
+    tree.unmount()
+  })
+
+  it('lets a notification bell press through when no create screen guards it', () => {
+    const action = vi.fn()
+    const creationExit = vi.fn()
+    requestHabitCreateNavigation(action, creationExit)
+    expect(action).toHaveBeenCalledOnce()
+    expect(creationExit).not.toHaveBeenCalled()
+  })
+
+  it('opens Upgrade from the pay boundary only after the guarded dismissal', async () => {
+    state.create.mockRejectedValueOnce(limitError('PAY_GATE'))
+    const close = vi.fn()
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><CreateHabitModal open onClose={close} /></QueryClientProvider>)
+    await reachSummary(tree)
+    await primary(tree)
+    await act(async () => { press(pillNamed(tree, ptBR.common.upgrade)!); await Promise.resolve() })
+    expect(discardOpen(tree)).toBe(true)
+    expect(state.push).not.toHaveBeenCalled()
+    expect(close).not.toHaveBeenCalled()
+    await act(async () => { press(pillNamed(tree, ptBR.common.discardChangesAction)!); await Promise.resolve(); await Promise.resolve() })
+    expect(state.push.mock.calls).toEqual([['/upgrade']])
+    expect(close).toHaveBeenCalledOnce()
+    expect(state.showError).not.toHaveBeenCalled()
+    tree.unmount()
+  })
 })

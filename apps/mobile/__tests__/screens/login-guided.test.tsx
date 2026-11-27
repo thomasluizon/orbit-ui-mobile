@@ -2,6 +2,10 @@ import React from 'react'
 import { StyleSheet, Animated, Platform, View } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setI18n } from 'react-i18next'
+import { createInstance } from 'i18next'
+import ICUCommonJs from 'i18next-icu/cjs'
+import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { authLocales, authScreenStates, createLoginScreenFixture, type AuthScreenState } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { motionDurations } from '@orbit/shared/theme'
 import { measureSafeArea, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
@@ -12,6 +16,7 @@ import { __setWindowDimensions } from '@/test-mocks/react-native'
 
 const { act, create } = require('react-test-renderer')
 type Locale = typeof authLocales[number]
+const ICU = typeof ICUCommonJs === 'function' ? ICUCommonJs : ICUCommonJs.default
 const mocks = vi.hoisted((): { flow: Record<string, unknown>; language: string; reduced: boolean; captureGuidedFlowEvent: ReturnType<typeof vi.fn>; captureGuidedFlowCompleted: ReturnType<typeof vi.fn> } => ({ flow: {}, language: 'en', reduced: false, captureGuidedFlowEvent: vi.fn(), captureGuidedFlowCompleted: vi.fn() }))
 vi.mock('@/app/use-login-flow', () => ({ useLoginFlow: () => mocks.flow }))
 vi.mock('@/components/auth/turnstile-widget', () => ({ TurnstileWidget: () => React.createElement('TurnstileWidget') }))
@@ -39,6 +44,7 @@ let tree: { root: Node; unmount: () => void; toJSON: () => GeometryHost } | null
 function textOf(node: Node): string {
   return node.findAll((child) => child.type === 'Text').flatMap((child) => [child.props.children].flat(Infinity)).filter((child) => typeof child === 'string').join('')
 }
+function renderedText(node: Node): string { return node.children.map((child) => typeof child === "string" ? child : renderedText(child)).join("") }
 function allText() { return textOf(tree!.root) }
 function buttons() { return tree!.root.findAll((node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button') }
 function nameOf(node: Node) { return typeof node.props.accessibilityLabel === 'string' ? node.props.accessibilityLabel : textOf(node) }
@@ -188,6 +194,52 @@ describe.each(authLocales)('guided sign-in on Android in %s', (locale) => {
     close()
     show('resend ready', locale)
     expect(button(t('auth.resendCode'))).toBeDefined()
+  })
+
+  it.each(['resend ready', 'code expired'] as const)('puts the busy state on resend for %s', (state) => {
+    const t = show(state, locale, { overrides: { isSubmitting: true, isResending: true } })
+    expect(button(t('auth.resendCode'))!.props.accessibilityState).toMatchObject({ busy: true })
+    if (state === 'code expired') expect(button(t('auth.verify'))).toBeUndefined()
+    else expect(button(t('auth.verify'))!.props.accessibilityState).toMatchObject({ busy: false })
+    expect(inputs()[0]!.props.editable).toBe(false)
+  })
+
+  it('blocks verify and resend until the human check passes, and keeps code entry open', () => {
+    const turnstile = { turnstileSiteKey: 'test-site-key', turnstileResetKey: 0, onTurnstileToken: vi.fn(), codeDigits: ['1', '2', '3', '4', '5', '6'] }
+    const t = show('resend ready', locale, { overrides: { ...turnstile, turnstileToken: null } })
+    expect(button(t('auth.verify'))!.props.accessibilityHint).toBe(t('auth.turnstileLabel'))
+    expect(button(t('auth.resendCode'))!.props.accessibilityState).toMatchObject({ disabled: true })
+    expect(inputs()[0]!.props.editable).toBe(true)
+    close()
+    show('resend ready', locale, { overrides: { ...turnstile, turnstileToken: 'fresh-token' } })
+    expect(button(t('auth.verify'))!.props.accessibilityHint).toBeUndefined()
+    expect(button(t('auth.resendCode'))!.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(inputs()[0]!.props.editable).toBe(true)
+  })
+
+  it('keeps both legal links working when the locale reverses their order', async () => {
+    const privacyLabel = locale === 'en' ? 'Privacy policy' : 'Política de privacidade'
+    const termsLabel = locale === 'en' ? 'Terms' : 'Termos'
+    const reordered = createInstance()
+    await reordered.use(ICU).init({
+      resources: { [locale]: { translation: { ...(locale === 'en' ? en : ptBR), auth: { ...(locale === 'en' ? en.auth : ptBR.auth), legalConsent: `First <privacy>${privacyLabel}</privacy>, then <terms>${termsLabel}</terms>.` } } } },
+      lng: locale, fallbackLng: locale, initAsync: false,
+    })
+    show('email', locale)
+    close()
+    mocks.language = locale
+    setI18n(reordered)
+    mocks.flow = { ...createLoginScreenFixture('email', locale), ...handlers }
+    act(() => { tree = create(<View style={{ width: 360, height: HEIGHT }}><LoginContent /></View>) })
+    const links = tree!.root.findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'link')
+    expect(links.map(textOf)).toEqual([privacyLabel, termsLabel])
+    expect(renderedText(tree!.root)).toContain(`First ${privacyLabel}, then ${termsLabel}.`)
+    act(() => { (links[0]!.props.onPress as () => void)() })
+    expect(handlers.openPrivacyPolicy).toHaveBeenCalledOnce()
+    expect(handlers.openTerms).not.toHaveBeenCalled()
+    act(() => { (links[1]!.props.onPress as () => void)() })
+    expect(handlers.openTerms).toHaveBeenCalledOnce()
+    setI18n(testI18n)
   })
 
   it.each([[1], [4]])('states the plan that waits with %i habits when the person comes from onboarding', (count) => {

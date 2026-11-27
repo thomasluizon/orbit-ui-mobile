@@ -13,7 +13,7 @@ import { nativeWindows, press, renderNavigation } from '../ui/navigation-render'
 
 const state = vi.hoisted(() => ({
   create: vi.fn(), update: vi.fn(), saved: null as Record<string, unknown> | null, completed: vi.fn(), push: vi.fn(), replace: vi.fn(), phraseRead: vi.fn(), subCreate: vi.fn(),
-  detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
+  pro: true, detailPending: false, detailFetching: false, detailError: null as Error | null, refetchDetail: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -23,8 +23,8 @@ vi.mock('react-i18next', () => ({
 vi.mock('expo-router', () => ({ useRouter: () => ({ push: state.push, replace: state.replace, back: vi.fn(), canGoBack: () => true }), useIsFocused: () => true, useLocalSearchParams: () => ({}) }))
 vi.mock('expo-router/react-navigation', () => ({ usePreventRemove: vi.fn() }))
 vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({ profile: { timeZone: 'UTC', uses24HourClock: true, weekStartDay: 0, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: true } }),
-  useHasProAccess: () => true,
+  useProfile: () => ({ profile: { timeZone: 'UTC', uses24HourClock: true, weekStartDay: 0, aiMessagesUsed: 0, aiMessagesLimit: 5, hasProAccess: state.pro } }),
+  useHasProAccess: () => state.pro,
 }))
 vi.mock('@/hooks/use-app-toast', () => ({ useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }) }))
 vi.mock('@/hooks/use-create-habit', () => ({ useCreateHabit: () => ({ mutateAsync: state.create, isPending: false }) }))
@@ -102,6 +102,7 @@ beforeEach(async () => {
   state.phraseRead.mockReset().mockResolvedValue(null)
   state.subCreate.mockReset().mockResolvedValue({ id: 'child-1' })
   state.saved = null
+  state.pro = true
   state.detailPending = false
   state.detailFetching = false
   state.detailError = null
@@ -672,6 +673,58 @@ describe('the result dialog of a guided create on the Android create screen', ()
 })
 
 describe('the Android edit surface', () => {
+  const discardShown = (tree: Tree) => tree.hosts().some((node) => node.props.children === ptBR.common.discardChangesTitle)
+  async function tapText(tree: Tree, label: string) {
+    const target = tree.hosts().find((node) => typeof node.props.onPress === 'function' && (node as unknown as ReactTestInstance).findAll((child) => child.props.children === label).length > 0)
+    if (!target) throw new Error('no control with the text ' + label)
+    await act(async () => { press(target); await Promise.resolve(); await Promise.resolve() })
+  }
+
+  it('closes an unchanged edit with no discard sheet', async () => {
+    state.saved = { ...storedHabit, children: [] }
+    const onClose = vi.fn()
+    const tree = mountEdit(onClose)
+    await settle()
+    await tap(tree, ptBR.habits.flow.close)
+    expect(discardShown(tree)).toBe(false)
+    expect(onClose).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
+
+  it('asks before it discards a changed edit, keeps the change on Keep editing and closes only on discard', async () => {
+    state.saved = { ...storedHabit, children: [] }
+    const onClose = vi.fn()
+    const tree = mountEdit(onClose)
+    await settle()
+    await tap(tree, /^Hora,/)
+    await tap(tree, '20:00')
+    await tap(tree, ptBR.habits.flow.close)
+    expect(discardShown(tree)).toBe(true)
+    expect(onClose).not.toHaveBeenCalled()
+    await tapText(tree, ptBR.common.keepEditing)
+    expect(discardShown(tree)).toBe(false)
+    expect(onClose).not.toHaveBeenCalled()
+    await tap(tree, ptBR.habits.flow.close)
+    await tapText(tree, ptBR.common.discardChangesAction)
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(state.update).not.toHaveBeenCalled()
+    tree.unmount()
+  })
+
+  it('opens Upgrade from the slip alert step of a free plan after the sheet closes', async () => {
+    state.pro = false
+    state.saved = { ...storedHabit, children: [] }
+    const onClose = vi.fn()
+    const tree = mountEdit(onClose)
+    await settle()
+    await tap(tree, 'Quer ajustar mais alguma coisa?')
+    await tap(tree, /^É algo que você quer largar/)
+    await tap(tree, ptBR.habits.flow.optional.yes)
+    await tapText(tree, ptBR.habits.form.slipAlert)
+    expect(state.push.mock.calls).toEqual([['/upgrade']])
+    expect(onClose).toHaveBeenCalledOnce()
+    tree.unmount()
+  })
 
   it('opens on the summary, saves the time change only and closes with the result dialog for the change', async () => {
     state.saved = { ...storedHabit, dueTime: '20:00', children: [] }
