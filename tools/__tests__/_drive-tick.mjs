@@ -4165,20 +4165,22 @@ const diffBarCases = async () => {
     await entry.run()
     return entry
   }
-  const owned = (entry) => only(entry.calls, "comment").filter((call) => call[1] === "tickets").map((call) => call[3]).filter((text) => text.startsWith("<!-- orbit-drive:needs-owner -->"))
+  // A bar failure is a technical stop, so it parks the ticket and writes no needs-owner report.
+  const owned = (entry) => only(entry.calls, "comment").filter((call) => call[1] === "tickets").map((call) => call[3]).filter((text) => text.startsWith(marked("parked", "")))
+  const reports = (entry) => only(entry.calls, "comment").filter((call) => call[3].startsWith(marked("needs-owner", ""))).length
 
   const clean = await settled({ lint: "SUCCESS", pull: { files: ["apps/web/a.ts"] } })
   same("drive: a lintable path with a green Lint merges", [only(clean.calls, "merge").length, owned(clean).length], [1, 0])
 
   const skipped = await settled({ lint: "SKIPPED", pull: { files: ["apps/web/a.ts"] } })
-  same("drive: a SKIPPED Lint with a lintable path goes to the owner and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").length], [0, 1, 1])
-  T("drive: the owner report names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
+  same("drive: a SKIPPED Lint with a lintable path parks the ticket and the pull request, writes no needs-owner report and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").map((call) => call[3].add[0]), reports(skipped)], [0, 1, ["parked", "parked"], 0])
+  T("drive: the parked comment names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
 
   // GitHub creates the `Checks` run only after `Plan` ends, so a head has no lint check for its first minutes.
   const planning = await settled({ pull: { files: ["apps/web/a.ts"], checks: [check("Plan", null, { status: "IN_PROGRESS" }), approvalCheck()] } })
   same("drive: a lintable path with no lint check yet while Plan runs waits with no needs:owner", [only(planning.calls, "merge").length, owned(planning).length, only(planning.calls, "editLabels").length], [0, 0, 0])
   const absent = await settled({ pull: { files: ["apps/web/a.ts"] } })
-  same("drive: a lint check that is absent after every other check ended goes to the owner", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
+  same("drive: a lint check that is absent after every other check ended parks the ticket", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
   const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", draft: true }), pull(30, { baseRef: "chore/ticket-7-part-1", files: ["apps/web/a.ts"] })] } })
   await child.run()
   same("drive: a child of an open pull request gets no lint check before its retarget, so it waits", [only(child.calls, "merge").length, owned(child).length, only(child.calls, "editLabels").length], [0, 0, 0])
@@ -4191,11 +4193,11 @@ const diffBarCases = async () => {
 
   const files = Array.from({ length: 120 }, (_, index) => (index === 109 ? "apps/web/late.tsx" : `docs/page${index}.md`))
   const late = await settled({ lint: "SKIPPED", pull: { files, changedFiles: 120, reviews: [review("APPROVED"), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -30 * MINUTE)] } })
-  same("drive: a lintable path at file 110 of 120 is seen and goes to the owner", [only(late.calls, "merge").length, owned(late).length], [0, 1])
+  same("drive: a lintable path at file 110 of 120 is seen and parks the ticket", [only(late.calls, "merge").length, owned(late).length], [0, 1])
 
   const closing = await settled({ lint: "SUCCESS", pull: { files: ["tools/README.md"], commitMessages: ["feat: a change", "Closes: thomasluizon/orbit-tickets#1"] } })
-  same("drive: a commit message that closes a ticket goes to the owner and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
-  T("drive: the owner report names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
+  same("drive: a commit message that closes a ticket parks the ticket and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
+  T("drive: the parked comment names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
   const bodied = await settled({ pull: { body: "Closes thomasluizon/orbit-tickets#7\n\nRemaining: none", files: ["tools/README.md"] } })
   same("drive: a body that closes a ticket does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
   const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
