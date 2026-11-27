@@ -39,7 +39,7 @@ const review = (state, commit = HEAD, offset = -10 * MINUTE, extra = {}) => ({ s
 
 const pull = (number, extra = {}) => ({
   number, state: "OPEN", draft: false, author: "thomasluizon", labels: [], headRef: `chore/ticket-7-${number}`, headSha: HEAD, baseRef: "main", baseSha: "c".repeat(40), mergeState: "CLEAN", behindBy: 0,
-  body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none", tracks: 7, changedFiles: 3, files: ["tools/a.mjs"], commits: [{ sha: HEAD, parents: 1 }], mergeCommit: null,
+  body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none", tracks: 7, ticketRepository: REPOSITORY, changedFiles: 3, files: ["tools/README.md"], commitMessages: ["fix(tools): a change"], commits: [{ sha: HEAD, parents: 1 }], mergeCommit: null,
   checks: [check("Unit Tests"), approvalCheck()], checksComplete: true, requiredChecks: [{ context: "Unit Tests", appId: 15368 }], reviews: [review("APPROVED")], threads: [], threadsComplete: true,
   comments: [comment("ticket", "Ticket"), comment("request", PLAIN, -20 * MINUTE)], ...extra,
 })
@@ -61,6 +61,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
   const states = Object.fromEntries(["ui", "api", "landing"].map((key) => [key, { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: (pulls[key] ?? []).map((entry) => entry.number), pulls: pulls[key] ?? [] }]))
   const launched = []
+  const fetched = new Set()
   const stateDir = stateDirectory ?? join(root, `drive-tick-state-${++scenarios}`)
   const watched = { fingerprint: "a", logBytes: 0 }
   mkdirSync(join(stateDir, "logs"), { recursive: true })
@@ -106,7 +107,21 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       },
     },
     invocation: async (token, name = "main", own = null, model = undefined) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
-    git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
+    git: async (cwd, args) => {
+      calls.push(["git", ...args])
+      // The driver reads the changed paths and the commit messages of a pull request from git, so the fake answers with the fields of the pull request that has the range.
+      if (args[0] === "fetch") for (const name of args.slice(2)) fetched.add(`${cwd} ${name}`)
+      const range = args.find((text) => /^[0-9a-f]{40}\.{2,3}[0-9a-f]{40}$/.test(text))
+      // Pull requests of several repositories can share one head, so the pull request whose ref this checkout fetched answers first.
+      const sharing = range === undefined ? [] : Object.values(pulls).flat().filter((entry) => range.endsWith(entry.headSha))
+      const ranged = sharing.find((entry) => fetched.has(`${cwd} refs/pull/${entry.number}/head`)) ?? sharing[0]
+      // The checkout holds a base commit only after a fetch of the base branch, and a head only after a fetch of the pull request ref: git then exits 128, as it does on the Mac.
+      const unfetched = ranged && !dryRun && !(fetched.has(`${cwd} ${ranged.baseRef ?? "main"}`) && fetched.has(`${cwd} refs/pull/${ranged.number}/head`))
+      if (ranged && (args.includes("--no-renames") || args.includes("--format=%B%x00")) && unfetched) return { status: 128, stderr: `fatal: bad object ${range.split(/\.+/)[0]}`, stdout: "" }
+      if (ranged && args[0] === "diff" && args.includes("--name-only")) return { status: 0, stderr: "", stdout: (ranged.files ?? []).map((file) => `${file}\0`).join("") }
+      if (ranged && args[0] === "log" && args.includes("--format=%B%x00")) return { status: 0, stderr: "", stdout: (ranged.commitMessages ?? []).map((text) => `${text}\0`).join("") }
+      const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" }
+    },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     osascript: async (message) => { calls.push(["notify", message]) },
     fetch: async (url, init) => { calls.push(["fetch", url, init]); return { status: 200, json: async () => ({ ok: true, result: {} }) } },
@@ -579,7 +594,7 @@ const realRepositoryScene = (repo, options) => {
   const fake = scene.env.git
   scene.env.config.repos.ui = repo.path
   scene.env.git = async (cwd, args) => {
-    if (!cwd.startsWith(root)) return fake(cwd, args)
+    if (!cwd.startsWith(root) || args.includes("--no-renames") || args.includes("--format=%B%x00") || args.some((text) => text.startsWith("refs/pull/"))) return fake(cwd, args)
     scene.calls.push(["git", ...args])
     return spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
   }
@@ -962,7 +977,7 @@ const reviewOnceCases = async () => {
   const rebased = merged([placed("line9", "111", "v1"), placed("line9", "222", "v1")])
   await rebased.run()
   same("drive: the same change with other blob ids carries the approval", [commentsOf(rebased.calls, 30).length, only(rebased.calls, "merge").length], [0, 1])
-  const diffCalls = sameDiff.calls.filter((call) => call[0] === "git" && call[1] === "diff")
+  const diffCalls = sameDiff.calls.filter((call) => call[0] === "git" && call[1] === "diff" && !call.includes("--name-only"))
   same("drive: the own diff is read with the context lines and the binary content", [diffCalls.length > 0, diffCalls.every((call) => call.includes("--binary") && !call.includes("-U0"))], [true, true])
   const unknown = merged(["", ""])
   await unknown.run()
@@ -4130,6 +4145,67 @@ const replanCases = async () => {
   T("drive: the re-plan order names the highest total of any part set, not only the set in force", largerReplan !== undefined && largerReplan.order.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerReplan.order.includes("make m higher than 4."))
 }
 
+/** The merge bar failures that the git diff settles: each reads the diff from git, and each that no worker order clears goes to the owner. */
+const diffBarCases = async () => {
+  const LINT = (conclusion) => check("Checks", conclusion, { databaseId: 31 })
+  const scene = (extra, gitRoutes = [], repoKey = "ui") => scenario({ tickets: [ticket(7, { labels: [`repo:${repoKey}`, "Improvement"], repoKey })], gitRoutes, pulls: { ui: [], api: [], landing: [], [repoKey]: [pull(30, { checks: [check("Unit Tests"), approvalCheck(), ...(extra.lint ? [LINT(extra.lint)] : [])], ...extra.pull })] } })
+  const settled = async (extra, gitRoutes, repoKey) => {
+    const entry = scene(extra, gitRoutes, repoKey)
+    await entry.run()
+    return entry
+  }
+  const owned = (entry) => only(entry.calls, "comment").filter((call) => call[1] === "tickets").map((call) => call[3]).filter((text) => text.startsWith("<!-- orbit-drive:needs-owner -->"))
+
+  const clean = await settled({ lint: "SUCCESS", pull: { files: ["apps/web/a.ts"] } })
+  same("drive: a lintable path with a green Lint merges", [only(clean.calls, "merge").length, owned(clean).length], [1, 0])
+
+  const skipped = await settled({ lint: "SKIPPED", pull: { files: ["apps/web/a.ts"] } })
+  same("drive: a SKIPPED Lint with a lintable path goes to the owner and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").length], [0, 1, 1])
+  T("drive: the owner report names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
+
+  // GitHub creates the `Checks` run only after `Plan` ends, so a head has no lint check for its first minutes.
+  const planning = await settled({ pull: { files: ["apps/web/a.ts"], checks: [check("Plan", null, { status: "IN_PROGRESS" }), approvalCheck()] } })
+  same("drive: a lintable path with no lint check yet while Plan runs waits with no needs:owner", [only(planning.calls, "merge").length, owned(planning).length, only(planning.calls, "editLabels").length], [0, 0, 0])
+  const absent = await settled({ pull: { files: ["apps/web/a.ts"] } })
+  same("drive: a lint check that is absent after every other check ended goes to the owner", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
+  const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", draft: true }), pull(30, { baseRef: "chore/ticket-7-part-1", files: ["apps/web/a.ts"] })] } })
+  await child.run()
+  same("drive: a child of an open pull request gets no lint check before its retarget, so it waits", [only(child.calls, "merge").length, owned(child).length, only(child.calls, "editLabels").length], [0, 0, 0])
+
+  // A repository with no lint check can never turn one green, so the bar asks for none there.
+  for (const repoKey of ["api", "landing"]) {
+    const other = await settled({ pull: { files: ["tools/generate-bimi-logo.mjs", "infra/production-values.test.mjs", "src/app.ts"] } }, [], repoKey)
+    same(`drive: a ${repoKey} pull request with lintable paths and no lint check merges`, [only(other.calls, "merge").length, owned(other).length], [1, 0])
+  }
+
+  const files = Array.from({ length: 120 }, (_, index) => (index === 109 ? "apps/web/late.tsx" : `docs/page${index}.md`))
+  const late = await settled({ lint: "SKIPPED", pull: { files, changedFiles: 120, reviews: [review("APPROVED"), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -30 * MINUTE)] } })
+  same("drive: a lintable path at file 110 of 120 is seen and goes to the owner", [only(late.calls, "merge").length, owned(late).length], [0, 1])
+
+  const closing = await settled({ lint: "SUCCESS", pull: { files: ["tools/README.md"], commitMessages: ["feat: a change", "Closes: thomasluizon/orbit-tickets#1"] } })
+  same("drive: a commit message that closes a ticket goes to the owner and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
+  T("drive: the owner report names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
+  const bodied = await settled({ pull: { body: "Closes thomasluizon/orbit-tickets#7\n\nRemaining: none", files: ["tools/README.md"] } })
+  same("drive: a body that closes a ticket does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
+  const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
+  same("drive: fixed context and a Tracks line merges", only(tracking.calls, "merge").length, 1)
+
+  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")))
+  same("drive: the changed paths come from git diff between the base and the head, with no rename detection", read(clean).filter((call) => call.includes("--name-only")), [["git", "diff", "--name-only", "--no-renames", "-z", `${"c".repeat(40)}...${HEAD}`]])
+  same("drive: the commit messages come from git log between the base and the head", read(clean).filter((call) => call.includes("--format=%B%x00")), [["git", "log", "--format=%B%x00", `${"c".repeat(40)}..${HEAD}`]])
+
+  const baseFetch = read(clean).length > 0 ? clean.calls.filter((call) => call[0] === "git" && call[1] === "fetch") : []
+  T("drive: the base branch is fetched with the pull request ref before the diff is read", baseFetch.some((call) => call.includes("main") && call.includes("refs/pull/30/head")), JSON.stringify(baseFetch))
+  const stacked = await settled({ pull: { baseRef: "chore/ticket-7-part-1", files: ["tools/README.md"] } })
+  T("drive: a pull request on another base fetches that base", stacked.calls.some((call) => call[0] === "git" && call[1] === "fetch" && call.includes("chore/ticket-7-part-1")), JSON.stringify(stacked.calls.filter((call) => call[0] === "git" && call[1] === "fetch")))
+
+  const failing = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] }, gitRoutes: [] })
+  const fake = failing.env.git
+  failing.env.git = async (cwd, args) => (args.includes("--no-renames") ? { status: 128, stderr: "bad object", stdout: "" } : fake(cwd, args))
+  await failing.run()
+  same("drive: a diff that git cannot read gives no merge", only(failing.calls, "merge").length, 0)
+}
+
 const CHECKS_FILE = ".github/required-checks.json"
 const MERGE_BASE = "d".repeat(40)
 const requiredList = (...contexts) => ({ strict: false, checks: contexts.map((context) => ({ context, app_id: context === "pullfrog-approval" ? APP : 15368 })) })
@@ -4239,9 +4315,13 @@ const requiredChecksMergeCases = async () => {
   const unrelated = protectedScene({ pulls: [pull(31, { files: ["tools/a.mjs"], changedFiles: 1, checks: [check("Checks"), approvalCheck()], requiredChecks: [{ context: "Checks", appId: 15368 }] })] })
   await unrelated.run()
   same("drive: a pull request that does not change the file merges with no protection write", protectionSteps(unrelated), ["merge"])
-  const long = protectedScene({ head: OLD_CHECKS, pulls: [pull(31, { files: ["tools/a.mjs"], changedFiles: 101, checks: [check("Checks"), approvalCheck()], requiredChecks: [{ context: "Checks", appId: 15368 }], reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: no finding" })], comments: [comment("ticket", "Ticket"), comment("request", "@pullfrog review whole diff", -20 * MINUTE)] })] })
+  const many = Array.from({ length: 120 }, (_, index) => (index === 109 ? CHECKS_FILE : `docs/page${index}.md`))
+  const long = protectedScene({ pulls: [renamingPull({ files: many, changedFiles: 120, reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: no finding" })], comments: [comment("ticket", "Ticket"), comment("request", `${PLAIN} whole diff`, -20 * MINUTE)] })] })
   await long.run()
-  same("drive: a pull request with more files than GitHub lists and the same file as its merge base writes no protection", protectionSteps(long), ["merge"])
+  same("drive: the required checks file at file 110 of 120 moves the protection", protectionSteps(long), [DURING, "merge", "PR Tests,pullfrog-approval"])
+  const drafted = protectedScene({ pulls: [pull(31, { draft: true, files: null, commitMessages: null })] })
+  await drafted.run()
+  same("drive: a draft into main, whose diff the driver does not read, plans with no error", drafted.messages.filter((line) => line.includes(" ui#31 error ")), [])
   const stacked = protectedScene({ pulls: [renamingPull({ baseRef: "feature/parent" }), pull(29, { headRef: "feature/parent", draft: true })] })
   let headReads = 0
   const read = stacked.env.github.readRequiredChecksFile
@@ -4251,6 +4331,7 @@ const requiredChecksMergeCases = async () => {
 }
 
 export const driverUnit = async () => {
+  await diffBarCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
   await noticeCases()
