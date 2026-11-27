@@ -84,12 +84,18 @@ export const ticketChanges = (ticket) => {
   return ticket.editedAt ? [{ kind: "body", at: ticket.editedAt, comment: null }, ...comments] : comments
 }
 
+const section = (title, texts) => (texts.length === 0 ? "" : `\n\n## ${title}\n\n${texts.join("\n\n")}`)
+
+/** The owner orders and the decisions of the owner session, in full. Every order and the ticket comment for Pullfrog carry them. */
+export const noteSections = (comments) => {
+  const notes = (kind) => comments.filter((comment) => noteKindOf(comment) === kind).map((comment) => noteText(comment.body))
+  return `${section("Owner orders", notes("owner"))}${section("Decisions of the owner session", notes("decision"))}`
+}
+
 /** The comments that every order carries in full: the owner orders, the decisions, then each comment that no tool wrote and that is no part. */
 const commentSections = (comments) => {
-  const section = (title, texts) => (texts.length === 0 ? "" : `\n\n## ${title}\n\n${texts.join("\n\n")}`)
-  const notes = (kind) => comments.filter((comment) => noteKindOf(comment) === kind).map((comment) => noteText(comment.body))
   const others = comments.filter((comment) => !comment.body.startsWith(TOOL_MARK) && partOf(comment) === null).map((comment) => trimmed(comment.body))
-  return `${section("Owner orders", notes("owner"))}${section("Decisions of the owner session", notes("decision"))}${section("Other comments on the ticket", others)}`
+  return `${noteSections(comments)}${section("Other comments on the ticket", others)}`
 }
 
 /** The heading of a part comment as a list item or a section title, without its leading `#` marks. */

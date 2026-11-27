@@ -1147,6 +1147,9 @@ const skillMarkerCases = () => {
   T("skills/questions: section 4 records each answer with update-ticket.mjs note --decision and edits no ticket body", questions.includes("`node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>`") && !questions.includes("gh issue edit"), "section 4 writes no decision note")
   T("skills/sleep: each sleep decision is a decision note", skillText("sleep").includes("`node tools/update-ticket.mjs note --decision`"), "the skill names no decision note")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
+  // The next manual questions run lists an owner-review comment only while no owner answer follows it, so a sleep decision writes it after its own owner-answer comment.
+  const sleepOn = questions.split("\n").find((line) => line.startsWith("- Sleep on:")) ?? ""
+  T("skills/questions: a sleep decision writes its owner-review comment after its owner-answer comment, so the next run asks the owner", sleepOn.includes("after the `<!-- orbit-drive:owner-answer -->` comment") && sleepOn.includes("Start that comment with `<!-- owner-review -->`") && !questions.includes("text file with the line `<!-- owner-review -->`"), sleepOn)
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
   const listing = questions.split("\n").find((line) => line.startsWith("2. ") && line.includes("pull request")) ?? ""

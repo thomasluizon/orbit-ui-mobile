@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, partProblem, renderOrder, ticketChanges } from "./lib/order.mjs"
+import { noteSections, ownerParts, partOf, partProblem, renderOrder, ticketChanges } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -359,10 +359,11 @@ const sectionsOutside = (reviews) => reviews.flatMap((review) => {
   return text === "" ? [] : [text]
 })
 
-/** The ticket comment that carries the ticket and the part to Pullfrog, which cannot read the private ticket repository. */
+/** The ticket comment that carries the ticket, its owner orders and decisions, and the part to Pullfrog, which cannot read the private ticket repository. The body is cut first. */
 export const ticketComment = ({ repository, ticket, part }) => {
   const head = `Ticket ${repository}#${ticket.number}: ${ticket.title}`
-  const tail = `## The part this pull request builds\n\n${part === null ? "No parts: the ticket body is the whole order." : part.comment.body.trim()}`
+  const notes = noteSections(ticket.comments).trim()
+  const tail = `${notes === "" ? "" : `${notes}\n\n`}## The part this pull request builds\n\n${part === null ? "No parts: the ticket body is the whole order." : part.comment.body.trim()}`
   const assemble = (body, cut) => `${marked("ticket", head)}\n<details><summary>Ticket body</summary>\n\n${body}\n\n${cut}</details>\n\n${tail}`
   const whole = assemble(ticket.body.trim(), "")
   if (whole.length <= TICKET_COMMENT_LIMIT) return whole

@@ -677,6 +677,10 @@ const reviewCases = async () => {
 
   const partTicket = ticket(7, { body: "Whole ticket", comments: [partComment(2, 3, "The part text.")] })
   T("drive: a part pull request carries its own part whole", ticketComment({ repository: REPOSITORY, ticket: partTicket, part: { comment: partTicket.comments[0] } }).includes("The part text."))
+  // Pullfrog reads the ticket only from this comment, so it carries each owner order and each decision, as every order does.
+  const notes = [{ body: "<!-- orbit-owner -->\nNo spinner anywhere.", createdAt: iso(-3 * MINUTE) }, { body: "<!-- orbit-decision -->\nDrop criterion (d).", createdAt: iso(-2 * MINUTE) }, { body: "<!-- orbit-drive:sleep -->\nA tool note.", createdAt: iso(-MINUTE) }]
+  const noted = ticketComment({ repository: REPOSITORY, ticket: ticket(7, { body: "x".repeat(70000), comments: notes }), part: { comment: partComment(1, 1, "Keep this part whole.") } })
+  T("drive: the ticket comment carries the owner orders and the decisions whole, and stays under 65,000 characters", noted.length <= 65000 && noted.includes("## Owner orders\n\nNo spinner anywhere.") && noted.includes("## Decisions of the owner session\n\nDrop criterion (d).") && !noted.includes("A tool note.") && noted.includes("Keep this part whole."), noted.slice(-400))
   const huge = ticket(7, { body: "x".repeat(70000) })
   const cut = ticketComment({ repository: REPOSITORY, ticket: huge, part: { comment: partComment(1, 1, "Keep this part whole.") } })
   T("drive: a ticket body that would pass 65,000 characters is cut with a line that says so, and the part stays whole", cut.length <= 65000 && cut.includes("Ticket body cut here: it had 70000 characters.") && cut.includes("Keep this part whole."))
