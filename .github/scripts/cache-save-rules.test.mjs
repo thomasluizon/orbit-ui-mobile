@@ -128,29 +128,41 @@ const npmActionRestore = (call) => ({ step: NPM_ACTION_RESTORE, calls: [{ uses: 
 const npmSaverRestore = (place) => npmActionRestore({ id: "npm-cache", with: { "restore-older-entry": NPM_SAVERS[place][1] } })
 const unitResultsRestore = (job) => ({
   step: {
-    if: `needs.${job}-tests.result == 'skipped'`,
+    if: `${job === "workspace" ? "needs.checks.outputs.workspace-unit-result" : `needs.${job}-tests.result`} == 'skipped'`,
     uses: "actions/cache/restore@v6",
-    with: { "fail-on-cache-miss": true, key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+    with: { "fail-on-cache-miss": "${{ needs.plan.outputs.unit-skip != 'true' }}", key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase().replaceAll("-", "_")}_UNIT_RESULTS }}` },
   },
   calls: [],
 })
+// The web cross-app pass marker restores only when the web shards are cached and the cross-app tests are cached too.
+const crossAppMarkerRestore = {
+  step: {
+    if: "needs.web-tests.result == 'skipped' && needs.plan.outputs.web-cross-app-unit-hit == 'true'",
+    uses: "actions/cache/restore@v6",
+    with: { "fail-on-cache-miss": true, key: "${{ needs.plan.outputs.web-cross-app-unit-key }}", path: "${{ env.WEB_CROSS_APP_UNIT_RESULTS }}" },
+  },
+  calls: [],
+}
 const unitResultsLookup = (job) => ({
   step: {
     id: `${job}-unit`,
     uses: "actions/cache/restore@v6",
-    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase().replaceAll("-", "_")}_UNIT_RESULTS }}` },
   },
   calls: [],
 })
 // The call of .github/actions/merged-unit-results, which leads to the lookups after the save of a merged pull request result.
 const MERGED_RESULTS_CALL = {
   id: "merged",
-  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
+  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.web-cross-app-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
   uses: "./.github/actions/merged-unit-results",
   with: {
     "web-hit": "${{ steps.web-unit.outputs.cache-hit }}",
     "web-key": "${{ steps.plan.outputs.web-unit-key }}",
     "web-path": "${{ env.WEB_UNIT_RESULTS }}",
+    "web-cross-app-hit": "${{ steps.web-cross-app-unit.outputs.cache-hit }}",
+    "web-cross-app-key": "${{ steps.plan.outputs.web-cross-app-unit-key }}",
+    "web-cross-app-path": "${{ env.WEB_CROSS_APP_UNIT_RESULTS }}",
     "mobile-hit": "${{ steps.mobile-unit.outputs.cache-hit }}",
     "mobile-key": "${{ steps.plan.outputs.mobile-unit-key }}",
     "mobile-path": "${{ env.MOBILE_UNIT_RESULTS }}",
@@ -229,14 +241,16 @@ const REVIEWED_RESTORES = {
       calls: [],
     },
     unitResultsLookup("web"),
+    unitResultsLookup("web-cross-app"),
     unitResultsLookup("mobile"),
     unitResultsLookup("workspace"),
     mergedUnitResultsLookup("web"),
+    mergedUnitResultsLookup("web-cross-app"),
     mergedUnitResultsLookup("mobile"),
     mergedUnitResultsLookup("workspace"),
   ],
-  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
-  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
+  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("web-cross-app", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
+  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), crossAppMarkerRestore, unitResultsRestore("mobile"), unitResultsRestore("workspace")],
 }
 
 function checkReviewedRestores(currentTree, inventory) {
@@ -792,7 +806,7 @@ const PASS_MARKERS = {
   "mobile-build.yml: build": { path: ".ci-pass/android-compile", key: "${{ needs.plan.outputs.pass-key }}" },
 }
 const WEBPACK_CACHE_SAVERS = { "test.yml: build": "apps/web/.next/cache/webpack" }
-const TURBO_CACHE_SAVERS = { "test.yml: type-check": ".turbo" }
+const TURBO_CACHE_SAVERS = { "test.yml: checks": ".turbo" }
 const turboDelete = (path) => `find ${path} -type f -mtime +30 -delete`
 
 // The rule of each inventory line: the actions that it covers, and the check that the cache step and its job follow it. A
@@ -1020,7 +1034,8 @@ const changeText = (path, ...replacements) => {
 }
 const newAction = (directory, steps) => ({ [`.github/actions/${directory}/action.yml`]: `name: ${directory}\ndescription: ${directory}\nruns:\n  using: composite\n  steps:\n${steps}` })
 
-const TYPE_CHECK_RUN = "      - run: ./node_modules/.bin/turbo run type-check\n"
+const TYPE_CHECK_COMMAND = "        run: ./node_modules/.bin/turbo run type-check\n"
+const TYPE_CHECK_RUN = `      - name: Run the type check\n        id: type-check\n        if: \${{ !cancelled() && needs.plan.outputs.type-check == 'true' }}\n${TYPE_CHECK_COMMAND}`
 const WORKSPACE_ENV = "      ARTIFACT_NAME: workspace-unit-coverage-attempt-${{ github.run_attempt }}\n"
 const WORKSPACE_RUN = "      - name: Run workspaces with coverage thresholds\n"
 const evictRun = (path, options) => `run: |\n${compilerCacheEvict(path, options).trimEnd().split("\n").map((line) => `          ${line}`).join("\n")}`
@@ -1042,9 +1057,9 @@ const IOS_BUILD_EVICT = `      - name: Clean the ccache directory before its sav
           COMPILE_OUTCOME: \${{ steps.compile.outcome }}
         ${evictRun("${{ env.CCACHE_DIR }}", { partial: true })}
 `
+const TURBO_IF = "        if: github.event_name != 'pull_request' && steps.type-check.outcome == 'success'\n"
 const TURBO_DELETE = `      - name: Remove the Turbo results that are older than 30 days
-        if: github.event_name != 'pull_request'
-        run: find .turbo -type f -mtime +30 -delete
+${TURBO_IF}        run: find .turbo -type f -mtime +30 -delete
 `
 const restoreStep = (name, path, key, restoreKeys, id) => `      - name: ${name}
 ${id ? `        id: ${id}\n` : ""}        uses: actions/cache/restore@v6
@@ -1069,7 +1084,7 @@ const LINT_JOB = `    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 ${restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-")}${saveStep("Save eslint", ".eslintcache", ESLINT_KEY)}`
-// A local action that Type Check calls, with the steps of one remote action.
+// A local action that Checks calls, with the steps of one remote action.
 const typeCheckToolStep = (step) => ({ ...newAction("setup-tools", step), ...typeCheckAround("      - uses: ./.github/actions/setup-tools\n", "") })
 const NEXT_SAVE = "      - name: Save the Next compiler cache\n        if: github.event_name != 'pull_request' && steps.next-cache.outputs.cache-hit != 'true'\n        uses: actions/cache/save@v6\n"
 const WEB_UNIT_LOOKUP = `      - name: Look up cached web unit results
@@ -1092,7 +1107,7 @@ const IOS_INSTALL = "      - name: Install the compiler cache\n"
 const NSIS_KEY = "        key: ${{ runner.os }}-nsis-tools-${{ hashFiles('apps/desktop/src-tauri/native/windows/nsis-tools.json') }}\n"
 const SETUP_NODE_INPUT = "          package-manager-cache: false\n"
 const RUST_SAVE_IF = "          save-if: \"false\"\n"
-const TYPE_CHECK_JOB = "  type-check:\n    name: Type Check\n"
+const TYPE_CHECK_JOB = "  checks:\n    name: Checks\n"
 const MOBILE_BUILD_JOB = "  build:\n    name: Android release build\n"
 const MOBILE_BUILD_STAMP = "      - name: Record the start of the compiler cache use\n        run: echo \"COMPILER_CACHE_USED_SINCE=$(date +%s)\" >> \"$GITHUB_ENV\"\n"
 const IOS_RELEASE_EVICT_NAME = "      - name: Keep only the objects that this archive used\n"
@@ -1107,7 +1122,7 @@ const MOBILE_CCACHE_AND_CXX = "          path: |\n            ~/.cache/ccache\n 
 const MOBILE_PASS_RECORD = "        run: mkdir -p .ci-pass && echo \"$GITHUB_SHA\" > .ci-pass/android-compile\n"
 const MOBILE_PASS_PATH = "        uses: actions/cache/save@v6\n        with:\n          path: .ci-pass/android-compile\n"
 const MOBILE_BUILD_GRADLE_OPTS = "      GRADLE_OPTS: -Dorg.gradle.caching=true\n"
-const TYPE_CHECK_IF = "    if: needs.plan.outputs.type-check == 'true'\n"
+const TYPE_CHECK_IF = WORKSPACE_ENV
 const TURBO_JSON_HEAD = '{\n  "$schema": "https://turbo.build/schema.json",\n'
 const NEXT_CACHE_PATH = "          path: apps/web/.next/cache/webpack\n"
 const NPM_RESTORE_OLDER_ENTRY = "          restore-older-entry: ${{ github.event_name == 'pull_request' }}\n"
@@ -1180,7 +1195,7 @@ const MUTATIONS = [
   ["M7 the Turbo delete step deleted", changeText(".github/workflows/test.yml", [TURBO_DELETE, ""]), /deletes the Turbo results older than 30 days/, WRITE],
   ["M8 the Turbo delete step deletes the new results", changeText(".github/workflows/test.yml", ["-mtime +30 -delete", "-mtime -30 -delete"]), /deletes the Turbo results older than 30 days/, WRITE],
   ["M9 the Turbo delete step runs on pull requests too", changeText(".github/workflows/test.yml",
-    [TURBO_DELETE, TURBO_DELETE.replace("        if: github.event_name != 'pull_request'\n", "")]), /the delete step runs on each run that saves/, WRITE],
+    [TURBO_DELETE, TURBO_DELETE.replace(TURBO_IF, "")]), /the delete step runs on each run that saves/, WRITE],
   ["M10 the ios-build evict step after the save", changeText(".github/workflows/ios-build.yml", [IOS_BUILD_EVICT, ""],
     ["      - name: Report compiler cache statistics\n", `${IOS_BUILD_EVICT}      - name: Report compiler cache statistics\n`]), /the evict step is the step just before the save/, WRITE],
   ["M11 a new prefix restore saved under its primary key", typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-", "eslint-cache"),
@@ -1222,7 +1237,7 @@ const MUTATIONS = [
   ["P1 a save in a new workflow", { ".github/workflows/lint-cache.yml": `name: Lint cache\non:\n  push:\n    branches: [main]\njobs:\n  lint:\n${LINT_JOB}` }, NO_LINE],
   ["P2 a save in a new reusable workflow that a job of test.yml calls", {
     ".github/workflows/lint-reusable.yml": `name: Lint reusable\non:\n  workflow_call:\njobs:\n  lint:\n${LINT_JOB}`,
-    ...changeText(".github/workflows/test.yml", ["  type-check:\n", "  lint-reusable:\n    uses: ./.github/workflows/lint-reusable.yml\n  type-check:\n"]),
+    ...changeText(".github/workflows/test.yml", ["  checks:\n", "  lint-reusable:\n    uses: ./.github/workflows/lint-reusable.yml\n  checks:\n"]),
   }, NO_LINE],
   ["P3 a new save through actions/cache/save by commit SHA", typeCheckAround("", saveStep("Save eslint", ".eslintcache", ESLINT_KEY, "actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830")), NO_LINE],
   ["P4 a new save through ACTIONS/CACHE/SAVE", typeCheckAround("", saveStep("Save eslint", ".eslintcache", ESLINT_KEY, "ACTIONS/CACHE/SAVE@v6")), NO_LINE],
@@ -1275,7 +1290,7 @@ const MUTATIONS = [
     [TURBO_DELETE, `${TURBO_DELETE}        working-directory: apps/web\n        continue-on-error: true\n`]), /Save turbo: the delete step differs from its reviewed form/, WRITE],
   ["T1s the Turbo delete step runs in a shell that ignores its script", changeText(".github/workflows/test.yml",
     [TURBO_DELETE, `${TURBO_DELETE}        shell: true {0}\n`]), /Save turbo: the delete step differs from its reviewed form/, WRITE],
-  ["T2 the Type Check job runs each run step in a shell that ignores its script", changeText(".github/workflows/test.yml",
+  ["T2 the Checks job runs each run step in a shell that ignores its script", changeText(".github/workflows/test.yml",
     [TYPE_CHECK_JOB, `${TYPE_CHECK_JOB}    defaults:\n      run:\n        shell: true {0}\n`]), /Save turbo: the job and its workflow set no run defaults/, WRITE],
   ["EVs the ios-build evict step runs in a shell that ignores its script", changeText(".github/workflows/ios-build.yml",
     [IOS_BUILD_EVICT, `${IOS_BUILD_EVICT}        shell: true {0}\n`]), /ios-build\.yml: compile: Save compiler outputs: the evict step differs from its reviewed form/, WRITE],
@@ -1324,10 +1339,10 @@ const MUTATIONS = [
     /android-release\.yml: release-android: Save the ccache directory: each step that names ccache is a reviewed step/, WRITE],
   ["B1 turbo.json moves the Turbo cache directory", changeText("turbo.json", [TURBO_JSON_HEAD, `${TURBO_JSON_HEAD}  "cacheDir": ".turbo/results",\n`]),
     /Save turbo: turbo\.json sets no cacheDir/],
-  ["B2 the Type Check job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
-    [TYPE_CHECK_IF, `${TYPE_CHECK_IF}    env:\n      TURBO_CACHE_DIR: .turbo/results\n`]), /Save turbo: the job sets no TURBO_CACHE_DIR/, WRITE],
-  ["B3 the Type Check run passes another cache directory", changeText(".github/workflows/test.yml",
-    [TYPE_CHECK_RUN, "      - run: ./node_modules/.bin/turbo run type-check --cache-dir=.turbo/results\n"]), /Save turbo: no step of the job sets TURBO_CACHE_DIR or --cache-dir/, WRITE],
+  ["B2 the Checks job env moves the Turbo cache directory", changeText(".github/workflows/test.yml",
+    [TYPE_CHECK_IF, `${TYPE_CHECK_IF}      TURBO_CACHE_DIR: .turbo/results\n`]), /Save turbo: the job sets no TURBO_CACHE_DIR/, WRITE],
+  ["B3 the Checks type check run passes another cache directory", changeText(".github/workflows/test.yml",
+    [TYPE_CHECK_COMMAND, "        run: ./node_modules/.bin/turbo run type-check --cache-dir=.turbo/results\n"]), /Save turbo: no step of the job sets TURBO_CACHE_DIR or --cache-dir/, WRITE],
   ["T3 the Turbo delete step cleans only the cache directory under the saved path", changeText(".github/workflows/test.yml",
     ["        run: find .turbo -type f -mtime +30 -delete\n", "        run: find .turbo/cache -type f -mtime +30 -delete\n"]),
     /Save turbo: the step before the save deletes the Turbo results older than 30 days/, WRITE],
@@ -1577,7 +1592,8 @@ test("a reviewed inventory line is the only way to make a new cache step pass, a
 
 test("a restore in a job with no save needs no line, and a restore beside a save needs the changed line", () => {
   const restoreOnly = (changes) => () => cacheGuard(readTree(changes), INVENTORY)
-  assert.doesNotThrow(restoreOnly(workspaceTestsWith(".stylelintcache", STYLE_PREFIX_RESTORE)))
+  const WEB_RUN = "      - name: Run web shard with coverage\n"
+  assert.doesNotThrow(restoreOnly(changeText(".github/workflows/test.yml", [WEB_RUN, `${STYLE_PREFIX_RESTORE}${WEB_RUN}`])))
   assert.throws(restoreOnly(typeCheckAround(restoreStep("Restore eslint", ".eslintcache", ESLINT_KEY, "eslint-"), "")), /Save turbo: the restores of its job differ/)
 })
 
@@ -1622,8 +1638,8 @@ test("each commit SHA that the cache inventory text names for a remote action is
   }
 })
 
-test("the cache tests run in the Tool Tests job, and the restore action exists for every caller", () => {
-  const run = load(".github/workflows/test.yml").jobs["tool-tests"].steps.map((step) => step.run ?? "").join("\n")
+test("the cache tests run in the Checks job, and the restore action exists for every caller", () => {
+  const run = load(".github/workflows/test.yml").jobs.checks.steps.map((step) => step.run ?? "").join("\n")
   for (const file of ["cache-save-rules.test.mjs", "sweep-actions-caches.test.mjs", "android-boot-action.test.mjs"]) {
     assert.ok(run.includes(`.github/scripts/${file}`), file)
   }

@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
   skipTrailingSlashRedirect: true,
   transpilePackages: ['@orbit/shared'],
+  typescript: { ignoreBuildErrors: process.env.ORBIT_HERMETIC_BUILD === '1' },
   redirects: getLegacyRedirects,
   async headers() {
     return [

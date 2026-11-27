@@ -120,7 +120,7 @@ jobs:
           # One key per target. This job is its only writer: Desktop Installed Acceptance and Desktop Release only read it.
           shared-key: desktop-${{ matrix.target }}
           save-if: ${{ github.ref == 'refs/heads/main' }}
-      # Type Check and the web jsdom shards of Unit Tests prove the desktop types and the web bridge on every pull request.
+      # Checks and the web jsdom shards of Unit Tests prove the desktop types and the web bridge on every pull request.
       - name: Test the desktop shell
         run: npm run test -w @orbit/desktop
       - name: Test native context on the runner host

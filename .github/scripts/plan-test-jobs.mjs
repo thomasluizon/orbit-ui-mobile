@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --workflow <file> [--changed-files <file>] [--deleted-files <file>]
 
   Prints the PR Tests plan as GITHUB_OUTPUT lines. Each test group gets a result cache key built from its
-  Turbo task hashes (turbo run test --dry=json) and the workflow file. A pull request also gets one flag per
+  Turbo task hashes (turbo run test test:cross-app --dry=json) and the workflow file. A pull request also gets one flag per
   path scope (web, type-check, lint, tools), true when a changed path is an input of that scope. The tools scope
   holds every path except the unread documents that tool-tests-skip-paths.json lists, so a pull request that
   changes only those documents skips the tool tests.
@@ -30,6 +30,7 @@ const scopes = {
 const appFree = [/^(tools|\.claude)\//, /\.md$/]
 const testGroups = {
   'web-unit': ['@orbit/web#test'],
+  'web-cross-app-unit': ['@orbit/web#test:cross-app'],
   'mobile-unit': ['@orbit/mobile#test'],
   'workspace-unit': ['@orbit/desktop#test', '@orbit/shared#test', '@orbit/eslint-rules#test'],
 }
