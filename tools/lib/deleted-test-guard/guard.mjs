@@ -1,7 +1,7 @@
 /** The guard: proves for each test file that loses lines that each lost test is dead with its code or ported. */
 
 import { execFileSync } from "node:child_process"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync } from "node:fs"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join, relative } from "node:path"
 import { judgeMutants, mutantKey, readMutants, testFilesOf } from "./compare.mjs"
@@ -81,6 +81,22 @@ export const runGuard = async ({ repo: rawRepo, base, head = "HEAD", budgetMs = 
     baseCheckout = prepareBase(repo, base, workDirectory)
     log(`base checkout ready (${tracked.length} test file(s) lose lines)`)
 
+    // The lines that the setup files of a project cover with no test. The lost tests share them, so they prove nothing about a test.
+    const setupLines = new Map()
+    const setupOf = async (test) => {
+      const key = `${test.workspace}|${test.project}`
+      if (!setupLines.has(key)) {
+        const empty = join(test.workspace, "__tests__", "stryker-guard-empty.test.ts")
+        writeFileSync(join(baseCheckout, empty), "it('loads the setup files', () => {})\n")
+        const run = await runCoverage({ checkout: baseCheckout, workspace: test.workspace, project: test.project, tests: [empty], coverageDirectory: join(workDirectory, `setup-coverage-${setupLines.size}`), timeoutMs: remaining() })
+        const lines = new Map()
+        for (const [absolute, covered] of parseLcov(run.lcov, join(baseCheckout, test.workspace))) lines.set(relative(baseCheckout, absolute), new Set(coveredLines(covered)))
+        setupLines.set(key, lines)
+        log(`setup coverage ${key}: ${[...lines.values()].reduce((sum, set) => sum + set.size, 0)} line(s)`)
+      }
+      return setupLines.get(key)
+    }
+
     // Part 1: the project of each lost test and the source lines that its base version covers.
     for (const test of runnable) {
       test.project = await projectOf({ checkout: baseCheckout, workspace: test.workspace, file: test.file, timeoutMs: remaining() })
@@ -94,12 +110,14 @@ export const runGuard = async ({ repo: rawRepo, base, head = "HEAD", budgetMs = 
         reviewTest(test, "base-run-failed", run.output)
         continue
       }
+      const setup = await setupOf(test)
       for (const [absolute, lines] of parseLcov(run.lcov, join(baseCheckout, test.workspace))) {
         const path = relative(baseCheckout, absolute)
-        const covered = coveredLines(lines)
+        const own = (line) => !setup.get(path)?.has(line)
+        const covered = coveredLines(lines).filter(own)
         if (isSource(path) && !path.startsWith("..") && covered.length > 0) {
           test.covered.set(path, covered)
-          test.scope.set(path, mutationScope(lines, readFileSync(absolute, "utf8").split("\n").length))
+          test.scope.set(path, mutationScope(lines, readFileSync(absolute, "utf8").split("\n").length).filter(own))
         }
       }
       log(`base coverage ${test.file}: ${[...test.covered.values()].reduce((sum, lines) => sum + lines.length, 0)} line(s)`)

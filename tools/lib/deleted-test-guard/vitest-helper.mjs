@@ -25,5 +25,5 @@ try {
 } finally {
   await context.close()
 }
-process.stdout.write(`\n@@RESULT@@${JSON.stringify(output)}\n`)
-process.exit(0)
+// A large result must flush before the process ends, or a pipe cuts it.
+process.stdout.write(`\n@@RESULT@@${JSON.stringify(output)}\n`, () => process.exit(0))
