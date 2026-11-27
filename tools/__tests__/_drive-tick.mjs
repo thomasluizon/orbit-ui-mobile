@@ -2022,7 +2022,7 @@ const planShapeCases = async () => {
   const missedTwice = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
   const labelled = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwice }), pull(31, { headRef: "chore/ticket-7-31" })] } })
   const labelledTick = await labelled.run()
-  same("drive: a pull request that follows a needs:owner report of its ticket in the same tick waits on the label and does not merge", [labelledTick.lines.filter((line) => line.startsWith("pull ui#31:")), only(labelled.calls, "merge").map((entry) => entry[2])], [["pull ui#31: wait: the bar fails: needs-owner"], []])
+  same("drive: a pull request that follows a needs:owner report of its ticket in the same tick waits on the label and does not merge", [labelledTick.lines.filter((line) => line.startsWith("pull ui#31:")), only(labelled.calls, "merge").map((entry) => entry[2])], [["pull ui#31: wait: carries needs:owner"], []])
 
   // Each pull request reads only the Pullfrog runs that name it, from the one list of its repository.
   const named = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun(77, 30), failedRun(78, 99)], routes: [["run view 77 ", "boring failure"], ["run view 78 ", LIMIT_LOG]] })
@@ -3180,6 +3180,110 @@ const releaseCases = async () => {
   T("drive: the usage names the release train and both flags", /release train/.test(usage) && /--release-now/.test(usage) && /--release-status/.test(usage), usage)
 }
 
+/** The driver log says each hold and each wait once, an owner report keys on pull request, head and cause, and a check that cannot change is not rerun. */
+const quietLogCases = async () => {
+  // A launch cap is no hold, so the hold here is a deployment barrier: only the owner writes one, and its cause is one class.
+  const BARRIER = ["Require deployment barriers for schema contractions"]
+  const barrier = (...others) => pull(30, { checks: [...others.map((name) => check(name, "FAILURE")), check("Guard Migrations", "FAILURE"), approvalCheck()] })
+  const heldItems = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "sleep-items.json"), "utf8"))
+  const holdLines = (scene) => scene.messages.filter((line) => line.includes(" needs-owner ("))
+
+  const tickets = [ticket(7)]
+  const three = scenario({ tickets, pulls: { ui: [barrier()] }, failedSteps: BARRIER })
+  keepWrites(three, tickets)
+  for (let index = 0; index < 3; index += 1) await three.run()
+  same("drive: the same hold on 3 ticks logs one needs-owner line and writes one report", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
+  T("drive: the hold line names the pull request, the head and the check", holdLines(three)[0].includes(`ui#30 at ${HEAD}`) && holdLines(three)[0].includes("Guard Migrations"))
+
+  // A driver switch ends the process, so the next process starts with an empty log memory: the report in the comment still gates the line.
+  for (let restart = 0; restart < 3; restart += 1) {
+    const fresh = createMemory()
+    fresh.reading = three.mem.reading
+    fresh.lastIntakeAt = NOW
+    await tick(three.env, fresh)
+    await Promise.all(fresh.running.values())
+  }
+  same("drive: a hold that was reported keeps one needs-owner line, one report and one notification across 3 restarts of the memory", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
+
+  // A hold that goes on keeps its log memory when a tick does not plan its item: a merge ends the pull loop and a plan can throw.
+  const holdOf = (scene) => holdLines(scene).filter((line) => line.includes("ui#30 needs-owner ("))
+  const merged = [ticket(7), ticket(8)]
+  const other = pull(20, { tracks: 8, body: "Tracks thomasluizon/orbit-tickets#8\n\nRemaining: none", headRef: "chore/ticket-8-20", draft: true })
+  const mergePulls = [other, barrier()]
+  const afterMerge = scenario({ tickets: merged, pulls: { ui: mergePulls }, failedSteps: BARRIER })
+  keepWrites(afterMerge, merged)
+  await afterMerge.run()
+  other.draft = false
+  await afterMerge.run()
+  mergePulls.splice(0, 1)
+  await afterMerge.run()
+  same("drive: a merge before a held pull request in the same tick keeps one needs-owner line and one report for the hold", [only(afterMerge.calls, "merge").length, holdOf(afterMerge).length, needsOwnerComments(afterMerge.calls, 7).length], [1, 1, 1])
+
+  const thrown = [ticket(7)]
+  const failing = scenario({ tickets: thrown, pulls: { ui: [barrier()] }, failedSteps: BARRIER })
+  keepWrites(failing, thrown)
+  const namingRuns = failing.env.github.runsNaming
+  let failNext = false
+  failing.env.github.runsNaming = (...input) => { if (failNext) { failNext = false; throw new Error("gh read failed") } return namingRuns(...input) }
+  await failing.run()
+  failNext = true
+  await failing.run()
+  await failing.run()
+  same("drive: a plan that throws once keeps one needs-owner line for a hold that goes on", [failing.messages.filter((line) => line.includes("ui#30 error (gh read failed)")).length, holdOf(failing).length], [1, 1])
+
+  const changed = [ticket(7)]
+  const held = barrier("Unit Tests")
+  const scene = scenario({ tickets: changed, pulls: { ui: [held] }, failedSteps: BARRIER, sleeping: true })
+  keepWrites(scene, changed)
+  await scene.run()
+  held.checks = barrier("Lint", "Layout").checks
+  await scene.run()
+  same("drive: a changed check list at the same pull request, head and cause keeps one report, one log line and one sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [1, 1, 1])
+  held.checks = barrier("Unit Tests").checks
+  scene.env.now = () => NOW
+  const states = scene.env.github.readRepositoryState
+  scene.env.github.readRepositoryState = async (key) => { const state = await states(key); for (const entry of state.pulls) Object.assign(entry, { headSha: NEXT_HEAD, commits: [{ sha: NEXT_HEAD, parents: 1 }], reviews: [{ ...entry.reviews[0], commit: NEXT_HEAD }] }); return state }
+  await scene.run()
+  same("drive: a new head of the same pull request is a new report and a new sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [2, 2, 2])
+
+  const waiting = scenario({ tickets: [ticket(7, { blockedBy: [blocker(5)] })] })
+  for (let index = 0; index < 3; index += 1) await waiting.run()
+  const waits = waiting.messages.filter((line) => line.includes(" ticket#7 wait ("))
+  same("drive: a ticket wait reason is logged once outside --dry-run", waits.length, 1)
+
+  const running = (extra = {}) => pull(30, { checks: [check("Unit Tests", "FAILURE"), check("Lint", null, { status: "IN_PROGRESS", conclusion: null, databaseId: 13, ...extra }), approvalCheck()] })
+  const busy = scenario({ tickets: [ticket(7)], pulls: { ui: [running()] }, failedSteps: ["Set up job"] })
+  await busy.run()
+  await busy.run()
+  same("drive: a failed job of a run that still runs gets no rerun request and no order", [only(busy.calls, "rerunFailed").length, busy.launched.length, busy.messages.filter((line) => line.includes("ui#30 wait (") && line.includes("still runs")).length], [0, 0, 1])
+  const done = scenario({ tickets: [ticket(7)], pulls: { ui: [running({ status: "COMPLETED", conclusion: "SUCCESS" })] }, failedSteps: ["Set up job"] })
+  await done.run()
+  same("drive: the same failed job is rerun once the run has ended", only(done.calls, "rerunFailed"), [["rerunFailed", "ui", "9001"]])
+
+  for (const [name, steps] of [["PR Metadata", ["Set up job"]], ["PR Metadata", ["Check the body"]], ["Guards", ["Set up job"]], ["Guards", ["Run guards"]]]) {
+    const deterministic = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check(name, "FAILURE"), approvalCheck()] })] }, failedSteps: steps })
+    await deterministic.run()
+    same(`drive: ${name} that failed at ${steps[0]} is never rerun and gets one ci-fix order`, [only(deterministic.calls, "rerunFailed").length, deterministic.launched.length, commentsOf(deterministic.calls, 30).filter((text) => text.includes("driver rerun")).length], [0, 1, 0])
+  }
+
+  // The merge bar names `needs-owner` and `behind:N`. A pull request that carries `needs:owner` waits with one stable reason, so the log holds no `needs-owner` line for it.
+  const approved = pull(30, { labels: [OWNER_LABEL], mergeState: "BEHIND", behindBy: 1 })
+  const behindScene = scenario({ tickets: [ticket(7)], pulls: { ui: [approved] } })
+  for (const behindBy of [1, 1, 2, 3]) {
+    approved.behindBy = behindBy
+    await behindScene.run()
+  }
+  for (const behindBy of [4, 5]) {
+    approved.behindBy = behindBy
+    const fresh = createMemory()
+    fresh.reading = behindScene.mem.reading
+    fresh.lastIntakeAt = NOW
+    await tick(behindScene.env, fresh)
+    await Promise.all(fresh.running.values())
+  }
+  same("drive: an approved pull request that carries needs:owner and falls behind logs no needs-owner line across ticks and fresh memories", [behindScene.messages.filter((line) => line.includes("needs-owner")).length, behindScene.messages.filter((line) => line.includes("ui#30 wait (carries needs:owner)")).length, only(behindScene.calls, "merge").length, only(behindScene.calls, "updateBranch").length], [0, 3, 0, 0])
+}
+
 const noticeCases = async () => {
   const BOT_TOKEN = "123456:bot-secret"
   const CHAT_ID = "4242"
@@ -3376,6 +3480,7 @@ export const driverUnit = async () => {
   await restartCases()
   await echoedLimitCases()
   await reasonKeyCases()
+  await quietLogCases()
   await orderOfApiCases()
   await orphanClockCases()
   await paceRestartCases()
