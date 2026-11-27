@@ -1050,6 +1050,47 @@ const readPullDiff = async (env, repoPath, pull) => {
   pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
 }
 
+const GITHUB_ACTIONS_APP = 15368
+/** GitHub builds the test merge commit at the push, before the first job starts, so the CI sees main from a little before its first start. */
+const TEST_MERGE_LEAD_MS = 5 * 60 * 1000
+/** The files that a break between two changes can come from. A Markdown file never counts. */
+const CODE_PATH = /\.(?:js|mjs|cjs|ts|tsx|json|yml|yaml|cs)$/
+
+/** The time before which the CI of the head saw the base branch: the earliest start of a GitHub Actions check run, less the lead of the test merge commit. Null when no such run exists. */
+const ciSeenUntil = (pull) => {
+  const starts = pull.checks.filter((check) => check.__typename === "CheckRun" && check.checkSuite?.app?.databaseId === GITHUB_ACTIONS_APP).map((check) => Date.parse(check.startedAt)).filter(Number.isFinite)
+  return starts.length === 0 ? null : Math.min(...starts) - TEST_MERGE_LEAD_MS
+}
+
+/**
+ * The code paths that the pull request changes and that a commit of the base branch changed after the CI of the head started. Such a commit
+ * is a change that the CI never tested together with the pull request. A commit that the head holds is tested, so it never counts: this ends
+ * the loop that an update would start. A read that git cannot answer throws, so no merge goes out on a base that the driver did not see.
+ */
+const sharedUnseenPaths = async (env, repoPath, pull, base) => {
+  const seenUntil = ciSeenUntil(pull)
+  const own = new Set(pull.files.filter((path) => CODE_PATH.test(path)))
+  if (seenUntil === null || own.size === 0) return []
+  await fetchPull(env, repoPath, pull, base)
+  const unseen = await env.git(repoPath, ["log", `--since=${new Date(seenUntil).toISOString()}`, "--format=", "--name-only", "--no-renames", "-z", `origin/${base}`, `^${pull.headSha}`])
+  if (unseen.status !== 0) throw new Error(`git log of origin/${base} for ${pull.number} failed: ${unseen.stderr.trim()}`)
+  return [...new Set(unseen.stdout.split(/[\0\n]/).filter((path) => own.has(path)))].sort()
+}
+
+/** The log reason of an update for shared paths: the paths, or the first 5 and the count of the rest. */
+const staleReason = (shared) => `main changed ${shared.length > 5 ? `${shared.slice(0, 5).join(", ")} and ${shared.length - 5} more` : shared.join(", ")} after the CI of this head started`
+
+/**
+ * Every plan of a repository ends before its first merge runs, so a merge of this tick is a commit that no plan read from main.
+ * A planned merge into the default branch becomes an update when a pull request that merged earlier in the tick changed a code path that this one also changes.
+ */
+const afterMergesOfTick = (ctx, pull, action) => {
+  if (pull.baseRef !== ctx.state.defaultBranch) return action
+  const landed = new Set([...ctx.mergedPulls].filter((other) => other.baseRef === ctx.state.defaultBranch).flatMap((other) => other.files ?? []))
+  const shared = [...new Set((pull.files ?? []).filter((path) => CODE_PATH.test(path) && landed.has(path)))].sort()
+  return shared.length === 0 ? action : { type: "update", reason: staleReason(shared) }
+}
+
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
 const ownDiff = async (env, repoPath, base, sha) => {
   const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "--binary", `origin/${base}...${sha}`])
@@ -1381,7 +1422,14 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
-  if (bar.length === 0) return [...actions, { type: "merge" }]
+  if (bar.length === 0) {
+    // A stacked pull request merges into its parent branch, so only a merge into the default branch can meet a base that the CI did not see.
+    const shared = pull.baseRef === state.defaultBranch ? await sharedUnseenPaths(env, env.config.repos[repoKey], pull, state.defaultBranch) : []
+    // Being behind the base branch alone never updates a branch. A code path that the base gained after the CI started, and that this pull request also changes, does.
+    // A re-run never helps: it runs on the old test merge commit, and only a push builds a new one.
+    if (shared.length > 0) return [...actions, { type: "update", reason: staleReason(shared) }]
+    return [...actions, { type: "merge" }]
+  }
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
@@ -1631,7 +1679,8 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
     case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
-    // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
+    // Two triggers update a branch: a retargeted child still holds its parent's commits, so main is merged in before the first pass reads its diff,
+    // and a merge candidate whose changed code path main gained after the CI started needs a new CI on the new base.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
@@ -1648,7 +1697,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
@@ -1713,7 +1762,8 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       const labelled = !ownerAtPlan && pull.tracks !== null && holdsTicket(ctx.ticketMap.get(pull.tracks))
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
-      const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const replanned = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const plan = replanned.map((action) => (action.type === "merge" ? afterMergesOfTick(ctx, pull, action) : action))
       checked = true
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
