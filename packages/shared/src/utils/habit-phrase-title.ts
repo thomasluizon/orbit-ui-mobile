@@ -80,6 +80,16 @@ function removeOrphanedGlue(sentence: string, locale: SupportedLocale, text: Tit
   }
 }
 
+function removeTrailingStop(text: TitleText): void {
+  const { characters } = text
+  let first = characters.length
+  while (first > 0 && /[\s,;.!?]/u.test(characters[first - 1]!)) first -= 1
+  while (first < characters.length && !/[.!?]/u.test(characters[first]!)) first += 1
+  if (first === characters.length || !touchesRemoved(text, first - 1, -1)) return
+  if (!isSpanOpen(text, first, characters.length)) return
+  removeSpan(text, first, characters.length)
+}
+
 export function getHabitPhraseTitle(
   sentence: string,
   locale: SupportedLocale,
@@ -104,9 +114,11 @@ export function getHabitPhraseTitle(
     characters.fill(' ', span.start, span.end)
     removed.fill(true, span.start, span.end)
   }
+  const text = { characters, removed, protectedCharacters }
   if (date !== null || consumed.some((token) => token.kind !== 'time')) {
-    removeOrphanedGlue(sentence, locale, { characters, removed, protectedCharacters })
+    removeOrphanedGlue(sentence, locale, text)
   }
+  removeTrailingStop(text)
   const title = trimTitleSeparators(characters.join('').replaceAll(/\s+/gu, ' '))
   return title || sentence.trim()
 }
