@@ -3,7 +3,8 @@ FROM ${NODE_IMAGE} AS builder
 
 WORKDIR /app
 COPY . .
-RUN npm ci --ignore-scripts
+# WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+RUN npm ci --ignore-scripts || npm ci --ignore-scripts
 
 ARG WEB_COMMIT_SHA
 ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID

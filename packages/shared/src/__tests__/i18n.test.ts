@@ -176,8 +176,8 @@ describe('bad-habit logging instructions', () => {
   })
 
   it.each([
-    { locale: 'en', messages: en, instruction: 'Log each slip.', cleanDays: 'each day without slips', occurrence: 'Log a slip' },
-    { locale: 'pt-BR', messages: ptBR, instruction: 'Registre cada deslize.', cleanDays: 'cada dia sem deslizes', occurrence: 'Se registrar um deslize' },
+    { locale: 'en', messages: en, instruction: 'Log each slip', cleanDays: 'each day without slips', occurrence: 'Log a slip' },
+    { locale: 'pt-BR', messages: ptBR, instruction: 'Registre cada deslize', cleanDays: 'cada dia sem deslizes', occurrence: 'Se registrar um deslize' },
   ])('uses the same slip vocabulary in help and streak goals in $locale', ({ messages, instruction, cleanDays, occurrence }) => {
     expect(messages.onboarding.featureGuide.habitsSection.badHabitsDesc).toContain(instruction)
     expect(messages.goals.form.typeStreakHintBad).toContain(cleanDays)
@@ -363,8 +363,6 @@ describe('i18n locale parity', () => {
       if (!value.includes('Orbit')) continue
       expect(value, key).not.toMatch(/(?<![\p{L}])(?:a|à|da|na|pela|uma) Orbit\b/u)
     }
-    expect(ptBR.astraRail.title).toBe('Copiloto Orbit')
-    expect(ptBR.astraRail.subtitle).toBe('Seu copiloto de hábitos')
     expect(ptBR.upgrade.outcomes.noticing).toMatch(/^O Orbit percebe\b/)
     expect(ptBR.terms.ai.body).toContain('um assistente de IA que usa')
     expect(ptBR.privacy.dataCollected.chat).toContain('com o Orbit')

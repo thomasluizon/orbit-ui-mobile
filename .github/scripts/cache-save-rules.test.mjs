@@ -53,7 +53,7 @@ test("only a job whose root checkout is the release commit restores the npm cach
   assert.equal(rootCheckoutRef("release.yml", "staging"), "${{ github.sha }}")
   const releaseCheckout = staging.findIndex((step) => step.uses?.startsWith("actions/checkout@") && step.with?.path === "staging-smoke-source")
   const restore = staging.indexOf(otherLockfile[0].step)
-  const install = staging.findIndex((step) => step.run === "npm ci" && step["working-directory"] === "staging-smoke-source")
+  const install = staging.findIndex((step) => /^npm ci\b/.test(step.run ?? "") && step["working-directory"] === "staging-smoke-source")
   assert.ok(releaseCheckout >= 0 && releaseCheckout < restore && restore < install, "release checkout, then the restore, then npm ci in that directory")
 })
 
