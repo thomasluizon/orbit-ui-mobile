@@ -477,13 +477,31 @@ it('sends one Sentry event for each different challenge failure of a load on web
 
   act(() => { callbacks['error-callback']('600010') })
   act(() => { callbacks['error-callback']('600010') })
+  expect(reportedFailures(), 'a failure that the widget runs again waits for the final result').toEqual([])
   act(() => { callbacks['error-callback']('110200') })
   expect(reportedFailures()).toEqual([challenge('600010'), challenge('110200')])
   expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toContain('site-key')
 
   fireEvent.click(screen.getByRole('button', { name: 'auth.turnstileRetry' }))
-  act(() => { callbacks['error-callback']('600010') })
-  expect(reportedFailures()).toEqual([challenge('600010'), challenge('110200'), challenge('600010')])
+  act(() => { callbacks['error-callback']('110200') })
+  expect(reportedFailures()).toEqual([challenge('600010'), challenge('110200'), challenge('110200')])
+})
+
+it('sends no Sentry event for a challenge failure that the next run passes, and one event for a failure that every run repeats', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderWidget = vi.fn((..._args: unknown[]) => 'passed-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as ChallengeCallbacks
+
+  act(() => { callbacks['error-callback']('300010') })
+  act(() => callbacks.callback('passed-token'))
+  expect(reportedFailures()).toEqual([])
+
+  for (let run = 0; run < 3; run += 1) act(() => { callbacks['error-callback']('300010') })
+  expect(reportedFailures()).toEqual([{ message: 'turnstile_load_failed', operation: 'turnstile_load', kind: 'challenge', host: 'challenges.cloudflare.com',
+    status_code: null, code: '300010', fingerprint: ['turnstile_load_failed', 'challenge', '300010'] }])
 })
 
 it('gives each failure to the caller in place of Sentry when the caller reports it, as the native bridge does', async () => {
@@ -496,7 +514,9 @@ it('gives each failure to the caller in place of Sentry when the caller reports 
   const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
   act(() => { callbacks['error-callback']('600010') })
   act(() => { callbacks['error-callback']('600010') })
-  expect(onFailure.mock.calls).toEqual([[{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '600010' }]])
+  expect(onFailure, 'a failure that the widget runs again is not given yet').not.toHaveBeenCalled()
+  act(() => { callbacks['error-callback']('110200') })
+  expect(onFailure.mock.calls).toEqual([[{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '110200' }]])
   expect(captureMessage).not.toHaveBeenCalled()
 })
 

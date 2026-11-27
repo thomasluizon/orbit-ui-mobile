@@ -137,7 +137,7 @@ it('sends a new script request under a new load deadline when the form asks for 
   expect(screen.getByRole('alert'), 'the new challenge starts a new load deadline').toHaveTextContent('auth.turnstileFailed')
 })
 
-it('sends one Sentry event for the script load failures of a load and one for the script load deadline, with the kind and the host that did not answer', async () => {
+it('sends one Sentry event for the script load failures of a load and one for the script load deadline, only when the deadline ends the load, with the kind and the host that did not answer', async () => {
   sentry.captureMessage.mockClear()
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   onTestFinished(() => { vi.useRealTimers() })
@@ -154,8 +154,29 @@ it('sends one Sentry event for the script load failures of a load and one for th
 
   expect(sentry.captureMessage.mock.calls).toEqual([
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script', host: 'challenges.cloudflare.com', status_code: null, code: null },
-      extra: { description: null, elapsed_ms: 0 }, fingerprint: ['turnstile_load_failed', 'script', ''] }],
+      extra: { description: null, elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'script', ''] }],
     ['turnstile_load_failed', { level: 'warning', tags: { operation: 'turnstile_load', kind: 'script_deadline', host: 'challenges.cloudflare.com', status_code: null, code: null },
       extra: { description: null, elapsed_ms: TURNSTILE_LOAD_DEADLINE_MS }, fingerprint: ['turnstile_load_failed', 'script_deadline', ''] }],
   ])
+})
+
+it('sends no Sentry event for a script load failure that the next script load passes', async () => {
+  sentry.captureMessage.mockClear()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.resetModules()
+  const { TurnstileWidget: FreshWidget } = await import('@/components/auth/turnstile-widget')
+  render(<FreshWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await failScriptLoad()
+  act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  await failScriptLoad()
+  act(() => { vi.advanceTimersByTime(TURNSTILE_RETRY_INTERVAL_MS) })
+  const renderWidget = vi.fn((..._args: unknown[]) => 'passed-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  await act(async () => { fireEvent.load(document.querySelector<HTMLScriptElement>(SCRIPT)!) })
+  expect(renderWidget).toHaveBeenCalledOnce()
+  const callbacks = renderWidget.mock.calls[0]![1] as { callback: (token: string) => void }
+  act(() => callbacks.callback('passed-token'))
+  act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(sentry.captureMessage).not.toHaveBeenCalled()
 })
