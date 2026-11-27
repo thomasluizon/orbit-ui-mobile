@@ -41,7 +41,8 @@
         "$TURBO_ROOT$/design/canvas/Orbit Widget Android.dc.html",
         "$TURBO_ROOT$/design/canvas/_ds/*/tokens/typography.css",
         "$TURBO_ROOT$/eslint-rules/*.cjs",
-        "$TURBO_ROOT$/evals/astra/catalog.yaml"
+        "$TURBO_ROOT$/evals/astra/catalog.yaml",
+        "$TURBO_ROOT$/apps/web/vitest/project-tests.mjs"
       ]
     },
     "@orbit/desktop#test": {
@@ -88,7 +89,25 @@
         "$TURBO_ROOT$/tools/__tests__/android-deployment-fixture.json"
       ]
     },
+    "test:cross-app": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "@orbit/web#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/tsconfig.json",
+        "$TURBO_ROOT$/tsconfig.base.json",
+        "$TURBO_ROOT$/DESIGN.md",
+        "$TURBO_ROOT$/design/brand/png/orbit-platform-icon-512.png",
+        "$TURBO_ROOT$/tools/lib/escape-regex.mjs",
+        "$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js",
+        "$TURBO_ROOT$/packages/shared/src/**"
+      ]
+    },
+    "@orbit/web#test:cross-app": {
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"],
       "inputs": [
@@ -103,7 +122,7 @@
         "$TURBO_ROOT$/apps/desktop/**/*.{ts,tsx}",
         "$TURBO_ROOT$/apps/desktop/locales/*.json",
         "$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js",
-        "$TURBO_ROOT$/apps/mobile/tsconfig.json",
+        "$TURBO_ROOT$/apps/mobile/{tsconfig,package}.json",
         "!$TURBO_ROOT$/apps/{mobile,desktop}/**/{node_modules,.expo,coverage,dist,build}/**",
         "$TURBO_ROOT$/packages/shared/src/**"
       ]
