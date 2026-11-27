@@ -2543,6 +2543,7 @@ const sleepCases = async () => {
 }
 
 const QUESTIONS_ORDER = "/questions --auto"
+const QUESTIONS_WORKTREE = "/r/orbit-worktrees/ui/questions"
 const questionRuns = (scene) => scene.launched.filter((entry) => entry.order === QUESTIONS_ORDER)
 const questionLines = (scene) => scene.messages.filter((line) => / questions (launch|exit|wait|refused)/.test(line)).map((line) => line.slice(line.indexOf(" questions ") + 1))
 const startedFile = (scene) => { try { return JSON.parse(readFileSync(join(scene.env.stateDir, "questions.json"), "utf8")).startedAt } catch { return null } }
@@ -2563,7 +2564,7 @@ const questionsCases = async () => {
   await first.run()
   const [run] = questionRuns(first)
   same("drive: questions: one held item with sleep on starts exactly one run", questionRuns(first).length, 1)
-  same("drive: questions: the run is headless in the driver worktree and its order is the slash command", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "questions-"))], ["/r/driver", QUESTIONS_ORDER, join(first.env.stateDir, "questions.pid"), true])
+  same("drive: questions: the run is headless in its own worktree and its order is the slash command", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "questions-"))], [QUESTIONS_WORKTREE, QUESTIONS_ORDER, join(first.env.stateDir, "questions.pid"), true])
   same("drive: questions: the run uses the coordinator model on the owner login, not the worker token", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5"], "owner-token"])
   same("drive: questions: the start time is kept beside the other state files and the launch is logged", [startedFile(first), questionLines(first)], [iso(0), ["questions launch"]])
   await first.run()
@@ -2612,20 +2613,55 @@ const questionsCases = async () => {
   await held("the dry run starts none", 0, { tickets: [heldTicket(8)], dryRun: true })
 
   const live = scenario({ driver: {}, tickets: [heldTicket(8)] })
-  writeFileSync(join(live.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/driver", startedAt: iso(-MINUTE) })}\n`)
+  writeFileSync(join(live.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: QUESTIONS_WORKTREE, startedAt: iso(-MINUTE) })}\n`)
   await live.run()
   same("drive: questions: a live run of an earlier driver process holds the next one back", questionRuns(live).length, 0)
   const plain = scenario({ tickets: [heldTicket(8)] })
   await plain.run()
   same("drive: questions: a tick with no driver worktree starts none", questionRuns(plain).length, 0)
 
+  // The launch of the real worker writes the pid file of its child. The mock writes the same file, with a live pid.
+  const livePidFile = (scene, worktree) => writeFileSync(join(scene.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree, startedAt: iso(-MINUTE) })}\n`)
+  const holding = (scene) => {
+    const release = { leave: () => {} }
+    scene.env.worker.launch = (options) => { scene.launched.push(options); if (options.order === QUESTIONS_ORDER) livePidFile(scene, options.worktree); return new Promise((resolve) => { release.leave = () => resolve({ exitCode: 0 }) }) }
+    return release
+  }
+
   const switching = driverScene({ tickets: [heldTicket(8)] })
-  let leave
-  switching.env.worker.launch = (options) => { switching.launched.push(options); return new Promise((resolve) => { leave = () => resolve({ exitCode: 0 }) }) }
-  const holdSwitch = await switching.run()
-  same("drive: questions: the driver does not switch to a newer commit while its run is live", [holdSwitch.switched, switching.checkouts()], [false, []])
-  leave()
+  const release = holding(switching)
+  const switchTick = await switching.run()
+  same("drive: questions: a tick with a live run and a newer driver commit switches the driver in that tick", [switchTick.switched, switching.checkouts(), questionRuns(switching).length], [true, [`checkout --detach ${NEW_PIN}`], 1])
+  same("drive: questions: the run starts in a worktree on origin/main, never the driver worktree", [switching.calls.some((entry) => entry[0] === "git" && entry[1] === "worktree" && entry.join(" ").includes(`add --detach ${QUESTIONS_WORKTREE} origin/main`)), questionRuns(switching).every((entry) => entry.worktree !== "/r/driver")], [true, true])
+
+  // The restarted driver reads the pid file of the live run and starts no second one.
+  const restarted = driverScene({ tickets: [heldTicket(8)], stateDirectory: switching.env.stateDir })
+  const restartedResult = await restarted.run()
+  same("drive: questions: the restarted driver adopts the live run and starts no second one", [questionRuns(restarted).length, restartedResult.switched], [0, true])
+  release.leave()
   await switching.mem.questions
+
+  const reused = scenario({ driver: {}, tickets: [heldTicket(8)], gitRoutes: [["worktree list", `worktree /r/ui\nHEAD ${OLD_PIN}\nbranch refs/heads/main\n\nworktree ${QUESTIONS_WORKTREE}\nHEAD ${OLD_PIN}\ndetached\n`]] })
+  const reuse = holding(reused)
+  await reused.run()
+  same("drive: questions: a listed questions worktree moves to origin/main and is not added again", [reused.calls.some((entry) => entry.join(" ") === "git checkout --detach origin/main"), reused.calls.some((entry) => entry.join(" ").includes("worktree add"))], [true, false])
+  reuse.leave()
+  await reused.mem.questions
+
+  const unadopted = driverScene({ tickets: [heldTicket(8)] })
+  unadopted.env.worker.launch = (options) => { unadopted.launched.push(options); return new Promise(() => {}) }
+  const unadoptedResult = await unadopted.run()
+  same("drive: questions: a launch of this tick with no live pid file holds the switch, as a worker does", [unadoptedResult.switched, unadopted.checkouts()], [false, []])
+
+  const overdue = driverScene({ driver: {}, tickets: [] })
+  writeFileSync(join(overdue.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: QUESTIONS_WORKTREE, startedAt: new Date(NOW - WORKER_LIMITS.hardCeilingMs - MINUTE).toISOString() })}\n`)
+  await overdue.run()
+  await overdue.run()
+  same("drive: questions: an adopted run past its hard ceiling gets SIGTERM, then SIGKILL on the next tick", only(overdue.calls, "kill"), [["kill", process.pid, "SIGTERM"], ["kill", process.pid, "SIGKILL"]])
+  const young = driverScene({ driver: {}, tickets: [] })
+  writeFileSync(join(young.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: QUESTIONS_WORKTREE, startedAt: iso(-MINUTE) })}\n`)
+  await young.run()
+  same("drive: questions: an adopted run inside its ceiling is left alone", only(young.calls, "kill"), [])
 }
 
 const OLD_PIN = "1".repeat(40)
