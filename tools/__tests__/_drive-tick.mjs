@@ -1630,6 +1630,8 @@ const healthReadCases = async () => {
   leftBehind(reapThrows)
   reapThrows.mem.account = ACCOUNT
   writeFileSync(join(reapThrows.env.stateDir, "chore-ticket-7.pid"), JSON.stringify({ pid: 4242 }))
+  // The fake pid 4242 must not reach the real process table: a runner process with that pid would keep the worker alive and skip the reap.
+  reapThrows.env.processAlive = () => false
   reapThrows.env.pidHeld = () => false
   reapThrows.env.worker.killWorkerTree = () => { throw new Error("kill EPERM") }
   same("drive: a tick whose reap throws with no failed read names the error as error:tick", [(await reapThrows.run()).retried, ...keptHealth(reapThrows)], [true, null, null, null, "other", ["error:tick"]])
