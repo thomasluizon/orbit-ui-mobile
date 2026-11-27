@@ -5,7 +5,7 @@
  */
 
 import { spawnSync } from "node:child_process"
-import { readFileSync, realpathSync } from "node:fs"
+import { appendFileSync, readFileSync, realpathSync } from "node:fs"
 import { pathToFileURL } from "node:url"
 import { parseArgs } from "node:util"
 
@@ -244,15 +244,19 @@ export const ghDenial = ({ command, cwd, own, read = SYSTEM_READ }) => {
   return null
 }
 
-/** Reads the hook input on stdin. Exit 0 lets the call run. Exit 2 blocks it and gives stderr to the model. */
+/**
+ * Reads the hook input on stdin. Exit 0 lets the call run. Exit 2 blocks it and gives stderr to the model.
+ * With `--block-log`, each denial adds its time, directory and reason to that file, and never the command text.
+ */
 const main = () => {
   try {
-    const { values } = parseArgs({ options: { worktree: { type: "string" }, branch: { type: "string" } } })
+    const { values } = parseArgs({ options: { worktree: { type: "string" }, branch: { type: "string" }, "block-log": { type: "string" } } })
     const input = JSON.parse(readFileSync(0, "utf8"))
     const own = values.worktree && values.branch ? { worktree: values.worktree, branch: values.branch } : null
     const reason = ghDenial({ command: String(input.tool_input.command), cwd: input.cwd, own })
     if (reason === null) return
     console.error(`Blocked: ${reason}.`)
+    if (values["block-log"]) appendFileSync(values["block-log"], `${JSON.stringify({ at: new Date().toISOString(), cwd: input.cwd, reason })}\n`)
   } catch (error) {
     console.error(`Blocked: the GitHub hook could not check this call. ${error.message}`)
   }
