@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -19,6 +19,7 @@ const ACCOUNT = accountFrom(AUTH)
 const WORKER_AUTH = { ...AUTH, email: "worker.account@example.test", orgId: "00000000-0000-4000-8000-000000000003" }
 const WORKER_ACCOUNT = accountFrom(WORKER_AUTH)
 const WORKER_DIRECTORY = "/home/x/.claude-orbit-workers"
+const CODEX_DIRECTORY = "/home/x/.codex-orbit-workers"
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
 const REPOSITORY = "thomasluizon/orbit-tickets"
@@ -61,6 +62,8 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
   const states = Object.fromEntries(["ui", "api", "landing"].map((key) => [key, { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: (pulls[key] ?? []).map((entry) => entry.number), pulls: pulls[key] ?? [] }]))
   const launched = []
+  const probed = []
+  const authRunners = []
   const stateDir = stateDirectory ?? join(root, `drive-tick-state-${++scenarios}`)
   const watched = { fingerprint: "a", logBytes: 0 }
   mkdirSync(join(stateDir, "logs"), { recursive: true })
@@ -99,13 +102,16 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
       probe: async ({ invocation } = {}) => {
-        const onWorker = invocation?.environment?.CLAUDE_CONFIG_DIR === WORKER_DIRECTORY
+        const onWorker = invocation?.environment?.CLAUDE_CONFIG_DIR === WORKER_DIRECTORY || invocation?.environment?.CODEX_HOME === CODEX_DIRECTORY
+        probed.push(invocation)
         calls.push(["probe", onWorker ? "worker" : "main"])
         const chosen = onWorker ? workerProbeReading : probeReading
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main", own = null, model = undefined) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
+    invocation: async (token, name = "main", own = null, model = undefined, runner = "claude") => (name === "worker" && runner === "codex"
+      ? { command: { executable: "codex", args: [] }, environment: { CODEX_HOME: CODEX_DIRECTORY, ...(token ? { GH_TOKEN: token } : {}) }, own, model: undefined, codex: { home: CODEX_DIRECTORY } }
+      : { command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     osascript: async (message) => { calls.push(["notify", message]) },
@@ -116,7 +122,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
     // With no `workerAuth` the second login is the main login, which the driver counts once.
-    authStatus: async (name = "main") => structuredClone(name === "worker" ? workerAuth ?? auth : auth),
+    authStatus: async (name = "main", runner = "claude") => { authRunners.push([name, runner]); return structuredClone(name === "worker" ? workerAuth ?? auth : auth) },
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
@@ -128,7 +134,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
   if (sleeping) writeFileSync(join(stateDir, "sleep.json"), `${JSON.stringify({ on: true, since: iso(-60 * MINUTE) })}\n`)
   mem.lastIntakeAt = NOW
-  return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
+  return { env, mem, calls, messages, launched, probed, authRunners, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
 
 const BASH = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8")).bashToolRecords
@@ -4250,6 +4256,109 @@ const requiredChecksMergeCases = async () => {
   same("drive: a pull request into another branch never moves the protection of main", [headReads, protectionSteps(stacked).filter((step) => step !== "merge")], [0, []])
 }
 
+/** The Codex runner on the worker slots: the setting, the slot choice, the launch record, the reap of a Codex log and the pace line. */
+const codexRunnerCases = async () => {
+  const THREAD = "01a21e2d-cd1e-7340-91e8-220da2e54801"
+  const jsonl = (...records) => `${records.map((record) => JSON.stringify(record)).join("\n")}\n`
+  const started = { type: "thread.started", thread_id: THREAD }
+  const LIMIT = "You've hit your usage limit. Upgrade to Pro or try again at 3:14 PM."
+  const below = { utilization: 0.35, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const stopped = { utilization: 0.95, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const homeOf = (options) => options.invocation.environment.CODEX_HOME ?? null
+  const setRunner = (scene, runner = "codex") => writeFileSync(join(scene.env.stateDir, "runner-setting.json"), `${JSON.stringify({ runner })}\n`)
+  const codexScene = (options = {}) => {
+    const scene = scenario({ reading: below, workerAuth: WORKER_AUTH, workerReading: below, ...options })
+    setRunner(scene)
+    return scene
+  }
+  const lineOf = (scene) => scene.messages.filter((entry) => entry.includes(" pace ")).at(-1)
+
+  const alone = scenario({})
+  same("drive: with no setting file the runner is claude", readRunner(alone.env.stateDir), "claude")
+  setRunner(alone)
+  same("drive: the setting file gives codex", readRunner(alone.env.stateDir), "codex")
+  setRunner(alone, "gpt")
+  same("drive: an unknown word in the setting file gives claude", readRunner(alone.env.stateDir), "claude")
+  writeFileSync(join(alone.env.stateDir, "runner-setting.json"), "{not json")
+  same("drive: an unreadable setting file gives claude", readRunner(alone.env.stateDir), "claude")
+
+  const none = scenario({ tickets: [ticket(7), ticket(8)], workerAuth: WORKER_AUTH, workerReading: below })
+  await none.run()
+  same("drive: with no setting file the worker slot runs claude on its own config directory", [none.launched.map((options) => options.invocation.environment.CLAUDE_CONFIG_DIR ?? null), none.launched.map(homeOf), none.authRunners.filter(([name]) => name === "worker").map(([, runner]) => runner)], [[WORKER_DIRECTORY, WORKER_DIRECTORY], [null, null], ["claude"]])
+
+  const scene = codexScene({ tickets: [ticket(7), ticket(8), ticket(9)] })
+  await scene.run()
+  same("drive: with runner codex the worker slots run on the Codex home and the main account takes the rest", scene.launched.map(homeOf), [CODEX_DIRECTORY, CODEX_DIRECTORY, null])
+  same("drive: the login of the worker slot is read from the chosen runner", scene.authRunners.filter(([name]) => name === "worker").map(([, runner]) => runner), ["codex"])
+  const record = JSON.parse(readFileSync(join(scene.env.stateDir, "chore-ticket-7.launch.json"), "utf8"))
+  same("drive: the launch record of a Codex worker names the Codex account key and the runner", [record.account, record.runner], [WORKER_ACCOUNT.key, "codex"])
+  const mainRecord = JSON.parse(readFileSync(join(scene.env.stateDir, "chore-ticket-9.launch.json"), "utf8"))
+  same("drive: the launch record of a worker on the main account names no runner", [mainRecord.account, mainRecord.runner ?? null], [ACCOUNT.key, null])
+  const launchOf = (number) => JSON.parse(commentsOf(scene.calls, number).find((text) => text.startsWith(marked("launch", ""))).split("\n")[1])
+  same("drive: the launch comment of a Codex worker names the Codex model and the runner", [launchOf(7).model, launchOf(7).runner, launchOf(9).model, launchOf(9).runner ?? null], ["gpt-6.2-sol", "codex", "claude-sonnet-5-5", null])
+  T("drive: the log line of a Codex launch names the Codex model", scene.messages.some((line) => line.includes("launch build model gpt-6.2-sol")))
+  const brief = scene.launched[0].order
+  same("drive: the order of a Codex worker holds the Codex brief", [brief.includes("/second-opinion"), brief.includes("Grep tool"), brief.includes("Claude Code"), brief.includes("~/.claude/skills/humanizer/SKILL.md")], [false, false, false, true])
+  T("drive: the order of a worker on the main account holds the Claude brief", scene.launched[2].order.includes("/second-opinion"))
+  T("drive: the pace line shows the Codex weekly reading of the worker account", lineOf(scene).includes(`worker codex ${WORKER_ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2`), lineOf(scene))
+
+  const third = [ticket(7, { comments: [launchComment("build", "chore/ticket-7"), launchComment("build", "chore/ticket-7")] })]
+  const control = scenario({ tickets: third, reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await control.run()
+  same("drive: with runner claude an order on the coordinator model takes the worker account", [control.launched[0]?.invocation.model, accountOfLaunch(control.launched[0])], ["claude-opus-5-5", WORKER_DIRECTORY])
+  const coordinator = codexScene({ tickets: third })
+  await coordinator.run()
+  same("drive: with runner codex an order on the coordinator model takes the main account", [coordinator.launched[0]?.invocation.model, homeOf(coordinator.launched[0]), accountOfLaunch(coordinator.launched[0])], ["claude-opus-5-5", null, null])
+  const waiting = codexScene({ tickets: third, reading: stopped })
+  await waiting.run()
+  same("drive: with runner codex and the main account stopped an order on the coordinator model starts nothing", [waiting.launched.length, waiting.messages.filter((line) => line.includes(" error ")).length], [0, 0])
+
+  const restart = (ticketNumber = 7) => [ticket(ticketNumber)]
+  const ended = codexScene({ tickets: restart(), workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
+  keepWrites(ended, restart())
+  leftBehind(ended, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started, { type: "error", message: LIMIT }, { type: "turn.failed", error: { message: LIMIT } }))
+  await ended.run()
+  same("drive: a Codex worker that ended on a usage limit while the driver was away stops the worker slot until its reset", [ended.mem.worker.stoppedUntil, ended.mem.stoppedUntil], [RESETS_AT * 1000, null])
+  same("drive: its order starts again on the main account with a refund and no pause issue", [only(ended.calls, "createTicket").length, commentsOf(ended.calls, 7).filter((text) => text.startsWith(marked("launch-refund", ""))).length, ended.launched.map(homeOf), ended.launched.map(accountOfLaunch)], [0, 1, [null], [null]])
+  T("drive: the pace line names the usage-limit stop of the Codex worker slot", lineOf(ended).includes(`worker codex ${WORKER_ACCOUNT.key}:`) && lineOf(ended).includes("stop yes (usage limit until"))
+
+  const asked = codexScene({ tickets: restart() })
+  keepWrites(asked, restart())
+  leftBehind(asked, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started, { type: "item.completed", item: { id: "i0", type: "agent_message", text: "Stuck.\nNEEDS_DECISION: Pay for a second seat?" } }, { type: "turn.completed", usage: {} }))
+  await asked.run()
+  T("drive: the NEEDS_DECISION line of a Codex log reaches the ticket as a needs-owner report", commentsOf(asked.calls, 7).some((text) => text.startsWith(marked("needs-owner", "")) && text.includes("NEEDS_DECISION: Pay for a second seat?")))
+
+  const claudeLog = codexScene({ tickets: restart() })
+  keepWrites(claudeLog, restart())
+  leftBehind(claudeLog, { account: WORKER_ACCOUNT.key }, jsonl({ type: "result", result: "done" }))
+  await claudeLog.run()
+  same("drive: a record with no runner is read as a Claude log", [claudeLog.mem.worker.stoppedUntil, commentsOf(claudeLog.calls, 7).filter((text) => text.startsWith(marked("launch-refund", ""))).length], [null, 0])
+
+  const live = codexScene({ tickets: [] })
+  live.env.home = join(root, `codex-home-${scenarios}`)
+  const day = join(live.env.home, ".codex-orbit-workers", "sessions", "2026", "11", "19")
+  mkdirSync(day, { recursive: true })
+  writeFileSync(join(day, `rollout-2026-11-19T11-00-00-${THREAD}.jsonl`), jsonl({ type: "event_msg", payload: { type: "token_count", rate_limits: { primary: { used_percent: 60, window_minutes: 10080, resets_at: RESETS_AT }, secondary: null, rate_limit_reached_type: null } } }))
+  leftBehind(live, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started))
+  live.env.processAlive = () => true
+  writeFileSync(join(live.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-7", startedAt: iso(-MINUTE) })}\n`)
+  await live.run()
+  T("drive: a running Codex worker gives the weekly reading of its session file to the worker account", lineOf(live).includes(`worker codex ${WORKER_ACCOUNT.key}: utilization 0.600`), lineOf(live))
+
+  const switching = scenario({ tickets: [], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await switching.run()
+  setRunner(switching)
+  await switching.run()
+  same("drive: a switch of the runner drops the worker readings and probes the Codex login", [switching.messages.some((line) => line.includes("worker-runner")), switching.probed.at(-1)?.environment.CODEX_HOME ?? null, switching.mem.worker.runner], [true, CODEX_DIRECTORY, "codex"])
+
+  const branch = "chore/ticket-7-30"
+  const blocking = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const session = comment("launch-session", JSON.stringify({ kind: "build", part: null, branch, pr: 30, session: "sess-1", account: WORKER_ACCOUNT.key, tokens: 90000 }))
+  const fix = codexScene({ tickets: [ticket(7, { comments: [session] })], pulls: { ui: [pull(30, { headRef: branch, reviews: [blocking] })] } })
+  await fix.run()
+  same("drive: a Codex fix order starts cold and never reads a transcript", [fix.launched.map(homeOf), fix.launched[0]?.invocation.command.args, only(fix.calls, "sessionExists").length, fix.messages.some((line) => line.includes("fix cold start (fix, a Codex order starts cold"))], [[CODEX_DIRECTORY], [], 0, true])
+}
+
 export const driverUnit = async () => {
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
@@ -4311,4 +4420,5 @@ export const driverUnit = async () => {
   await orphanClockCases()
   await paceRestartCases()
   await twoAccountCases()
+  await codexRunnerCases()
 }
