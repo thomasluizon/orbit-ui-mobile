@@ -457,6 +457,49 @@ function buildWeekdayExclusionRead(
   }
 }
 
+const WEEK_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+function isWeekdayRangeLink(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
+  const left = weekdays[index]?.match
+  const right = weekdays[index + 1]?.match
+  if (!left || !right) return false
+  return /^(?:\s+(?:a|ate|to|through|thru)\s+|\s*-\s*)$/u.test(text.slice(left.index + left[0].length, right.index))
+}
+
+function startsIsolatedWeekdayRange(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
+  return isWeekdayRangeLink(text, weekdays, index)
+    && !isWeekdayRangeLink(text, weekdays, index - 1)
+    && !isWeekdayRangeLink(text, weekdays, index + 1)
+}
+
+function expandWeekdayRanges(text: string, weekdays: ReturnType<typeof matchWeekdays>): string[] {
+  const days: string[] = []
+  for (const [index, { day }] of weekdays.entries()) {
+    if (startsIsolatedWeekdayRange(text, weekdays, index - 1)) continue
+    days.push(day)
+    if (!startsIsolatedWeekdayRange(text, weekdays, index)) continue
+    const from = WEEK_ORDER.indexOf(day)
+    const length = (WEEK_ORDER.indexOf(weekdays[index + 1]!.day) - from + 7) % 7
+    for (let step = 1; step <= length; step += 1) days.push(WEEK_ORDER[(from + step) % 7]!)
+  }
+  return days
+}
+
+function readFixedWeekdays(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns, weekdayMatches: ReturnType<typeof matchWeekdays>) {
+  const consumed: HabitPhraseToken[] = []
+  for (const [index, { match }] of weekdayMatches.entries()) {
+    if (startsIsolatedWeekdayRange(remaining, weekdayMatches, index - 1)) continue
+    const closing = startsIsolatedWeekdayRange(remaining, weekdayMatches, index) ? weekdayMatches[index + 1]!.match : match
+    consumed.push({ ...toToken(phrase, match, 'weekday'), end: toToken(phrase, closing, 'weekday').end })
+    const weekdayEnd = closing.index + closing[0].length
+    const suffix = patterns.weeklySuffix.exec(remaining.slice(weekdayEnd))
+    if (!suffix) continue
+    const end = weekdayEnd + suffix[0].length
+    consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
+  }
+  return { days: [...new Set(expandWeekdayRanges(remaining, weekdayMatches))], consumed }
+}
+
 function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
   const consumed: HabitPhraseToken[] = []
   const weekdayMatches = matchWeekdays(remaining, patterns)
@@ -466,16 +509,9 @@ function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: L
   let frequencyQuantity: number | null = null
   if (weekdayMatches.length > 0) {
     cadence = 'fixed'
-    days = [...new Set(weekdayMatches.map(({ day }) => day))]
-    for (const { match } of weekdayMatches) {
-      consumed.push(toToken(phrase, match, 'weekday'))
-      const weekdayEnd = match.index + match[0].length
-      const suffix = patterns.weeklySuffix.exec(remaining.slice(weekdayEnd))
-      if (suffix) {
-        const end = weekdayEnd + suffix[0].length
-        consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
-      }
-    }
+    const fixed = readFixedWeekdays(remaining, phrase, patterns, weekdayMatches)
+    days = fixed.days
+    consumed.push(...fixed.consumed)
   } else {
     const count = extractCount(remaining, patterns)
     if (count) {
@@ -528,7 +564,8 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = interval.remaining
 
   const cadenceRead = extractCadence(remaining, phrase, patterns)
-  consumed.push(...cadenceRead.consumed)
+  consumed.sort((left, right) => left.start - right.start)
+  consumed.push(...cadenceRead.consumed.flatMap((token) => subtractConsumedTokens(token, consumed)))
 
   consumed.sort((left, right) => left.start - right.start)
   return {

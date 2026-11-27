@@ -611,3 +611,76 @@ describe('weekday qualifiers', () => {
     expect(read.consumed.map((token) => token.kind).sort((left, right) => left.localeCompare(right))).toEqual(['interval', 'time', 'weekday'])
   })
 })
+
+describe('weekday ranges', () => {
+  const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+  it.each([
+    { input: 'Correr segunda a sexta', locale: 'pt-BR' },
+    { input: 'Correr de segunda-feira a sexta-feira', locale: 'pt-BR' },
+    { input: 'Correr segunda à sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda até sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda-sexta', locale: 'pt-BR' },
+    { input: 'Run monday to friday', locale: 'en' },
+    { input: 'Run monday through friday', locale: 'en' },
+    { input: 'Run monday-friday', locale: 'en' },
+    { input: 'Run Mon - Fri', locale: 'en' },
+  ] as const)('reads $input as every day from Monday to Friday', ({ input, locale }) => {
+    for (const read of [readHabitPhrase(input, locale), readTypedHabitPhrase(input, locale, 'habit', false)]) {
+      expect(read.cadence).toBe('fixed')
+      expect(read.days).toEqual(workWeek)
+    }
+  })
+
+  it.each([
+    { input: 'Correr segunda e sexta', locale: 'pt-BR' },
+    { input: 'Correr segunda, sexta', locale: 'pt-BR' },
+    { input: 'Run monday and friday', locale: 'en' },
+  ] as const)('keeps $input as a list of two days', ({ input, locale }) => {
+    expect(readTypedHabitPhrase(input, locale, 'habit', false).days).toEqual(['Monday', 'Friday'])
+  })
+
+  it.each([
+    { input: 'Run mon-wed-fri', locale: 'en', words: ['mon', 'wed', 'fri'] },
+    { input: 'Run Mon - Wed - Fri', locale: 'en', words: ['Mon', 'Wed', 'Fri'] },
+    { input: 'Run monday to wednesday to friday', locale: 'en', words: ['monday', 'wednesday', 'friday'] },
+    { input: 'Correr seg-qua-sex', locale: 'pt-BR', words: ['seg', 'qua', 'sex'] },
+    { input: 'Correr segunda a quarta a sexta', locale: 'pt-BR', words: ['segunda', 'quarta', 'sexta'] },
+  ] as const)('reads the chain $input as a list and consumes each weekday', ({ input, locale, words }) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.days).toEqual(['Monday', 'Wednesday', 'Friday'])
+    expect(read.consumed.map((token) => input.slice(token.start, token.end))).toEqual(words)
+  })
+
+  it('reads a chain of four weekdays as a list', () => {
+    expect(readHabitPhrase('Run mon-tue-thu-fri', 'en').days).toEqual(['Monday', 'Tuesday', 'Thursday', 'Friday'])
+  })
+
+  it('wraps a range past Sunday and mixes a range with a list', () => {
+    expect(readHabitPhrase('Correr sexta a segunda', 'pt-BR').days).toEqual(['Friday', 'Saturday', 'Sunday', 'Monday'])
+    expect(readHabitPhrase('Run monday to wednesday and saturday', 'en').days).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Saturday'])
+  })
+
+  it('consumes the whole range and keeps the title words outside it', () => {
+    const read = readHabitPhrase('Correr segunda a sexta às 7', 'pt-BR')
+    expect(segmentHabitPhrase('Correr segunda a sexta às 7', read.consumed).filter((segment) => !segment.consumed).map((segment) => segment.text)).toEqual(['Correr ', ' '])
+    expect(read.dueTime).toBe('07:00')
+  })
+
+  it.each([
+    { input: 'Correr seg 6h a sex', locale: 'pt-BR', dueTime: '06:00' },
+    { input: 'Correr seg às 6h a sex', locale: 'pt-BR', dueTime: '06:00' },
+    { input: 'Run mon 7am - fri', locale: 'en', dueTime: '07:00' },
+    { input: 'Run monday 7am to friday', locale: 'en', dueTime: '07:00' },
+    { input: 'Run mon 7am - fri every week', locale: 'en', dueTime: '07:00' },
+  ] as const)('keeps a time inside the range out of the weekday token: $input', ({ input, locale, dueTime }) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.days).toEqual(workWeek)
+    expect(read.dueTime).toBe(dueTime)
+    for (const [index, token] of read.consumed.entries()) {
+      expect(token.start).toBeLessThan(token.end)
+      if (index > 0) expect(token.start).toBeGreaterThanOrEqual(read.consumed[index - 1]!.end)
+    }
+    expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
+  })
+})
