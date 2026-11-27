@@ -53,6 +53,7 @@ type ExpectedSingleLineVariant = {
   onBlur?: () => void
   onCancel?: () => void
   trailing?: React.ReactNode
+  radius?: 12 | 16
   multiline?: never
   rows?: never
 }
@@ -72,6 +73,9 @@ type InputBase = { label: 'Name'; value: ''; onChange: (value: string) => void }
 type SingleInput = Exact<InputBase & { maxLength: 60 }, InputProps>
 type RequiredInput = Exact<InputBase & { required: true }, InputProps>
 type OptionalInput = Exact<InputBase & { required: false }, InputProps>
+type RadiusInput = Exact<InputBase & { radius: 16 }, InputProps>
+// @ts-expect-error the field radius is 12 or 16
+type OffScaleRadius = Exact<InputBase & { radius: 20 }, InputProps>
 type MultilineInput = Exact<InputBase & { multiline: true; rows: 4; maxLength: 60 }, InputProps>
 type MarkedMultilineInput = InputBase & {
   multiline: true,
@@ -235,6 +239,8 @@ export type FormContractAssertions =
   | SingleInput
   | RequiredInput
   | OptionalInput
+  | RadiusInput
+  | OffScaleRadius
   | MultilineInput
   | MarkedMultilineInput
   | MarkedMultilineFits

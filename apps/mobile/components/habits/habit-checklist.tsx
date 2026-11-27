@@ -253,6 +253,7 @@ function FlowAddRow({ value, onChangeText, onAdd, styles, tokens, disabled, onCl
         <Input
           label={t('habits.form.checklistPlaceholder')}
           hideLabel
+          radius={16}
           name="checklistItem"
           autoComplete="off"
           value={value}

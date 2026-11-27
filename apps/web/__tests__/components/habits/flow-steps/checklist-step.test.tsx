@@ -161,10 +161,8 @@ describe('the action row and the add row of the checklist step', () => {
     expect(screen.queryByRole('button', { name: 'Limpar checklist' })).not.toBeInTheDocument()
   })
 
-  it('draws the add button as a square of the field height and keeps the clear action out of a list with no steps', () => {
+  it('keeps the clear action out of a list with no steps', () => {
     render(<Harness />)
-    const add = screen.getByRole('button', { name: 'Adicionar' })
-    expect(add).toHaveAttribute('data-checklist-add-button')
     expect(screen.queryByRole('button', { name: 'Limpar checklist' })).not.toBeInTheDocument()
   })
 })

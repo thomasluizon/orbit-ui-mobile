@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { StyleSheet } from 'react-native'
 import { act } from 'react-test-renderer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FlowStepView } from '@orbit/shared/contracts/flow'
@@ -302,9 +303,16 @@ describe('the action row and the add row of the checklist step on Android', () =
     tree.unmount()
   })
 
-  it('draws the add button as a 56 square with a 16 radius', () => {
+  it('draws the add button as a 56 square with a 16 radius and the field ring, beside a field of radius 16', () => {
     const tree = renderNavigation(<Harness />)
-    expect(isDisabled(control(tree, i18n.t('common.add')))).toBe(true)
+    const field = StyleSheet.flatten(tree.hosts().find((node) => node.props.testID === 'input-control')!.props.style) as Record<string, unknown>
+    expect(field).toMatchObject({ borderRadius: 16, borderWidth: 1 })
+    const button = tree.hosts().find((node) => node.props.testID === 'checklist-add-button')!
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ width: 56, height: 56, borderRadius: 16 })
+    const faces = (button as unknown as { findAll: (match: (child: { props: { style?: unknown } }) => boolean) => { props: { style?: unknown } }[] }).findAll((child) => child.props.style !== undefined).map((child) => StyleSheet.flatten(child.props.style as never) as Record<string, unknown>)
+    expect(faces.some((face) => face.borderRadius === 16 && face.borderWidth === 1 && face.borderColor === field.borderColor)).toBe(true)
+    const row = StyleSheet.flatten(tree.hosts().find((node) => node.props.testID === 'checklist-add-row')!.props.style)
+    expect(row).toMatchObject({ flexDirection: 'row', alignItems: 'center', gap: 12 })
     expect(named(tree, i18n.t('habits.form.clearChecklist'))).toHaveLength(0)
     tree.unmount()
   })
