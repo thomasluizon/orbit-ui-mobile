@@ -103,10 +103,13 @@ export function ScheduledReminderSection({
 
             {!atLimit && (
               <div className="flex flex-col gap-2">
-                <h4 className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.scheduledReminder')}</h4><RadioGroup className="flex flex-wrap gap-2" aria-label={t('habits.form.scheduledReminder')}>
-                  {!hideDayBefore ? <ReminderWhenOption label={t('habits.form.scheduledReminderDayBefore')} selected={when === 'day_before'} onSelect={() => setWhen('day_before')} /> : null}
-                  <ReminderWhenOption label={t('habits.form.scheduledReminderSameDay')} selected={when === 'same_day'} onSelect={() => setWhen('same_day')} />
-                </RadioGroup>
+                {hideDayBefore ? null : <>
+                  <h4 className="text-sm font-medium text-[var(--fg-2)]">{t('habits.form.scheduledReminder')}</h4>
+                  <RadioGroup className="flex flex-wrap gap-2" aria-label={t('habits.form.scheduledReminder')}>
+                    <ReminderWhenOption label={t('habits.form.scheduledReminderDayBefore')} selected={when === 'day_before'} onSelect={() => setWhen('day_before')} />
+                    <ReminderWhenOption label={t('habits.form.scheduledReminderSameDay')} selected={when === 'same_day'} onSelect={() => setWhen('same_day')} />
+                  </RadioGroup>
+                </>}
 
                 <div className="flex flex-col gap-2">
                   <TimeField

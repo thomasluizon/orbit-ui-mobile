@@ -26,6 +26,10 @@ vi.mock('@/components/ui/sheet', async () => await import('@/__tests__/support/s
 
 import { TimeField } from '@/components/ui/time-field'
 
+async function settleAnimations(page: { evaluate: (run: () => Promise<unknown>) => Promise<unknown> }) {
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)))
+}
+
 function openPicker() {
   fireEvent.click(screen.getAllByRole('button')[0]!)
 }
@@ -149,6 +153,7 @@ describe('TimeField', () => {
           const style = getComputedStyle(element)
           return { background: style.backgroundColor, color: style.color, shadow: style.boxShadow, radius: style.borderRadius, height: element.getBoundingClientRect().height }
         })
+        await settleAnimations(page)
         const rest = await readStyle()
         expect(rest).toMatchObject({ background: expected.background, color: expected.color, radius: '12px' })
         expect(rest.height).toBeGreaterThanOrEqual(48)

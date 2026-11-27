@@ -285,6 +285,13 @@ test("required checks report on every pull request through job conditions, never
   }
 })
 
+test("the Lint limit holds the longest measured pull request with half as much again", () => {
+  // WHY: Lint reads types, so its time grows with the changed files. A job of 908 files still ran ESLint at 315 s. https://github.com/thomasluizon/orbit-tickets/issues/2294
+  const unfinishedLintSeconds = 315
+  assert.ok(workflow.jobs.lint["timeout-minutes"] * 60 >= unfinishedLintSeconds * 1.5,
+    `Lint stops after ${workflow.jobs.lint["timeout-minutes"] * 60} s; a measured job needed more than ${unfinishedLintSeconds} s`)
+})
+
 test("every pull request distributes Chromium without increasing browser concurrency on a runner", () => {
   const web = workflow.jobs["web-tests"]
   assert.equal(web.strategy["fail-fast"], false)
