@@ -3,7 +3,7 @@
 
 import { readFileSync } from "node:fs"
 
-import { createTicket } from "./lib/github.mjs"
+import { checkTicket, createTicket, readBoardFor } from "./lib/github.mjs"
 
 const USAGE = `usage: create-ticket.mjs --title <text> --body-file <path|-> --label <name> [options]
 
@@ -15,11 +15,11 @@ const USAGE = `usage: create-ticket.mjs --title <text> --body-file <path|-> --la
   --blocked-by <ORB-N|#N|N>      existing blocker; repeat for every relation
   --help, -h                     print this usage and exit 0
 
-Validates every label, milestone, and blocker before creating the issue. Then adds it to the
+Runs checkTicket on the ticket first and refuses a ticket that it refuses. Validates every label, milestone, and blocker before creating the issue. Then adds it to the
 configured project, sets Status, and writes all blockedBy relations. Prints one JSON object with
 number, url, title, milestone, and status.
 
-exit codes: 0 created, 1 a validation or GitHub operation failed, 2 usage error`
+exit codes: 0 created, 1 the ticket check, a validation or a GitHub operation failed, 2 usage error`
 
 if (process.argv.includes("--help") || process.argv.includes("-h")) {
   console.log(USAGE)
@@ -62,6 +62,9 @@ try {
 }
 
 try {
+  const candidate = { title, body, labels, comments: [] }
+  const problems = checkTicket(candidate, await readBoardFor(candidate))
+  if (problems.length > 0) fail(1, `create-ticket: the ticket check refuses the ticket:\n- ${problems.join("\n- ")}`)
   const created = await createTicket({ title, body, labels, milestone, status, blockedBy })
   console.log(JSON.stringify(created, null, 2))
 } catch (error) {

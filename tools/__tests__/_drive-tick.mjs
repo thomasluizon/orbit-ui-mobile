@@ -6,7 +6,7 @@ import { join } from "node:path"
 
 import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
-import { bodyFindings, runsNaming } from "../lib/github.mjs"
+import { bodyFindings, checkTicket, mergeBar, readBoardFor, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same, stageRepo } from "./_harness.mjs"
 
@@ -47,14 +47,16 @@ const PLAIN = "@pullfrog review"
 /** The record of the one rerun that comes before a launch. The run of `check` is 9001. */
 const RERAN = comment("record", "driver rerun 9001")
 
-const ticket = (number, extra = {}) => ({ number, title: `Ticket ${number}`, body: "Do the work.", labels: ["repo:ui", "Improvement"], repoKey: "ui", blockedBy: [], comments: [], ...extra })
+/** A Bug ticket that the ticket check accepts: it names its class and holds a `none:` permanent fix. */
+const BUG_BODY = "Do the work.\n\nClass: a class of a test ticket\n\n## Permanent fix\n\nnone: a test ticket\n"
+const ticket = (number, extra = {}) => ({ number, title: `Ticket ${number}`, body: (extra.labels ?? []).includes("Bug") ? BUG_BODY : "Do the work.", labels: ["repo:ui", "Improvement"], repoKey: "ui", blockedBy: [], comments: [], ...extra })
 const blocker = (number, open = true, labels = []) => ({ number, open, labels, repoKey: "ui" })
-const partComment = (number, total, extra = "") => comment(null, `Part ${number} of ${total}: part ${number}\n${extra}`, -7200 * 1000)
+const partComment = (number, total, extra = "") => comment(null, `## Part ${number} of ${total}: part ${number}\n${extra}`, -7200 * 1000)
 
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], board = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true } = {}) => {
   const calls = []
   const messages = []
   let elapsed = 0
@@ -73,6 +75,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     log: (line) => messages.push(line), slugOf: (key) => (key === "tickets" ? REPOSITORY : `thomasluizon/${key}`),
     github: {
       readTickets: async () => structuredClone(tickets),
+      readBoardFor: async () => structuredClone(board),
       readRepositoryState: async (key) => structuredClone(states[key]),
       readFailedSteps: async (key, runId, jobId) => (typeof failedSteps === "function" ? failedSteps(jobId) : failedSteps),
       pullfrogRuns: async (key) => { calls.push(["pullfrogRuns", key]); return runs },
@@ -4091,7 +4094,7 @@ const replanCases = async () => {
   const mergedOne = mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])
   const split = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: second a\nBODY-2\n## Part 3 of 4: second b\n## Part 4 of 4: second c", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   const posted = plainOn(split)
-  same("drive: a split answer posts each part as a plain comment, keeps the merged part with its number and its text, and closes the pull request", [posted.length, posted[0], posted[1].split("\n")[0], posted[3].split("\n")[0], only(split.calls, "closePull").length, JSON.parse(recordsOn(split, "replan")[0]).plan], [4, "Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: second a", "## Part 4 of 4: second c", 1, "split"])
+  same("drive: a split answer posts each part as a plain comment, keeps the merged part with its number and its text, and closes the pull request", [posted.length, posted[0], posted[1].split("\n")[0], posted[3].split("\n")[0], only(split.calls, "closePull").length, JSON.parse(recordsOn(split, "replan")[0]).plan], [4, "## Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: second a", "## Part 4 of 4: second c", 1, "split"])
   const next = split.launched.find((entry) => entry.order.includes("## This order (build part)"))
   T("drive: after a split the merged part stays done and the next part builds on a new branch of the new set", split.launched.length === 1 && next !== undefined && next.order.includes("(Part 2 of 4)") && next.worktree.endsWith("chore-ticket-7-part-2-r2"), split.launched.map((entry) => entry.worktree).join(" "))
   T("drive: the split record keeps each part of the new set whole", JSON.stringify(JSON.parse(recordsOn(split, "replan")[0]).parts) === JSON.stringify(posted))
@@ -4111,7 +4114,7 @@ const replanCases = async () => {
   await failing.run()
   await failing.run()
   const setHeads = () => failTickets[0].comments.filter((entry) => entry.kind === null && /of 4/.test(entry.body.split("\n")[0])).map((entry) => entry.body.split("\n")[0])
-  same("drive: a split whose third part post fails posts the missing parts before admission, each once", setHeads(), ["Part 1 of 4: part 1", "## Part 2 of 4: second a", "## Part 3 of 4: second b", "## Part 4 of 4: second c"])
+  same("drive: a split whose third part post fails posts the missing parts before admission, each once", setHeads(), ["## Part 1 of 4: part 1", "## Part 2 of 4: second a", "## Part 3 of 4: second b", "## Part 4 of 4: second c"])
   // A part that a later comment superseded counts as posted, so the resume never brings it back.
   const supersededTickets = [ticket(7, { comments: [partComment(1, 2, "Paths: a/"), comment("replan", JSON.stringify({ plan: "split", branch: partBranch2, pr: 30, part: 2, count: 1, at: iso(-60 * MINUTE), parts: ["## Part 1 of 3: one", "## Part 2 of 3: two", "## Part 3 of 3: three"] }), -60 * MINUTE), comment(null, "## Part 1 of 3: one", -59 * MINUTE), comment(null, "Superseded: ## Part 2 of 3: two", -58 * MINUTE), comment(null, "## Part 3 of 3: three", -57 * MINUTE)] })]
   const superseded = scenario({ tickets: supersededTickets })
@@ -4123,7 +4126,7 @@ const replanCases = async () => {
   const openThree = () => pull(31, { headRef: "chore/ticket-7-part-3", checksComplete: false, reviews: [] })
   const openSplit = await reaped({ tickets: [threeParts()], answer: "Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: two a\n## Part 3 of 4: two b\n## Part 4 of 4: three", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne], otherPulls: [openThree()] })
   const openPosted = plainOn(openSplit)
-  same("drive: a split keeps the part whose pull request is open with its number and its text, and closes only the stuck pull request", [openPosted.length, openPosted[0], openPosted[1].split("\n")[0], openPosted[2], openPosted[3].split("\n")[0], only(openSplit.calls, "closePull").map((entry) => entry.slice(1))], [4, "Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: two a", "Part 3 of 4: part 3\nPaths: c/", "## Part 4 of 4: three", [["ui", 30]]])
+  same("drive: a split keeps the part whose pull request is open with its number and its text, and closes only the stuck pull request", [openPosted.length, openPosted[0], openPosted[1].split("\n")[0], openPosted[2], openPosted[3].split("\n")[0], only(openSplit.calls, "closePull").map((entry) => entry.slice(1))], [4, "## Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: two a", "## Part 3 of 4: part 3\nPaths: c/", "## Part 4 of 4: three", [["ui", 30]]])
   const openScene = scenario({ tickets: [threeParts()], pulls: { ui: [pull(30, { headRef: partBranch2, reviews: [finding] }), openThree()] }, routes: [mergedOne] })
   await openScene.run()
   const openOrder = openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.order ?? ""
@@ -4140,7 +4143,7 @@ const replanCases = async () => {
 
   const refused = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 2: one\n## Part 2 of 2: two", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   same("drive: a split with the total in force is no usable part set, so it counts as fresh with a note that says why", [JSON.parse(recordsOn(refused, "replan")[0]).plan, plainOn(refused).length, recordsOn(refused, "replan-note")[0]?.includes("is not higher than the total 2")], ["fresh", 0, true])
-  const olderLarger = [...[1, 2, 3, 4].map((number) => comment(null, `Part ${number} of 4: old ${number}`, -(9000 - number) * 1000)), ...[1, 2, 3].map((number) => comment(null, `Part ${number} of 3: new ${number}`, -(8000 - number) * 1000))]
+  const olderLarger = [...[1, 2, 3, 4].map((number) => comment(null, `Part ${number} of 4: old ${number}`, -(9000 - number) * 1000)), ...[1, 2, 3].map((number) => comment(null, `## Part ${number} of 3: new ${number}`, -(8000 - number) * 1000))]
   const largerTicket = () => ticket(7, { comments: [...olderLarger, ...ladder(branch)] })
   const bigSplit = await reaped({ tickets: [largerTicket()], answer: "Plan: split\n## Part 1 of 4: one\n## Part 2 of 4: two\n## Part 3 of 4: three\n## Part 4 of 4: four" })
   same("drive: a split that brings back the total of an older, larger part set counts as fresh, posts no part and names the highest total", [JSON.parse(recordsOn(bigSplit, "replan")[0]).plan, plainOn(bigSplit).length, recordsOn(bigSplit, "replan-note")[0]?.includes("is not higher than the total 4"), needsOwnerComments(bigSplit.calls, 7).length], ["fresh", 0, true, 0])
@@ -4335,7 +4338,58 @@ const requiredChecksMergeCases = async () => {
   same("drive: a pull request into another branch never moves the protection of main", [headReads, protectionSteps(stacked).filter((step) => step !== "merge")], [0, []])
 }
 
+/** The one ticket check: each refusal, the reads that feed it, the launch that it stops and the merge bar failures of the permanent fix. */
+const ticketCheckCases = async () => {
+  const fixed = (text) => `Class: example class\n\n## Permanent fix\n\n${text}\n`
+  const rule = fixed("\`eslint-rules/a.cjs\` holds it.")
+  const bug = (body, extra = {}) => ({ number: 5, labels: ["repo:ui", "Bug"], body, comments: [], ...extra })
+  const earlier = (body) => [{ number: 3, open: false, body }]
+  const edit = (after) => ({ comments: [partComment(2, 2)], edits: [{ before: "## Part 1 of 2: x", after }] })
+  const refused = [
+    ["a part heading with one hash", bug(rule, { comments: [comment(null, "# Part 1 of 1: x")] }), [], /not exactly "## Part <n> of <m>: <title>"/],
+    ["a repeated part number", bug(rule, { comments: [partComment(1, 2), partComment(1, 2), partComment(2, 2)] }), [], /Part 1 has two live comments/],
+    ["an edit that changes a part number", bug(rule, edit("## Part 2 of 2: x")), [], /changes the number of part 1/],
+    ["a Bug with no Class line", bug("## Permanent fix\n\n`eslint-rules/a.cjs`"), [], /needs a `Class: <name>` line/],
+    ["a Bug with no section", bug("Class: example class"), [], /needs a `## Permanent fix` section/],
+    ["a section with no code", bug(fixed("Fix it.")), [], /names no path under/],
+    ["a bare none line", bug(fixed("none:")), [], /names no path under/],
+    ["a ui file that the primitive list omits", bug(fixed("`apps/web/components/ui/card.tsx`")), [], /names no path under/],
+    ["a repeat that misses the earlier code", bug(rule), earlier(fixed("`eslint-rules/old.cjs`")), /repeats #3[\s\S]*old\.cjs/],
+    ["a none line on a repeat of a class with code", bug(fixed("none: a reason")), earlier(fixed("`eslint-rules/old.cjs`")), /repeats #3/],
+    ...["design-system", "gate", "flag:approved"].map((label) => [`a driver ticket with ${label}`, bug("Filed by: driver", { labels: [label] }), [], new RegExp(`never carries \`${label}\``)]),
+  ]
+  const primitives = ["apps/web/components/ui/button.tsx"]
+  for (const [name, ticket, board, pattern] of refused) T(`drive: the ticket check refuses ${name}`, checkTicket(ticket, board, { primitives }).some((problem) => pattern.test(problem)), JSON.stringify(checkTicket(ticket, board, { primitives })))
+  const accepted = [
+    ["a rule path", bug(rule), []], ["a none line with a reason", bug(fixed("none: a reason")), []], ["a test file", bug(fixed("`tools/__tests__/a.mjs:4`")), []],
+    ["a primitive file", bug(fixed("`apps/web/components/ui/button.tsx`")), []], ["a repeat that names the earlier code", bug(rule), earlier(fixed("`eslint-rules/a.cjs`"))],
+    ["an edit that keeps the part number", bug(rule, edit("## Part 1 of 2: new")), []], ["a body with CRLF line ends", bug(rule.replaceAll("\n", "\r\n")), []],
+    ["a driver ticket with no lock label", bug("Filed by: driver", { labels: ["Improvement"] }), []],
+  ]
+  for (const [name, ticket, board] of accepted) same(`drive: the ticket check accepts ${name}`, checkTicket(ticket, board, { primitives }).filter((problem) => !/needs a/.test(problem)), [])
+  same("drive: the ticket check takes any ui file while no primitive list exists", checkTicket(bug(fixed("`apps/mobile/components/ui/card.tsx`")), [], { primitives: null }), [])
+
+  const calls = []
+  const seams = { config: { tickets: { repository: REPOSITORY }, repos: {} }, run: async (args) => (calls.push(args.join(" ")), JSON.stringify([{ number: 3, state: "CLOSED", body: "Class: example class" }, { number: 5, state: "OPEN", body: "x" }])) }
+  same("drive: the board read lists every state for the class and leaves the ticket out", [await readBoardFor(bug(rule), seams), calls.length, calls[0].includes('--state all --search "Class: example class" in:body'), await readBoardFor(bug("x"), seams), calls.length], [[{ number: 3, body: "Class: example class", open: false }], 1, true, [], 1])
+
+  for (const [name, body, board] of [["has no section", "Class: example class", []], ["repeats a class without its code", rule, earlier(fixed("`eslint-rules/old.cjs`"))]]) {
+    const scene = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Bug"], body })], board })
+    await scene.run()
+    same(`drive: a launch of a Bug ticket that ${name} goes to the owner`, [scene.launched.length, needsOwnerComments(scene.calls, 7).filter((text) => text.includes("The ticket check refuses ticket 7")).length], [0, 1])
+  }
+
+  const last = (files) => pull(30, { files, mergeState: "CLEAN" })
+  const fix = (extra) => ({ permanentFix: { section: "paths", paths: ["eslint-rules/a.cjs"], changedOnMain: false, ...extra } })
+  const bar = (files, context) => mergeBar(last(files), context).filter((failure) => failure.startsWith("permanent-fix"))
+  same("drive: the bar fails for a last pull request that leaves every path of the section alone", bar(["a.mjs"], fix()), ["permanent-fix-unchanged"])
+  same("drive: the bar fails for a Bug ticket with no section", bar(["a.mjs"], fix({ section: "missing", paths: [] })), ["permanent-fix-missing"])
+  same("drive: the bar holds when this pull request or main changed a path, for a none line, and for a ticket that is no Bug", [bar(["eslint-rules/a.cjs"], fix()), bar(["eslint-rules/b.cjs"], fix({ paths: ["eslint-rules/"] })), bar(["a.mjs"], fix({ changedOnMain: true })), bar(["a.mjs"], fix({ section: "none", paths: [] })), bar(["a.mjs"], {})], [[], [], [], [], []])
+  same("drive: the bar skips the permanent fix while a part stays open", mergeBar({ ...last(["a.mjs"]), body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: Part 5" }, fix()).filter((failure) => failure.startsWith("permanent-fix")), [])
+}
+
 export const driverUnit = async () => {
+  await ticketCheckCases()
   await diffBarCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()

@@ -22,7 +22,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, checkTicket, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -145,7 +145,6 @@ const MERGED_READS_PER_TICK = 10
 const PLAN_PARALLEL = 4
 /** How long a tick waits for the pull request plan before a free slot takes an admitted build order. */
 const PLAN_WINDOW_MS = 15 * 1000
-const REMAINING_NONE = /^Remaining: none\s*$/m
 const REMAINING_LINE = /^Remaining:.*$/m
 /** A Remaining item that only the owner, another ticket or a release can meet starts with `owner:` or `blocked by` and a ticket reference. */
 const OWNER_ITEM = /^(owner:|blocked by\s+(#\d+|ORB-\d+))/i
@@ -1271,7 +1270,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
@@ -1285,6 +1284,21 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request, park: parked })]
   return [...actions, { type: "none", reason: `the bar fails: ${bar.join(", ")}` }]
+}
+
+/**
+ * The permanent fix of the Bug ticket that a pull request ends, for the merge bar; undefined for every other pull request. A path that the section names counts
+ * as changed on main when a commit that touches it came after the ticket was created. The git read runs only when this pull request leaves the paths alone.
+ */
+const permanentFixOfTicket = async (env, repoKey, pull, ticket) => {
+  if (ticket === null || !ticket.labels.includes("Bug") || !REMAINING_NONE.test(pull.body)) return undefined
+  const fix = permanentFixOf(ticket.body)
+  if (fix === null) return { section: "missing", paths: [], changedOnMain: false }
+  if (fix.none) return { section: "none", paths: [], changedOnMain: false }
+  if ((Array.isArray(pull.files) && touchesPath(pull.files, fix.paths)) || !ticket.createdAt) return { section: "paths", paths: fix.paths, changedOnMain: false }
+  const seen = await env.git(env.config.repos[repoKey], ["log", `--since=${ticket.createdAt}`, "--format=%H", "-1", pull.baseSha, "--", ...fix.paths])
+  if (seen.status !== 0) throw new Error(`git log of the permanent fix of ${pull.number} failed: ${seen.stderr.trim()}`)
+  return { section: "paths", paths: fix.paths, changedOnMain: seen.stdout.trim() !== "" }
 }
 
 const dependabotTypes = async (env, mem, repoKey, pull) => {
@@ -2345,6 +2359,17 @@ const rebuildStopReason = (history, decidedAt = 0) => {
   return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
 }
 
+/** The one ticket check, run before a launch. A refusal goes to the owner with its reasons. A board that cannot be read makes the ticket wait. */
+const ticketRefusal = async (env, ticket) => {
+  let problems
+  try {
+    problems = checkTicket(ticket, await env.github.readBoardFor(ticket))
+  } catch (error) {
+    return { reason: `the ticket board could not be read: ${error.message}` }
+  }
+  return problems.length === 0 ? null : { reason: "the ticket check refuses it", owner: `The ticket check refuses ticket ${ticket.number}: ${problems.join(" ")}` }
+}
+
 /** What admission does with one ticket: an order, or the reason it waits. A part whose worker runs counts as an open part, so it blocks another part whose `Paths:` overlap and never starts twice. */
 const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null, running }) => {
   const labels = ticket.labels
@@ -2385,6 +2410,8 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
     const stopReason = rebuildStopReason(history, ownerDecisionAt(env, ticket))
     if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
+    const refusal = await ticketRefusal(env, ticket)
+    if (refusal !== null) return refusal
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
   const partDone = (entry) => partIsDone(ticket, entry, doneBranches)
@@ -2399,7 +2426,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
       free = true
       for (const other of openParts) if (await pathsOverlap(env, env.config.repos[ticket.repoKey], entry.paths, other.paths)) free = false
     }
-    if (free) return held(ownBranch(entry.number)) ?? { order: { kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: ownBranch(entry.number), extra: "" } }
+    if (free) return held(ownBranch(entry.number)) ?? await ticketRefusal(env, ticket) ?? { order: { kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: ownBranch(entry.number), extra: "" } }
   }
   return stop(pending.length > 0 ? "the next part waits for an open part" : tracking.length > 0 ? "an open pull request tracks it" : "no part is left to run")
 }
