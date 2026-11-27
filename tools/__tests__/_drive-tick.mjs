@@ -4400,6 +4400,22 @@ const codexRunnerCases = async () => {
   await waiting.run()
   same("drive: with runner codex and the main account stopped an order on the coordinator model starts nothing", [waiting.launched.length, waiting.messages.filter((line) => line.includes(" error ")).length], [0, 0])
 
+  // A coordinator order has no Codex slot, so it holds no room of the Codex slots: the capped tickets wait and the fresh ticket launches.
+  const buildCapped = (number) => ticket(number, { comments: [launchComment("build", `chore/ticket-${number}`), launchComment("build", `chore/ticket-${number}`)] })
+  const crowded = codexScene({ tickets: [buildCapped(7), buildCapped(8), ticket(9)], reading: stopped })
+  await crowded.run()
+  same("drive: with the main account stopped two coordinator orders leave the Codex slots to the fresh ticket", [crowded.launched.map(homeOf), existsSync(join(crowded.env.stateDir, "chore-ticket-9.launch.json")), crowded.launched.map((options) => options.invocation.model)], [[CODEX_DIRECTORY], true, [undefined]])
+  same("drive: a coordinator order with no main slot waits for the main account", [7, 8].map((number) => crowded.messages.some((line) => line.includes(`ticket#${number} wait (an order on the coordinator model waits for the main account)`))), [true, true])
+  const cappedFix = (number, pullNumber) => ticket(number, { comments: [launchComment("fix", `chore/ticket-${number}-${pullNumber}`), launchComment("ci-fix", `chore/ticket-${number}-${pullNumber}`)] })
+  const fixReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const fixPull = (number, tracks) => pull(number, { tracks, headRef: `chore/ticket-${tracks}-${number}`, reviews: [fixReview] })
+  const crowdedFix = codexScene({ tickets: [cappedFix(7, 30), cappedFix(8, 31), ticket(9)], pulls: { ui: [fixPull(30, 7), fixPull(31, 8), fixPull(32, 9)] }, reading: stopped })
+  await crowdedFix.run()
+  same("drive: capped fix orders with low pull numbers do not crowd a fix order of the Codex slots out of the room", [crowdedFix.launched.map(homeOf), existsSync(join(crowdedFix.env.stateDir, "chore-ticket-9-32.launch.json"))], [[CODEX_DIRECTORY], true])
+  const mixed = codexScene({ tickets: [buildCapped(7), ticket(8)], reading: { ...below, at: NOW - MINUTE } })
+  await mixed.run()
+  same("drive: with a free main slot a coordinator order takes it and the next ticket takes a Codex slot", [mixed.launched.map(homeOf), mixed.launched.map((options) => options.invocation.model)], [[null, CODEX_DIRECTORY], ["claude-opus-5-5", undefined]])
+
   const restart = (ticketNumber = 7) => [ticket(ticketNumber)]
   const ended = codexScene({ tickets: restart(), workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
   keepWrites(ended, restart())

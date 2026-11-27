@@ -135,6 +135,7 @@ const MAX_FIX_LAUNCHES = 2
 /** The wait before a branch whose worktree was not prepared is tried again. Its slot is free for another order meanwhile. */
 const PREPARE_RETRY_MS = 10 * 60 * 1000
 const WAITS_FOR_REPLAN = "waits for the re-plan"
+const MAIN_ONLY_WAIT = "an order on the coordinator model waits for the main account"
 /** Re-plans of one ticket before it parks. A re-plan is one Opus run, so this bounds the tokens that one ticket can spend. */
 const MAX_REPLANS = 2
 const PARKED = "parked"
@@ -284,6 +285,18 @@ const ACCOUNT_NAMES = [MAIN, WORKER]
 
 /** The state of the worker account. The main account keeps the same members on the memory itself. */
 const createWorkerAccount = () => ({ account: null, reading: null, lastProbeAt: null, probeOwed: false, stoppedUntil: null, adopted: false, runner: null })
+
+/** True for an order that takes the main account only: with runner `codex`, an order on the coordinator model never takes a Codex slot. */
+const takesMainOnly = (mem, order) => mem.runner === "codex" && order.model === workerApi.COORDINATOR_MODEL
+
+/** The orders with at most `mainRoom` of those that take the main account only. Each of them needs a free main slot, and the room of the Codex slots is no room for it. */
+const withinMainRoom = (mem, orders, mainRoom) => {
+  let mains = 0
+  return orders.filter((order) => !takesMainOnly(mem, order) || mains++ < mainRoom)
+}
+
+/** The room of the main account for the orders that take it only, or Infinity when no order takes it only. */
+const mainRoomOf = (mem, free) => (mem.runner === "codex" ? Math.max(0, free.main) : Infinity)
 
 /** The runner of an account: the main account always runs Claude, and the worker account runs the owner's setting. */
 const runnerOfAccount = (mem, name) => (name === WORKER ? mem.runner : "claude")
@@ -2487,9 +2500,10 @@ const ownerWorkNotices = async (env, mem, tickets) => {
  * Walks the open tickets in rank order and returns the build and find orders that fit `room`, the free worker slots, with
  * the decision for each ticket. `full` is the reason that a ticket waits once the room is used. A ticket whose worker runs
  * on its branch, or whose launches are spent, never gets a second order. A ticket in `skip` gets no order and no decision,
- * and it stays in `tickets`, so a `runs-last` ticket still waits for it.
+ * and it stays in `tickets`, so a `runs-last` ticket still waits for it. With runner `codex`, an order that takes the main account only
+ * (`takesMainOnly`) also needs a place in `mainRoom`, the free slots of the main account, and it waits when none is left.
  */
-const admit = async (env, mem, tickets, states, { running, room, full, skip = new Set() }) => {
+const admit = async (env, mem, tickets, states, { running, room, full, skip = new Set(), mainRoom = Infinity }) => {
   const decisions = new Map()
   const chosen = []
   for (const ticket of rankTickets(tickets)) {
@@ -2531,6 +2545,11 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
         // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
         order = { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }
       }
+    }
+    // An order that takes the main account only counts against the room of the main account, so it never holds a Codex slot.
+    if (takesMainOnly(mem, order) && chosen.filter((entry) => takesMainOnly(mem, entry)).length >= mainRoom) {
+      decisions.set(ticket.number, `wait: ${MAIN_ONLY_WAIT}`)
+      continue
     }
     chosen.push(order)
     decisions.set(ticket.number, `admit ${order.kind} on ${order.branch}${order.model ? ` on ${order.model}` : ""}`)
@@ -2939,8 +2958,8 @@ const runTick = async (env, mem) => {
       const own = sessionAccountOf(mem, order)
       // A session on the main account is unusable after a Pullfrog limit, so the order starts cold on the worker account.
       // An order on the coordinator model never takes a Codex slot, so it waits for a free slot of the main account.
-      const coordinator = mem.runner === "codex" && order.model === workerApi.COORDINATOR_MODEL
-      if (coordinator && free.main <= 0) { waits = "an order on the coordinator model waits for the main account"; continue }
+      const coordinator = takesMainOnly(mem, order)
+      if (coordinator && free.main <= 0) { waits = MAIN_ONLY_WAIT; continue }
       const name = coordinator ? MAIN : own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       // A park in this tick (the act step or admission) comes after the plan of a sibling pull request, so its order stops here.
@@ -2963,7 +2982,7 @@ const runTick = async (env, mem) => {
   if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held() && !limitSeen.found) {
     log(env, "tick", "early-launch", `the pull request plan runs, ${slotsAtStart} free slot(s) take build orders first`)
     // A tick that ends before its plan lets the next tick act on the same pull requests again, so this failure never ends the tick.
-    Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }).catch((error) => (log(env, "tick", "early-launch-error", error.message), {})))
+    Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full, mainRoom: mainRoomOf(mem, free) }).catch((error) => (log(env, "tick", "early-launch-error", error.message), {})))
     await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
@@ -2979,9 +2998,11 @@ const runTick = async (env, mem) => {
   // Two pull requests of one ticket can end their ladders in one tick, and one re-plan run serves the ticket.
   const replanTickets = new Set()
   const oneReplan = (order) => order.kind !== "replan" || (!replanTickets.has(order.ticket.number) && replanTickets.add(order.ticket.number))
-  const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef) && !preparationHeld(env, mem, order.repoKey, order.pull.headRef) && oneReplan(order)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
+  const fixCandidates = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef) && !preparationHeld(env, mem, order.repoKey, order.pull.headRef) && oneReplan(order)).sort((left, right) => left.pull.number - right.pull.number)
+  // A fix order on the coordinator model needs a main slot with runner `codex`, so it never crowds a Codex slot out of the room.
+  const fixOrders = withinMainRoom(mem, fixCandidates, free.main).slice(0, room)
   const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
-  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached })
+  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached, mainRoom: mainRoomOf(mem, free) - fixOrders.filter((order) => takesMainOnly(mem, order)).length })
   const decisions = new Map([...admitted.decisions, ...later])
   for (const ticket of tickets) {
     const decision = closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"
