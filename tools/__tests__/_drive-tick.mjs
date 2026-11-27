@@ -1,5 +1,6 @@
 /** Table tests of the delivery driver's tick: the fake seams, the scenarios and their exact writes. */
 
+import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -7,7 +8,7 @@ import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
-import { T, root, same } from "./_harness.mjs"
+import { T, root, same, stageRepo } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("../__fixtures__/drive-github.json", import.meta.url), "utf8"))
 const READS = FIXTURE.driverReads
@@ -518,6 +519,90 @@ const worktreeOccupantCases = async () => {
   const fixOccupied = scenario({ tickets: [ticket(7)], occupants: [4242], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "x" }] })] })] }, gitRoutes: [["worktree list", `worktree /r/wt\nHEAD ${HEAD}\nbranch refs/heads/chore/ticket-7-30\n`]] })
   await fixOccupied.run()
   same("drive: a fix order waits while a process holds the worktree of its pull request, and nothing merges into it", [fixOccupied.launched.length, only(fixOccupied.calls, "git").some((entry) => entry.join(" ").includes("merge --ff-only"))], [0, false])
+}
+
+/** A scenario whose ui repository is a real git repository, so a failed worktree preparation is the failure that git gives. */
+const realRepositoryScene = (repo, options) => {
+  const scene = scenario(options)
+  const fake = scene.env.git
+  scene.env.config.repos.ui = repo.path
+  scene.env.git = async (cwd, args) => {
+    if (!cwd.startsWith(root)) return fake(cwd, args)
+    scene.calls.push(["git", ...args])
+    return spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" })
+  }
+  return scene
+}
+
+/** A repository whose worktree of one pull request branch holds a merge that was never concluded. */
+const unconcludedMerge = (label, branch) => {
+  const repo = stageRepo(label)
+  const worktree = `${repo.path}-worktree`
+  for (const [args, cwd] of [
+    [["push", "-q", "origin", `main:${branch}`]],
+    [["worktree", "add", "-q", "-b", branch, worktree, "main"]],
+    [["checkout", "-q", "-b", "side"], worktree],
+    [["commit", "-q", "--allow-empty", "-m", "side"], worktree],
+    [["checkout", "-q", branch], worktree],
+    [["merge", "-q", "--no-commit", "--no-ff", "side"], worktree],
+    [["rev-parse", "--verify", "MERGE_HEAD"], worktree],
+  ]) T(`drive: unconcluded merge fixture, git ${args.join(" ")}`, repo.git(args, cwd).status === 0)
+  return { ...repo, worktree }
+}
+
+const unpreparedCases = async () => {
+  const branch = "chore/ticket-7-30"
+  const finding = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const pulls = () => ({ ui: [pull(30, { reviews: [finding] })] })
+  const oneSlot = { utilization: 0.6, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const attempts = (scene) => only(scene.calls, "git").filter((entry) => entry.includes("--ff-only")).length
+
+  const repo = unconcludedMerge("unprepared-fix", branch)
+  const tickets = [ticket(7)]
+  const scene = realRepositoryScene(repo, { tickets, pulls: pulls() })
+  keepWrites(scene, tickets)
+  let at = NOW
+  scene.env.now = () => at
+  await scene.run()
+  same("drive: a worktree with MERGE_HEAD starts no worker, and its launch counts toward no cap", [attempts(scene), scene.launched.length, launchesOf(tickets[0]).length], [1, 0, 0])
+  const told = only(scene.calls, "notify").map((entry) => entry[1])
+  T("drive: the owner notice of a failed preparation names the branch, the git error and the ticket", told.length === 1 && told[0].includes(branch) && told[0].includes("MERGE_HEAD exists") && told[0].includes(`${REPOSITORY}/issues/7`), told.join(" | "))
+  T("drive: the log of a failed preparation names the branch and the git error on one line", scene.messages.some((line) => line.includes("ticket#7 worktree-failed") && line.includes(branch) && line.includes("MERGE_HEAD exists") && !line.includes("\n")))
+  await scene.run()
+  same("drive: a branch whose preparation failed waits before the next try", [attempts(scene), scene.launched.length], [1, 0])
+  at = NOW + 10 * MINUTE
+  await scene.run()
+  same("drive: after 10 minutes the preparation runs again, with no second notice, no launch and no needs:owner", [attempts(scene), only(scene.calls, "notify").length, launchesOf(tickets[0]).length, only(scene.calls, "editLabels").length], [2, 1, 0, 0])
+  repo.git(["merge", "--abort"], repo.worktree)
+  at = NOW + 20 * MINUTE
+  const countedAtStart = []
+  scene.env.worker.launch = (options) => { scene.launched.push(options); countedAtStart.push(launchesOf(tickets[0]).length); return Promise.resolve(clean) }
+  await scene.run()
+  same("drive: a prepared worktree starts the worker, and its launch is on the ticket before the start", [scene.launched.map((entry) => entry.worktree), countedAtStart], [[repo.worktree], [1]])
+  same("drive: a successful preparation forgets the notice, so a later failure tells the owner again", JSON.parse(readFileSync(join(scene.env.stateDir, "notices.json"), "utf8")).sent.filter((key) => key.startsWith("worktree ")), [])
+
+  const fixSlot = realRepositoryScene(unconcludedMerge("unprepared-fix-slot", branch), { tickets: [ticket(7), ticket(8)], pulls: pulls(), reading: oneSlot })
+  await fixSlot.run()
+  const first = fixSlot.launched.length
+  await fixSlot.run()
+  same("drive: a fix order whose preparation failed leaves the only slot to the next order", [first, fixSlot.launched.map((entry) => entry.invocation.own.branch)], [0, ["chore/ticket-8"]])
+
+  const taken = stageRepo("unprepared-build")
+  taken.git(["branch", "chore/ticket-7"])
+  const buildTickets = [ticket(7), ticket(9)]
+  const buildSlot = realRepositoryScene(taken, { tickets: buildTickets, reading: oneSlot })
+  keepWrites(buildSlot, buildTickets)
+  await buildSlot.run()
+  await buildSlot.run()
+  same("drive: a build order whose preparation failed counts no launch and leaves the only slot to the next ticket", [launchesOf(buildTickets[0]).length, buildSlot.launched.map((entry) => entry.invocation.own.branch)], [0, ["chore/ticket-9"]])
+
+  const stalledRepo = stageRepo("unprepared-stall")
+  stalledRepo.git(["branch", "chore/ticket-7"])
+  const stalled = realRepositoryScene(stalledRepo, { tickets: [ticket(7)] })
+  await stalled.run()
+  writeFileSync(join(stalled.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  await stalled.run()
+  same("drive: a branch that waits after a failed preparation stays on the stall clock", only(stalled.calls, "createTicket").filter(([, input]) => input.title === STALL).length, 1)
 }
 
 const capCases = async () => {
@@ -2624,6 +2709,7 @@ export const driverUnit = async () => {
   await baseMergeCases()
   await reviewRunCases()
   await worktreeOccupantCases()
+  await unpreparedCases()
   await reviewCases()
   await reviewOnceCases()
   await ownerAndBodyCases()

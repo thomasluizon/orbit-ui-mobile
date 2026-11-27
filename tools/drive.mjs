@@ -38,6 +38,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   account. An account stops at 90% of its week: it starts no worker and runs no probe. The stop of the main account also
   holds the Pullfrog requests, because Pullfrog runs on it. A worker that ends on a usage limit stops its account until its
   reset, and the order starts again on the other account. The driver still merges a pull request that meets the bar.
+  When git cannot prepare the worktree of an order, no launch counts toward a cap. The driver logs the error, tells the owner
+  once and tries that branch again after 10 minutes. Other orders use the slot meanwhile.
   The driver also runs the release train: a train starts at most every 4 hours when a service has unreleased work, and it
   releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
   dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
@@ -102,6 +104,8 @@ const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
 const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
+/** The wait before a branch whose worktree was not prepared is tried again. Its slot is free for another order meanwhile. */
+const PREPARE_RETRY_MS = 10 * 60 * 1000
 const FLAKE_LOG_LINES = 40
 const BASE_COMMIT_LIMIT = 30
 const MERGED_TTL_MS = 10 * 60 * 1000
@@ -320,7 +324,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1241,7 +1245,25 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
 
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
-/** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. Returns null when the worker started, else the reason it did not. */
+const preparationKey = (repoKey, branch) => `worktree ${repoKey} ${branch}`
+
+const preparationHeld = (env, mem, repoKey, branch) => (mem.unprepared.get(preparationKey(repoKey, branch))?.until ?? 0) > env.now()
+
+/** A worktree that git cannot prepare starts no worker: the log names the git error, the owner is told once, and the branch waits. Returns the reason. */
+const holdUnprepared = async (env, mem, { repoKey, ticket, branch }, error) => {
+  const key = preparationKey(repoKey, branch)
+  const reason = `the worktree of ${branch} was not prepared: ${oneLine(error.message)}`
+  mem.unprepared.set(key, { until: env.now() + PREPARE_RETRY_MS, line: `ticket#${ticket.number}: ${reason}` })
+  log(env, `ticket#${ticket.number}`, "worktree-failed", reason)
+  await say(env, { key, lines: [`Orbit cannot start work: ${cut(ticket.title, TITLE_LIMIT)}`, `Git could not prepare the worktree for ${branch}. The driver tries again after ${PREPARE_RETRY_MS / 60000} minutes.`, cut(error.message, DETAIL_LIMIT)], link: issueLink(env, ticket.number) })
+  return reason
+}
+
+/**
+ * Starts one worker for an order. The launch goes on the ticket after every preparation step and before the worker starts, so a
+ * worker crash still counts and a launch with no prepared worktree counts toward no cap. Returns null when the worker started,
+ * else the reason it did not.
+ */
 const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
@@ -1260,10 +1282,14 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
-  const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
-  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
-  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
-  const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
+  let worktree
+  try {
+    worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
+  } catch (error) {
+    return holdUnprepared(env, mem, order, error)
+  }
+  mem.unprepared.delete(preparationKey(repoKey, branch))
+  forget(env, preparationKey(repoKey, branch))
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
@@ -1273,6 +1299,10 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
   const invocation = await env.invocation(token, accountName, { worktree, branch })
   const account = stateOf(mem, accountName).account?.key ?? null
+  const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
+  const launchRecord = { kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark }
+  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...launchRecord, at: new Date(env.now()).toISOString() })))
+  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify(launchRecord)), createdAt: new Date(env.now()).toISOString() })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
@@ -1691,6 +1721,10 @@ const admit = async (env, mem, tickets, states, { running, room, full }) => {
       decisions.set(ticket.number, "wait: a worker runs on its branch")
       continue
     }
+    if (preparationHeld(env, mem, verdict.order.repoKey, verdict.order.branch)) {
+      decisions.set(ticket.number, "wait: the worktree of its branch was not prepared")
+      continue
+    }
     chosen.push(verdict.order)
     decisions.set(ticket.number, `admit ${verdict.order.kind} on ${verdict.order.branch}`)
   }
@@ -1951,7 +1985,7 @@ export const tick = async (env, mem) => {
   const holdReason = paused || pauseIssue(tickets) ? "the driver is paused" : account.ok ? null : account.reason
   const free = { main: paces.main.free, worker: paces.worker.free }
   const room = holdReason ? 0 : free.main + free.worker
-  const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
+  const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef) && !preparationHeld(env, mem, order.repoKey, order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
   const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
   const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
   const { chosen, decisions } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full })
@@ -1970,8 +2004,9 @@ export const tick = async (env, mem) => {
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
     const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
-    // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
-    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
+    // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock, also while its branch waits.
+    const unprepared = [...mem.unprepared.values()].filter((entry) => entry.until > env.now()).map((entry) => entry.line)
+    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...new Set([...unstarted, ...unprepared])]
     await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
