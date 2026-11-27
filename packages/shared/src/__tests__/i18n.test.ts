@@ -185,6 +185,16 @@ describe('bad-habit logging instructions', () => {
   })
 })
 
+describe('parent sheet titles for several ancestors', () => {
+  it.each([
+    { locale: 'en', messages: en, log: 'All sub-habits complete', skip: 'All sub-habits skipped' },
+    { locale: 'pt-BR', messages: ptBR, log: 'Todos os sub-hábitos concluídos', skip: 'Todos os sub-hábitos pulados' },
+  ])('resolves the log and skip titles in $locale', ({ messages, log, skip }) => {
+    expect(messages.habits.autoLogParentTitle).toBe(log)
+    expect(messages.habits.autoSkipParentTitle).toBe(skip)
+  })
+})
+
 describe('i18n locale parity', () => {
   const enFlat = flatten(en as JsonValue)
   const ptFlat = flatten(ptBR as JsonValue)
