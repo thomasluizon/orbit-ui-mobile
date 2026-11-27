@@ -1330,6 +1330,30 @@ const closeCases = async () => {
   await outside.run()
   const created = only(outside.calls, "createTicket")[0]?.[1]
   same("drive: a merge opens one ticket for the Outside this change section", [only(outside.calls, "merge").length, created?.labels, created?.body.includes("src/x.mjs:4 loses data.")], [1, ["repo:ui", "Bug"], true])
+  const classReview = (body) => review("APPROVED", HEAD, -5 * MINUTE, { body: `Verdict\n\n## Class checks\n\n${body}\n` })
+  const TWO = "- rule-one | lint rule | src/a.mjs:3 | The test reads source text.\n- two-key | type | src/b.mjs:9 | The field has no type."
+  const classScene = (reviews, extra = {}) => scenario({ tickets: [ticket(7), ...(extra.tickets ?? [])], routes: extra.routes ?? [], pulls: { ui: [pull(30, { reviews })] } })
+  const filed = (scene) => only(scene.calls, "createTicket").map((entry) => entry[1])
+  const classKeys = (scene) => filed(scene).map((entry) => /^Class: (.+)$/m.exec(entry.body)?.[1])
+  const listed2 = (scene) => scene.calls.filter((entry) => entry[0] === "gh" && entry[1].startsWith("issue list") && entry[1].includes("--state closed"))
+  const twice = classScene([classReview(TWO)])
+  await twice.run()
+  same("drive: a merge with two class lines files two tickets with their Class lines and labels", [classKeys(twice), filed(twice).map((entry) => entry.labels), filed(twice)[0].title, filed(twice)[0].body.includes("Finding: class ui rule-one"), twice.messages.filter((line) => line.includes("class-ticket")).map((line) => line.slice(line.indexOf("class-ticket")))], [["rule-one", "two-key"], [["repo:ui", "Improvement", "parity:no"], ["repo:ui", "Improvement", "parity:no"]], "A lint rule finds every case of: The test reads source text.", true, ["class-ticket rule-one ui", "class-ticket two-key ui"]])
+  const openSame = classScene([classReview(TWO)], { tickets: [ticket(8, { body: "Class: Rule-One\nFiled by: driver", blockedBy: [blocker(9)] })] })
+  await openSame.run()
+  same("drive: an open ticket with the same Class line and repository label holds the key", [classKeys(openSame), openSame.messages.some((line) => line.includes("class-ticket held rule-one"))], [["two-key"], true])
+  const openOther = classScene([classReview(TWO.split("\n")[0])], { tickets: [ticket(8, { body: "Class: rule-one", labels: ["repo:api", "Improvement"], repoKey: "api", blockedBy: [blocker(9)] })] })
+  await openOther.run()
+  same("drive: an open ticket with the same Class line and another repository label holds nothing", classKeys(openOther), ["rule-one"])
+  const doubled = classScene([classReview(TWO.split("\n")[0]), classReview("- RULE-ONE | test | src/c.mjs:1 | Same class again.")])
+  await doubled.run()
+  same("drive: two reviews that name the same key file one ticket", classKeys(doubled), ["rule-one"])
+  const earlier = classScene([classReview(TWO.split("\n")[0])], { routes: [["--state closed", JSON.stringify([{ number: 41, title: "Old class ticket" }])]] })
+  await earlier.run()
+  same("drive: a closed ticket of the class is listed under Earlier tickets of this class", [filed(earlier)[0].body.endsWith("## Earlier tickets of this class\n\n#41 Old class ticket"), listed2(earlier).length, listed2(earlier)[0]?.[1].includes('--search "Class: rule-one" in:body')], [true, 1, true])
+  const none = classScene([review("APPROVED", HEAD, -5 * MINUTE, { body: "Verdict\n\n## Outside this change\n\nsrc/x.mjs:4 loses data.\n" })])
+  await none.run()
+  same("drive: a merge whose reviews hold no Class checks section files no class ticket and lists no closed ticket", [filed(none).filter((entry) => /^Class: /m.test(entry.body)).length, listed2(none).length], [0, 0])
 }
 
 const recordedFieldCases = () => {
