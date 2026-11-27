@@ -13,7 +13,7 @@ import { pathToFileURL } from "node:url"
 import { escapeRegex } from "./escape-regex.mjs"
 import { GATE_SCRIPTS, readGate, recordFile } from "./gate-commands.mjs"
 import { CLEAN_STATUS_ARGUMENTS } from "./git-worktrees.mjs"
-import { measure } from "./worker-size-hook.mjs"
+import { argumentOf, measure } from "./worker-size-hook.mjs"
 
 export const MAX_BLOCKS = 3
 export const TAIL_LINES = 40
@@ -148,20 +148,16 @@ export const gate = ({ cwd, run: runName = null, baseline = null, now = new Date
   return blockOutput(blockReason(failures))
 }
 
-const argument = (args, name) => {
-  const index = args.indexOf(name)
-  return index === -1 ? null : args[index + 1] ?? null
-}
-
 /**
- * Reads the hook input on stdin. A run key comes from `--run`, or from the session of the input. The hook exits 1 when it cannot
- * run the gate, which lets the worker end: the driver reads a missing record as a red gate.
+ * Reads the hook input on stdin. A run key comes from `--run`, or from the session of the input. `--worktree` names the worktree
+ * of a Codex worker, whose call `cwd` names no worker. The hook exits 1 when it cannot run the gate, which lets the worker end:
+ * the driver reads a missing record as a red gate.
  */
 const main = () => {
   try {
     const args = process.argv.slice(2)
     const input = JSON.parse(readFileSync(0, "utf8"))
-    const output = gate({ cwd: input.cwd, run: argument(args, "--run") ?? input.session_id ?? null, baseline: argument(args, "--head") })
+    const output = gate({ cwd: argumentOf(args, "--worktree") ?? input.cwd, run: argumentOf(args, "--run") ?? input.session_id ?? null, baseline: argumentOf(args, "--head") })
     if (output !== null) process.stdout.write(`${JSON.stringify(output)}\n`)
     return
   } catch (error) {
