@@ -219,3 +219,14 @@ describe('a title beside a range of a quantity', () => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(expected)
   })
 })
+
+describe('a title with a count before a word of a range', () => {
+  it.each([
+    ['Flexões 4 séries de 12 às 18h toda segunda', 'Flexões 4 séries de 12'],
+    ['Fazer 3 séries de 10 às 7', 'Fazer 3 séries de 10'],
+    ['Flexões 3x de 12 às 7', 'Flexões 3x de 12'],
+    ['Tomar 1 dose de 5 às 8', 'Tomar 1 dose de 5'],
+  ] as const)('keeps the count: %s', (phrase, expected) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(expected)
+  })
+})

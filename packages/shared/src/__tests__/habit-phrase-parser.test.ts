@@ -1244,6 +1244,17 @@ describe('a pt-BR range of hours', () => {
   })
 
   it.each([
+    ['Flexões 4 séries de 12 às 18h toda segunda', '18:00'],
+    ['Fazer 3 séries de 10 às 7', '07:00'],
+    ['Flexões 3x de 12 às 7', '07:00'],
+    ['Tomar 1 dose de 5 às 8', '08:00'],
+    ['Fazer quatro séries de 12 às 7', '07:00'],
+    ['Fazer 3 séries das 10 às 7', '07:00'],
+  ] as const)('reads a count before the opener as a count, not a range: %s', (phrase, dueTime) => {
+    expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
+  })
+
+  it.each([
     ['Academia de 2 até 3 vezes por semana', 'flexible'],
     ['Meditar de 10 até 20 minutos', null],
     ['Correr de 5 até 10 km toda segunda', 'fixed'],
