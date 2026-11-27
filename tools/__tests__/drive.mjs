@@ -1237,7 +1237,11 @@ const skillMarkerCases = () => {
   same("skills/questions: the only bare marker is the owner-review decision, which is no driver kind", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments and the findings. A plain answer comment reaches no worker, so the body holds every answer.
-  T("skills/questions: section 4 records each answer with update-ticket.mjs note --decision and edits no ticket body", questions.includes("node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>") && !questions.includes("gh issue edit"), "section 4 does not record through the tool")
+  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 also records each answer with update-ticket.mjs note --decision", questions.includes("node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>"), "section 4 has no note call")
+  // A sleep decision is an answer too, so the sleep skill writes the body and the note, as section 4 says.
+  const sleep = skillText("sleep")
+  T("skills/sleep: each sleep decision goes into the ticket body and into a note --decision comment", sleep.includes("ticket body") && sleep.includes("node tools/update-ticket.mjs note --decision"), "the sleep skill misses the body write or the note call")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
