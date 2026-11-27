@@ -73,9 +73,9 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => 
     case "build part":
       return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
     case "fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`. Push once.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map(checkSection).join("\n\n")}\n\n${CLASS_RULE} Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map(checkSection).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`. Push once.`
     case "merge-forward":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":

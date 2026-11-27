@@ -25,14 +25,13 @@ const SETUP_STEP = "Set up job"
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 const OWNER_LABEL = "needs:owner"
 
-const PULL_FIELDS = (number) => `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
   files(first: 100) { nodes { path } }
   commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } statusCheckRollup { state } } } }
-  baseRef { name target { __typename oid }
-    compare(headRef: "refs/pull/${number}/head") { behindBy baseTarget { oid } headTarget { oid } }
+  baseRef { name
     branchProtectionRule { requiredStatusChecks { context app { databaseId } } } }
   statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage } nodes {
     __typename
@@ -50,7 +49,7 @@ const stateQuery = (numbers) => `query DriveState($owner: String!, $name: String
   repository(owner: $owner, name: $name) {
     defaultBranchRef { name }
     open: pullRequests(states: OPEN, first: 100) { pageInfo { hasNextPage } nodes { number } }
-    ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) { ${PULL_FIELDS(number)} }`).join("\n    ")}
+    ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) { ${PULL_FIELDS} }`).join("\n    ")}
   }
 }`
 
@@ -167,7 +166,6 @@ const normalizeComment = (comment) => ({
 })
 
 const normalizePull = (raw, ticketRepository) => {
-  const behind = raw.baseRef?.compare
   const protection = raw.baseRef?.branchProtectionRule
   return {
     number: raw.number,
@@ -180,8 +178,6 @@ const normalizePull = (raw, ticketRepository) => {
     baseRef: raw.baseRefName,
     baseSha: raw.baseRefOid,
     mergeState: raw.mergeStateStatus,
-    // A comparison counts only when it names this head and this base tip, so a stale read never reports a clean branch.
-    behindBy: behind?.headTarget?.oid === raw.headRefOid && behind?.baseTarget?.oid === raw.baseRef?.target?.oid && Number.isInteger(behind.behindBy) ? behind.behindBy : null,
     body: raw.body ?? "",
     tracks: tracksOf(raw.body ?? "", ticketRepository),
     changedFiles: raw.changedFiles,
@@ -371,8 +367,9 @@ const dependabotFailures = (types) => {
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
- * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket) and, for a
- * Dependabot pull request, `updateTypes`.
+ * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
+ * (true while a `needs-owner` report holds a pull request with no open ticket) and, for a Dependabot pull request,
+ * `updateTypes`.
  */
 export const mergeBar = (pull, context = {}) => {
   const failed = []
@@ -388,12 +385,10 @@ export const mergeBar = (pull, context = {}) => {
   if (!pull.threadsComplete) failed.push("threads-incomplete")
   const unresolved = pull.threads.filter((thread) => !thread.resolved).length
   if (unresolved > 0) failed.push(`threads-unresolved:${unresolved}`)
-  if (pull.behindBy === null) failed.push("behind-unknown")
-  else if (pull.behindBy > 0) failed.push(`behind:${pull.behindBy}`)
   if (pull.mergeState !== "CLEAN") failed.push(`merge-state:${pull.mergeState}`)
   if ((context.blockers ?? []).length > 0) failed.push(`blocked-by:${context.blockers.join(",")}`)
   if (dependabot) failed.push(...dependabotFailures(context.updateTypes))
-  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL)) failed.push("needs-owner")
+  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL) || context.reportHeld) failed.push("needs-owner")
   return failed
 }
 

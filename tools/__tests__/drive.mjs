@@ -207,7 +207,7 @@ const githubUnit = async () => {
   rolled.data.repository.pr2509.commits.nodes = FIXTURE.commitRollups.nodes
   same("lib/github.mjs: a commit keeps the state of its own check rollup, from the recorded answer", (await readPulls([2509], [2509, 2510], rolled)).state.pulls[0].commits.map((commit) => [commit.sha.slice(0, 7), commit.parents, commit.checkState]), [["fffd31f", 1, "FAILURE"], ["21741e7", 1, "SUCCESS"]])
   same("lib/github.mjs: a commit with no rollup in the answer has a null check state", open.commits.map((commit) => commit.checkState).every((state) => state === null), true)
-  same("lib/github.mjs: behindBy comes from the comparison that names this head and this base tip", open.behindBy, 1)
+  same("lib/github.mjs: a pull request read holds no behind count and the query asks for none", [open.behindBy, /behindBy/.test(JSON.stringify(openCalls))], [undefined, false])
   const labelled = stateResponse([2509])
   labelled.data.repository.pr2509.labels = FIXTURE.pullLabels.response.data.repository.pr7.labels
   same("lib/github.mjs: a pull request keeps the names of its labels", [open.labels, (await readPulls([2509], [2509, 2510], labelled)).state.pulls[0].labels], [[], ["parity:exempt"]])
@@ -219,12 +219,6 @@ const githubUnit = async () => {
   same("lib/github.mjs: only a request for a Pullfrog review stays of the issue comments", open.comments.map((entry) => [entry.author, entry.kind, entry.body]), [["thomasluizon", null, "@pullfrog review"]])
   T("lib/github.mjs: a rollup that holds every check reads as complete", open.checksComplete && open.threadsComplete && open.checks.length === 27)
 
-  const missingHead = await readPulls([2509], [2509, 2510], (() => {
-    const response = stateResponse([2509])
-    response.data.repository.pr2509.baseRef.compare.headTarget.oid = "0".repeat(40)
-    return response
-  })())
-  same("lib/github.mjs: a comparison that names another head gives no behindBy", missingHead.state.pulls[0].behindBy, null)
 
   const synthetic = stateResponse([2509])
   const reviewComments = synthetic.data.repository.pr2509.reviews.nodes[0].comments.nodes
@@ -350,15 +344,15 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: an unresolved thread fails the bar", barOf({ threads: [...ready.threads, { id: "t", resolved: false, author: "pullfrog" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: an unresolved thread of any author fails the bar", barOf({ threads: [{ id: "t", resolved: false, author: "someone" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: a thread list that ends early fails the bar", barOf({ threadsComplete: false }), ["threads-incomplete"])
-  same("lib/github.mjs: a pull request behind its base fails the bar", barOf({ behindBy: 2 }), ["behind:2"])
-  same("lib/github.mjs: an unknown lag fails the bar", barOf({ behindBy: null }), ["behind-unknown"])
+  same("lib/github.mjs: a pull request that is behind its base passes the bar", [barOf({ behindBy: 2 }), barOf({ behindBy: null }), barOf({})], [[], [], []])
   same("lib/github.mjs: a merge state that is not CLEAN fails the bar", barOf({ mergeState: "BLOCKED" }), ["merge-state:BLOCKED"])
   same("lib/github.mjs: an open blocker of the tracked ticket fails the bar", barOf({}, { blockers: [3, 4] }), ["blocked-by:3,4"])
   same("lib/github.mjs: a pull request that carries needs:owner fails the bar", barOf({ labels: ["parity:exempt", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: a tracked ticket that carries needs:owner fails the bar", barOf({}, { ticketLabels: ["repo:ui", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: needs:owner on both the pull request and its ticket is one failed condition", barOf({ labels: ["needs:owner"] }, { ticketLabels: ["needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: a pull request that its needs-owner report holds fails the bar", barOf({}, { reportHeld: true }), ["needs-owner"])
   same("lib/github.mjs: other labels on the pull request and its ticket leave the bar alone", barOf({ labels: ["parity:exempt"] }, { ticketLabels: ["repo:ui", "needs:conversation"] }), [])
-  same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, behindBy: 1, mergeState: "BEHIND" }), ["draft", "behind:1", "merge-state:BEHIND"])
+  same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, mergeState: "DIRTY" }), ["draft", "merge-state:DIRTY"])
 
   const dependabot = { author: "dependabot", tracks: null }
   same("lib/github.mjs: a Dependabot patch and minor update passes the bar with no Tracks line", barOf(dependabot, { updateTypes: ["patch", "minor"] }), [])
@@ -1062,9 +1056,10 @@ const orderCases = async () => {
 
   const fix = order("fix", { pull: PULL, review: REVIEW })
   T("lib/order.mjs: a fix order lists every class and every instance of the review", ["src/a.ts:10", "src/b.ts:22", "src/c.ts:3", "src/d.ts:8", "BLOCKING: correctness bug", "BLOCKING: broken contract", "BLOCKING: missed requirement"].every((text) => fix.includes(text)), fix)
-  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Merge `origin\/main`/.test(fix))
+  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Do not merge `origin\/main`/.test(fix))
   const ciFix = order("ci-fix", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a ci-fix order names each failed check, its failed steps and the last 60 log lines", ciFix.includes("### Unit Tests (failed steps: Run Domain Tests)") && ciFix.includes("### Lint\n") && ciFix.includes("log line 79") && ciFix.includes("log line 20") && !ciFix.includes("log line 19\n"))
+  T("lib/order.mjs: a fix order and a ci-fix order never tell the worker to merge origin/main", [fix, ciFix].every((text) => /Do not merge `origin\/main`\. Push once/.test(text) && !/(^|[.] )Merge `origin\/main`/.test(text)))
   const forward = order("merge-forward", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a merge-forward order names the conflicts and asks for one push", forward.includes("in: a.ts, b.ts") && /Merge `origin\/main` into the branch/.test(forward) && /Push once/.test(forward))
   T("lib/order.mjs: a merge-forward order without a conflict list still reads", /conflicts with `origin\/main`\. Merge/.test(order("merge-forward", { pull: PULL, failure: null })))
@@ -1127,7 +1122,12 @@ const skillMarkerCases = () => {
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
+  // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
+  const listing = questions.split("\n").find((line) => line.startsWith("2. ") && line.includes("pull request")) ?? ""
+  T("skills/questions: step 1 lists a pull request with no open ticket by its needs-owner report", listing.includes("no open ticket") && listing.includes("<!-- orbit-drive:needs-owner -->"), listing)
+  T("skills/questions: section 4 ends the hold of such a pull request with the orbit-drive:owner-answer marker", questions.includes("<!-- orbit-drive:owner-answer -->"), "no step writes the answer marker")
   const drivers = skillText("driver")
+  T("skills/driver: a held report with no label is handled only when its pull request is closed or answered", drivers.includes("orbit-drive:owner-answer"), "the sleep report reads only the label")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
   // Run from a code checkout, gh reads the issues of that repository, so each issue command of a skill names the ticket repository.
