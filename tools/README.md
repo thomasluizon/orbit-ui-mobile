@@ -12,11 +12,10 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/worker.mjs`: starts and watches one headless worker. It reads the last result line `NEEDS_DECISION: <question>` or `NEEDS_SPLIT: <work that is left>`.
 - `lib/worker-gh-hook.mjs`: the hook of a code worker. It blocks each `gh` write except `gh pr create` and an edit or a comment on the pull request of the worker's branch. It also blocks a `git push` of a branch above the cap of `lib/diff-size.mjs`.
 - `lib/diff-size.mjs`: the one count of the changed lines of a change (additions plus deletions, with a deleted file, a pure rename, a binary file and a generated file at 0) and the one cap, 400 lines.
-- `lib/worker-gate.cjs`: the child process that starts the worker after the driver sends its release message.
 - `lib/order.mjs`: writes the order that a worker receives from a ticket.
 - `lib/github.mjs`: the one GitHub adapter of the driver: reads, the merge bar and every write.
 - `lib/config.mjs`: reads `.claude/orchestrator.json` and builds the environment of a worker.
-- `lib/github-auth.mjs`, `lib/github-read.mjs`, `lib/github-rate-limit.mjs`: GitHub accounts, bounded reads and the rate limit floor.
+- `lib/github-auth.mjs`, `lib/github-read.mjs`: GitHub accounts and bounded reads.
 - `lib/bounded-process.mjs`: runs a child process with a time limit and an output limit.
 - `lib/git-worktrees.mjs`: lists worktrees, removes them safely, and gives a new worktree its dependencies (an APFS clone of the main checkout's `node_modules` when the lock file matches, else one `npm ci`).
 - `lib/parity-scope.mjs`: the path rule that decides when a change needs web and mobile parity.
