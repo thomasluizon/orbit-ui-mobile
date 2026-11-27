@@ -3409,6 +3409,33 @@ const twoAccountCases = async () => {
   T("drive: the stopped account shows in the pace line with its stop and its end", hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`worker ${WORKER_ACCOUNT.key}:`) && hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`stop yes (usage limit until ${new Date(RESETS_AT * 1000).toISOString()})`))
   same("drive: a restart keeps the stop of the worker account", JSON.parse(readFileSync(join(hit.env.stateDir, "pace.json"), "utf8")).worker.stoppedUntil, RESETS_AT * 1000)
 
+  // A worker that ran on a login which no account holds now (the runner switched, or the worker login changed or signed out) stops no account.
+  const staleWorker = async (afterFirstTick) => {
+    const tickets = [ticket(7, { comments: [launchComment("build", "chore/ticket-7")] })]
+    const scene = scenario({ tickets, reading: below, workerAuth: WORKER_AUTH, workerReading: below, workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
+    keepWrites(scene, tickets)
+    scene.env.worker.launch = (options) => { scene.launched.push(options); return Promise.resolve({ ...clean, ...(accountOfLaunch(options) === null ? {} : limited), utilization: 0.35, resetsAt: RESETS_AT }) }
+    await scene.run()
+    afterFirstTick(scene)
+    await scene.run()
+    return { scene, tickets }
+  }
+  const otherLogin = { ...WORKER_AUTH, email: "other.worker@example.test", orgId: "00000000-0000-4000-8000-000000000004" }
+  const staleChecks = (label, { scene, tickets }) => {
+    same(`drive: ${label} stops no account and gives no notice`, [scene.mem.stoppedUntil, scene.mem.worker.stoppedUntil, scene.messages.some((entry) => entry.includes("-stopped")), scene.messages.some((entry) => entry.includes("stop-skipped"))], [null, null, false, true])
+    same(`drive: ${label} opens no pause issue and keeps the launch off the cap`, [only(scene.calls, "createTicket").length, launchesOf(tickets[0]).length], [0, 2])
+  }
+  const switched = await staleWorker((scene) => {
+    writeFileSync(join(scene.env.stateDir, "runner-setting.json"), `${JSON.stringify({ runner: "codex" })}\n`)
+    const claude = scene.env.authStatus
+    scene.env.authStatus = (name, runner) => (name === "worker" && runner === "codex" ? Promise.resolve(structuredClone(otherLogin)) : claude(name, runner))
+  })
+  staleChecks("a Claude worker that ends on a usage limit after the runner switched to Codex", switched)
+  const changed = await staleWorker((scene) => { scene.env.authStatus = (name) => Promise.resolve(structuredClone(name === "worker" ? otherLogin : AUTH)) })
+  staleChecks("a worker that ends on a usage limit after the worker login changed", changed)
+  const signedOut = await staleWorker((scene) => { scene.env.authStatus = (name) => Promise.resolve(structuredClone(name === "worker" ? { ...WORKER_AUTH, loggedIn: false } : AUTH)) })
+  staleChecks("a worker that ends on a usage limit after the worker login signed out", signedOut)
+
   const ciFix = (head = null, offset = -3600 * 1000) => comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", ...(head ? { baseMerge: head } : {}) }), offset)
   const ciRefund = () => comment("launch-refund", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30" }))
   same("drive: a refund takes back the launch before it, not the free launch that follows", launchesOf(ticket(7, { comments: [ciFix(), ciRefund(), ciFix("H3")] })).map((entry) => entry.baseMerge ?? null), ["H3"])
