@@ -107,18 +107,19 @@ It reuses the benchmark build entry, process host, hermetic fixture producer, mo
 and proxy. The release build uses the same staging prepare and package commands as
 `desktop-release.yml`, with no optional Cargo features and no deployed credentials.
 
-The Windows job builds with `--no-sign`. A workflow dispatch or a pull request from this repository runs
+The Windows job builds with `--no-sign`. A push to `main` or a workflow dispatch runs
 macOS in the separate `installed-signed` job. That job takes the `desktop-staging` environment with
-`deployment: false`, and the Windows job takes no environment. GitHub passes no secrets to a workflow that
-a fork triggers, so a fork pull request runs the Windows job only. The VM jobs run no producer
-regression. `Checks` runs every producer test file (`test-acceptance*.ts`,
+`deployment: false`, and the Windows job takes no environment. A pull request runs the Windows job only,
+and a recorded pass for the same inputs skips it. The Windows job also runs the Windows x86 package build,
+`npm run test -w @orbit/desktop`, `cargo test --locked` and the four platform-gated producer test files before the
+acceptance run. The macOS VM job runs no producer regression. `Checks` runs every producer test file (`test-acceptance*.ts`,
 `test-child-limit.ts`) on `ubuntu-latest`, where the cases gated on `process.platform` skip, and fails when
 a file that imports `node:test` is not started there. `test-acceptance-support.ts` holds no test case: it
 gives `test-acceptance.ts` and `test-acceptance-keys.ts` one inspection context on the real runner source.
-`desktop-acceptance-producers.yml` runs each file with such a gate on `windows-latest` and
-`macos-latest`, beside the VM jobs. It also starts when a pull request changes only a producer test or a
+`desktop-acceptance-producers.yml` runs each file with such a gate on `macos-latest` for each push to
+`main`, beside the VM jobs. It also starts when a push changes only a producer test or a
 fixture, which the VM jobs skip. `node tools/test-tools.mjs --only desktop-acceptance` fails when a
-gated file is missing from that job or a gated platform has no runner there. Both VM jobs restore the Rust compile cache that `Desktop Build` saves on `main`. A pull request never
+gated file is missing from that job or from the Windows job, or a gated platform has no runner. Both VM jobs restore the Rust compile cache that `Desktop Build` saves on `main`. A pull request never
 saves it. The signed build follows `desktop-release.yml`:
 
 - `tauri build --no-bundle` compiles the shell without signing credentials.
@@ -491,7 +492,7 @@ Controls explicitly marked `IsOffscreen=true` are also excluded, following the
 [UIA visibility property](https://learn.microsoft.com/en-us/dotnet/api/system.windows.automation.automationelement.automationelementinformation.isoffscreen).
 Names and rectangle values never determine visibility. Visible disabled controls still require
 their role and name. A document with no visible interactive descendants fails even if browser
-chrome contains valid controls. The `windows-latest` job of `desktop-acceptance-producers.yml`
+chrome contains valid controls. The `installed (windows-latest)` job of `desktop-acceptance.yml`
 exercises the PowerShell rectangle producer.
 
 Probe failures retain the error message separately from the stack because a webview stack may

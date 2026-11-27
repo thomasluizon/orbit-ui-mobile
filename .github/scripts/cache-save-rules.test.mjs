@@ -807,6 +807,8 @@ const assertNoInputs = (step, where, inputs) => {
 // The exact path of each saver of a rule that a clean step or a tool bounds, by job. A rule compares the whole saved path
 // and the whole restored path with this text, so another spelling of the path is a change that a reviewer makes here.
 const PASS_MARKERS = {
+  "desktop-acceptance.yml: record": { path: ".ci-pass/desktop-windows", key: "${{ needs.plan.outputs.pass-key }}" },
+  "desktop-build.yml: record": { path: ".ci-pass/desktop-macos", key: "${{ needs.plan.outputs.pass-key }}" },
   "android-startup.yml: boot": { path: ".ci-pass/android-boot", key: "${{ needs.scope.outputs.pass-key }}" },
   "ios-build.yml: record": { path: ".ci-pass/ios-compile", key: "${{ needs.plan.outputs.pass-key }}" },
   "mobile-build.yml: build": { path: ".ci-pass/android-compile", key: "${{ needs.plan.outputs.pass-key }}" },
