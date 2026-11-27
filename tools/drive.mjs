@@ -53,7 +53,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   after the merge. Just before that merge the driver removes each dropped check from the protection, and after it sends the
   file of main.
 
-  A pull request or an order that used its 2 launches gets one more launch on claude-opus-5-5. Its order holds the failure
+  A pull request or an order that used its 1 launch gets one more launch on claude-opus-5-5. Its order holds the failure
   history of every earlier launch, from the driver's own records. No label, no notice and no sleep hold follows a launch cap.
   While an open ticket or pull request carries parked, the driver starts one headless harness review by itself, at most once
   in 24 hours: /ticket --auto --parked on claude-opus-5-5, on the main account, with no worker slot. The review re-plans each
@@ -130,14 +130,14 @@ const REPOSITORY_KEYS = ["ui", "api", "landing"]
 /** The branch whose protection follows its required checks file. */
 const PROTECTED_BRANCH = "main"
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
-const MAX_ORDER_LAUNCHES = 2
-const MAX_FIX_LAUNCHES = 2
+const MAX_ORDER_LAUNCHES = 1
+const MAX_FIX_LAUNCHES = 1
 /** The wait before a branch whose worktree was not prepared is tried again. Its slot is free for another order meanwhile. */
 const PREPARE_RETRY_MS = 10 * 60 * 1000
 const WAITS_FOR_REPLAN = "waits for the re-plan"
 const MAIN_ONLY_WAIT = "an order on the coordinator model waits for the main account"
 /** Re-plans of one ticket before it parks. A re-plan is one Opus run, so this bounds the tokens that one ticket can spend. */
-const MAX_REPLANS = 2
+const MAX_REPLANS = 1
 const PARKED = "parked"
 const PARKED_LABEL = { name: PARKED, color: "FBCA04", description: "The driver parked it after its re-plans. The daily harness review re-plans it." }
 const ANSWER_KEPT_CHARS = 8000
@@ -1199,7 +1199,7 @@ const replanBranch = (ticket) => `chore/ticket-${ticket.number}-replan`
 const replanRunning = (running, ticketNumber) => running.workers.some(({ record }) => record.kind === "replan" && record.ticketNumber === ticketNumber)
 
 /**
- * What a plan does when its ladder ends (2 launches on the worker model, then 1 on the coordinator model): one re-plan run, or
+ * What a plan does when its ladder ends (1 launch on the worker model, then 1 on the coordinator model): one re-plan run, or
  * the park once the ticket used its re-plans. A running re-plan run makes the plan wait.
  */
 const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches, pulls, cause = null }) => {
