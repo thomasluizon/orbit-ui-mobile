@@ -2828,6 +2828,27 @@ const twoAccountCases = async () => {
   same("drive: an early order that never starts goes back to the late admission, so the ticket below it takes no free slot", [launchesIn(unreached), unreached.messages.some((line) => line.includes("early-launch"))], [["8 build", "9 build"], true])
   const lineOf = (number) => unreachedResult.lines.find((line) => line.startsWith(`ticket ${REPOSITORY}#${number}:`))
   same("drive: the tick lines name no admit for a ticket whose early order never started", [10, 11].map(lineOf), [10, 11].map((number) => `ticket ${REPOSITORY}#${number}: wait: a Pullfrog limit stops the main account`))
+  // The plan finds the limit while an early start prepares its worktree. A start on the main account launches no worker and takes its launch back.
+  const limitMidStart = async (numbers, midNumber) => {
+    const tickets = numbers.map((number) => ticket(number))
+    const scene = scenario({ tickets, pulls: { ui: [pull(30, { reviews: [], tracks: 7, headRef: "chore/ticket-7-30" })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+    keepWrites(scene, tickets)
+    scene.env.planWindowMs = 20
+    const release = holdPlan(scene)
+    const git = scene.env.git
+    scene.env.git = async (cwd, args) => {
+      if (args[0] === "worktree" && args[1] === "add" && args.includes(`chore/ticket-${midNumber}`)) { release(); await until(() => scene.mem.stoppedUntil !== null) }
+      return git(cwd, args)
+    }
+    const { lines } = await scene.run()
+    const midTicket = tickets.find((entry) => entry.number === midNumber)
+    return { scene, midTicket, midLine: lines.find((line) => line.startsWith(`ticket ${REPOSITORY}#${midNumber}:`)) }
+  }
+  const midStop = await limitMidStart([7, 8, 9, 10], 10)
+  same("drive: a Pullfrog limit that arrives while a start on the main account prepares its worktree launches no worker on that account", [midStop.scene.launched.map(accountOfLaunch), midStop.midLine], [[WORKER_DIRECTORY, WORKER_DIRECTORY], `ticket ${REPOSITORY}#${midStop.midTicket.number}: wait: a Pullfrog limit stops the main account`])
+  same("drive: the start that a limit stops is refunded, so it counts toward no cap and leaves no launch record", [midStop.midTicket.comments.map((entry) => entry.kind), launchesOf(midStop.midTicket).length, existsSync(join(midStop.scene.env.stateDir, "chore-ticket-10.launch.json"))], [["launch", "launch-refund"], 0, false])
+  const midWorker = await limitMidStart([7, 8], 8)
+  same("drive: a limit that arrives while a start on the worker account prepares its worktree leaves that worker to start", [midWorker.scene.launched.map(accountOfLaunch), launchesOf(midWorker.midTicket).length], [[WORKER_DIRECTORY], 1])
 
   const oldPause = ticket(50, { title: "Driver paused: a worker stopped at a usage limit or a sign-in failure", labels: [OWNER_LABEL], repoKey: null, body: `A worker stopped.\n\nAccount: ${ACCOUNT.key}` })
   const pausedWithWorker = scenario({ tickets: [oldPause, ticket(7)], reading: below, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "allowed" } })
