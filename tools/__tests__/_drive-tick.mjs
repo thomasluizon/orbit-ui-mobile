@@ -79,6 +79,9 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       // The scenarios give one run list for every pull request, so the title filter keeps it whole.
       runsNaming: (list) => list,
       readDependabotUpdateTypes: async () => ["patch"],
+      readRequiredChecksFile: async () => null,
+      readProtectionChecks: async () => ({ strict: false, checks: [] }),
+      writeProtectionChecks: record("writeProtectionChecks"),
       unmetDeployFirst: async () => unmet,
       createTicket: async (input) => { calls.push(["createTicket", input]); return { number: 99 } },
       comment: record("comment"), editLabels: record("editLabels"), merge: record("merge"), resolveThreads: record("resolveThreads"), updateBranch: record("updateBranch"), retarget: record("retarget"), rerunFailed: record("rerunFailed"), closeTicket: record("closeTicket"), closePull: record("closePull"), deleteBranch: record("deleteBranch"), ensureLabel: record("ensureLabel"),
@@ -925,6 +928,7 @@ const reviewCases = async () => {
   same("drive: a pull request with a fix launch gets the whole-diff request", await owed("fix", {}, true), [`${PLAIN} whole diff`])
   same("drive: a pull request with 31 changed files gets the whole-diff request", await owed("files", { changedFiles: 31 }), [`${PLAIN} whole diff`])
   same("drive: a pull request that changes package-lock.json gets the whole-diff request", await owed("lock", { files: ["package-lock.json"] }), [`${PLAIN} whole diff`])
+  same("drive: a pull request that changes Cargo.lock gets the whole-diff request", await owed("cargo", { files: ["apps/desktop/src-tauri/Cargo.lock"] }), [`${PLAIN} whole diff`])
   same("drive: a three-file pull request with no fix round gets no whole-diff request", await owed("plain", {}), [])
   const asked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -2 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE)] })] } })
   await asked.run()
@@ -4202,8 +4206,134 @@ const diffBarCases = async () => {
   same("drive: a diff that git cannot read gives no merge", only(failing.calls, "merge").length, 0)
 }
 
+const CHECKS_FILE = ".github/required-checks.json"
+const MERGE_BASE = "d".repeat(40)
+const requiredList = (...contexts) => ({ strict: false, checks: contexts.map((context) => ({ context, app_id: context === "pullfrog-approval" ? APP : 15368 })) })
+const OLD_CHECKS = requiredList("Checks", "pullfrog-approval")
+const NEW_CHECKS = requiredList("PR Tests", "pullfrog-approval")
+
+/** A pull request that renames a required check: its head reports `PR Tests`, and GitHub blocks it while `Checks` is required. */
+const renamingPull = (extra = {}) => pull(30, { files: [CHECKS_FILE], changedFiles: 1, checks: [check("PR Tests"), approvalCheck()], requiredChecks: [{ context: "Checks", appId: 15368 }, { context: "pullfrog-approval", appId: APP }], mergeState: "BLOCKED", ...extra })
+
+/**
+ * A scene with a stateful ui protection and required checks file. Like GitHub, its merge refuses a head that misses a
+ * required check, and a merge puts the head file on main. `world.protection` and `world.main` hold the current state.
+ */
+const protectedScene = ({ main = OLD_CHECKS, protection = OLD_CHECKS, base = main, head = NEW_CHECKS, pulls = [], dryRun = false } = {}) => {
+  const scene = scenario({ tickets: [ticket(7)], pulls: { ui: pulls }, dryRun, gitRoutes: [["merge-base", `${MERGE_BASE}\n`]] })
+  const world = { main, protection: structuredClone(protection) }
+  const file = (required) => (required === undefined ? null : { required: structuredClone(required) })
+  scene.env.github.readRequiredChecksFile = async (key, ref) => {
+    if (key !== "ui") return null
+    return file(ref === "main" ? world.main : ref === MERGE_BASE ? base : head)
+  }
+  scene.env.github.readProtectionChecks = async () => structuredClone(world.protection)
+  scene.env.github.writeProtectionChecks = async (key, branch, required) => {
+    scene.calls.push(["protect", key, branch, structuredClone(required)])
+    world.protection = structuredClone(required)
+  }
+  scene.env.github.merge = async (key, number, sha) => {
+    const reported = pulls.find((entry) => entry.number === number).checks.map((entry) => entry.name)
+    const missing = world.protection.checks.find((need) => !reported.includes(need.context))
+    if (missing) throw new Error(`gh pr merge failed: Required status check "${missing.context}" is expected.`)
+    scene.calls.push(["merge", key, number, sha])
+    world.main = head
+  }
+  return { ...scene, world }
+}
+
+const protectionSteps = (scene) => scene.calls.filter((entry) => entry[0] === "protect" || entry[0] === "merge").map((entry) => (entry[0] === "merge" ? "merge" : entry[3].checks.map((need) => need.context).join(",")))
+const requiredLines = (scene, kind = "required-checks") => scene.messages.filter((line) => line.split(" ")[2] === kind).map((line) => line.slice(line.indexOf(" ") + 1))
+const OLD_LINE = "strict false: Checks [15368], pullfrog-approval [1768019]"
+const NEW_LINE = "strict false: PR Tests [15368], pullfrog-approval [1768019]"
+/** The list that the driver writes just before a merge: the checks that stay, then the checks that the change adds. */
+const DURING_LINE = "strict false: pullfrog-approval [1768019], PR Tests [15368]"
+const DURING = "pullfrog-approval,PR Tests"
+
+const requiredChecksDriftCases = async () => {
+  const drifted = protectedScene({ main: NEW_CHECKS })
+  await drifted.run()
+  same("drive: a protection that differs from the file on main is set back on the tick", [drifted.calls.filter((entry) => entry[0] === "protect"), drifted.world.protection], [[["protect", "ui", "main", NEW_CHECKS]], NEW_CHECKS])
+  same("drive: the drift write logs one line with the old and the new list", requiredLines(drifted), [`ui required-checks (${OLD_LINE} -> ${NEW_LINE})`])
+  await drifted.run()
+  same("drive: the next tick writes nothing while the protection equals the file", protectionSteps(drifted).length, 1)
+  drifted.world.protection = structuredClone(OLD_CHECKS)
+  await drifted.run()
+  same("drive: a protection that someone changes again is set back on the next tick", [protectionSteps(drifted).length, drifted.world.protection], [2, NEW_CHECKS])
+
+  const strict = protectedScene({ protection: { ...OLD_CHECKS, strict: true } })
+  await strict.run()
+  same("drive: another strict value is a difference", strict.world.protection, OLD_CHECKS)
+  const reordered = protectedScene({ protection: { strict: false, checks: [...OLD_CHECKS.checks].reverse() } })
+  await reordered.run()
+  same("drive: the same checks in another order write nothing", protectionSteps(reordered), [])
+  const none = scenario({ tickets: [ticket(7)] })
+  let protectionReads = 0
+  none.env.github.readProtectionChecks = async () => { protectionReads += 1 }
+  await none.run()
+  same("drive: a repository with no required checks file keeps its protection and reads none", [protectionReads, only(none.calls, "writeProtectionChecks").length], [0, 0])
+  const dry = protectedScene({ main: NEW_CHECKS, dryRun: true })
+  await dry.run()
+  same("drive: a dry run names the difference and writes nothing", [protectionSteps(dry), requiredLines(dry)], [[], [`ui required-checks (${OLD_LINE} -> ${NEW_LINE}, dry run)`]])
+  const invalid = protectedScene({ main: null, pulls: [pull(31, { changedFiles: 1 })] })
+  invalid.env.github.merge = async (...args) => { invalid.calls.push(["merge", ...args]) }
+  await invalid.run()
+  same("drive: a file on main of another shape logs an error, writes nothing and the tick goes on", [protectionSteps(invalid), requiredLines(invalid, "required-checks-error")], [["merge"], ["ui required-checks-error (.github/required-checks.json on main has a wrong shape)"]])
+}
+
+const requiredChecksMergeCases = async () => {
+  const renamed = protectedScene({ pulls: [renamingPull()] })
+  await renamed.run()
+  same("drive: a rename of a required check moves the protection, merges at the head and applies the file of main", protectionSteps(renamed), [DURING, "merge", "PR Tests,pullfrog-approval"])
+  same("drive: after the merge the protection of main equals the file", renamed.world.protection, renamed.world.main)
+  same("drive: the merge logs the old and the new list before and after", requiredLines(renamed), [`ui#30 required-checks (${OLD_LINE} -> ${DURING_LINE}, before the merge)`, `ui required-checks (${OLD_LINE} -> ${NEW_LINE})`])
+  const gits = renamed.calls.filter((entry) => entry[0] === "git").map((entry) => entry.slice(1).join(" "))
+  same("drive: the merge base of the change comes from a fresh fetch of main and the head", [gits.includes("fetch origin main refs/pull/30/head"), gits.includes(`merge-base origin/main ${HEAD}`)], [true, true])
+
+  const added = requiredList("Checks", "PR Tests", "pullfrog-approval")
+  const adding = protectedScene({ head: added, pulls: [renamingPull({ checks: [check("Checks"), check("PR Tests"), approvalCheck()], mergeState: "CLEAN" })] })
+  await adding.run()
+  same("drive: a change that only adds a check writes the protection after the merge only", protectionSteps(adding), ["merge", "Checks,PR Tests,pullfrog-approval"])
+
+  const refused = protectedScene({ pulls: [renamingPull()] })
+  refused.env.github.merge = async () => { throw new Error("gh pr merge failed: the base branch policy prohibits the merge") }
+  await refused.run()
+  same("drive: a failed merge puts the protection back", [protectionSteps(refused), refused.world.protection], [[DURING, "Checks,pullfrog-approval"], OLD_CHECKS])
+  same("drive: a failed merge logs the protection that comes back", requiredLines(refused).at(-1), `ui#30 required-checks (${DURING_LINE} -> ${OLD_LINE}, the merge failed)`)
+  T("drive: a failed merge keeps its error line", refused.messages.some((line) => line.includes(" ui#30 error (gh pr merge failed")), refused.messages.join(" | "))
+
+  const late = protectedScene({ pulls: [renamingPull()] })
+  const write = late.env.github.writeProtectionChecks
+  let writes = 0
+  late.env.github.writeProtectionChecks = async (...args) => { writes += 1; if (writes === 2) throw new Error("gh api failed: HTTP 502"); return write(...args) }
+  await late.run()
+  same("drive: a protection write that fails after the merge logs its own error and keeps the merge", [protectionSteps(late), requiredLines(late, "required-checks-error").length, late.messages.some((line) => line.includes(" ui#30 error "))], [[DURING, "merge"], 1, false])
+
+  const waiting = protectedScene({ pulls: [renamingPull({ checks: [approvalCheck()] })] })
+  await waiting.run()
+  same("drive: a head that misses the added check gets no merge and no protection write", protectionSteps(waiting), [])
+  const unrelated = protectedScene({ pulls: [pull(31, { files: ["tools/a.mjs"], changedFiles: 1, checks: [check("Checks"), approvalCheck()], requiredChecks: [{ context: "Checks", appId: 15368 }] })] })
+  await unrelated.run()
+  same("drive: a pull request that does not change the file merges with no protection write", protectionSteps(unrelated), ["merge"])
+  const many = Array.from({ length: 120 }, (_, index) => (index === 109 ? CHECKS_FILE : `docs/page${index}.md`))
+  const long = protectedScene({ pulls: [renamingPull({ files: many, changedFiles: 120, reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: no finding" })], comments: [comment("ticket", "Ticket"), comment("request", `${PLAIN} whole diff`, -20 * MINUTE)] })] })
+  await long.run()
+  same("drive: the required checks file at file 110 of 120 moves the protection", protectionSteps(long), [DURING, "merge", "PR Tests,pullfrog-approval"])
+  const drafted = protectedScene({ pulls: [pull(31, { draft: true, files: null, commitMessages: null })] })
+  await drafted.run()
+  same("drive: a draft into main, whose diff the driver does not read, plans with no error", drafted.messages.filter((line) => line.includes(" ui#31 error ")), [])
+  const stacked = protectedScene({ pulls: [renamingPull({ baseRef: "feature/parent" }), pull(29, { headRef: "feature/parent", draft: true })] })
+  let headReads = 0
+  const read = stacked.env.github.readRequiredChecksFile
+  stacked.env.github.readRequiredChecksFile = async (key, ref) => { if (ref !== "main") headReads += 1; return read(key, ref) }
+  await stacked.run()
+  same("drive: a pull request into another branch never moves the protection of main", [headReads, protectionSteps(stacked).filter((step) => step !== "merge")], [0, []])
+}
+
 export const driverUnit = async () => {
   await diffBarCases()
+  await requiredChecksDriftCases()
+  await requiredChecksMergeCases()
   await noticeCases()
   await nextTicketCases()
   await releaseCases()

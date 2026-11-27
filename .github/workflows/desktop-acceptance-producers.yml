@@ -1,11 +1,12 @@
 name: Desktop Acceptance Producers
 
-# The producer test files that gate cases on process.platform run here on the platforms they name.
+# The producer test files that gate cases on process.platform run on the platforms they name.
 # Checks runs every producer test file on ubuntu-latest, where those cases skip.
-# This job runs beside the installed acceptance VMs, so it adds no time to them.
+# installed (windows-latest) in desktop-acceptance.yml runs them on Windows for a pull request and for main.
+# This workflow runs them on macOS for each push to main, beside the installed acceptance VM.
 on:
   workflow_dispatch:
-  pull_request:
+  push:
     branches: [main]
     # The inputs of Desktop Installed Acceptance, plus the producer tests, the fixtures that only they read, and the tsx loader in the lockfile.
     paths:
@@ -21,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-acceptance-producers-${{ github.ref }}
+  group: desktop-acceptance-producers-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -30,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [windows-latest, macos-latest]
+        runner: [macos-latest]
     runs-on: ${{ matrix.runner }}
     # In Desktop Installed Acceptance runs 43727552118 and 43722095347, the four jobs reached the end of these files 139 to 194 s after the job started.
     timeout-minutes: 6

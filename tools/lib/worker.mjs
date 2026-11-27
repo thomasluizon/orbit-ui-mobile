@@ -81,14 +81,27 @@ export const CODE_WORKER_DENY = Object.freeze([
 ])
 
 const GH_HOOK = fileURLToPath(new URL("./worker-gh-hook.mjs", import.meta.url))
+const SIZE_HOOK = fileURLToPath(new URL("./worker-size-hook.mjs", import.meta.url))
 /** The tools that run a shell command in claude 2.1.332. */
 const SHELL_TOOLS = "Bash|Monitor"
+/** The tools that the size hook checks before they run. */
+const SIZE_TOOLS = "Edit|Write|Bash|Monitor"
 const shellQuoted = (text) => `'${text.replaceAll("'", "'\\''")}'`
 
-/** The hook entry of a code worker. A hook that cannot run exits with a code that lets the call pass, so `|| exit 2` blocks it. */
+/**
+ * The hook entries of a code worker: the GitHub hook and the size hook before a tool call, and the size hook after every tool call.
+ * A hook that cannot run exits with a code that lets the call pass, so `|| exit 2` blocks it.
+ */
 const ghHooks = (own) => {
   const target = own === null ? "" : ` --worktree ${shellQuoted(own.worktree)} --branch ${shellQuoted(own.branch)}`
-  return { PreToolUse: [{ matcher: SHELL_TOOLS, hooks: [{ type: "command", command: `node ${shellQuoted(GH_HOOK)}${target} || exit 2`, timeout: 60 }] }] }
+  const sizeHook = (event) => ({ type: "command", command: `node ${shellQuoted(SIZE_HOOK)} ${event} || exit 2`, timeout: 120 })
+  return {
+    PreToolUse: [
+      { matcher: SHELL_TOOLS, hooks: [{ type: "command", command: `node ${shellQuoted(GH_HOOK)}${target} || exit 2`, timeout: 60 }] },
+      { matcher: SIZE_TOOLS, hooks: [sizeHook("pre")] },
+    ],
+    PostToolUse: [{ matcher: "*", hooks: [sizeHook("post")] }],
+  }
 }
 
 /** The names of the skill folders under `skillsRoot`, the synced folders included: every directory that holds a SKILL.md. */

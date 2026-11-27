@@ -4,6 +4,7 @@ import { runBounded } from "./bounded-process.mjs"
 import { readDriveConfig } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 import { repositorySlug } from "./github-auth.mjs"
+import { readRequiredChecksAt } from "./github-read.mjs"
 
 const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
@@ -15,13 +16,13 @@ export const APPROVAL_CHECK_MISSING = `required-check-missing:${PULLFROG_APPROVA
 const PULLS_PER_STATE_QUERY = 8
 const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
-const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
+const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Cargo\.toml|Cargo\.lock|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
 const MARKER = /^<!-- orbit-drive:([a-z-]+) -->/
 const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
-/** The checks that read only the pull request, so a rerun at the same head gives the same result. */
+/** The checks that read only the pull request, so a rerun at the same head, text and labels gives the same result. */
 const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
@@ -356,12 +357,54 @@ const newestChecks = (nodesOfRollup) => {
   return [...newest.values()]
 }
 
+const holdsCheck = (checks, wanted) => checks.some((check) => check.context === wanted.context && check.app_id === wanted.app_id)
+
+/**
+ * The required checks that the default branch has after a change of the required checks file: `current` without the checks
+ * that the change removes, plus the checks that it adds. `base` is the file at the merge base, or null when the change
+ * creates the file, and then `current` stands for it. So a branch behind its base keeps the checks that the base gained.
+ */
+const checksAfter = (current, { base, head }) => {
+  const before = base?.checks ?? current
+  const kept = current.filter((check) => !holdsCheck(before, check) || holdsCheck(head.checks, check))
+  return [...kept, ...head.checks.filter((check) => !holdsCheck(before, check) && !holdsCheck(kept, check))]
+}
+
+/** The protection to write just before the merge of a change that removes a required check, or null when it removes none. */
+export const protectionForMerge = (protection, change) => {
+  const checks = checksAfter(protection.checks, change)
+  return protection.checks.every((check) => holdsCheck(checks, check)) ? null : { strict: protection.strict, checks }
+}
+
+/** True when two sets of required checks hold the same `strict` value and the same checks in any order. */
+export const sameRequiredChecks = (first, second) => first.strict === second.strict &&
+  first.checks.every((check) => holdsCheck(second.checks, check)) && second.checks.every((check) => holdsCheck(first.checks, check))
+
+/** The checks that the merge bar requires: those of the branch protection, changed as the pull request changes the required checks file. */
+const requiredOf = (pull) => {
+  const change = pull.requiredChecksChange
+  if (!change?.head) return pull.requiredChecks
+  const current = pull.requiredChecks.map((check) => ({ context: check.context, app_id: check.appId }))
+  return checksAfter(current, change).map((check) => ({ context: check.context, appId: check.app_id }))
+}
+
+const reportsCheck = (newest, need) => newest.some((check) => check.name === need.context && (need.appId === null || check.appId === need.appId))
+
 const checkFailures = (pull) => {
   if (!pull.checksComplete) return ["checks-incomplete"]
   const newest = newestChecks(pull.checks)
-  const required = [...pull.requiredChecks, ...(pull.requiredChecks.some((check) => check.context === PULLFROG_APPROVAL.context && check.appId === PULLFROG_APPROVAL.appId) ? [] : [PULLFROG_APPROVAL])]
-  const missing = required.filter((need) => !newest.some((check) => check.name === need.context && (need.appId === null || check.appId === need.appId)))
+  const needed = requiredOf(pull)
+  const required = [...needed, ...(needed.some((check) => check.context === PULLFROG_APPROVAL.context && check.appId === PULLFROG_APPROVAL.appId) ? [] : [PULLFROG_APPROVAL])]
+  const missing = required.filter((need) => !reportsCheck(newest, need))
   return [...missing.map((need) => `required-check-missing:${need.context}`), ...newest.filter((check) => !check.passed).map((check) => `check-not-green:${check.name}`)]
+}
+
+/** True when GitHub can block the merge for a check that this pull request removes: the protection requires it and the head never reports it. The driver removes it from the protection before the merge. */
+const blockedByRemovedCheck = (pull) => {
+  if (pull.mergeState !== "BLOCKED") return false
+  const needed = requiredOf(pull)
+  const newest = newestChecks(pull.checks)
+  return pull.requiredChecks.some((check) => !needed.some((need) => need.context === check.context && need.appId === check.appId) && !reportsCheck(newest, check))
 }
 
 const inWholeDiffWindow = (body) => Buffer.from(body).subarray(0, WHOLE_DIFF_WINDOW_BYTES).toString().includes("Whole diff:")
@@ -474,6 +517,7 @@ export const mergeBar = (pull, context = {}) => {
   const dependabot = pull.author === "dependabot"
   if (!dependabot && pull.tracks === null) failed.push("untracked")
   if (!SHA.test(pull.headSha)) failed.push("head-unknown")
+  if (pull.requiredChecksChange?.head === null) failed.push("required-checks-invalid")
   failed.push(...checkFailures(pull))
   failed.push(...diffFailures(pull, context))
   const review = newestReview(pull)
@@ -482,7 +526,7 @@ export const mergeBar = (pull, context = {}) => {
   if (!pull.threadsComplete) failed.push("threads-incomplete")
   const unresolved = pull.threads.filter((thread) => !thread.resolved).length
   if (unresolved > 0) failed.push(`threads-unresolved:${unresolved}`)
-  if (pull.mergeState !== "CLEAN") failed.push(`merge-state:${pull.mergeState}`)
+  if (pull.mergeState !== "CLEAN" && !blockedByRemovedCheck(pull)) failed.push(`merge-state:${pull.mergeState}`)
   if ((context.blockers ?? []).length > 0) failed.push(`blocked-by:${context.blockers.join(",")}`)
   if (dependabot) failed.push(...dependabotFailures(context.updateTypes))
   if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL) || context.reportHeld) failed.push("needs-owner")
@@ -601,6 +645,28 @@ export const merge = async (repositoryKey, prNumber, headSha, seams = {}) => {
   if (!SHA.test(headSha)) throw new Error("merge needs the full 40-character head sha")
   const api = bind(seams)
   await api.run(["pr", "merge", String(prNumber), "--repo", api.slugOf(repositoryKey), "--squash", "--match-head-commit", headSha])
+}
+
+/** The required checks file of a repository at a ref: null when the ref holds none, and `required` is null when its shape is wrong. */
+export const readRequiredChecksFile = async (repositoryKey, ref, seams = {}) => {
+  const api = bind(seams)
+  return readRequiredChecksAt(api.slugOf(repositoryKey), ref, api.run)
+}
+
+const protectionPath = (api, repositoryKey, branch) => `repos/${api.slugOf(repositoryKey)}/branches/${nonEmpty(branch, "branch name")}/protection/required_status_checks`
+
+/** The required status checks of the protection of a branch, in the shape of the required checks file. */
+export const readProtectionChecks = async (repositoryKey, branch, seams = {}) => {
+  const api = bind(seams)
+  const { strict, checks } = parseJson("gh api required status checks", await api.run(["api", protectionPath(api, repositoryKey, branch)]))
+  return { strict, checks: checks.map((check) => ({ context: check.context, app_id: check.app_id })) }
+}
+
+/** Replaces the required status checks of the protection of a branch. GitHub reads the app id -1 as every app. */
+export const writeProtectionChecks = async (repositoryKey, branch, { strict, checks }, seams = {}) => {
+  const api = bind(seams)
+  const body = { strict, checks: checks.map((check) => ({ context: check.context, app_id: check.app_id ?? -1 })) }
+  await api.run(["api", protectionPath(api, repositoryKey, branch), "--method", "PATCH", "--input", "-"], { input: JSON.stringify(body) })
 }
 
 export const updateBranch = async (repositoryKey, prNumber, seams = {}) => {

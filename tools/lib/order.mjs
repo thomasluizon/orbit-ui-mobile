@@ -11,6 +11,8 @@ const PART_HEADING = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Part\s+(\d+)\s+of\s+(\d+)/i
 const PART_LIKE = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Parte?\s+\d+\s*(?:$|[/:.,;\u2013\u2014-]|of\b|de\b)/i
 
 const BRIEF_LIMIT_BYTES = 6000
+/** The size rule of every order that changes code. `worker-size-hook.mjs` enforces it. */
+export const SIZE_LINE = "Keep the pull request at or under 400 changed lines and 30 files (aim for 200), counted by tools/lib/diff-size.mjs. A hook stops new files at 300 lines and every change at 400."
 const LOG_LINES_PER_CHECK = 60
 /** The section of earlier launches stays under this size. The oldest launch goes first. */
 export const EARLIER_LAUNCHES_LIMIT_BYTES = 16000
@@ -221,8 +223,8 @@ const deliverySection = ({ ticket, kind }) => {
   const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
   const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
-  const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."
-  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**PR Metadata.** ${metadata}`
+  const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."
+  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**Size.** ${SIZE_LINE}\n\n**PR Metadata.** ${metadata}`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */

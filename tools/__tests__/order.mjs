@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ORDER_KINDS, brokenPartHeadings, duplicateParts, highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, withTotal } from "../lib/order.mjs"
+import { ORDER_KINDS, SIZE_LINE, brokenPartHeadings, duplicateParts, highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, withTotal } from "../lib/order.mjs"
 import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
@@ -79,6 +79,14 @@ export const cases = async () => {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief fits the byte limit`, Buffer.byteLength(brief) <= 6000)
   }
+  const SIZE = "Keep the pull request at or under 400 changed lines and 30 files (aim for 200), counted by tools/lib/diff-size.mjs. A hook stops new files at 300 lines and every change at 400."
+  same("lib/order.mjs: the size line is the one line of the ticket", SIZE_LINE, SIZE)
+  for (const kind of ORDER_KINDS) {
+    const holds = renderBrief({ kind, place: PLACE, ticket: TICKET }).includes(SIZE)
+    T(`lib/order.mjs: the ${kind} brief ${kind === "find" || kind === "replan" ? "holds no size line" : "holds the size line once"}`, holds === (kind !== "find" && kind !== "replan"))
+  }
+  const sized = renderOrder({ kind: "build part", ticket: TICKET, partComments: fiveParts, place: PLACE, partNumber: 2 })
+  same("lib/order.mjs: a build part order holds the size line once", sized.split(SIZE).length - 1, 1)
   const build = renderBrief({ kind: "build", place: PLACE, ticket: TICKET })
   T("lib/order.mjs: a build brief says to commit and push after each finished step and to open the pull request after the first push", build.includes("Commit and push after each finished step, and open the pull request after the first push."))
   const fix = renderBrief({ kind: "fix", place: PLACE, ticket: TICKET })
@@ -93,7 +101,7 @@ export const cases = async () => {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
     T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
-    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
+    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."))
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 

@@ -217,3 +217,20 @@ jobs:
           npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund || npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund
           .github/react-doctor/node_modules/.bin/react-doctor . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+      - id: dependency-review__1
+        name: "Dependency Review: Select the pull requests that change a dependency input"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        run: |
+          if grep -Eq '(^|/)package(-lock)?\.json$|(^|/)Cargo\.(toml|lock)$|^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Dependency Review skipped: no dependency input changed."
+          fi
+      - id: dependency-review__2
+        name: "Dependency Review: Fail on a new dependency with a high severity advisory"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') && steps.dependency-review__1.outputs.changed == 'true' }}
+        # The action compares the dependency graph of the base and head through the API and reads no repository file.
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high

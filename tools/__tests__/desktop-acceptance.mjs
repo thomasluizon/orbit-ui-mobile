@@ -833,13 +833,13 @@ export async function cases() {
   const job = (name) => workflow.slice(workflow.indexOf(`\n  ${name}:\n`), workflow.indexOf('\n\n  ', workflow.indexOf(`\n  ${name}:\n`) + 1) >>> 0)
   const unsigned = job('installed')
   const signed = job('installed-signed')
-  const sameRepository = "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository"
-  T('native acceptance retains both VMs, per-ref cancellation and always-uploaded evidence, including the Windows window captures',
+  const mainOnly = "github.event_name != 'pull_request'"
+  T('native acceptance retains both VMs, per-pull-request cancellation and always-uploaded evidence, including the Windows window captures',
     unsigned.includes('runs-on: windows-latest') && !unsigned.includes('matrix') &&
-      signed.includes(`if: ${sameRepository}`) && signed.includes('runs-on: macos-latest') &&
-      workflow.includes('desktop-acceptance-${{ github.ref }}') && unsigned.includes('if: always()') && signed.includes('if: always()') &&
+      signed.includes(`if: ${mainOnly}`) && signed.includes('runs-on: macos-latest') &&
+      workflow.includes("desktop-acceptance-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}") && unsigned.includes('if: always()') && signed.includes('if: always()') &&
       unsigned.includes('${{ runner.temp }}/orbit-desktop-acceptance/window-*.png'))
-  T('only the same-repository macOS job takes desktop-staging, without a deployment, and passes its signing material to the harness',
+  T('only the macOS job of a push to main or a dispatch takes desktop-staging, without a deployment, and passes its signing material to the harness',
     signed.includes('environment:\n      name: desktop-staging\n      deployment: false') && !unsigned.includes('environment:') && !workflow.includes('desktop-production') &&
       ['MACOS_DEVELOPER_ID_CERTIFICATE_BASE64', 'MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD', 'MACOS_PROVISIONING_PROFILE_BASE64'].every((name) => signed.includes(`${name}: \${{ secrets.${name} }}`)) &&
       signed.includes('MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}') && !unsigned.includes('MACOS_') && !workflow.includes('TAURI_SIGNING_PRIVATE_KEY'))
@@ -847,16 +847,16 @@ export async function cases() {
   T('APNs values reach only the signed macOS job, and WNS values only the job that runs Windows',
     ['ORBIT_APPLE_TEAM_ID', 'ORBIT_APNS_KEY_ID', 'ORBIT_APNS_PRIVATE_KEY'].every((name) => signed.includes(`${name}: `) && !unsigned.includes(name)) &&
       ['ORBIT_DESKTOP_WNS_OBJECT_ID', 'ORBIT_WNS_TENANT_ID', 'ORBIT_WNS_CLIENT_ID', 'ORBIT_WNS_CLIENT_SECRET'].every((name) => unsigned.includes(`${name}: `) && !signed.includes(name)))
-  // This suite runs every producer test file on Linux; desktop-acceptance-producers.yml runs the platform-gated ones natively, so neither VM job repeats them.
+  // This suite runs every producer test file on Linux. The Windows job runs the platform-gated ones on Windows and
+  // desktop-acceptance-producers.yml runs them on macOS, so the setup action and the macOS VM job repeat none of them.
   T('both jobs share the setup action, which runs no producer test, and both only read the Rust compile cache that Desktop Build saves',
-    !setup.includes('tools/desktop-bench/test-') &&
+    !setup.includes('tools/desktop-bench/test-') && !signed.includes('tools/desktop-bench/test-') &&
       [unsigned, signed].every((text) => text.includes('uses: ./.github/actions/desktop-acceptance-setup') &&
         text.includes('uses: Swatinem/rust-cache@') && text.includes('save-if: "false"')) &&
       workflow.includes("- '.github/actions/desktop-acceptance-setup/**'"))
   const producerWorkflow = load(readFileSync(join(REPO_ROOT, '.github/workflows/desktop-acceptance-producers.yml'), 'utf8'))
   const nativeProducers = producerWorkflow.jobs.native
   const nativeRuns = nativeProducers.steps.map((step) => step.run ?? '').join('\n')
-  const runnerFor = { win32: 'windows-latest', darwin: 'macos-latest' }
   const gatedProducers = readdirSync(join(REPO_ROOT, 'tools/desktop-bench')).filter((file) => /^test-.*\.ts$/.test(file)).sort()
     .map((file) => ({ file, platforms: [...new Set([...readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8')
       .matchAll(/process\.platform\s*[!=]==\s*'(\w+)'/g)].map((match) => match[1]))] }))
@@ -867,14 +867,19 @@ export async function cases() {
     readFileSync(join(REPO_ROOT, 'tools/desktop-bench', file), 'utf8').includes("from 'node:test'"))
   T('Tool Tests starts every producer test file in tools/desktop-bench', producerTests.length > 0 &&
     producerTests.every((file) => suite.includes(`join(REPO_ROOT, 'tools/desktop-bench/${file}')`)), JSON.stringify(producerTests))
-  const nativeFiles = [...nativeRuns.matchAll(/node --import tsx tools\/desktop-bench\/(test-[\w-]+\.ts)/g)].map((match) => match[1]).sort()
+  const producerFiles = (text) => [...text.matchAll(/node --import tsx tools\/desktop-bench\/(test-[\w-]+\.ts)/g)].map((match) => match[1]).sort()
+  const nativeFiles = producerFiles(nativeRuns)
+  const windowsFiles = producerFiles(load(workflow).jobs.installed.steps.map((step) => step.run ?? '').join('\n'))
+  const gated = gatedProducers.map(({ file }) => file)
+  // The macOS job of the producers workflow and the Windows job of desktop-acceptance.yml each run every gated file.
   T('every producer test file with a platform gate runs on the runner of each platform it names, and no other file runs there',
-    gatedProducers.length > 0 && JSON.stringify(nativeFiles) === JSON.stringify(gatedProducers.map(({ file }) => file)) &&
-      gatedProducers.every(({ platforms }) => platforms.every((platform) => nativeProducers.strategy.matrix.runner.includes(runnerFor[platform]))) &&
+    gatedProducers.length > 0 && JSON.stringify(nativeFiles) === JSON.stringify(gated) && JSON.stringify(windowsFiles) === JSON.stringify(gated) &&
+      gatedProducers.every(({ platforms }) => platforms.every((platform) => ['win32', 'darwin'].includes(platform))) &&
+      JSON.stringify(nativeProducers.strategy.matrix.runner) === '["macos-latest"]' &&
       nativeProducers['runs-on'] === '${{ matrix.runner }}' && nativeProducers.strategy['fail-fast'] === false && nativeProducers.defaults.run.shell === 'bash',
-    JSON.stringify({ gatedProducers, nativeFiles, runners: nativeProducers.strategy.matrix.runner }))
-  const producerPaths = producerWorkflow.on.pull_request.paths
-  T('the native producer job starts on a change to a producer test, a fixture, the harness or the release script, and the VM jobs skip a test-only change',
+    JSON.stringify({ gatedProducers, nativeFiles, windowsFiles, runners: nativeProducers.strategy.matrix.runner }))
+  const producerPaths = producerWorkflow.on.push.paths
+  T('the macOS producer job starts on a push to main that changes a producer test, a fixture, the harness or the release script, and the VM jobs skip a test-only change',
     ['tools/desktop-bench/**', 'apps/desktop/**', 'package-lock.json', '.github/workflows/desktop-acceptance-producers.yml'].every((path) => producerPaths.includes(path)) &&
       !producerPaths.some((path) => path.startsWith('!tools/desktop-bench/test-') || path.startsWith('!tools/desktop-bench/__fixtures__')) &&
       workflow.includes("- '!tools/desktop-bench/test-*.ts'") && workflow.includes("- '!tools/desktop-bench/__fixtures__/**'"),
