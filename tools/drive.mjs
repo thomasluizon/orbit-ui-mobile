@@ -2096,17 +2096,19 @@ const remainingItems = (line) => line.replace(/^Remaining:/, "").split(";").map(
 /**
  * Why no build helps, or `null`. The result names the route:
  * - `owner`: the last merged pull request leaves only items that wait on the owner or on another ticket, and one of them needs the owner's hands. The ticket gets `needs:owner`.
- * - `blocked`: the line leaves only `blocked by` items. The ticket parks, and the harness review links the blocker.
+ * - `blocked`: the line leaves only `blocked by` items. The ticket parks, and the harness review takes it back.
  * - `repeat`: two merged pull requests in a row leave the same line. The ticket goes to the re-plan.
- * An owner decision after the last merge lifts every stop. A re-plan after the last merge lifts `repeat`.
+ * An owner decision after the last merge lifts every stop. A re-plan after the last merge lifts `repeat`. A `parked` comment after
+ * the last merge lifts `blocked`: the review that removed `parked` re-planned the ticket, so the line no longer decides.
  */
-const rebuildStop = (history, { decidedAt = 0, replannedAt = 0 } = {}) => {
+const rebuildStop = (history, { decidedAt = 0, replannedAt = 0, parkedAt = 0 } = {}) => {
   const last = history.at(-1)
   const line = last === undefined ? null : remainingLineOf(last)
   if (line === null || decidedAt > Date.parse(last.mergedAt)) return null
   const items = remainingItems(line)
   if (items.length > 0 && items.every((item) => OWNER_ITEM.test(item))) {
-    return items.some((item) => OWNER_HANDS_ITEM.test(item)) ? { kind: "owner", reason: `${line} (only owner items are left)` } : { kind: "blocked", reason: `${line} (only items that wait on another ticket are left)` }
+    if (items.some((item) => OWNER_HANDS_ITEM.test(item))) return { kind: "owner", reason: `${line} (only owner items are left)` }
+    return parkedAt > Date.parse(last.mergedAt) ? null : { kind: "blocked", reason: `${line} (only items that wait on another ticket are left)` }
   }
   const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
   if (before === line && !(replannedAt > Date.parse(last.mergedAt))) return { kind: "repeat", reason: `${line} (two merged pull requests in a row left the same line)` }
@@ -2150,7 +2152,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const halt = rebuildStop(history, { decidedAt: ownerDecisionAt(env, ticket), replannedAt: newestOf(ticket.comments, "replan") })
+    const halt = rebuildStop(history, { decidedAt: ownerDecisionAt(env, ticket), replannedAt: newestOf(ticket.comments, "replan"), parkedAt: newestOf(ticket.comments, PARKED) })
     if (halt?.kind === "owner") return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${halt.reason}` }
     if (halt?.kind === "blocked") return { reason: "a rebuild cannot meet the Remaining line", park: `No build can meet the Remaining line of the last merged pull request: ${halt.reason}` }
     // The same line after two merges means the plan does not reach the end: one re-plan run, or the park after the re-plans.
@@ -2493,8 +2495,9 @@ const reapExits = async (env, mem) => {
  * The stall alarm. The clock is the last tick in which a worker ran, a request went out or a pull request merged, kept in
  * `activity.json` so a restart keeps it. It resets while nothing waits, while the driver is held on purpose, and at each
  * action. After 60 minutes of waiting items with no action it logs `stall` with each reason and opens one Bug ticket that the driver builds.
+ * An action ends the stall ticket only while the driver has not started it: a launch record or an open pull request means the action is its own build.
  */
-const watchStall = async (env, tickets, { acted, held, waiting }) => {
+const watchStall = async (env, tickets, states, { acted, held, waiting }) => {
   const path = join(env.stateDir, ACTIVITY_FILE)
   let last = null
   try { last = JSON.parse(readFileSync(path, "utf8")).at } catch { /* a first start has no file */ }
@@ -2502,7 +2505,8 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
   const issue = tickets.find((ticket) => ticket.title === STALL_TITLE) ?? null
   if (acted || held || waiting.length === 0 || !Number.isFinite(last)) {
     writeFileSync(path, `${JSON.stringify({ at: now })}\n`)
-    if (acted && issue !== null) await closeIssue(env, tickets, issue, "The driver acted again, so the stall ends.")
+    const started = issue !== null && (launchesOf(issue).length > 0 || states.some((state) => state.pulls.some((pull) => pull.tracks === issue.number)))
+    if (acted && issue !== null && !started) await closeIssue(env, tickets, issue, "The driver acted again, so the stall ends.")
     return
   }
   if (now - last < STALL_MS) return
@@ -2723,7 +2727,7 @@ export const tick = async (env, mem) => {
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock, also while its branch waits.
     const unprepared = [...mem.unprepared.values()].filter((entry) => entry.until > env.now()).map((entry) => entry.line)
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...new Set([...unstarted, ...unprepared])]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
+    await watchStall(env, tickets, states, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()

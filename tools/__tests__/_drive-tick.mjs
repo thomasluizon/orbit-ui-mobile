@@ -1074,6 +1074,10 @@ const stallCases = async () => {
   same("drive: a request in the tick resets the clock and opens no stall issue", [created(acting).length, commentsOf(acting.calls, 30).length > 0, JSON.parse(readFileSync(join(acting.stateDirectory, "activity.json"), "utf8")).at], [0, true, NOW])
   const closing = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
   same("drive: an action closes the open stall issue", only(closing.calls, "closeTicket"), [["closeTicket", 41]])
+  const building = await stalled(-61 * MINUTE, { runs: [], tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL] }), { ...ticket(41, { labels: BUG_LABELS }), title: STALL }] })
+  same("drive: the stall Bug ticket that the driver starts building in this tick stays open", [building.launched.length, /ticket-41/.test(building.launched[0]?.worktree ?? ""), only(building.calls, "closeTicket")], [1, true, []])
+  const builtBefore = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: BUG_LABELS, comments: [comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-41" }), -30 * MINUTE)] }), title: STALL }] })
+  same("drive: an action in the tick never closes a stall ticket whose build has a launch record", only(builtBefore.calls, "closeTicket"), [])
   const quiet = await stalled(-61 * MINUTE, { tickets: [ticket(7)], extra: { labels: [OWNER_LABEL] } })
   same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
   const fixBranch = "chore/ticket-7-30"
@@ -1320,6 +1324,12 @@ const closeCases = async () => {
   const blockedOnly = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
   await blockedOnly.run()
   same("drive: a Remaining line that only waits on another ticket parks the ticket, with no launch and no needs:owner", [blockedOnly.launched.length, only(blockedOnly.calls, "editLabels").map((entry) => entry[3].add[0]), parkedComments(blockedOnly.calls, 7).length, noOwnerWrite(blockedOnly)], [0, ["parked"], 1, [0, 0, 0]])
+  const takenBack = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -1800 * 1000)] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
+  await takenBack.run()
+  same("drive: a blocked Remaining line that the harness review took back (a parked comment after the merge, no parked label) launches one build and parks no more", [takenBack.launched.length, /## This order \(build\)/.test(orderText(takenBack) ?? ""), parkedComments(takenBack.calls, 7).length, only(takenBack.calls, "editLabels").length], [1, true, 0, 0])
+  const parkedBefore = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -7200 * 1000)] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
+  await parkedBefore.run()
+  same("drive: a parked comment from before the merge does not lift a blocked Remaining line", [parkedBefore.launched.length, only(parkedBefore.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked"]])
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
   const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
