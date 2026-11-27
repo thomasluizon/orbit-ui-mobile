@@ -398,7 +398,6 @@ function extractCount(text: string, patterns: LocalePatterns): { match: RegExpEx
 
 const WEEKDAY_JOIN_MARK = String.raw`^\.?\s*(?:[,;/]|[-\u2013\u2014])?\s*`
 const WEEKDAY_NEIGHBOR_GLUE = new RegExp(String.raw`${WEEKDAY_JOIN_MARK}(?:(?:e(?:\s+(?:as|aos))?|a|ao|aos|as|ate)\s+)?$`, 'u')
-const WEEKDAY_ARTICLE_GLUE = new RegExp(String.raw`${WEEKDAY_JOIN_MARK}(?:a|ao|aos|as|ate)\s+$`, 'u')
 const SHORT_WEEKDAY = /^(?:seg|ter|qua|qui|sex|sab|dom)s?\.?$/u
 
 function matchWeekdays(text: string, patterns: LocalePatterns) {
@@ -411,9 +410,7 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
     const [first, second] = other.match.index < match.index ? [other.match, match] : [match, other.match]
     const glue = text.slice(first.index + first[0].length, second.index)
     if (first.index + first[0].length > second.index || !WEEKDAY_NEIGHBOR_GLUE.test(glue)) return false
-    return !WEEKDAY_ARTICLE_GLUE.test(glue)
-      || SHORT_WEEKDAY.test(other.match[0])
-      || RANGE_OPENER.test(text.slice(0, first.index))
+    return SHORT_WEEKDAY.test(other.match[0]) || RANGE_OPENER.test(text.slice(0, first.index))
   })
   return all
     .filter((weekday) => !weekday.withNeighbor || besideDay(weekday))

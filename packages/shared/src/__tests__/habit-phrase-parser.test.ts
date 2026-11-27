@@ -1144,7 +1144,14 @@ describe('the pt-BR abbreviation ter', () => {
     ['Ter a sexta livre', ['Friday']],
     ['Ter às sextas uma folga', ['Friday']],
     ['Ter aos domingos um tempo pra mim', ['Sunday']],
-  ] as const)('keeps ter as a verb before an article and a full day name: %s', (input, days) => {
+    ['Todo domingo ter um tempo pra mim', ['Sunday']],
+    ['Toda segunda ter aula de inglês', ['Monday']],
+    ['Toda sexta, ter uma noite de jogos', ['Friday']],
+    ['Quero ter sexta e sábado livres', ['Friday', 'Saturday']],
+    ['Na segunda e ter calma', ['Monday']],
+    ['academia segunda e ter', ['Monday']],
+    ['academia ter e quinta', ['Thursday']],
+  ] as const)('keeps ter as a verb beside a full day name: %s', (input, days) => {
     expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
   })
 
@@ -1152,7 +1159,7 @@ describe('the pt-BR abbreviation ter', () => {
     ['academia de ter a sexta', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
     ['academia das ter às sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
     ['academia ter até sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
-    ['academia segunda e ter', ['Monday', 'Tuesday']],
+    ['academia seg e ter', ['Monday', 'Tuesday']],
   ] as const)('reads ter in a range with a range opener or a short form: %s', (input, days) => {
     expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
   })
