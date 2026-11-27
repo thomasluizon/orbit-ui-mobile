@@ -58,9 +58,9 @@ const findingsSection = (findings) =>
 const instanceList = (review) =>
   review.blocking.map((finding) => `- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}\n\n${trimmed(finding.body).split("\n").map((line) => `  ${line}`).join("\n")}`).join("\n\n")
 
-const checkSection = (check) => {
+const checkSection = (check, lineLimit = LOG_LINES_PER_CHECK) => {
   const steps = check.failedSteps?.length > 0 ? ` (failed steps: ${check.failedSteps.join(", ")})` : ""
-  const lines = (check.logLines ?? []).slice(-LOG_LINES_PER_CHECK)
+  const lines = lineLimit > 0 ? (check.logLines ?? []).slice(-lineLimit) : []
   return `### ${check.name}${steps}${lines.length === 0 ? "" : `\n\n\`\`\`\n${lines.join("\n")}\n\`\`\``}`
 }
 
@@ -79,7 +79,7 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => 
     case "fix":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map(checkSection).join("\n\n")}\n\n${CLASS_RULE} Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Merge \`origin/main\`. Push once.`
     case "merge-forward":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":
@@ -101,12 +101,12 @@ const byteTail = (text, limit) => {
 }
 
 /** One earlier launch: what ran, how it ended, and what stayed open at its head. */
-const launchSection = (launch) => {
+const launchSection = (launch, lineLimit = LOG_LINES_PER_CHECK) => {
   const ended = launch.exitCode === null || launch.exitCode === undefined ? "unknown" : String(launch.exitCode)
   const killed = launch.killReason ? `, killed: ${launch.killReason}` : ""
   const heads = launch.headBefore ? `${launch.headBefore} to ${launch.headAfter ?? "unknown"}` : "unknown"
   const findings = (launch.blocking ?? []).map((entry) => `- ${entry.path === null ? "the review body" : `${entry.path}:${entry.line}`}: ${trimmed(entry.body).split("\n").join(" ")}`)
-  const checks = (launch.checks ?? []).map((entry) => checkSection(entry).replace(/^###/, "####"))
+  const checks = (launch.checks ?? []).map((entry) => checkSection(entry, lineLimit).replace(/^###/, "####"))
   const parts = [
     `### ${launch.kind} on ${launch.model}, started ${launch.at ?? "at an unknown time"}`,
     `Exit: ${ended}${killed}. Head: ${heads}.`,
@@ -120,13 +120,13 @@ const launchSection = (launch) => {
 /** The failure history of the launches of a plan, newest first, under the size limit. A launch that no longer fits drops, the oldest first. */
 const earlierLaunchesSection = (history) => {
   if (history.length === 0) return ""
-  const sections = history.map(launchSection)
+  const sections = history.map((launch) => launchSection(launch))
   const size = (list) => Buffer.byteLength(list.join("\n\n"))
   while (sections.length > 1 && size(sections) > EARLIER_LAUNCHES_LIMIT_BYTES) sections.pop()
-  const body = sections.join("\n\n")
-  // Only one launch is left here, and its findings alone pass the limit: keep its start.
-  const kept = Buffer.byteLength(body) > EARLIER_LAUNCHES_LIMIT_BYTES ? Buffer.from(body).subarray(0, EARLIER_LAUNCHES_LIMIT_BYTES).toString() : body
-  return `\n\n## Earlier launches\n\n${kept}\n\nThe launches above failed. Find why before you change code.`
+  // One launch is left here. When it is still over the limit, drop its oldest check-log lines and render it again, so every fence closes and the result tail stays.
+  let lineLimit = LOG_LINES_PER_CHECK
+  while (size(sections) > EARLIER_LAUNCHES_LIMIT_BYTES && lineLimit > 0) sections[0] = launchSection(history[0], --lineLimit)
+  return `\n\n## Earlier launches\n\n${sections.join("\n\n")}\n\nThe launches above failed. Find why before you change code.`
 }
 
 /** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
