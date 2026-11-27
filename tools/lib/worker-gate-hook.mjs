@@ -10,6 +10,7 @@ import { existsSync, readFileSync, readdirSync, realpathSync, renameSync, writeF
 import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 
+import { escapeRegex } from "./escape-regex.mjs"
 import { GATE_SCRIPTS, readGate, recordFile } from "./gate-commands.mjs"
 import { measure } from "./worker-size-hook.mjs"
 
@@ -17,7 +18,7 @@ export const MAX_BLOCKS = 3
 export const TAIL_LINES = 40
 const COMMAND_TIMEOUT_MS = 10 * 60 * 1000
 const OUTPUT_LIMIT_BYTES = 64 * 1024 * 1024
-const WORKSPACE = /^((?:apps|packages)\/[^/]+)\//
+const WORKSPACE = /^((?:apps|packages)\/[^/]+|eslint-rules)\//
 const SOURCE = /\.[cm]?[jt]sx?$/
 const TOOLS_SOURCE = /^(?:tools|\.claude)\//
 const TOOLS_TESTS = "tools/__tests__"
@@ -39,27 +40,31 @@ const scriptsOf = (directory) => {
 /** The text of a command for the block reason and the record. */
 const textOf = ({ program, args, directory }) => `${directory === "" ? "" : `(in ${directory}) `}${[program, ...args].join(" ")}`
 
-/** The names of the test modules of `tools/__tests__` that cover a changed file of `tools/` or `.claude/`. */
-export const toolModules = (top, paths) => {
+/**
+ * The `test-tools.mjs` arguments for the changed paths of `tools/` and `.claude/`: one `--only <module>` for each module of
+ * `tools/__tests__` that has the name of a changed file or names its base name with its extension. A changed path that no module
+ * covers (a file that only another file of `tools/` reaches, a deleted test) gives the whole suite, so no path gates green untested.
+ */
+export const toolTests = (top, paths) => {
+  const changed = paths.filter((path) => TOOLS_SOURCE.test(path))
+  if (changed.length === 0) return []
   const folder = join(top, TOOLS_TESTS)
-  if (!existsSync(folder)) return []
-  const modules = readdirSync(folder).filter((file) => file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs")).map((file) => file.slice(0, -".mjs".length))
+  const modules = existsSync(folder) ? readdirSync(folder).filter((file) => file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs")).map((file) => file.slice(0, -".mjs".length)) : []
   const sources = new Map(modules.map((name) => [name, readFileSync(join(folder, `${name}.mjs`), "utf8")]))
   const selected = new Set()
-  for (const path of paths.filter((entry) => entry.startsWith("tools/") && /\.mjs$/.test(entry))) {
+  for (const path of changed) {
     const base = path.slice(path.lastIndexOf("/") + 1)
-    const name = base.slice(0, -".mjs".length)
-    const reference = new RegExp(`[/"']${base.replaceAll(".", "\\.")}["']`)
-    for (const [module, text] of sources) {
-      if (module === name || reference.test(text)) selected.add(module)
-    }
+    const reference = new RegExp(`[/"']${escapeRegex(base)}["']`)
+    const covering = [...sources].filter(([module, text]) => module === base.replace(/\.[^.]*$/, "") || reference.test(text)).map(([module]) => module)
+    if (covering.length === 0) return [[]]
+    for (const module of covering) selected.add(module)
   }
-  return [...selected].sort()
+  return [...selected].sort().map((module) => ["--only", module])
 }
 
 /**
  * The gate commands for the changed paths: for each touched workspace its type check, its lint and `vitest related` on its changed
- * source files; for a diff in `tools/` or `.claude/` the tool tests of each changed module; and the dash check of every changed file.
+ * source files; for a diff in `tools/` or `.claude/` the tool tests of each changed module, or the whole suite for a path that no module covers; and the dash check of every changed file.
  * `paths` holds the paths of the diff, and `exists` tells which of them are still files. A deleted file is no input to a command.
  */
 export const gateCommands = (top, paths, exists = (path) => existsSync(join(top, path))) => {
@@ -75,9 +80,7 @@ export const gateCommands = (top, paths, exists = (path) => existsSync(join(top,
     // `--passWithNoTests` keeps a change that no test reaches from turning the gate red.
     if (related.length > 0) commands.push({ program: "npx", args: ["vitest", "related", "--run", "--passWithNoTests", ...related], directory: workspace })
   }
-  if (paths.some((path) => TOOLS_SOURCE.test(path))) {
-    for (const module of toolModules(top, paths)) commands.push({ program: "node", args: ["tools/test-tools.mjs", "--only", module], directory: "" })
-  }
+  for (const args of toolTests(top, paths)) commands.push({ program: "node", args: ["tools/test-tools.mjs", ...args], directory: "" })
   if (present.length > 0) commands.push({ program: "node", args: ["tools/check-dashes.mjs", "--files", ...present], directory: "" })
   return commands
 }

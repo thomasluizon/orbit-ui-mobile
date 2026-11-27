@@ -11,6 +11,7 @@ const text = ({ program, args }) => [program, ...args].join(" ")
 export const cases = () => {
   write("apps/web/package.json", JSON.stringify({ scripts: { "type-check": "x", lint: "x" } }))
   for (const path of ["tools/lib/alpha.mjs", "tools/__tests__/alpha.mjs"]) write(path, "")
+  write("tools/__tests__/skills.mjs", 'export const named = ["SKILL.md", "../replay-scripts.json"]\n')
   for (const args of [["init", "-q", "--initial-branch=main"], ["add", "-A"], ["commit", "-q", "-m", "base"], ["update-ref", "refs/remotes/origin/main", "HEAD"], ["switch", "-q", "-c", "work"]]) git(...args)
   write("apps/web/src/a.ts", "export {}\n")
   const record = () => JSON.parse(readFileSync(join(git("rev-parse", "--absolute-git-dir"), "orbit-gate.json"), "utf8"))
@@ -21,6 +22,10 @@ export const cases = () => {
   same("worker-gate-hook: the fourth red stop does not block and writes green false", [gate(options), record().green, record().blocks], [null, false, 3])
   same("worker-gate-hook: a green gate writes green true and does not block", [gate({ ...options, run: "g", execute: (top, entry) => ({ command: text(entry), ok: true, tail: "" }) }), record().green], [null, true])
   same("worker-gate-hook: a tools diff runs test-tools for its module, and tailOf keeps 40 lines", [gateCommands(dir, ["tools/lib/alpha.mjs"], () => true).map(text), tailOf("x\n".repeat(99)).split("\n").length], [["node tools/test-tools.mjs --only alpha", "node tools/check-dashes.mjs --files tools/lib/alpha.mjs"], 40])
+  const modules = (...paths) => gateCommands(dir, paths, () => true).map(text).filter((entry) => entry.includes("test-tools"))
+  same("worker-gate-hook: a .claude file and a non-mjs file of tools select the module that names them", [modules(".claude/skills/x/SKILL.md"), modules("tools/replay-scripts.json")], [["node tools/test-tools.mjs --only skills"], ["node tools/test-tools.mjs --only skills"]])
+  same("worker-gate-hook: a changed path that no module names runs the whole tool suite", [modules("tools/lib/gate-commands.mjs"), modules("tools/lib/alpha.mjs", ".claude/orchestrator.json"), modules("tools/__tests__/gone.mjs")], [["node tools/test-tools.mjs"], ["node tools/test-tools.mjs"], ["node tools/test-tools.mjs"]])
+  same("worker-gate-hook: a change in the eslint-rules workspace runs vitest related in it", gateCommands(dir, ["eslint-rules/a.cjs"], () => true).map(text).filter((entry) => entry.includes("vitest")), ["npx vitest related --run --passWithNoTests a.cjs"])
   const stop = workerSettings({ hotPath: "/h", skillNames: [], gate: { run: "r", head: "a" } }).hooks.Stop[0].hooks[0].command
   T("worker-gate-hook: a code worker gets the Stop hook, and a find or replan run gets none", stop.includes("worker-gate-hook.mjs") && stop.includes("--run 'r' --head 'a'") && workerSettings({ hotPath: "/h", skillNames: [], gate: null }).hooks.Stop === undefined, stop)
 }
