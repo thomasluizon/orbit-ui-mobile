@@ -1817,7 +1817,6 @@ const readWorld = async (env, mem) => {
   const states = []
   for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).catch(blind(key)))
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
-  mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
   return { tickets, states }
 }
 
@@ -1947,6 +1946,8 @@ const runTick = async (env, mem) => {
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
   const orders = []
   for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, { running, stopped: paces.main.stopped }))
+  // The read of this tick and the bar that follows it make a good tick. The read of the reap is no good tick, and a throw before the bar leaves no green list.
+  mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()

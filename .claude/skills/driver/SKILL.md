@@ -53,7 +53,7 @@ Every tick, good or failed, writes `health.json` in the state directory (`$S` of
 | Field | Meaning |
 | --- | --- |
 | `writtenAt` | The time of the write. A file that is old means the driver does not run. |
-| `lastGoodTickAt` | The time of the last tick whose read of GitHub succeeded. |
+| `lastGoodTickAt` | The time of the last tick whose own read of GitHub succeeded and whose check of each open pull request ran. The read of a reap does not count. |
 | `lastMergeAt` | The time of the last merge of the driver. |
 | `openPulls` | The count of open pull requests in the three repositories. |
 | `oldestGreenApprovedAt` | The approval time of the oldest open pull request that meets the bar and is not merged. It is `null` when none exists. |

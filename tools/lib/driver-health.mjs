@@ -8,6 +8,8 @@ import { join } from "node:path"
 
 export const HEALTH_FILE = "health.json"
 const DETAIL_LIMIT = 200
+/** The end of the command in each message of `defaultRun` (`tools/lib/github.mjs`) and of the read of `tools/lib/github-read.mjs`. The cause follows the match. */
+const COMMAND_END = /^(?:gh|GitHub read) [\s\S]*? (?:failed: |(?=timed out after \d+ms$)|(?=exceeded \d+ bytes of output$))/
 
 /** The class of an error, from the first pattern that its message matches. A class never changes its name. */
 const ERROR_CLASSES = [
@@ -18,17 +20,23 @@ const ERROR_CLASSES = [
   ["timeout", /timed out|timeout|deadline exceeded|read ceiling/i],
 ]
 
-export const errorClassOf = (error) => {
+/**
+ * The cause in an error message of a `gh` call. `defaultRun` puts the whole command before the cause, and the command can hold a
+ * whole query with each pull request number. A message of another shape is its own cause.
+ */
+const causeOf = (error) => {
   const text = String(error?.message ?? error)
-  return ERROR_CLASSES.find(([, pattern]) => pattern.test(text))?.[0] ?? "other"
+  const command = COMMAND_END.exec(text)
+  return command === null ? text : text.slice(command[0].length)
 }
 
-/** The part of an error message that names the cause: the text after the last ` failed: `, first line, cut. The command before it can hold a whole query. */
-export const detailOf = (error) => {
-  const text = String(error?.message ?? error)
-  const at = text.lastIndexOf(" failed: ")
-  return (at === -1 ? text : text.slice(at + " failed: ".length)).split("\n", 1)[0].slice(0, DETAIL_LIMIT)
+export const errorClassOf = (error) => {
+  const cause = causeOf(error)
+  return ERROR_CLASSES.find(([, pattern]) => pattern.test(cause))?.[0] ?? "other"
 }
+
+/** The cause of an error message, first line, cut. */
+export const detailOf = (error) => causeOf(error).split("\n", 1)[0].slice(0, DETAIL_LIMIT)
 
 /** The record of the last tick, or null before the first one. */
 export const readHealth = (stateDir) => {

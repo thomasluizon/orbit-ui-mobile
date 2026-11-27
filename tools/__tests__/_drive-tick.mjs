@@ -801,6 +801,25 @@ const healthCases = async () => {
   await unreadLimit.run()
   same("drive: a rate limit that the rate_limit read cannot name leaves rateLimitedUntil null", [healthOf(unreadLimit).lastErrorClass, healthOf(unreadLimit).rateLimitedUntil], ["rate-limit", null])
 
+  // The reap reads the world too. Its read is no good tick: only the read of the tick itself, and the bar that follows it, count.
+  const reaped = scenario({ tickets: [ticket(7)], pulls: { ui: [] } })
+  keepWrites(reaped, [ticket(7)])
+  leftBehind(reaped)
+  reaped.mem.account = ACCOUNT
+  writeFileSync(join(reaped.env.stateDir, "health.json"), `${JSON.stringify(previous)}\n`)
+  const reapRead = reaped.env.github.readRepositoryState
+  let reads = 0
+  reaped.env.github.readRepositoryState = async (key) => { if (reads++ >= 3) throw new Error("gh api graphql -f query=query { x } failed: gh: HTTP 502: Bad Gateway"); return reapRead(key) }
+  same("drive: a tick whose reap read works and whose own read fails returns retried", [(await reaped.run()).retried, reads], [true, 4])
+  same("drive: a tick whose reap read works and whose own read fails keeps the last good values of health.json", [healthOf(reaped).lastGoodTickAt, healthOf(reaped).openPulls, healthOf(reaped).oldestGreenApprovedAt, healthOf(reaped).problems.map((problem) => problem.key)], [iso(-2 * MINUTE), 3, iso(-30 * MINUTE), ["blind:ui", "unmerged:ui#12"]])
+
+  // A tick that throws after its read and before the bar ran has no green list yet, so it keeps the last one.
+  const early = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -90 * MINUTE)] })] }, auth: { ...AUTH, loggedIn: false } })
+  early.env.github.createTicket = async () => { throw new Error("gh issue create failed: gh: HTTP 502: Bad Gateway") }
+  writeFileSync(join(early.env.stateDir, "health.json"), `${JSON.stringify(previous)}\n`)
+  await early.run().then(() => null, (error) => error)
+  same("drive: a tick that throws between its read and the bar keeps the last good values of health.json", [healthOf(early).lastGoodTickAt, healthOf(early).openPulls, healthOf(early).oldestGreenApprovedAt, healthOf(early).lastErrorClass], [iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server"])
+
   const asleep = failingRead("gh api graphql failed: gh: HTTP 504: Gateway Timeout", { sleeping: true })
   await asleep.run()
   same("drive: while sleep is on a failed read still writes health.json and sends no notification", [healthOf(asleep).lastErrorClass, only(asleep.calls, "notify").length], ["server", 0])

@@ -3,7 +3,9 @@ import { join } from "node:path"
 
 import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "../lib/driver-health.mjs"
 
-import { T, root, same } from "./_harness.mjs"
+import { readRepositoryState } from "../lib/github.mjs"
+
+import { T, orcaEnv, root, same } from "./_harness.mjs"
 
 const UNIT = "lib/driver-health.mjs"
 const NOW = Date.parse("2026-11-19T12:00:00Z")
@@ -19,10 +21,33 @@ export const cases = async () => {
     ["gh api graphql failed: dial tcp: lookup api.github.com: no such host ECONNREFUSED", "network"],
     ["gh api graphql failed: gh: HTTP 502: Bad Gateway", "server"],
     ["gh api graphql failed: gh: HTTP 504: Gateway Timeout", "server"],
-    ["gh api graphql timed out after 60000ms", "timeout"],
     ["GitHub read ceiling reached", "timeout"],
+    ["gh api graphql returned errors: [{\"message\":\"API rate limit exceeded for user ID 1\"}]", "rate-limit"],
     ["gh api graphql returned errors: {}", "other"],
   ]) same(`${UNIT}: the class of "${message.slice(0, 60)}" is ${expected}`, errorClassOf(new Error(message)), expected)
+
+  // The messages of `defaultRun`, from a real read: the command, with the whole query, comes before the cause. The query holds
+  // each known pull request as `pullRequest(number: N)`, so N = 401 and N = 500 are the numbers that look like an HTTP status.
+  const realMessage = async (stderr, knownNumbers) => {
+    const saved = Object.fromEntries(["GH_BIN", "NODE_OPTIONS", "ORBIT_ORCA_STUB"].map((name) => [name, process.env[name]]))
+    Object.assign(process.env, orcaEnv([{ match: "DriveState", stderr, exit: 1 }]))
+    try {
+      await readRepositoryState("ui", { knownNumbers })
+    } catch (error) {
+      return error.message
+    } finally {
+      for (const [name, value] of Object.entries(saved)) { if (value === undefined) delete process.env[name]; else process.env[name] = value }
+    }
+    throw new Error("the stubbed read did not fail")
+  }
+  for (const number of [401, 500, 502, 503, 504]) {
+    const failed = await realMessage("gh: ECONNRESET", [number])
+    same(`${UNIT}: a failed read with pull request #${number} in its query has the class network`, [errorClassOf(new Error(failed)), detailOf(new Error(failed))], ["network", "gh: ECONNRESET"])
+    const command = failed.slice(0, failed.indexOf(" failed: "))
+    same(`${UNIT}: a timed out read with pull request #${number} in its query has the class timeout and names the timeout`, [errorClassOf(new Error(`${command} timed out after 30000ms`)), detailOf(new Error(`${command} timed out after 30000ms`))], ["timeout", "timed out after 30000ms"])
+    same(`${UNIT}: an overflowed read with pull request #${number} in its query has the class other and names the overflow`, [errorClassOf(new Error(`${command} exceeded 33554432 bytes of output`)), detailOf(new Error(`${command} exceeded 33554432 bytes of output`))], ["other", "exceeded 33554432 bytes of output"])
+  }
+  same(`${UNIT}: the cause after a failed command keeps a later failed: of its own text`, detailOf(new Error("gh api graphql -f query=query { x } failed: gh: step failed: HTTP 502")), "gh: step failed: HTTP 502")
 
   same(`${UNIT}: the detail is the text after the failed command, cut to its first line`, detailOf(new Error(`gh api graphql -f query=${"x".repeat(5000)} failed: gh: HTTP 502: Bad Gateway\nsecond line`)), "gh: HTTP 502: Bad Gateway")
   T(`${UNIT}: the detail never passes 200 characters`, detailOf(new Error("y".repeat(900))).length === 200)
