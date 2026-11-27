@@ -44,10 +44,11 @@ const textOf = ({ program, args, directory }) => `${directory === "" ? "" : `(in
  * The `test-tools.mjs` arguments for the changed paths of `tools/` and `.claude/`: one `--only <module>` for each module of
  * `tools/__tests__` that has the name of a changed file or names its base name with its extension. A changed path that no module
  * covers (a file that only another file of `tools/` reaches, a deleted test) gives the whole suite, so no path gates green untested.
+ * A repository with no `tools/test-tools.mjs` (orbit-api, orbit-landing-page) gets no tool tests.
  */
 export const toolTests = (top, paths) => {
   const changed = paths.filter((path) => TOOLS_SOURCE.test(path))
-  if (changed.length === 0) return []
+  if (changed.length === 0 || !existsSync(join(top, "tools", "test-tools.mjs"))) return []
   const folder = join(top, TOOLS_TESTS)
   const modules = existsSync(folder) ? readdirSync(folder).filter((file) => file.endsWith(".mjs") && !file.startsWith("_") && !file.endsWith(".test.mjs")).map((file) => file.slice(0, -".mjs".length)) : []
   const sources = new Map(modules.map((name) => [name, readFileSync(join(folder, `${name}.mjs`), "utf8")]))
@@ -66,11 +67,12 @@ export const toolTests = (top, paths) => {
  * The gate commands for the changed paths: for each touched workspace its type check, its lint and `vitest related` on its changed
  * source files; for a diff in `tools/` or `.claude/` the tool tests of each changed module, or the whole suite for a path that no module covers; and the dash check of every changed file.
  * `paths` holds the paths of the diff, and `exists` tells which of them are still files. A deleted file is no input to a command.
+ * A command runs only when the repository holds its script or its workspace manifest, so a sibling repository gets no command it cannot pass.
  */
 export const gateCommands = (top, paths, exists = (path) => existsSync(join(top, path))) => {
   const present = paths.filter(exists)
   const commands = []
-  const workspaces = [...new Set(paths.map((path) => WORKSPACE.exec(path)?.[1]).filter(Boolean))].sort()
+  const workspaces = [...new Set(paths.map((path) => WORKSPACE.exec(path)?.[1]).filter(Boolean))].filter((workspace) => existsSync(join(top, workspace, "package.json"))).sort()
   for (const workspace of workspaces) {
     const scripts = scriptsOf(join(top, workspace))
     for (const script of GATE_SCRIPTS) {
@@ -81,7 +83,7 @@ export const gateCommands = (top, paths, exists = (path) => existsSync(join(top,
     if (related.length > 0) commands.push({ program: "npx", args: ["vitest", "related", "--run", "--passWithNoTests", ...related], directory: workspace })
   }
   for (const args of toolTests(top, paths)) commands.push({ program: "node", args: ["tools/test-tools.mjs", ...args], directory: "" })
-  if (present.length > 0) commands.push({ program: "node", args: ["tools/check-dashes.mjs", "--files", ...present], directory: "" })
+  if (present.length > 0 && existsSync(join(top, "tools", "check-dashes.mjs"))) commands.push({ program: "node", args: ["tools/check-dashes.mjs", "--files", ...present], directory: "" })
   return commands
 }
 

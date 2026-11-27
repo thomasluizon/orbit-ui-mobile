@@ -10,7 +10,7 @@ const write = (path, body) => { mkdirSync(dirname(join(dir, path)), { recursive:
 const text = ({ program, args }) => [program, ...args].join(" ")
 export const cases = () => {
   write("apps/web/package.json", JSON.stringify({ scripts: { "type-check": "x", lint: "x" } }))
-  for (const path of ["tools/lib/alpha.mjs", "tools/__tests__/alpha.mjs"]) write(path, "")
+  for (const path of ["tools/lib/alpha.mjs", "tools/__tests__/alpha.mjs", "tools/test-tools.mjs", "tools/check-dashes.mjs", "eslint-rules/package.json"]) write(path, "")
   write("tools/__tests__/skills.mjs", 'export const named = ["SKILL.md", "../replay-scripts.json"]\n')
   for (const args of [["init", "-q", "--initial-branch=main"], ["add", "-A"], ["commit", "-q", "-m", "base"], ["update-ref", "refs/remotes/origin/main", "HEAD"], ["switch", "-q", "-c", "work"]]) git(...args)
   write("apps/web/src/a.ts", "export {}\n")
@@ -30,6 +30,9 @@ export const cases = () => {
   same("worker-gate-hook: a .claude file and a non-mjs file of tools select the module that names them", [modules(".claude/skills/x/SKILL.md"), modules("tools/replay-scripts.json")], [["node tools/test-tools.mjs --only skills"], ["node tools/test-tools.mjs --only skills"]])
   same("worker-gate-hook: a changed path that no module names runs the whole tool suite", [modules("tools/lib/gate-commands.mjs"), modules("tools/lib/alpha.mjs", ".claude/orchestrator.json"), modules("tools/__tests__/gone.mjs")], [["node tools/test-tools.mjs"], ["node tools/test-tools.mjs"], ["node tools/test-tools.mjs"]])
   same("worker-gate-hook: a change in the eslint-rules workspace runs vitest related in it", gateCommands(dir, ["eslint-rules/a.cjs"], () => true).map(text).filter((entry) => entry.includes("vitest")), ["npx vitest related --run --passWithNoTests a.cjs"])
+  const bare = join(root, "gate-hook-bare")
+  for (const path of ["tools/release-smoke.mjs", "tools/__tests__/release-smoke.test.mjs", "eslint-rules/no-comments.cjs"]) { mkdirSync(dirname(join(bare, path)), { recursive: true }); writeFileSync(join(bare, path), "") }
+  same("worker-gate-hook: a repository with no test-tools.mjs, check-dashes.mjs or eslint-rules package gets no command for them", gateCommands(bare, ["tools/release-smoke.mjs", "eslint-rules/no-comments.cjs"], () => true).map(text), [])
   const stop = workerSettings({ hotPath: "/h", skillNames: [], gate: { run: "r", head: "a" } }).hooks.Stop[0].hooks[0].command
   T("worker-gate-hook: a code worker gets the Stop hook, and a find or replan run gets none", stop.includes("worker-gate-hook.mjs") && stop.includes("--run 'r' --head 'a'") && workerSettings({ hotPath: "/h", skillNames: [], gate: null }).hooks.Stop === undefined, stop)
 }
