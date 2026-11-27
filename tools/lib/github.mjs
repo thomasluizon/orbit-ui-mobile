@@ -40,7 +40,7 @@ export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositor
 /** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
 export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
 
-const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
@@ -235,6 +235,7 @@ const normalizePull = (raw, ticketRepository) => {
     number: raw.number,
     state: raw.state,
     draft: raw.isDraft,
+    createdAt: raw.createdAt ?? null,
     author: botLogin(raw.author),
     labels: labelNames(raw.labels),
     headRef: raw.headRefName,
