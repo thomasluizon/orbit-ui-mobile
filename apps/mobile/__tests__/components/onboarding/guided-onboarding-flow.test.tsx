@@ -517,6 +517,20 @@ describe('the native window handoff of the guided onboarding', () => {
     }
   })
 
+  it('keeps the typed habit of a failed push recovery until completion succeeds, then clears the recovery', async () => {
+    let completeRecovery!: () => void
+    mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { completeRecovery = resolve }))
+    useOnboardingDraftStore.setState({ introSeen: true, habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })
+    const tree = await mount()
+    await press(tree, en.onboarding.flow.remind.continue)
+    expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
+    await TestRenderer.act(async () => { completeRecovery(); await Promise.resolve() })
+    expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+    expect(useOnboardingDraftStore.getState().habits).toEqual([])
+  })
+
   it('on iOS keeps the steps window until UIKit finishes its dismissal, then presents the Pro dialog after a push recovery', async () => {
     mocks.pro = false
     useOnboardingDraftStore.setState({ introSeen: true, habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })

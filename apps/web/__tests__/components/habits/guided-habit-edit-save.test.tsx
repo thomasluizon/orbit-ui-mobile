@@ -93,6 +93,7 @@ beforeEach(() => {
   state.detailPending = false
   state.detailFetching = false
   state.detailError = null
+  state.refetchDetail.mockReset()
   inventory.read.mockReset().mockResolvedValue({ items: [], page: 1, pageSize: 200, totalCount: 0, totalPages: 1 })
   vi.useFakeTimers({ now: new Date('2026-11-13T12:00:00Z'), toFake: ['Date'] })
   vi.stubGlobal('matchMedia', (query: string) => ({ matches: false, media: query, addEventListener: () => {}, removeEventListener: () => {} }))
@@ -194,5 +195,30 @@ describe('the edit save payload of the guided edit', () => {
       expect(data).toMatchObject(expected)
       expect(Object.keys(data).filter((key) => key === 'parentId' || key === 'clearParent')).toEqual(Object.keys(expected))
     })
+  })
+  it('takes the parent of the readback as the authority of a retry after a lost response, so the top level clears it', async () => {
+    const parent = createMockHabitScheduleItem({ id: 'parent-1', title: 'Rotina da manhã', children: [] })
+    const source = createMockHabitScheduleItem({ ...storedHabit, children: [] })
+    inventory.read.mockImplementation((url: string) => Promise.resolve({ items: url.includes('isGeneral=true') ? [] : [parent, source], page: 1, pageSize: 200, totalCount: 2, totalPages: 1 }))
+    state.detail = { ...storedHabit, parentId: null, children: [] }
+    state.update.mockRejectedValueOnce(new Error('timeout'))
+    state.refetchDetail.mockResolvedValue({ isSuccess: true, data: { ...storedHabit, parentId: 'parent-1', children: [] } })
+    mountEdit()
+    const chooseParent = (choice: string) => toSummaryAfter(flow.optional.parent, async () => {
+      await press(new RegExp('^' + escapeRegExp(flow.optional.parentRow)))
+      await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+      await act(async () => { fireEvent.click(screen.getByRole('radio', { name: new RegExp('^' + escapeRegExp(choice)) })) })
+      await press('Fechar')
+    })
+    await chooseParent('Rotina da manhã')
+    await press(ptBR.common.save)
+    expect(updateData()).toMatchObject({ parentId: 'parent-1' })
+    expect(screen.getByText(ptBR.habits.form.saveUncertain)).toBeVisible()
+    await chooseParent('Sem hábito principal (nível raiz)')
+    await press(ptBR.common.save)
+    expect(state.update).toHaveBeenCalledTimes(2)
+    const retry = (state.update.mock.calls[1]![0] as { data: Record<string, unknown> }).data
+    expect(retry).toMatchObject({ clearParent: true })
+    expect(retry).not.toHaveProperty('parentId')
   })
 })

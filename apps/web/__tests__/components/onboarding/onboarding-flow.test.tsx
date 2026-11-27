@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { completeOnboardingOrQueue, useOnboardingCompletionQueue } from '@/hooks/use-onboarding-completion-queue'
-import { useRetainedOnboardingGuard, useRetainedOnboardingSession } from '@/hooks/use-retained-onboarding-guard'
+import { completeOnboardingOrQueue } from '@/hooks/use-onboarding-completion-queue'
 import { setOnboardingProPending, useOnboardingProPending } from '@/hooks/use-onboarding-pro-pending'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import { UnrecognizedActionError } from 'next/dist/client/components/unrecognized-action-error'
@@ -15,7 +14,6 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { closeChrome, registerChromeLaunchHook, type Browser, type BrowserLaunch } from '@/__tests__/support/chromium'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { Profile } from '@orbit/shared/types/profile'
 import type { HabitSetupSuggestion } from '@orbit/shared/types/habit'
 import { OnboardingActionsProvider, type OnboardingActions } from '@/components/onboarding/onboarding-actions-context'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
@@ -23,7 +21,6 @@ import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onbo
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useAppToastStore } from '@/stores/app-toast-store'
 import { useUIStore } from '@/stores/ui-store'
-import { useAuthStore } from '@/stores/auth-store'
 import { setAccountId } from '@/lib/account-scope'
 import AuthLayout from '@/app/(auth)/layout'
 import OnboardingLayout from '@/app/(onboarding)/layout'
@@ -140,18 +137,6 @@ function actions(): OnboardingActions {
     recordCompletion: mocks.recordCompletion,
     finishOnboarding: mocks.finishOnboarding,
   }
-}
-
-function RetainedRecoverySource({ profile }: Readonly<{ profile: Profile }>) {
-  const pendingPro = useOnboardingProPending()
-  const completionQueued = useOnboardingCompletionQueue()
-  const pushRegistrationFailed = useOnboardingDraftStore((state) => state.pushRegistrationFailed)
-  const required = useRetainedOnboardingGuard(profile, completionQueued, pushRegistrationFailed)
-  const session = useRetainedOnboardingSession(required || pendingPro)
-  const authenticated = useAuthStore((state) => state.isAuthenticated)
-  return authenticated && session.open
-    ? <RetainedOnboardingOverlay finalStepOnly={pendingPro} onExit={session.dismiss} />
-    : <span>destination ready</span>
 }
 
 function mount(isLive: boolean) {

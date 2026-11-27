@@ -64,13 +64,13 @@ function actions(): OnboardingActions {
   }
 }
 
-function mount(locale: string, messages: Messages, options: { isLive?: boolean } = {}) {
+function mount(locale: string, messages: Messages, options: { isLive?: boolean; onExit?: () => void } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={client}>
       <NextIntlClientProvider locale={locale} messages={messages} timeZone="UTC">
         <OnboardingActionsProvider actions={actions()} isLive={options.isLive ?? true}>
-          <OnboardingFlow />
+          <OnboardingFlow onExit={options.onExit} />
         </OnboardingActionsProvider>
       </NextIntlClientProvider>
     </QueryClientProvider>,
@@ -648,6 +648,40 @@ describe('guided onboarding requests', () => {
       expect(mocks.subscribe).toHaveBeenCalledOnce()
       await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
       expect(mocks.updateHabit).not.toHaveBeenCalled()
+    })
+
+    it.each(['retry', 'continue'] as const)('keeps the typed habit until completion succeeds after %s, then clears the recovery and leaves once', async (choice) => {
+      let completeRecovery!: () => void
+      mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { completeRecovery = resolve }))
+      deferredFailure()
+      const onExit = vi.fn()
+      mount(locale, messages, { onExit })
+      await act(async () => { press(choice === 'retry' ? flow.retry : remind.continue) })
+      await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+      expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+      expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
+      expect(onExit).not.toHaveBeenCalled()
+      await act(async () => { completeRecovery() })
+      await waitFor(() => expect(onExit).toHaveBeenCalledOnce())
+      expect(mocks.subscribe).toHaveBeenCalledTimes(choice === 'retry' ? 1 : 0)
+      expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+      expect(useOnboardingDraftStore.getState().habits).toEqual([])
+    })
+
+    it.each(['registration', 'completion'] as const)('keeps the recovery open with the typed habit after the %s fails', async (failure) => {
+      if (failure === 'registration') mocks.subscribe.mockRejectedValueOnce(new Error('registration failed'))
+      else mocks.finishOnboarding.mockRejectedValueOnce(new Error('completion failed'))
+      deferredFailure()
+      const onExit = vi.fn()
+      mount(locale, messages, { onExit })
+      await act(async () => { press(flow.retry) })
+      await waitFor(() => expect(mocks.subscribe).toHaveBeenCalledOnce())
+      await waitFor(() => expect(screen.getByRole('button', { name: flow.retry })).toBeEnabled())
+      expect(mocks.finishOnboarding).toHaveBeenCalledTimes(failure === 'completion' ? 1 : 0)
+      expect(heading()).toBe(remind.failedTitle)
+      expect(onExit).not.toHaveBeenCalled()
+      expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(true)
+      expect(useOnboardingDraftStore.getState().habits).toHaveLength(1)
     })
 
     it('clears the failed push recovery before Escape finishes onboarding', async () => {
