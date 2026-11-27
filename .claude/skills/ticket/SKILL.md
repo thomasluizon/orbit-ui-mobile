@@ -51,6 +51,8 @@ A headless worker receives the ticket as its order. The worker cannot read this 
 8. Test scenarios
 9. Rollout or Events, where risk or measurement exists
 
+A `Bug` ticket carries a `Class: <name>` line and a `## Permanent fix` section. The section names the code that holds the class (a path under `eslint-rules/`, a primitive file or a test file), or reads `none: <reason>`. A repeat of a class names the code of the earlier ticket.
+
 For a defect, run a red-capable command at least once before the ticket exists, and put it first in Test scenarios. For other work, write no red case that does not exist.
 
 ## Labels

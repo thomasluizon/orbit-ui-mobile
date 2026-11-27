@@ -1,10 +1,13 @@
 /** The driver's one GitHub adapter: reads of pull request and ticket state, the merge bar, and every write the driver makes. */
 
+import { existsSync, readFileSync } from "node:fs"
+
 import { runBounded } from "./bounded-process.mjs"
 import { readDriveConfig } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 import { repositorySlug } from "./github-auth.mjs"
 import { readRequiredChecksAt } from "./github-read.mjs"
+import { ownerParts, partOf, partProblem } from "./order.mjs"
 
 const COMMAND_TIMEOUT_MS = 30000
 const COMMAND_MAX_BUFFER = 32 * 1024 * 1024
@@ -39,6 +42,10 @@ const LINT_CHECK_BY_REPOSITORY = { ui: "Checks" }
 export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositoryKey] ?? null
 /** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
 export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
+
+const BUG_LABEL = "Bug"
+/** The labels of the owner that unlock a locked path or a feature flag. A ticket that the driver filed never carries one. */
+const LOCK_LABELS = ["design-system", "gate", "flag:approved"]
 
 const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
@@ -220,6 +227,87 @@ export const classLines = (reviews) => {
   return [...lines.values()]
 }
 
+const STRICT_PART_HEADING = /^## Part \d+ of \d+: \S/
+const CLASS_NAME_LINE = /^Class:[ \t]*(\S.*?)[ \t]*$/m
+const FILED_BY_DRIVER = /^Filed by: driver[ \t]*$/m
+const PRIMITIVE_LIST_FILE = new URL("../lint-changed.mjs", import.meta.url)
+/** Until `tools/lint-changed.mjs` lists the primitives, a file of the `ui` folder of an app is one. */
+const DEFAULT_PRIMITIVE = /^apps\/[^/]+\/components\/ui\/./
+/** A JS or TS test file, or a C# file of an `orbit-api` test project. */
+const TEST_FILE = /(?:^|\/)__tests__\/.+\.[cm]?[jt]sx?$|\.(?:test|spec)\.[cm]?[jt]sx?$|^tests\/Orbit\.[^/]+\.Tests\/.+\.cs$/
+
+const lf = (text) => String(text ?? "").replace(/\r\n/g, "\n")
+/** The value of the `Class:` line of a ticket body, or null. */
+export const classOf = (body) => CLASS_NAME_LINE.exec(lf(body))?.[1] ?? null
+
+/** The paths in a text: each word with a slash, with its backticks, its line number and its end mark removed. A link is no path. */
+const pathsIn = (text) => [...new Set(text.split(/[\s`,;"'<>]+/)
+  .map((word) => word.replace(/^[([]+/, "").replace(/(?::\d+)*[).:]*$/, "").replace(/^\.\//, ""))
+  .filter((word) => word.includes("/") && !/^[a-z]+:\/\//.test(word) && !word.startsWith("/")))]
+
+/** The `## Permanent fix` section of a ticket body as `{ none, paths }`, or null when the body has none. `none` is true for `none: <reason>`, and then `paths` is empty, because the reason is prose and names no code. */
+export const permanentFixOf = (body) => {
+  const lines = lf(body).split("\n")
+  const start = lines.findIndex((line) => line.trimEnd() === "## Permanent fix")
+  if (start < 0) return null
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "))
+  const text = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim()
+  const none = /^none:[ \t]*\S/.test(text)
+  return { none, paths: none ? [] : pathsIn(text) }
+}
+
+/** The files that `lint-changed.mjs` lists as primitives, or null while the file is absent or lists none. */
+const primitiveList = () => {
+  if (!existsSync(PRIMITIVE_LIST_FILE)) return null
+  const paths = [...readFileSync(PRIMITIVE_LIST_FILE, "utf8").matchAll(/["'`]((?:apps|packages)\/[^"'`\s]+)["'`]/g)].map((match) => match[1])
+  return paths.length === 0 ? null : paths
+}
+
+const samePath = (first, second) => first === second || (first.endsWith("/") && second.startsWith(first)) || (second.endsWith("/") && first.startsWith(second))
+
+/**
+ * The only ticket check. It returns the reasons that the ticket is refused, and an empty list when the ticket is sound.
+ * `ticket`: `{ number, body, labels, comments, edits }`. `edits` lists `{ before, after }` texts of the part comments that a write changes.
+ * `board`: the other tickets, open or closed, with `number` and `body`. `readBoardFor` reads them. `primitives` replaces the list that `lint-changed.mjs` gives.
+ */
+export const checkTicket = (ticket, board = [], { primitives = primitiveList() } = {}) => {
+  const problems = []
+  const comments = (ticket.comments ?? []).filter((entry) => (entry.kind ?? null) === null)
+  const fault = partProblem(comments)
+  if (fault !== null) problems.push(fault)
+  for (const entry of ownerParts(comments)) {
+    const line = entry.body.split("\n", 1)[0]
+    if (!STRICT_PART_HEADING.test(line)) problems.push(`The part heading "${line}" is not exactly "## Part <n> of <m>: <title>".`)
+  }
+  for (const { before, after } of ticket.edits ?? []) {
+    const was = partOf({ body: before })
+    if (was !== null && partOf({ body: after })?.number !== was.number) problems.push(`The edit changes the number of part ${was.number}. A part keeps its number.`)
+  }
+  const labels = ticket.labels ?? []
+  const name = classOf(ticket.body)
+  const fix = permanentFixOf(ticket.body)
+  if (labels.includes(BUG_LABEL)) {
+    if (name === null) problems.push("A Bug ticket needs a `Class: <name>` line.")
+    if (fix === null) problems.push("A Bug ticket needs a `## Permanent fix` section.")
+  }
+  const holdsClass = (path) => path.startsWith("eslint-rules/") || TEST_FILE.test(path) || (primitives === null ? DEFAULT_PRIMITIVE.test(path) : primitives.some((entry) => samePath(entry, path)))
+  if (fix !== null && !fix.none && !fix.paths.some(holdsClass)) {
+    problems.push("The `## Permanent fix` section names no path under `eslint-rules/`, no primitive file and no test file. Name the code that holds the class, or write `none: <reason>`.")
+  }
+  if (fix !== null && name !== null) {
+    const earlier = board.filter((other) => other.number !== ticket.number && classOf(other.body)?.toLowerCase() === name.toLowerCase())
+      .map((other) => ({ number: other.number, paths: permanentFixOf(other.body)?.paths ?? [] })).filter((other) => other.paths.length > 0)
+    if (earlier.length > 0 && !earlier.some((other) => other.paths.some((path) => fix.paths.some((own) => samePath(own, path))))) {
+      problems.push(`The class "${name}" repeats ${earlier.map((other) => `#${other.number}`).join(", ")}. Name the code of that ticket in the \`## Permanent fix\` section: ${earlier.flatMap((other) => other.paths).slice(0, 6).join(", ")}.`)
+    }
+  }
+  if (FILED_BY_DRIVER.test(lf(ticket.body))) {
+    const locked = labels.filter((label) => LOCK_LABELS.includes(label))
+    if (locked.length > 0) problems.push(`A ticket that the driver filed never carries ${locked.map((label) => `\`${label}\``).join(" or ")}. Only the owner adds that label.`)
+  }
+  return problems
+}
+
 const normalizeComment = (comment) => ({
   id: comment.id,
   url: comment.url,
@@ -364,6 +452,45 @@ export const readTickets = async (seams = {}) => {
     if (!page.pageInfo.hasNextPage) return tickets
     after = page.pageInfo.endCursor
   }
+}
+
+/**
+ * The other tickets, open or closed, that name the class of `ticket`, for `checkTicket`. A ticket with no `Class:` line needs none, so the read is empty.
+ * The search narrows the list and `checkTicket` compares the class lines exactly.
+ */
+export const readBoardFor = async (ticket, seams = {}) => {
+  const name = classOf(ticket.body)
+  if (name === null) return []
+  const api = bind(seams)
+  const phrase = `"Class: ${name.replace(/"/g, " ")}" in:body`
+  const listed = parseJson("gh issue list", await api.run(["issue", "list", "--repo", api.config.tickets.repository, "--state", "all", "--search", phrase, "--limit", "200", "--json", "number,state,body"]))
+  return listed.filter((other) => other.number !== ticket.number).map((other) => ({ number: other.number, state: other.state, body: other.body ?? "" }))
+}
+
+const TICKET_QUERY = `query DriveTicket($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      number title body state createdAt
+      labels(first: 50) { nodes { name } }
+      comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
+    }
+  }
+}`
+
+/** One ticket, open or closed, with its body, state, labels and every comment. */
+export const readTicket = async (number, seams = {}) => {
+  const api = bind(seams)
+  const { owner, name } = splitSlug(api.config.tickets.repository)
+  const issue = (await graphql(api, TICKET_QUERY, { owner, name, number })).repository.issue
+  if (!issue) throw new Error(`Ticket ${number} does not exist`)
+  const more = issue.comments.pageInfo.hasNextPage ? await readMoreComments(api, number, issue.comments.pageInfo.endCursor) : []
+  return { number: issue.number, title: issue.title, body: issue.body ?? "", state: issue.state, createdAt: issue.createdAt, labels: labelNames(issue.labels), comments: [...issue.comments.nodes, ...more].map(normalizeComment) }
+}
+
+/** Replaces the body of a ticket. The body goes on stdin, because a body can be long. */
+export const updateBody = async (number, body, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["issue", "edit", String(number), "--repo", api.config.tickets.repository, "--body-file", "-"], { input: nonEmpty(body, "ticket body") })
 }
 
 /** The `deploy-first:<environment>/<task>` holds a ticket label list carries. */

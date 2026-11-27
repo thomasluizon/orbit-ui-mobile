@@ -24,7 +24,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/attribution-lines.mjs`: finds attribution lines in a message.
 - `lib/escape-regex.mjs`: escapes text for a regular expression.
 - `create-ticket.mjs`: creates one ticket, adds it to the board and sets its Status.
-- `update-ticket.mjs`: writes an owner order or a decision comment on a ticket, with the marker that names the note.
+- `update-ticket.mjs`: writes an owner order or a decision comment on a ticket, with the marker that names the note. Its `body` and `part` modes replace a ticket body or one part comment after `checkTicket` accepts the write.
 - `mark-legacy-notes.mjs`: a one-time deploy step that marks the old review and run notes of the open tickets as legacy.
 
 ## Product gates

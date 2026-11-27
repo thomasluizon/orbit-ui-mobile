@@ -1,11 +1,11 @@
 /** Table tests of the delivery driver's tick: the fake seams, the scenarios and their exact writes. */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
-import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
+import { changesDriver, endRun, lastLine, markSwitch, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same, stageRepo } from "./_harness.mjs"
@@ -1884,6 +1884,52 @@ const robustnessCases = async () => {
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-60 * MINUTE)]))
   same("drive: a start long after the last one gives no alarm", await recordStart(starts.env, []), false)
   same("drive: the start log keeps the new start", JSON.parse(readFileSync(join(dir, "starts.json"), "utf8")).length, 2)
+  await plannedStartCases()
+}
+
+// A run ends with a driver switch (exit 0) or without one (a crash, a kill). The next guardStart reads that from the run record.
+const plannedStartCases = async () => {
+  const fresh = (name) => {
+    const scene = scenario({})
+    scene.env.stateDir = join(root, name)
+    mkdirSync(scene.env.stateDir, { recursive: true })
+    return scene
+  }
+  const startAfter = async (scene, { switched }) => {
+    const result = await guardStart(scene.env)
+    const planned = JSON.parse(readFileSync(join(scene.env.stateDir, "run.json"), "utf8")).plannedStart
+    const tripped = await recordStart(scene.env, scene.tickets ?? [])
+    if (switched) markSwitch(scene.env.stateDir)
+    endRun(scene.env.stateDir, { exitCode: switched ? 0 : 1, error: null, now: scene.env.now() })
+    return { result, planned, tripped }
+  }
+  const real = driverScene()
+  await guardStart(real.env)
+  await recordStart(real.env, [])
+  const realSteps = []
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    real.state.head = OLD_PIN
+    const tick = await real.run()
+    endRun(real.env.stateDir, { exitCode: 0, error: null, now: real.env.now() })
+    await guardStart(real.env)
+    realSteps.push([tick.switched, await recordStart(real.env, [])])
+  }
+  same("drive: three starts after three real driver switches in ten minutes give no alarm, no notice, no ticket and one logged start", [realSteps, only(real.calls, "notify").length, only(real.calls, "createTicket").length, JSON.parse(readFileSync(join(real.env.stateDir, "starts.json"), "utf8")).length], [[[true, false], [true, false], [true, false]], 0, 0, 1])
+  const planned = fresh("drive-starts-planned")
+  const plannedSteps = []
+  for (let start = 0; start < 4; start += 1) plannedSteps.push(await startAfter(planned, { switched: true }))
+  same("drive: three starts in ten minutes after a driver switch give no alarm, no notice and no ticket", [plannedSteps.map((step) => step.tripped), only(planned.calls, "notify").length, only(planned.calls, "createTicket").length], [[false, false, false, false], 0, 0])
+  same("drive: a start after a driver switch is marked planned and the start log keeps no planned start", [plannedSteps.map((step) => step.planned), JSON.parse(readFileSync(join(planned.env.stateDir, "starts.json"), "utf8")).length], [[false, true, true, true], 1])
+
+  const unplanned = fresh("drive-starts-unplanned")
+  const unplannedSteps = []
+  for (let start = 0; start < 3; start += 1) unplannedSteps.push(await startAfter(unplanned, { switched: false }))
+  same("drive: three starts in ten minutes with no driver switch open one ticket and send one notice", [unplannedSteps.map((step) => step.tripped), only(unplanned.calls, "notify").length, only(unplanned.calls, "createTicket").length], [[false, false, true], 1, 1])
+
+  const mixed = fresh("drive-starts-mixed")
+  const mixedSteps = []
+  for (const switched of [true, true, false, false]) mixedSteps.push(await startAfter(mixed, { switched }))
+  same("drive: two planned starts and one unplanned start in ten minutes give no ticket", [mixedSteps.map((step) => step.tripped), only(mixed.calls, "createTicket").length], [[false, false, false, false], 0])
 }
 
 const cliCases = async () => {
@@ -2586,6 +2632,51 @@ const reapOutcomeCases = async () => {
   await factsScene.run()
   const opusOrder = factsScene.launched[2]?.order ?? ""
   T("drive: the Opus order holds the exit, heads and findings that the real facts files of the two earlier launches hold", factsScene.launched.length === 3 && secondLog !== undefined && factsScene.launched[2].invocation.model === "claude-opus-5-5" && opusOrder.includes("## Earlier launches") && opusOrder.includes("Exit: 1, killed: passed its hard ceiling.") && opusOrder.includes(`${HEAD} to ${NEXT_HEAD}`) && opusOrder.includes("tools/a.mjs:3: BLOCKING: REAL-FINDING") && !opusOrder.includes("Exit: unknown"), opusOrder.slice(opusOrder.indexOf("## Earlier launches"), opusOrder.indexOf("## Brief")))
+}
+
+/**
+ * The gate result of a reaped launch comes from the record of the `Stop` hook and the status of a real worktree. A scene reaps the
+ * record of a launch that ended while the driver was stopped, with one real repository that holds the new head.
+ */
+const gateFactsCases = async () => {
+  const repo = join(root, "drive-gate-repo")
+  mkdirSync(repo, { recursive: true })
+  const git = (...args) => spawnSync("git", ["-c", "user.email=g@o.test", "-c", "user.name=G", "-c", "commit.gpgsign=false", ...args], { cwd: repo, encoding: "utf8" }).stdout.trim()
+  for (const args of [["init", "-q", "--initial-branch=main"], ["commit", "-q", "--allow-empty", "-m", "base"], ["commit", "-q", "--allow-empty", "-m", "work"]]) git(...args)
+  const head = git("rev-parse", "HEAD")
+  const gitDirectory = git("rev-parse", "--absolute-git-dir")
+  const excludes = join(root, "drive-gate-excludes")
+  writeFileSync(excludes, "hidden.ts\n")
+  const facts = (scene, name) => JSON.parse(readFileSync(join(scene.env.stateDir, "logs", `${name}.facts.json`), "utf8"))
+  const reapedFacts = async (record, extra = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], gitRoutes: [["--absolute-git-dir", `${gitDirectory}\n`], ["rev-parse", `${head}\n`], ["ls-remote", `${head}\trefs/heads/chore/ticket-7\n`]] })
+    keepWrites(scene, [ticket(7)])
+    leftBehind(scene, { worktree: repo, ...extra }, resultLine("Done."))
+    const logFile = join(scene.env.stateDir, "logs", "chore-ticket-7-left.log")
+    writeFileSync(logFile.replace(/\.log$/, ".facts.json"), JSON.stringify({ kind: extra.kind ?? "build", model: "claude-sonnet-5-5", at: iso(0), headBefore: HEAD, blocking: [], checks: [], ...(extra.runner === "codex" ? { runner: "codex" } : {}) }))
+    if (record !== null) writeFileSync(join(gitDirectory, "orbit-gate.json"), JSON.stringify({ head, green: true, failures: [], blocks: 0, at: iso(0), ...record }))
+    await scene.run()
+    return facts(scene, "chore-ticket-7-left")
+  }
+  const gateOf = async (record, extra) => (await reapedFacts(record, extra)).gate
+  same("drive: a green gate record on the new head gives gate green in the facts of the launch", await gateOf({ run: "chore-ticket-7-left" }), "gate green")
+  same("drive: a gate record of another run gives gate red", await gateOf({ run: "chore-ticket-7-other" }), "gate red")
+  same("drive: a gate record for another head gives gate red", await gateOf({ run: "chore-ticket-7-left", head: HEAD }), "gate red")
+  same("drive: a red gate record gives gate red", await gateOf({ run: "chore-ticket-7-left", green: false }), "gate red")
+  rmSync(join(gitDirectory, "orbit-gate.json"), { force: true })
+  same("drive: a missing gate record gives gate red", await gateOf(null), "gate red")
+  writeFileSync(join(repo, "helper.ts"), "export {}\n")
+  same("drive: a green gate record on a worktree with an uncommitted file gives gate red", await gateOf({ run: "chore-ticket-7-left" }), "gate red")
+  rmSync(join(repo, "helper.ts"), { force: true })
+  // A file that only a global exclude file ignores is clean for a plain `git status`. The driver reads the status the way the hook does, so the file is still a change.
+  git("config", "core.excludesFile", excludes)
+  writeFileSync(join(repo, "hidden.ts"), "export {}\n")
+  same("drive: an untracked file that only a global exclude file ignores gives gate red", [git("status", "--porcelain"), await gateOf({ run: "chore-ticket-7-left" })], ["", "gate red"])
+  rmSync(join(repo, "hidden.ts"), { force: true })
+  git("config", "--unset", "core.excludesFile")
+  const codex = await reapedFacts({ run: "chore-ticket-7-left" }, { runner: "codex" })
+  const finder = await reapedFacts({ run: "chore-ticket-7-left" }, { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1" })
+  same("drive: a reaped Codex launch and a find launch have no gate field in their facts", ["gate" in codex, "gate" in finder, codex.headAfter], [false, false, head])
 }
 
 const unreadLogCases = async () => {
@@ -4580,6 +4671,7 @@ export const driverUnit = async () => {
   await gatedReportCases()
   await branchKeyCases()
   await restartCases()
+  await gateFactsCases()
   await echoedLimitCases()
   await reasonKeyCases()
   await quietLogCases()

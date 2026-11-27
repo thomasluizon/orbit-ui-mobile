@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { REQUIRED_CHECKS_FILE, requiredChecksOf } from "../lib/github-read.mjs"
-import { mergeBar, protectionForMerge, readProtectionChecks, readRequiredChecksFile, sameRequiredChecks, writeProtectionChecks } from "../lib/github.mjs"
+import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
 import { REPO_ROOT, T, root, same } from "./_harness.mjs"
 
 const HEAD = "a".repeat(40)
@@ -101,9 +101,79 @@ const adapterCases = async () => {
   const written = seams(() => "{}")
   await writeProtectionChecks("ui", "main", { strict: false, checks: answer.checks }, written)
   same("lib/github.mjs: the protection write is one PATCH that sends -1 for every app", [written.calls.map((call) => call.text), JSON.parse(written.calls[0].input)], [[`api repos/${slug}/branches/main/protection/required_status_checks --method PATCH --input -`], { strict: false, checks: [{ context: "a", app_id: ACTIONS }, { context: "b", app_id: -1 }] }])
+
+  const note = (id) => ({ id, url: `https://example.test/c/${id}`, body: `Note ${id}`, createdAt: "2026-11-20T00:00:00Z", author: { login: "thomasluizon" } })
+  const issue = (comments, hasNextPage) => ({ data: { repository: { issue: { number: 7, title: "T", body: null, state: "CLOSED", createdAt: "2026-11-01T00:00:00Z", labels: { nodes: [{ name: "Bug" }] }, comments: { pageInfo: { hasNextPage, endCursor: hasNextPage ? "c1" : null }, nodes: comments } } } } })
+  const paged = seams((args) => JSON.stringify(args.join(" ").includes("query DriveComments") ? issue([note("C2")], false) : issue([note("C1")], true)))
+  const ticket = await readTicket(7, paged)
+  same("lib/github.mjs: readTicket reads a closed ticket and a second page of comments", [ticket.number, ticket.state, ticket.body, ticket.labels, ticket.comments.map((entry) => entry.id), paged.calls.length], [7, "CLOSED", "", ["Bug"], ["C1", "C2"], 2])
+  const missing = await readTicket(8, seams(() => JSON.stringify({ data: { repository: { issue: null } } }))).catch((error) => error.message)
+  T("lib/github.mjs: readTicket refuses a ticket that does not exist", /does not exist/.test(String(missing)), String(missing))
+  const edited = seams(() => "")
+  await updateBody(7, "New body", edited)
+  same("lib/github.mjs: updateBody sends the body on stdin to gh issue edit", [edited.calls.map((call) => [call.text, call.input])], [[[`issue edit 7 --repo thomasluizon/orbit-tickets --body-file -`, "New body"]]])
+  const blank = await updateBody(7, " ", edited).catch((error) => error.message)
+  T("lib/github.mjs: updateBody refuses an empty body", /non-empty/.test(String(blank)) && edited.calls.length === 1, String(blank))
+}
+
+const FIX = "## Permanent fix\n\n"
+const bug = (fix, name = "Clipped label") => `Problem\n\nClass: ${name}\n\n${fix}`
+const part = (number, line = `## Part ${number} of 2: Build it`, extra = {}) => ({ number, url: `https://example.test/c/${number}`, body: `${line}\n\nWork`, createdAt: `2026-11-2${number}T00:00:00Z`, kind: null, ...extra })
+
+const ticketCases = async () => {
+  const N = "lib/github.mjs: checkTicket"
+  const check = (name, ticket, board, want, options = { primitives: null }) => same(`${N} ${name}`, checkTicket(ticket, board, options).length, want)
+  const bugTicket = (body, labels = ["Bug"]) => ({ body, labels })
+  check("accepts a sound Bug ticket", bugTicket(bug(`${FIX}Add \`eslint-rules/label-fit.cjs\`.`)), [], 0)
+  check("refuses a Bug ticket with no Class line", bugTicket(`${FIX}Add eslint-rules/x.cjs`), [], 1)
+  check("accepts a ticket of another type with no Class line", bugTicket("Problem", ["Improvement"]), [], 0)
+  check("refuses a Bug ticket with no Permanent fix section", bugTicket("Class: Clipped label"), [], 1)
+  check("refuses a Permanent fix section that names no code", bugTicket(bug(`${FIX}Fix it in the code.`)), [], 1)
+  check("accepts none with a reason", bugTicket(bug(`${FIX}none: the class has no code home`)), [], 0)
+  check("refuses none with no reason", bugTicket(bug(`${FIX}none:`)), [], 1)
+  check("accepts a JS test file", bugTicket(bug(`${FIX}Test in \`apps/web/__tests__/label.test.tsx\`.`)), [], 0)
+  check("accepts a spec file", bugTicket(bug(`${FIX}Test in packages/shared/src/label.spec.ts.`)), [], 0)
+  check("accepts an orbit-api test file", bugTicket(bug(`${FIX}tests/Orbit.Api.Tests/Habits/HabitTests.cs`)), [], 0)
+  check("refuses a tests/Shared file", bugTicket(bug(`${FIX}tests/Shared/HabitTests.cs`)), [], 1)
+  check("refuses a file of an app that is no primitive", bugTicket(bug(`${FIX}apps/web/components/habits/card.tsx`)), [], 1)
+  check("accepts a ui folder file when no list exists", bugTicket(bug(`${FIX}apps/web/components/ui/text.tsx`)), [], 0)
+  check("accepts a primitive that the list names", bugTicket(bug(`${FIX}apps/mobile/components/text.tsx`)), [], 0, { primitives: ["apps/mobile/components/text.tsx"] })
+  check("refuses a ui folder file that the list leaves out", bugTicket(bug(`${FIX}apps/web/components/ui/text.tsx`)), [], 1, { primitives: ["apps/mobile/components/text.tsx"] })
+
+  const earlier = [{ number: 7, state: "CLOSED", body: bug(`${FIX}eslint-rules/label-fit.cjs`) }]
+  check("refuses a repeat of a class that names none of the earlier code", bugTicket(bug(`${FIX}eslint-rules/other.cjs`, "clipped LABEL")), earlier, 1)
+  check("accepts a repeat that names the earlier code", bugTicket(bug(`${FIX}eslint-rules/other.cjs and eslint-rules/label-fit.cjs`)), earlier, 0)
+  check("ignores an earlier ticket of another class", bugTicket(bug(`${FIX}eslint-rules/other.cjs`, "Other class")), earlier, 0)
+  check("ignores an earlier ticket with no paths", bugTicket(bug(`${FIX}eslint-rules/other.cjs`)), [{ number: 8, body: bug(`${FIX}none: no home`) }], 0)
+  check("ignores an earlier none section whose reason holds a slash word", bugTicket(bug(`${FIX}eslint-rules/new.cjs`)), [{ number: 3, body: bug(`${FIX}none: an iOS/Android store setting`) }], 0)
+  check("refuses a repeat whose own none reason holds the earlier path", bugTicket(bug(`${FIX}none: see eslint-rules/label-fit.cjs`)), earlier, 1)
+
+  const driver = "Problem\n\nFiled by: driver"
+  for (const label of ["design-system", "gate", "flag:approved"]) check(`refuses a driver ticket with ${label}`, bugTicket(driver, ["Improvement", label]), [], 1)
+  check("accepts a driver ticket with no lock label", bugTicket(driver, ["Improvement"]), [], 0)
+  check("accepts a lock label on an owner ticket", bugTicket("Problem", ["Improvement", "gate"]), [], 0)
+
+  check("accepts a strict part heading", { comments: [part(1)] }, [], 0)
+  check("refuses a part heading with a hash mark", { comments: [part(1, "# Part 1 of 2: Build it")] }, [], 1)
+  check("refuses a part heading with no title", { comments: [part(1, "## Part 1 of 2")] }, [], 1)
+  check("refuses a repeated part number", { comments: [part(1), { ...part(1), url: "https://example.test/c/9" }] }, [], 1)
+  check("ignores a comment of the driver", { comments: [part(1, "## Part 1 of 2", { kind: "launch" })] }, [], 0)
+  const edit = (after) => ({ comments: [], edits: [{ before: "## Part 2 of 3: Build", after }] })
+  check("accepts an edit that keeps the part number", edit("## Part 2 of 4: Build"), [], 0)
+  check("refuses an edit that changes the part number", edit("## Part 3 of 3: Build"), [], 1)
+  check("refuses an edit that removes the part heading", edit("Build"), [], 1)
+
+  same(`${N}: classOf and permanentFixOf read the body`, [classOf("a\r\nClass:  Clipped label \nb"), classOf("none"), permanentFixOf("x"), permanentFixOf(`${FIX}none: web/mobile or tools/a.mjs`).paths, permanentFixOf(`${FIX}See \`tools/a.mjs:12\`, then eslint-rules/b.cjs.\n## Next\nc/d`)], ["Clipped label", null, null, [], { none: false, paths: ["tools/a.mjs", "eslint-rules/b.cjs"] }])
+
+  const slug = "thomasluizon/orbit-tickets"
+  const calls = []
+  const seams = { config: { tickets: { repository: slug } }, run: async (args) => { calls.push(args.join(" ")); return JSON.stringify([{ number: 7, state: "CLOSED", body: "b" }, { number: 9, state: "OPEN", body: null }]) } }
+  same(`${N}: a ticket with no class reads no board`, [await readBoardFor({ body: "Problem" }, seams), calls.length], [[], 0])
+  same(`${N}: the board read lists the tickets of the class and skips the ticket itself`, [await readBoardFor({ number: 9, body: "Class: Clipped label" }, seams), calls], [[{ number: 7, state: "CLOSED", body: "b" }], [`issue list --repo ${slug} --state all --search "Class: Clipped label" in:body --limit 200 --json number,state,body`]])
 }
 
 export const cases = async () => {
+  await ticketCases()
   barCases()
   protectionCases()
   shapeCases()
