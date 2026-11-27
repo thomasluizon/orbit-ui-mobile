@@ -33,8 +33,23 @@ export const readPin = (stateDir) => readJson(join(stateDir, PIN_FILE), null)
 
 export const writePin = (stateDir, pin) => writeJson(join(stateDir, PIN_FILE), pin)
 
-/** Starts the record of a run: the commit it runs and a null exit code until the run ends. */
-export const startRun = (stateDir, { sha, pid, now }) => writeJson(join(stateDir, RUN_FILE), { sha, pid, startedAt: new Date(now).toISOString(), endedAt: null, exitCode: null, error: null })
+/**
+ * Starts the record of a run: the commit it runs and a null exit code until the run ends. `plannedStart` is true when the
+ * previous run ended with a driver switch, so the start is no fault.
+ */
+export const startRun = (stateDir, { sha, pid, now, plannedStart = false }) => writeJson(join(stateDir, RUN_FILE), { sha, pid, startedAt: new Date(now).toISOString(), endedAt: null, exitCode: null, error: null, plannedStart })
+
+/** Marks the record of the running run: it ends with a driver switch. */
+export const markSwitch = (stateDir) => {
+  const run = readJson(join(stateDir, RUN_FILE), null)
+  if (run !== null) writeJson(join(stateDir, RUN_FILE), { ...run, switched: true })
+}
+
+/** True when the previous run ended with a driver switch. Read it before `collectCrash` consumes the record. */
+export const endedWithSwitch = (stateDir) => readJson(join(stateDir, RUN_FILE), null)?.switched === true
+
+/** True when the running run started after a driver switch of the previous run. */
+export const startedAfterSwitch = (stateDir) => readJson(join(stateDir, RUN_FILE), null)?.plannedStart === true
 
 /** Ends the record of the run that `startRun` wrote. */
 export const endRun = (stateDir, { exitCode, error, now }) => {
