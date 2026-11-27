@@ -966,14 +966,15 @@ const flakeActions = (pull) => {
 }
 
 /**
- * The owner comments on the ticket that follow a fix cap report of the pull request, oldest first. The cap report is the comment
- * that goes with the label. Each owner comment after it grants one more fix launch, and a later cap report asks for the next one.
+ * The owner comments on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
+ * and holds `stopText`: the fix cap report of the pull request, or the conflict report of one head. Each owner comment after it
+ * grants one more launch, and a later stop report asks for the next one.
  */
-const capGrants = (ticket, item) => {
+const stopGrants = (ticket, stopText) => {
   const grants = []
   let capped = false
   for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
-    if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(`${item} used its ${MAX_FIX_LAUNCHES} fix launches.`)
+    if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(stopText)
     else if (entry.kind === null && capped && partOf(entry) === null) {
       grants.push(entry)
       capped = false
@@ -983,7 +984,7 @@ const capGrants = (ticket, item) => {
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. */
-const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, running }, pull) => {
+const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, running, mergedPulls }, pull) => {
   const dependabot = pull.author === "dependabot"
   const item = `${repoKey}#${pull.number}`
   if (pull.draft) return [{ type: "none", reason: "draft" }]
@@ -997,7 +998,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
   const runBusy = runs.some((run) => run.status !== "completed")
   const request = (text) => (runBusy ? { type: "none", reason: "a Pullfrog run is in progress" } : { type: "request", text, ticketComment: !dependabot && ticket !== null && !hasTicketComment })
-  if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef)) {
+  if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef && !mergedPulls.has(other))) {
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
@@ -1012,11 +1013,16 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
+    // An owner comment after the conflict report of this head grants one more merge-forward launch at it.
     if (order.kind === "merge-forward") {
-      if (!launches.some((entry) => entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
-      return owner(`${item} still conflicts with the base branch after a merge-forward launch at this head. Open: ${classes}`)
+      const atHead = launches.filter((entry) => entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)
+      const stopText = `${item} at ${pull.headSha}: ${item} still conflicts with the base branch after a merge-forward launch at this head.`
+      const forwardGrants = stopGrants(ticket, stopText)
+      if (atHead.length === 0) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+      if (atHead.length <= forwardGrants.length) return [...actions, { ...order, baseMergeHead: pull.headSha, ownerNote: forwardGrants[atHead.length - 1].body }]
+      return [...actions, { type: "needs-owner", reason: `${item} still conflicts with the base branch after a merge-forward launch at this head. Launches: ${atHead.length}. Open: ${classes}`, relabel: true }]
     }
-    const grants = capGrants(ticket, item)
+    const grants = stopGrants(ticket, `${item} used its ${MAX_FIX_LAUNCHES} fix launches.`)
     if (counted.length < MAX_FIX_LAUNCHES + grants.length) return [...actions, counted.length < MAX_FIX_LAUNCHES ? order : { ...order, ownerNote: grants[counted.length - MAX_FIX_LAUNCHES].body }]
     // A launch that still runs is in the count, so a cap is read only when no worker runs on the branch and the last launch has its result.
     if (running.branches.has(pull.headRef)) return [...actions, { type: "none", reason: "a worker runs on the branch: the fix launch cap waits for its result" }]
@@ -1118,6 +1124,9 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       await env.github.merge(repoKey, pull.number, pull.headSha)
       mem.acted = true
       mem.merged.delete(pull.tracks)
+      // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
+      // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
+      ctx.mergedPulls.add(pull)
       await outsideTicket(env, repoKey, pull)
       return undefined
     default: return undefined
@@ -1135,7 +1144,7 @@ const isWaiting = (env, pull, tickets) => {
 /** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
   // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
