@@ -6,7 +6,7 @@ import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
 import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
@@ -18,26 +18,27 @@ import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
+const COMPACT_HEADER_CONTROL = 40
 const useStepChange = createUseStepChange({ useEffect, useRef })
 const { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking } = createQuestionFlowHooks({ useState, useEffect, useRef, capture: (event) => captureGuidedFlowEvent(event) })
 
 export { useFlowAnnouncement, useLineAfterArrival }
 
-function HeaderButton({ label, onPress, children }: Readonly<{ label: string; onPress: () => void; children: React.ReactNode }>) {
-  return <PillButton variant="ghost" iconOnly label={label} minimumHeight={48} onClick={onPress}>{children}</PillButton>
+function HeaderButton({ label, onPress, compact, children }: Readonly<{ label: string; onPress: () => void; compact: boolean; children: React.ReactNode }>) {
+  return <PillButton variant="ghost" iconOnly label={label} minimumHeight={compact ? COMPACT_HEADER_CONTROL : TOUCH_TARGET_MIN} onClick={onPress}>{children}</PillButton>
 }
 
-function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
+function FlowHeader({ props, compact }: Readonly<{ props: QuestionFlowProps; compact: boolean }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props
   return (
     <header className="flex min-h-14 w-full justify-center px-4">
       <div data-flow-column="" className="flex w-full max-w-[592px] items-center gap-2">
-        <span className="flex size-12 shrink-0 items-center justify-center">
-          {onBack ? <HeaderButton label={backLabel} onPress={onBack}><ArrowLeft aria-hidden="true" size={24} /></HeaderButton> : null}
+        <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
+          {onBack ? <HeaderButton label={backLabel} onPress={onBack} compact={compact}><ArrowLeft aria-hidden="true" size={24} /></HeaderButton> : null}
         </span>
         <div className="min-w-0 flex-1"><PagerSegments count={total} index={position - 1} label={progressLabel} /></div>
-        <span className="flex size-12 shrink-0 items-center justify-center">
-          {onClose && closeLabel ? <HeaderButton label={closeLabel} onPress={onClose}><X aria-hidden="true" size={24} /></HeaderButton> : null}
+        <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
+          {onClose && closeLabel ? <HeaderButton label={closeLabel} onPress={onClose} compact={compact}><X aria-hidden="true" size={24} /></HeaderButton> : null}
         </span>
       </div>
     </header>
@@ -129,7 +130,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
 
   return (
     <div data-question-flow="" data-step={stepKey} data-orbit-state={visibleOrbitState} className="flex min-h-0 flex-1 flex-col">
-      <FlowHeader props={props} />
+      <FlowHeader props={props} compact={wide} />
       <div data-flow-scroll="" className="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-4">
         <motion.div
           key={stepKey}
@@ -145,7 +146,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
           <FlowOrbitGroup props={props} lineId={lineId} wide={wide} reducedMotion={reducedMotion} mascotRef={mascotRef} lookAt={lookAt} />
-          <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)] lg:text-[34px] lg:leading-[1.15]">{question}</h1>
+          <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)]">{question}</h1>
           {options ? <OptionGroup label={question}>{options}</OptionGroup> : null}
           {children ? <div className="flex w-full flex-col gap-3 text-start">{children}</div> : null}
           {wide ? primaryAction : null}

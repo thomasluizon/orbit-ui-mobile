@@ -13,7 +13,7 @@ type Tree = ReturnType<typeof renderNavigation>
 const byTestId = (tree: Tree, testID: string) => tree.hosts().find((node) => node.props.testID === testID)
 
 function result(overrides: Partial<Parameters<typeof ResultDialog>[0]> = {}) {
-  return <ResultDialog title="Pronto!" sentence="A tarefa foi criada para amanhã às 8:00." primaryLabel="Ver no Hoje" orbitState="parado" onPrimary={vi.fn()} onClose={vi.fn()} {...overrides} />
+  return <ResultDialog title="Pronto!" sentence="A tarefa foi criada para amanhã às 8:00." primaryLabel="Ver hábitos de hoje" orbitState="parado" onPrimary={vi.fn()} onClose={vi.fn()} {...overrides} />
 }
 
 function flow(resultNode?: React.ReactNode, onDismiss = vi.fn()) {

@@ -80,6 +80,27 @@ describe('QuestionFlow', () => {
     expect(screen.getByRole('button', { name: 'Fechar' })).toBeInTheDocument()
   })
 
+  it('draws the header controls at 48 on a phone width and at 40 at 1024 and above, with a 48 hit target', () => {
+    const { unmount } = render(<Flow />)
+    expect(screen.getByRole('button', { name: 'Voltar' })).toHaveStyle({ width: '48px', minHeight: '48px', minWidth: '48px' })
+    expect(screen.getByRole('button', { name: 'Voltar' }).style.getPropertyValue('--pill-hit-padding')).toBe('0px')
+    unmount()
+    stubMedia(['min-width: 1024px'])
+    render(<Flow />)
+    for (const name of ['Voltar', 'Fechar']) {
+      const control = screen.getByRole('button', { name })
+      expect(control).toHaveStyle({ width: '40px', minHeight: '40px', minWidth: '40px' })
+      expect(control.style.getPropertyValue('--pill-hit-padding')).toBe('4px')
+    }
+  })
+
+  it('sets the question at 28 at every width', () => {
+    render(<Flow />)
+    const heading = screen.getByRole('heading', { level: 1, name: 'Quando?' })
+    expect(heading.className).toContain('text-[28px]')
+    expect(heading.className).not.toContain('text-[34px]')
+  })
+
   it('makes the question the heading and describes it with the Orbit line', () => {
     render(<Flow />)
     const heading = screen.getByRole('heading', { level: 1, name: 'Quando?' })

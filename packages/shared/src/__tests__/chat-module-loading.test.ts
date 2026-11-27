@@ -4,6 +4,8 @@ import { createChatStoreState, type ChatStoreState } from '../stores/chat-store'
 import { ChatTurnReconciliation } from '../chat/stream-turn'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '../chat'
 import { makeConversationPage } from '../test-support/conversation-fixtures'
+import * as actualExecution from '../hooks/chat-stream-execution-core'
+import * as actualRestore from '../chat/conversation-restore'
 
 function deferred<Value>() {
   let resolve!: (value: Value) => void
@@ -64,8 +66,8 @@ describe('composer execution module loading', () => {
   it('bounds a stalled import and clears the busy reply without a request', async () => {
     vi.useFakeTimers()
     const { runComposerStream } = await import('../hooks/chat-send-stream-core')
-    const module = deferred<typeof import('../hooks/chat-stream-execution-core')>()
-    onTestFinished(async () => { module.resolve(await vi.importActual('../hooks/chat-stream-execution-core')); await vi.dynamicImportSettled() })
+    const module = deferred<typeof actualExecution>()
+    onTestFinished(async () => { module.resolve(actualExecution); await vi.dynamicImportSettled() })
     vi.doMock('../hooks/chat-stream-execution-core', () => module.promise)
     const { context } = streamContext()
     const open = vi.fn()
@@ -77,7 +79,7 @@ describe('composer execution module loading', () => {
     expect(context.getChat().replyActive).toBe(false)
     expect(open).not.toHaveBeenCalled()
     expect(context.onModuleLoadError).toHaveBeenCalledOnce()
-    module.resolve(await vi.importActual('../hooks/chat-stream-execution-core'))
+    module.resolve(actualExecution)
     await sending
     await vi.dynamicImportSettled()
     expect(open).not.toHaveBeenCalled()
@@ -87,8 +89,8 @@ describe('composer execution module loading', () => {
   it('starts the idle budget at the transport after a slow import', async () => {
     vi.useFakeTimers()
     const { runComposerStream } = await import('../hooks/chat-send-stream-core')
-    const module = deferred<typeof import('../hooks/chat-stream-execution-core')>()
-    onTestFinished(async () => { module.resolve(await vi.importActual('../hooks/chat-stream-execution-core')); await vi.dynamicImportSettled() })
+    const module = deferred<typeof actualExecution>()
+    onTestFinished(async () => { module.resolve(actualExecution); await vi.dynamicImportSettled() })
     vi.doMock('../hooks/chat-stream-execution-core', () => module.promise)
     const { context } = streamContext()
     const opened: number[] = []
@@ -102,7 +104,7 @@ describe('composer execution module loading', () => {
     const start = Date.now()
     await vi.advanceTimersByTimeAsync(CHAT_STREAM_IDLE_TIMEOUT_MS - 1)
     expect(opened).toEqual([])
-    module.resolve(await vi.importActual('../hooks/chat-stream-execution-core'))
+    module.resolve(actualExecution)
     await sending
     expect(opened).toEqual([start + CHAT_STREAM_IDLE_TIMEOUT_MS - 1])
     expect(controllers[0]?.signal.aborted).toBe(true)
@@ -111,14 +113,14 @@ describe('composer execution module loading', () => {
 
   it('does not open a stream for an account replaced during import', async () => {
     const { runComposerStream } = await import('../hooks/chat-send-stream-core')
-    const module = deferred<typeof import('../hooks/chat-stream-execution-core')>()
-    onTestFinished(async () => { module.resolve(await vi.importActual('../hooks/chat-stream-execution-core')); await vi.dynamicImportSettled() })
+    const module = deferred<typeof actualExecution>()
+    onTestFinished(async () => { module.resolve(actualExecution); await vi.dynamicImportSettled() })
     vi.doMock('../hooks/chat-stream-execution-core', () => module.promise)
     const { context, replaceAccount } = streamContext()
     const open = vi.fn()
     const sending = runComposerStream({ ...context, createTransport: () => open }, { content: 'Read', image: null, messageCost: 1 })
     replaceAccount()
-    module.resolve(await vi.importActual('../hooks/chat-stream-execution-core'))
+    module.resolve(actualExecution)
     expect(await sending).toEqual({ kind: 'cancelled' })
     expect(open).not.toHaveBeenCalled()
     context.queryClient.clear()
@@ -162,8 +164,8 @@ describe('conversation restore module loading', () => {
 
   it('loads before reading and keeps messages added during the import', async () => {
     const { createConversationHistory } = await import('../chat/conversation-history')
-    const module = deferred<typeof import('../chat/conversation-restore')>()
-    onTestFinished(async () => { module.resolve(await vi.importActual('../chat/conversation-restore')); await vi.dynamicImportSettled() })
+    const module = deferred<typeof actualRestore>()
+    onTestFinished(async () => { module.resolve(actualRestore); await vi.dynamicImportSettled() })
     vi.doMock('../chat/conversation-restore', () => module.promise)
     const { context } = streamContext()
     context.getChat().finishReply(false)
@@ -175,7 +177,7 @@ describe('conversation restore module loading', () => {
     await Promise.resolve()
     expect(read).not.toHaveBeenCalled()
     context.getChat().addMessage({ id: 'daily-summary-today', role: 'ai', content: 'Summary', timestamp: new Date() })
-    module.resolve(await vi.importActual('../chat/conversation-restore'))
+    module.resolve(actualRestore)
     expect(await loading).toBe(true)
     expect(context.getChat().conversationLoaded).toBe(true)
     expect(context.getChat().messages.map(message => message.id)).toContain('daily-summary-today')
