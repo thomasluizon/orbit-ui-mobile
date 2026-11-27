@@ -209,6 +209,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     const stage = readBridgeStage(message)
     if (stage) {
       clearHeldFailure()
+      if (stage === 'script_loaded') bridgeFailures.current = bridgeFailures.current.filter(({ kind }) => kind !== 'script')
       bridgeStage.current = stage
       if (deadlineLive.current) setLoad((value) => value + 1)
     }

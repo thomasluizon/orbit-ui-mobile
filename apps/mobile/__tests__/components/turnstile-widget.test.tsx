@@ -808,6 +808,28 @@ it('reports the held bridge failures and the held 503 status when the widget unm
   expect(vi.mocked(captureMessage).mock.calls.map(([, context]) => (context as { tags: { kind: string } }).tags.kind)).toEqual(['http', 'script'])
 })
 
+it('drops the held script failure when the bridge posts that the script loaded, as the web widget does, and keeps the challenge failures', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  post(bridge!, { failure: { kind: 'script' } })
+  post(bridge!, { state: 'loading' })
+  post(bridge!, { stage: 'script_loaded' })
+  post(bridge!, { failure: { kind: 'challenge', code: '110200' } })
+  post(bridge!, { state: 'failed' })
+  expect(vi.mocked(captureMessage).mock.calls.map(([, context]) => (context as { tags: { kind: string } }).tags.kind)).toEqual(['challenge'])
+})
+
+it('sends no event for a script failure that the next script load passed when the widget unmounts after the script loaded', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  post(bridge!, { failure: { kind: 'script' } })
+  post(bridge!, { stage: 'script_loaded' })
+  TestRenderer.act(() => renderer.unmount())
+  expect(vi.mocked(captureMessage).mock.calls).toEqual([])
+})
+
 it('reports the held bridge failures when the bridge posts failed', async () => {
   vi.mocked(captureMessage).mockClear()
   const renderer = await renderWithFakeClock()
