@@ -2137,14 +2137,12 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   const branches = [...new Set(launches.map((entry) => entry.branch))]
   const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
   const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
-  const newestReplan = newestOf(ticket.comments, "replan")
   // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
   await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
   ticket.labels.push(PARKED)
-  if (!(newestOf(ticket.comments, PARKED) > newestReplan)) {
-    const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
-    await env.github.comment("tickets", ticket.number, marked(PARKED, text))
-  }
+  // Each park writes its own comment: a stop reads the newest park, and a ticket that the review took back parks again.
+  const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
+  await env.github.comment("tickets", ticket.number, marked(PARKED, text))
   for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
   const today = new Date(env.now()).toISOString().slice(0, 10)
   const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length
@@ -2329,20 +2327,30 @@ const runsLastOpen = (tickets, ticket) => {
 /** The Remaining line of a merged pull request, or `null` when its body has none. */
 const remainingLineOf = (pull) => REMAINING_LINE.exec(pull.body)?.[0].trim() ?? null
 
-/** True when a Remaining line lists items and every item waits on the owner, on another ticket or on a release. */
-const onlyOwnerItems = (line) => {
-  const items = line.replace(/^Remaining:/, "").split(";").map((item) => item.trim()).filter(Boolean)
-  return items.length > 0 && items.every((item) => OWNER_ITEM.test(item))
-}
+/** The items of a Remaining line, trimmed. */
+const remainingItems = (line) => line.replace(/^Remaining:/, "").split(";").map((item) => item.trim()).filter(Boolean)
 
-/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. An owner decision after the last merge lifts the stop: the owner decided what the next build does. */
-const rebuildStopReason = (history, decidedAt = 0) => {
+/**
+ * What stops a build after the last merge, or `null`. The kind routes the stop:
+ * - `owner`: every item is `owner:` or `blocked by`, and one item is `owner:`. The ticket gets `needs:owner`.
+ * - `blocked`: every item is `blocked by`. The ticket parks. A `parked` comment after the last merge lifts the stop.
+ * - `repeat`: two merges in a row left the same line. The ticket goes to the re-plan. A `replan` record after the last merge lifts the stop.
+ * An owner decision after the last merge lifts every stop: the owner decided what the next build does.
+ */
+const rebuildStop = (history, { decidedAt = 0, replannedAt = 0, parkedAt = 0 } = {}) => {
   const last = history.at(-1)
   const line = last === undefined ? null : remainingLineOf(last)
-  if (line === null || decidedAt > Date.parse(last.mergedAt)) return null
-  if (onlyOwnerItems(line)) return `${line} (only owner items are left)`
+  if (line === null) return null
+  const mergedAt = Date.parse(last.mergedAt)
+  if (decidedAt > mergedAt) return null
+  const items = remainingItems(line)
+  if (items.length > 0 && items.every((item) => OWNER_ITEM.test(item))) {
+    if (items.some((item) => /^owner:/i.test(item))) return { kind: "owner", reason: `${line} (only owner items are left)` }
+    return parkedAt > mergedAt ? null : { kind: "blocked", reason: `${line} (every item waits on another ticket)` }
+  }
   const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
-  return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
+  if (before !== line || replannedAt > mergedAt) return null
+  return { kind: "repeat", reason: `${line} (two merged pull requests in a row left the same line)` }
 }
 
 /** What admission does with one ticket: an order, or the reason it waits. A part whose worker runs counts as an open part, so it blocks another part whose `Paths:` overlap and never starts twice. */
@@ -2382,8 +2390,14 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const stopReason = rebuildStopReason(history, ownerDecisionAt(env, ticket))
-    if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
+    const stop = rebuildStop(history, { decidedAt: ownerDecisionAt(env, ticket), replannedAt: newestOf(ticket.comments, "replan"), parkedAt: newestOf(ticket.comments, PARKED) })
+    if (stop?.kind === "owner") return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}` }
+    if (stop?.kind === "blocked") return { reason: "the Remaining line waits on another ticket", park: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}` }
+    if (stop?.kind === "repeat") {
+      const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, branch: history.at(-1).headRefName, running, launches: launchesOf(ticket).filter((entry) => entry.branch === history.at(-1).headRefName), pulls: state.pulls })
+      if (end.type === "order") return { order: end }
+      return { reason: end.reason, ...(end.type === "park" ? { park: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}, and the ticket used its re-plans` } : {}) }
+    }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
@@ -2477,7 +2491,7 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
       continue
     }
     let order = verdict.order
-    if (launches.length >= MAX_ORDER_LAUNCHES) {
+    if (verdict.order.kind !== "replan" && launches.length >= MAX_ORDER_LAUNCHES) {
       if (launches.some(ranOpus)) {
         // The Opus launch ran too: the ladder ends. One re-plan run, or the park after the re-plans.
         const pulls = states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? []
