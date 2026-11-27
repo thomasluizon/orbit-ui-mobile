@@ -21,7 +21,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, OWNER_BAR_FAILURES, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, lintCheckOf, isRateLimited, isReviewPass, mergeBar, OWNER_BAR_FAILURES, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -886,11 +886,21 @@ const unansweredRequests = (pull, runs) => requestsOf(pull).filter((request) => 
 /** The whole-diff requests for the head that a review pass answered. */
 const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && requestCommit(pull, runs, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
 
+/**
+ * Brings the commits of a pull request into the repository checkout: its head and the base branch that its `baseRefOid` names.
+ * A read of the head or the base before this fails with exit 128, because the checkout holds only what an earlier fetch brought.
+ * Every git read of a pull request waits on this one fetch, which runs once for each pull request, head and base in a tick.
+ */
+const fetchPull = (env, repoPath, pull, base = pull.baseRef) => {
+  if (env.dryRun) return Promise.resolve()
+  return readOnce(env, `fetch ${repoPath} ${pull.number} ${pull.headSha} ${base}`, () => env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`]))
+}
+
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
   const merges = pull.commits.filter((commit) => commit.parents === 2)
   if (merges.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const clean = []
   for (const merge of merges) {
     // A commit that git cannot show is never a clean merge.
@@ -906,7 +916,7 @@ const cleanMergesOf = async (env, repoPath, pull) => {
  * so the plan reports the error and no merge goes out on a diff that the driver did not see.
  */
 const readPullDiff = async (env, repoPath, pull) => {
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const range = [pull.baseSha, pull.headSha]
   const names = await env.git(repoPath, ["diff", "--name-only", "--no-renames", "-z", `${range[0]}...${range[1]}`])
   if (names.status !== 0) throw new Error(`git diff of ${pull.number} failed: ${names.stderr.trim()}`)
@@ -927,7 +937,7 @@ const ownDiff = async (env, repoPath, base, sha) => {
 const sameDiffOf = async (env, repoPath, pull, base) => {
   const approved = [...new Set(pull.reviews.filter((review) => isReviewPass(review) && review.state === "APPROVED" && review.commit !== pull.headSha).map((review) => review.commit))].filter((sha) => pull.commits.some((commit) => commit.sha === sha))
   if (approved.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull, base)
   const head = await ownDiff(env, repoPath, base, pull.headSha)
   if (head === "") return []
   const same = []
@@ -1242,7 +1252,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.owner) return owner(need.owner)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return owner(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]

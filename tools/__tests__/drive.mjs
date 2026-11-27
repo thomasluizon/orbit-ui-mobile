@@ -22,6 +22,7 @@ import {
   deleteBranch,
   ensureLabel,
   mergeBar,
+  lintCheckOf,
   closesTicket,
   OWNER_BAR_FAILURES,
   needsWholeDiff,
@@ -399,21 +400,23 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: a pull request whose diff the driver did not read fails the bar", [barOf({ files: null }), barOf({ commitMessages: null })], [["diff-unknown"], ["diff-unknown"]])
   const green = (name) => ({ ...ready.checks[0], name, status: "COMPLETED", conclusion: "SUCCESS", startedAt: "2026-11-20T09:00:00Z", databaseId: 777 })
   const without = (name) => ready.checks.filter((check) => check.name !== name)
-  const unrequired = ready.requiredChecks.filter((check) => check.context !== "Lint")
-  const lintOf = (conclusion, status = "COMPLETED") => [...without("Lint"), { ...green("Lint"), conclusion, status }]
+  const lintCheck = "Checks"
+  const lintBar = (changes) => barOf(changes, { lintCheck })
+  const lintOf = (conclusion, status = "COMPLETED") => [...without(lintCheck), { ...green(lintCheck), conclusion, status }]
   const lintable = (list) => ({ files: ["tools/README.md", ...list] })
   const manyFiles = Array.from({ length: 120 }, (_, index) => (index === 109 ? "tools/lib/github.mjs" : `docs/page${index}.md`))
-  same("lib/github.mjs: a lintable path at file 110 of 120 fails the bar when Lint was skipped", barOf({ ...lintable(manyFiles), changedFiles: 120, checks: lintOf("SKIPPED") }), ["lint-missing", "whole-diff-review-missing"])
-  same("lib/github.mjs: a SKIPPED Lint fails the bar for a lintable path", barOf({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SKIPPED") }), ["lint-missing"])
+  same("lib/github.mjs: a lintable path at file 110 of 120 fails the bar when the lint check was skipped", lintBar({ ...lintable(manyFiles), changedFiles: 120, checks: lintOf("SKIPPED") }), ["lint-missing", "whole-diff-review-missing"])
+  same("lib/github.mjs: a SKIPPED lint check fails the bar for a lintable path", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SKIPPED") }), ["lint-missing"])
   for (const extension of ["ts", "tsx", "js", "jsx", "mjs", "cjs"]) {
-    same(`lib/github.mjs: a .${extension} path needs a green Lint`, barOf({ ...lintable([`apps/web/a.${extension}`]), checks: lintOf("SKIPPED") }), ["lint-missing"])
+    same(`lib/github.mjs: a .${extension} path needs a green lint check`, lintBar({ ...lintable([`apps/web/a.${extension}`]), checks: lintOf("SKIPPED") }), ["lint-missing"])
   }
-  same("lib/github.mjs: a path that is no lintable extension needs no Lint", barOf({ ...lintable(["apps/web/a.json", "apps/web/a.tsx.md", "apps/web/b.d.mts"]), checks: lintOf("SKIPPED") }), [])
-  same("lib/github.mjs: a SUCCESS Lint passes the bar for a lintable path", barOf({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SUCCESS") }), [])
-  same("lib/github.mjs: a NEUTRAL Lint fails the bar for a lintable path", barOf({ ...lintable(["apps/web/a.ts"]), checks: lintOf("NEUTRAL") }), ["lint-missing"])
-  same("lib/github.mjs: a lintable path with no Lint check at all fails the bar", barOf({ ...lintable(["apps/web/a.ts"]), checks: without("Lint"), requiredChecks: unrequired }), ["lint-missing"])
-  same("lib/github.mjs: a Lint that still runs is one failed check and no lint-missing", barOf({ ...lintable(["apps/web/a.ts"]), checks: lintOf(null, "IN_PROGRESS") }), ["check-not-green:Lint"])
-  same("lib/github.mjs: the Checks job that holds the lint step stands in when no Lint check exists", [barOf({ ...lintable(["apps/web/a.ts"]), checks: [...without("Lint"), green("Checks")], requiredChecks: unrequired }), barOf({ ...lintable(["apps/web/a.ts"]), checks: [...without("Lint"), { ...green("Checks"), conclusion: "SKIPPED" }], requiredChecks: unrequired })], [[], ["lint-missing"]])
+  same("lib/github.mjs: a path that is no lintable extension needs no lint check", lintBar({ ...lintable(["apps/web/a.json", "apps/web/a.tsx.md", "apps/web/b.d.mts"]), checks: lintOf("SKIPPED") }), [])
+  same("lib/github.mjs: a SUCCESS lint check passes the bar for a lintable path", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SUCCESS") }), [])
+  same("lib/github.mjs: a NEUTRAL lint check fails the bar for a lintable path", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf("NEUTRAL") }), ["lint-missing"])
+  same("lib/github.mjs: a lintable path with no lint check at all fails the bar", lintBar({ ...lintable(["apps/web/a.ts"]), checks: without(lintCheck) }), ["lint-missing"])
+  same("lib/github.mjs: a lint check that still runs is one failed check and no lint-missing", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf(null, "IN_PROGRESS") }), [`check-not-green:${lintCheck}`])
+  same("lib/github.mjs: a repository with no lint check asks for none, whatever its paths", [barOf({ ...lintable(["apps/web/a.ts"]), checks: without(lintCheck) }, { lintCheck: null }), barOf({ ...lintable(["tools/a.mjs"]), checks: without(lintCheck) }, {}), barOf({ ...lintable(["tools/a.mjs"]), checks: without(lintCheck) }, { lintCheck: lintCheckOf("api") })], [[], [], []])
+  same("lib/github.mjs: the lint check of each repository", ["ui", "api", "landing", "other"].map(lintCheckOf), ["Checks", null, null, null])
 
   const closing = (text) => closesTicket(text, "thomasluizon/orbit-tickets")
   for (const text of ["Closes thomasluizon/orbit-tickets#1", "Closes: thomasluizon/orbit-tickets#1", "closed thomasluizon/orbit-tickets#12", "FIXES thomasluizon/orbit-tickets#3", "fix: thomasluizon/orbit-tickets#3", "Fixed\tthomasluizon/orbit-tickets#3", "resolve thomasluizon/orbit-tickets#4", "Resolved: thomasluizon/orbit-tickets#4", "Resolves https://github.com/thomasluizon/orbit-tickets/issues/9", "close: https://github.com/thomasluizon/orbit-tickets/issues/9", "done.\nCloses thomasluizon/orbit-tickets#1"]) {
@@ -427,7 +430,7 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: a body with a closing line fails the bar", barOf({ body: `${tracks}\n\nFixes thomasluizon/orbit-tickets#2066` }), ["closing-keyword"])
   same("lib/github.mjs: a commit message with fixed context and a Tracks line passes the bar", barOf({ commitMessages: [`cut fixed context. ${tracks}`], body: tracks }), [])
   same("lib/github.mjs: a closing line of the 101st commit message fails the bar", barOf({ commitMessages: [...Array.from({ length: 100 }, () => "chore: step"), "Resolves thomasluizon/orbit-tickets#5"] }), ["closing-keyword"])
-  same("lib/github.mjs: a lint failure and a closing line are both listed", barOf({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SKIPPED"), commitMessages: ["Closes thomasluizon/orbit-tickets#1"] }), ["lint-missing", "closing-keyword"])
+  same("lib/github.mjs: a lint failure and a closing line are both listed", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SKIPPED"), commitMessages: ["Closes thomasluizon/orbit-tickets#1"] }), ["lint-missing", "closing-keyword"])
   same("lib/github.mjs: the failures that no worker order clears are the three that the diff settles", [...OWNER_BAR_FAILURES].sort(), ["closing-keyword", "diff-unknown", "lint-missing"])
   same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, mergeState: "DIRTY" }), ["draft", "merge-state:DIRTY"])
 

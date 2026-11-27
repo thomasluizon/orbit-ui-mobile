@@ -29,8 +29,13 @@ const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
 const LINTABLE_PATH = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/
-/** The check that holds the lint of a pull request: the `Lint` check when a workflow still has one, else the `Checks` job whose step lints the changed files. Only SUCCESS counts, and a skipped one is no pass. */
-const LINT_CHECKS = ["Lint", "Checks"]
+/**
+ * The check that holds the lint of the pull requests of each repository: the `Checks` job of ui, whose step lints the changed files.
+ * A repository that is absent has no lint check that could turn green, so the bar asks for none there.
+ */
+const LINT_CHECK_BY_REPOSITORY = { ui: "Checks" }
+/** The name of the lint check of a repository, or null when the repository has none. */
+export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositoryKey] ?? null
 /** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
 export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
 
@@ -432,26 +437,19 @@ const dependabotFailures = (types) => {
   return types.includes("major") ? ["dependabot-major"] : []
 }
 
-/** The newest check that holds the lint, or null when none ran. */
-const lintCheck = (pull) => {
-  const newest = newestChecks(pull.checks)
-  for (const name of LINT_CHECKS) {
-    const found = newest.filter((check) => check.name === name)
-    if (found.length > 0) return found.reduce((first, second) => (second.at > first.at ? second : first))
-  }
-  return null
-}
+/** The newest check of the given name, or null when none ran. */
+const newestCheckNamed = (pull, name) => newestChecks(pull.checks).filter((check) => check.name === name).reduce((first, second) => (first === null || second.at > first.at ? second : first), null)
 
 /**
  * The failures that the git diff of the pull request settles: a diff the driver did not read, a lintable path with no green Lint,
  * and a closing line for a ticket in the body or a commit message. Only the driver closes a ticket. A Lint that still runs is
  * already a `check-not-green` failure, so it adds none.
  */
-const diffFailures = (pull) => {
+const diffFailures = (pull, context) => {
   if (!Array.isArray(pull.files) || !Array.isArray(pull.commitMessages)) return ["diff-unknown"]
   const failed = []
-  if (pull.files.some((file) => LINTABLE_PATH.test(file))) {
-    const lint = lintCheck(pull)
+  if (context.lintCheck && pull.files.some((file) => LINTABLE_PATH.test(file))) {
+    const lint = newestCheckNamed(pull, context.lintCheck)
     const running = lint !== null && lint.node.__typename === "CheckRun" && lint.node.status !== "COMPLETED"
     const green = lint !== null && (lint.node.__typename === "CheckRun" ? lint.node.status === "COMPLETED" && lint.node.conclusion === "SUCCESS" : lint.node.state === "SUCCESS")
     if (!green && !running) failed.push("lint-missing")
@@ -464,7 +462,8 @@ const diffFailures = (pull) => {
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
- * (true while a `needs-owner` report holds a pull request with no open ticket) and, for a Dependabot pull request,
+ * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
+ * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none) and, for a Dependabot pull request,
  * `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
  * between base and head, both read by the driver.
  */
@@ -476,7 +475,7 @@ export const mergeBar = (pull, context = {}) => {
   if (!dependabot && pull.tracks === null) failed.push("untracked")
   if (!SHA.test(pull.headSha)) failed.push("head-unknown")
   failed.push(...checkFailures(pull))
-  failed.push(...diffFailures(pull))
+  failed.push(...diffFailures(pull, context))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")
