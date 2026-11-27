@@ -132,6 +132,8 @@ const ticketCases = async () => {
   check("accepts a repeat that names the earlier code", bugTicket(bug(`${FIX}eslint-rules/other.cjs and eslint-rules/label-fit.cjs`)), earlier, 0)
   check("ignores an earlier ticket of another class", bugTicket(bug(`${FIX}eslint-rules/other.cjs`, "Other class")), earlier, 0)
   check("ignores an earlier ticket with no paths", bugTicket(bug(`${FIX}eslint-rules/other.cjs`)), [{ number: 8, body: bug(`${FIX}none: no home`) }], 0)
+  check("ignores an earlier none section whose reason holds a slash word", bugTicket(bug(`${FIX}eslint-rules/new.cjs`)), [{ number: 3, body: bug(`${FIX}none: an iOS/Android store setting`) }], 0)
+  check("refuses a repeat whose own none reason holds the earlier path", bugTicket(bug(`${FIX}none: see eslint-rules/label-fit.cjs`)), earlier, 1)
 
   const driver = "Problem\n\nFiled by: driver"
   for (const label of ["design-system", "gate", "flag:approved"]) check(`refuses a driver ticket with ${label}`, bugTicket(driver, ["Improvement", label]), [], 1)
@@ -148,7 +150,7 @@ const ticketCases = async () => {
   check("refuses an edit that changes the part number", edit("## Part 3 of 3: Build"), [], 1)
   check("refuses an edit that removes the part heading", edit("Build"), [], 1)
 
-  same(`${N}: classOf and permanentFixOf read the body`, [classOf("a\r\nClass:  Clipped label \nb"), classOf("none"), permanentFixOf("x"), permanentFixOf(`${FIX}See \`tools/a.mjs:12\`, then eslint-rules/b.cjs.\n## Next\nc/d`)], ["Clipped label", null, null, { none: false, paths: ["tools/a.mjs", "eslint-rules/b.cjs"] }])
+  same(`${N}: classOf and permanentFixOf read the body`, [classOf("a\r\nClass:  Clipped label \nb"), classOf("none"), permanentFixOf("x"), permanentFixOf(`${FIX}none: web/mobile or tools/a.mjs`).paths, permanentFixOf(`${FIX}See \`tools/a.mjs:12\`, then eslint-rules/b.cjs.\n## Next\nc/d`)], ["Clipped label", null, null, [], { none: false, paths: ["tools/a.mjs", "eslint-rules/b.cjs"] }])
 
   const slug = "thomasluizon/orbit-tickets"
   const calls = []

@@ -245,14 +245,15 @@ const pathsIn = (text) => [...new Set(text.split(/[\s`,;"'<>]+/)
   .map((word) => word.replace(/^[([]+/, "").replace(/(?::\d+)*[).:]*$/, "").replace(/^\.\//, ""))
   .filter((word) => word.includes("/") && !/^[a-z]+:\/\//.test(word) && !word.startsWith("/")))]
 
-/** The `## Permanent fix` section of a ticket body as `{ none, paths }`, or null when the body has none. `none` is true for `none: <reason>`. */
+/** The `## Permanent fix` section of a ticket body as `{ none, paths }`, or null when the body has none. `none` is true for `none: <reason>`, and then `paths` is empty, because the reason is prose and names no code. */
 export const permanentFixOf = (body) => {
   const lines = lf(body).split("\n")
   const start = lines.findIndex((line) => line.trimEnd() === "## Permanent fix")
   if (start < 0) return null
   const end = lines.findIndex((line, index) => index > start && line.startsWith("## "))
   const text = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim()
-  return { none: /^none:[ \t]*\S/.test(text), paths: pathsIn(text) }
+  const none = /^none:[ \t]*\S/.test(text)
+  return { none, paths: none ? [] : pathsIn(text) }
 }
 
 /** The files that `lint-changed.mjs` lists as primitives, or null while the file is absent or lists none. */
