@@ -1014,11 +1014,12 @@ const ranOpus = (entry) => entry.model === workerApi.COORDINATOR_MODEL
 /** The `replan` records of a ticket, oldest first: the plan that a re-plan run chose, the branch it left and its count. */
 const replansOf = (ticket) => recordsOf(ticket, "replan")
 
-/** The re-plans of the ticket since its newest `parked` comment: a review that takes the ticket back removes `parked`, so the count starts again. */
-const replansSincePark = (ticket) => {
-  const since = newestOf(ticket.comments, PARKED)
-  return (ticket.comments ?? []).filter((entry) => entry.kind === "replan" && !(Date.parse(entry.createdAt) <= since))
-}
+/**
+ * The launches of re-plan runs since the newest `parked` comment: a review that takes the ticket back removes `parked`, so the count starts again.
+ * The bound reads the launch records, which `startWorker` writes before the spawn, and never the `replan` records, which a step after the
+ * run writes: a run whose record fails to land still counts. A launch that a usage limit refunded counts for nothing.
+ */
+const replansSincePark = (ticket) => launchesOf(ticket, newestOf(ticket.comments, PARKED)).filter((entry) => entry.kind === "replan")
 
 /** The branches that a re-plan left. A branch that no merged pull request used still counts as used, so the next plan takes a new one. */
 const replannedBranches = (ticket) => new Set(replansOf(ticket).map((record) => record.branch))
@@ -1621,6 +1622,9 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
       note = `The re-plan run asked for a split that the driver could not read: ${problem}.`
     }
   }
+  // The launch of this run is on the ticket already, so it is part of the count.
+  const count = Math.max(1, replansSincePark(ticket).length)
+  const recordOf = (kept) => ({ plan, branch: stuck.branch, pr: stuck.pr, part: stuck.partNumber, count, at: new Date(env.now()).toISOString(), ...kept })
   // The new set is complete before the record, so the record holds every part that the posts below write.
   let bodies = []
   if (plan === "split") {
@@ -1631,8 +1635,15 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
       return kept === undefined ? body : withTotal(kept.comment.body.trim(), answer.parts.length)
     })
   }
-  const count = replansSincePark(ticket).length + 1
-  const record = { plan, branch: stuck.branch, pr: stuck.pr, part: stuck.partNumber, count, at: new Date(env.now()).toISOString(), answer: text.slice(0, ANSWER_KEPT_CHARS), ...(plan === "split" ? { parts: bodies } : note !== "" ? { note } : {}) }
+  // GitHub refuses a comment over its limit, and a record that never lands never counts. A split whose record is too long counts as fresh.
+  if (plan === "split" && marked("replan", JSON.stringify(recordOf({ parts: bodies }))).length > TICKET_COMMENT_LIMIT) {
+    log(env, item, "replan-split-refused", "the part set is too long for one record")
+    plan = "fresh"
+    note = "The re-plan run asked for a split whose part set is too long to keep on the ticket."
+    bodies = []
+  }
+  note = note.slice(0, ANSWER_KEPT_CHARS)
+  const record = recordOf(plan === "split" ? { parts: bodies } : { answer: text.slice(0, ANSWER_KEPT_CHARS), ...(note !== "" ? { note } : {}) })
   log(env, item, `replan ${plan}`, `re-plan ${count} of ${MAX_REPLANS}, after ${stuck.branch}`)
   await env.github.comment("tickets", ticket.number, marked("replan", JSON.stringify(record)))
   const open = findPullByBranch(states, stuck.branch)

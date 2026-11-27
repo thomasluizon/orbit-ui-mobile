@@ -3020,6 +3020,8 @@ const replanCases = async () => {
   const OPUS = "claude-opus-5-5"
   const ladder = (b, kind = "fix", part = null) => [launchComment(kind, b, -300 * MINUTE, part), launchComment(kind, b, -200 * MINUTE, part), launchComment(kind, b, -100 * MINUTE, part, { model: OPUS })]
   const replanRecord = (count, b, plan = "fresh", offset = -60 * MINUTE) => comment("replan", JSON.stringify({ plan, branch: b, pr: null, part: null, count, at: iso(offset) }), offset)
+  // The launch of a re-plan run: the bound counts these, since startWorker writes one before the spawn.
+  const replanLaunch = (offset) => launchComment("replan", "chore/ticket-7-replan", offset, null, { model: OPUS })
   const recordsOn = (scene, kind, number = 7) => commentsOf(scene.calls, number).filter((text) => text.startsWith(marked(kind, ""))).map((text) => text.split("\n").slice(1).join("\n"))
   const noNotice = (scene) => [only(scene.calls, "notify").length, scene.messages.filter((line) => line.includes("sleep held")).length, needsOwnerComments(scene.calls, 7).length, only(scene.calls, "editLabels").filter((entry) => entry[3].add?.includes("needs:owner")).length]
   const finding = blockingChanges()
@@ -3057,7 +3059,7 @@ const replanCases = async () => {
   same("drive: two pull requests of one ticket that end their ladders in one tick start one re-plan run", two.launched.length, 1)
 
   // The bound: after 2 re-plans the ticket parks.
-  const spent = [...ladder(branch), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")]
+  const spent = [...ladder(branch), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")]
   const parked = scenario({ tickets: [ticket(7, { comments: spent })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await parked.run()
   const parkedComments = recordsOn(parked, "parked")
@@ -3069,10 +3071,10 @@ const replanCases = async () => {
   await parkedAsleep.run()
   const sleepItems = join(parkedAsleep.env.stateDir, "sleep-items.json")
   same("drive: while sleep is on a park holds no sleep item and logs no sleep line", [existsSync(sleepItems) ? JSON.parse(readFileSync(sleepItems, "utf8")).length : 0, parkedAsleep.messages.filter((line) => line.includes("sleep held")).length], [0, 0])
-  const parkedBuild = scenario({ tickets: [ticket(7, { comments: [...ladder("chore/ticket-7-r3", "build"), replanRecord(1, "chore/ticket-7"), replanRecord(2, "chore/ticket-7-r2")] })] })
+  const parkedBuild = scenario({ tickets: [ticket(7, { comments: [...ladder("chore/ticket-7-r3", "build"), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7"), replanRecord(2, "chore/ticket-7-r2")] })] })
   await parkedBuild.run()
   same("drive: a build order that ends its ladder after 2 re-plans parks the ticket and starts nothing", [parkedBuild.launched.length, recordsOn(parkedBuild, "parked").length, only(parkedBuild.calls, "editLabels").map((entry) => entry.slice(1)), noNotice(parkedBuild)], [0, 1, [["tickets", 7, { add: ["parked"] }]], [0, 0, 0, 0]])
-  const afterPark = scenario({ tickets: [ticket(7, { comments: [...ladder(branch), replanRecord(1, "chore/ticket-7-old", "fresh", -90 * MINUTE), replanRecord(2, "chore/ticket-7-older", "fresh", -80 * MINUTE), comment("parked", "Parked.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const afterPark = scenario({ tickets: [ticket(7, { comments: [...ladder(branch), replanLaunch(-95 * MINUTE), replanLaunch(-85 * MINUTE), replanRecord(1, "chore/ticket-7-old", "fresh", -90 * MINUTE), replanRecord(2, "chore/ticket-7-older", "fresh", -80 * MINUTE), comment("parked", "Parked.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await afterPark.run()
   same("drive: the re-plans before the newest parked comment no longer count, so a ticket that the review took back gets a re-plan run", [afterPark.launched.length, JSON.parse(recordsOn(afterPark, "launch")[0]).kind, recordsOn(afterPark, "parked").length], [1, "replan", 0])
 
@@ -3090,14 +3092,33 @@ const replanCases = async () => {
   await labelFirst.run()
   T("drive: a park writes the ticket label before the parked comment", labelFirst.calls.findIndex((entry) => entry[0] === "editLabels" && entry[1] === "tickets") < labelFirst.calls.findIndex((entry) => entry[0] === "comment" && entry[3].startsWith(marked("parked", ""))))
 
+  // The bound counts the launches of re-plan runs, so a run whose record never lands still counts.
+  const unrecorded = scenario({ tickets: [ticket(7, { comments: [...ladder(branch), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await unrecorded.run()
+  same("drive: two re-plan launches with no replan record park the ticket and start no third run", [unrecorded.launched.length, recordsOn(unrecorded, "parked").length, noNotice(unrecorded)], [0, 1, [0, 0, 0, 0]])
+  const refunded = scenario({ tickets: [ticket(7, { comments: [...ladder(branch), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), comment("launch-refund", JSON.stringify({ kind: "replan", part: null, branch: "chore/ticket-7-replan", pr: null }), -70 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await refunded.run()
+  same("drive: a re-plan launch that hit a usage limit and was refunded counts toward no bound", [refunded.launched.length, recordsOn(refunded, "parked").length], [1, 0])
+  const failingTickets = [ticket(7, { comments: ladder(branch) })]
+  const failingPulls = { ui: [pull(30, { reviews: [finding] })], api: [], landing: [] }
+  const writeFails = scenario({ tickets: failingTickets, pulls: failingPulls })
+  keepWrites(writeFails, failingTickets)
+  const keptComment = writeFails.env.github.comment
+  writeFails.env.github.comment = async (key, number, body) => {
+    if (body.startsWith(marked("replan", "{"))) throw new Error("HTTP 502 from the record write")
+    return keptComment(key, number, body)
+  }
+  for (let round = 0; round < 4; round += 1) await writeFails.run()
+  same("drive: a record write that throws on each run still ends the ladder: 2 re-plan runs, then the park", [writeFails.launched.filter((entry) => entry.order.includes("## This order (replan)")).length, recordsOn(writeFails, "parked").length, failingTickets[0].labels.includes("parked")], [2, 1, true])
+
   // A park in this tick stops the order of every other pull request of the ticket, planned before or after the park.
-  const partsSpent = () => ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-1", "fix", 1), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
+  const partsSpent = () => ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-1", "fix", 1), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
   for (const sibling of [31, 29]) {
     const siblingScene = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(sibling, { headRef: "chore/ticket-7-part-2", reviews: [finding] })] } })
     await siblingScene.run()
     same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and labels it`, [siblingScene.launched.length, only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)).sort(), recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["tickets", 7], ["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], 1, [0, 0, 0, 0]])
   }
-  const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
+  const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
   const admitPark = scenario({ tickets: [buildSpent], pulls: { ui: [pull(31, { headRef: "chore/ticket-7-part-1", reviews: [finding] })] } })
   await admitPark.run()
   same("drive: a park in admission starts no order that the act step planned for the ticket, and labels its open pull request", [admitPark.launched.length, only(admitPark.calls, "editLabels").map((entry) => entry.slice(1, 3)), recordsOn(admitPark, "parked").length, noNotice(admitPark)], [0, [["tickets", 7], ["ui", 31]], 1, [0, 0, 0, 0]])
@@ -3204,6 +3225,16 @@ const replanCases = async () => {
   await openScene.run()
   const openOrder = openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.order ?? ""
   T("drive: the re-plan order names the part with an open pull request as a part to keep", openOrder.includes("Merged parts: 1.") && openOrder.includes("Open parts: 3."), openOrder.slice(0, 400))
+  // A record that GitHub would refuse counts a split as fresh with a note, so the write always lands.
+  const hugeParts = Array.from({ length: 20 }, (_, index) => `## Part ${index + 1} of 20: big ${index + 1}\n${"x".repeat(4000)}`).join("\n")
+  const huge = await reaped({ answer: `Plan: split\n${hugeParts}` })
+  const hugeRecord = recordsOn(huge, "replan")[0] ?? ""
+  T("drive: a split whose record is over the comment limit counts as fresh with a note, posts no part and writes a record under the limit", JSON.parse(hugeRecord).plan === "fresh" && marked("replan", hugeRecord).length <= 65000 && plainOn(huge).length === 0 && recordsOn(huge, "replan-note")[0]?.includes("too long"), `${hugeRecord.length}`)
+  const longNote = await reaped({ answer: `Plan: fresh\n${"y".repeat(70000)}` })
+  T("drive: a fresh note is cut so the record and the note stay under the comment limit", marked("replan", recordsOn(longNote, "replan")[0] ?? "").length <= 65000 && marked("replan-note", recordsOn(longNote, "replan-note")[0] ?? "").length <= 65000)
+  const smallSplit = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: second a\n## Part 3 of 4: second b\n## Part 4 of 4: second c", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
+  T("drive: the record of a usable split keeps its parts and no answer", JSON.parse(recordsOn(smallSplit, "replan")[0]).parts.length === 4 && JSON.parse(recordsOn(smallSplit, "replan")[0]).answer === undefined)
+
   const refused = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 2: one\n## Part 2 of 2: two", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   same("drive: a split with the total in force is no usable part set, so it counts as fresh with a note that says why", [JSON.parse(recordsOn(refused, "replan")[0]).plan, plainOn(refused).length, recordsOn(refused, "replan-note")[0]?.includes("is not higher than the total 2")], ["fresh", 0, true])
   const olderLarger = [...[1, 2, 3, 4].map((number) => comment(null, `Part ${number} of 4: old ${number}`, -(9000 - number) * 1000)), ...[1, 2, 3].map((number) => comment(null, `Part ${number} of 3: new ${number}`, -(8000 - number) * 1000))]
