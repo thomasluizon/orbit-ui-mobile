@@ -998,6 +998,13 @@ const closeCases = async () => {
   await heldFor("two merged pull requests with the same Remaining line launch no build and set needs:owner once", [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }], listing)
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
+  const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
+  const decidedAfter = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("owner-answer", "The secret exists. Build the step.", -1800 * 1000)] })], routes: listed(ownerLast) })
+  await decidedAfter.run()
+  same("drive: an owner-answer comment after a merge that left only owner items launches one build and no needs-owner action", [decidedAfter.launched.length, only(decidedAfter.calls, "editLabels").length, needsOwnerComments(decidedAfter.calls, 7).length], [1, 0, 0])
+  const decidedBefore = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("owner-answer", "Old answer.", -7200 * 1000)] })], routes: listed(ownerLast) })
+  await decidedBefore.run()
+  same("drive: an owner-answer comment before the merge that left only owner items still gets needs-owner", [decidedBefore.launched.length, only(decidedBefore.calls, "editLabels").map((entry) => entry[3]), needsOwnerComments(decidedBefore.calls, 7).length], [0, [{ add: [OWNER_LABEL] }], 1])
   const mixed = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; the settings screen`, "chore/ticket-7")]) })
   await mixed.run()
   T("drive: a Remaining line with one item that a worker can do launches one build", mixed.launched.length === 1 && only(mixed.calls, "editLabels").length === 0 && /the settings screen/.test(orderText(mixed)))
