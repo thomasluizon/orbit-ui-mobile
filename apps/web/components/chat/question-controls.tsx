@@ -40,13 +40,13 @@ export function QuestionControls(props: QuestionControlProps) {
   </div>
   const choices = question.type === 'yesNo' ? [true, false].map(boolean => ({ id: String(boolean), label: boolean ? words.yes : words.no, recommended: false })) : question.options
   if (quickOptions && usesQuickOptions(question)) return <div className="flex min-w-0 flex-col gap-4">
-    <div role="group" aria-label={question.prompt} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
+    <fieldset aria-label={question.prompt} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
       {choices.map(option => {
         const selected = question.type === 'yesNo' ? answer?.boolean === (option.id === 'true') : answer?.selectedIds?.includes(option.id) === true
         const press = () => question.type === 'yesNo' ? controller.setAnswer(question, { boolean: option.id === 'true' }) : controller.select(question, option.id)
         return <OptionCard key={option.id} label={option.label} selected={selected} disabled={disabled} onSelect={press} />
       })}
-    </div>
+    </fieldset>
     {choices.filter(option => option.recommended).map(option => <p key={option.id} className="m-0 text-center text-[var(--fg-3)]" style={{ fontSize: 14, lineHeight: 1.4 }}>{`${option.label}: ${words.recommended}`}</p>)}
     {question.allowFreeText ? <Input label={words.freeText} value={answer?.freeText ?? ''} onChange={value => controller.setFreeText(question, value)} disabled={disabled} maxLength={500} /> : null}
   </div>
@@ -57,7 +57,7 @@ export function QuestionControls(props: QuestionControlProps) {
         onSelect={() => question.type === 'yesNo' ? controller.setAnswer(question, { boolean: option.id === 'true' }) : controller.select(question, option.id)}
         {...(disabled ? { disabled: true as const, reasonScope: 'group' as const } : { disabled: false as const })} />)
   return <div className="flex min-w-0 flex-col gap-4">
-    {question.type === 'multipleChoice' ? <div role="group" aria-label={question.prompt}>{rows}</div> : <RadioGroup aria-label={question.prompt} aria-required="true">{rows}</RadioGroup>}
+    {question.type === 'multipleChoice' ? <fieldset className="min-w-0" aria-label={question.prompt}>{rows}</fieldset> : <RadioGroup aria-label={question.prompt} aria-required="true">{rows}</RadioGroup>}
     {question.allowFreeText ? <Input label={words.freeText} value={answer?.freeText ?? ''} onChange={value => controller.setFreeText(question, value)} disabled={disabled} maxLength={500} /> : null}
   </div>
 }

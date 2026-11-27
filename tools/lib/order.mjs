@@ -255,6 +255,23 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
   return brief
 }
 
+const assertFixInputs = ({ kind, pull, review, failure }) => {
+  if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
+    throw new Error(`a ${kind} order needs its pull request and what it fixes`)
+  }
+}
+
+/**
+ * The order text for a worker that resumes its own session. The session already holds the ticket, the parts and the brief,
+ * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker pushes
+ * to the branch of the open pull request and opens no other pull request. Every other rule of the brief holds.
+ */
+export const renderResumeOrder = ({ kind, pull, review = null, failure = null }) => {
+  if (kind !== "fix" && kind !== "ci-fix" && kind !== "merge-forward") throw new Error(`a ${kind} order does not resume a session`)
+  assertFixInputs({ kind, pull, review, failure })
+  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
+}
+
 /**
  * The order text for one worker. It holds the ticket body, the part comments (the full comment of the part it builds and
  * the first line of each other part), the comments that every order carries, the `findings` comments of an apply part, the
@@ -264,9 +281,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
 export const renderOrder = ({ kind, ticket, comments = [], findings = [], pull = null, review = null, failure = null, history = [], changes = [], place, partNumber = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
-  if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
-    throw new Error(`a ${kind} order needs its pull request and what it fixes`)
-  }
+  assertFixInputs({ kind, pull, review, failure })
   if (kind === "apply-comment" && changes.length === 0) throw new Error("an apply-comment order needs the changes it applies")
   if ((kind === "build part" || kind === "find") && !ownerParts(comments).some((comment) => partOf(comment).number === partNumber)) {
     throw new Error(`the ticket has no comment for part ${partNumber}`)

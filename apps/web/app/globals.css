@@ -907,7 +907,7 @@ select[aria-hidden="true"] {
 .orbit-option-card {
   display: flex;
   width: 100%;
-  min-height: 72px;
+  min-height: 56px;
   align-items: center;
   justify-content: center;
   padding: var(--orbit-space-12) var(--orbit-space-16);

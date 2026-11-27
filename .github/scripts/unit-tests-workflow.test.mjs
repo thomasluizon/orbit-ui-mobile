@@ -87,7 +87,7 @@ const downloadArtifacts = (directory, stepName, artifacts) => {
 const firstAttemptArtifacts = () => [
   ...webLegs.map((leg) => uploadArtifact("web-tests", { attempt: 1, matrix: leg, reports: webReports(leg, "first") })),
   ...mobileLegs.map((leg) => uploadArtifact("mobile-tests", { attempt: 1, matrix: leg, reports: mobileReports(leg, "first") })),
-  uploadArtifact("workspace-tests", { attempt: 1, reports: workspaceReports("first") }),
+  uploadArtifact("checks", { attempt: 1, reports: workspaceReports("first") }),
 ]
 const selectAndVerify = (directory, artifacts) => {
   for (const [download, select, verify] of aggregateGroups) {
@@ -142,6 +142,13 @@ test("every recorded web test duration names a test file that exists", () => {
   assert.deepEqual(absentFiles, [], "delete the recorded duration of a test file that was deleted or moved")
 })
 
+test("the two habit list scroll files hold measured durations, not a share of the file they were split from", () => {
+  const { durationMsByFile: { chromium } } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
+  const measuredBeforeSplit = 221_512
+  const total = chromium["__tests__/components/habits/habit-list-scroll-geometry.test.tsx"] + chromium["__tests__/components/habits/habit-list-bulk-skip-geometry.test.tsx"]
+  assert.notEqual(total, measuredBeforeSplit, "record the durations of the two files from a run, never split the old duration by case count")
+})
+
 test("an unrecorded file counts as the project median and equal durations still spread by count", async () => {
   const webRoot = join(root, "apps/web")
   const files = Array.from({ length: 12 }, (_, index) => ({ moduleId: join(webRoot, `__tests__/new-${index}.test.tsx`), project: { name: "unrecorded" } }))
@@ -154,7 +161,7 @@ test("Unit Tests passes only when the plan passed and each test group passed or 
   const gate = workflow.jobs["unit-tests"]
   assert.equal(gate.name, "Unit Tests")
   assert.equal(gate.if, "${{ !cancelled() }}")
-  assert.deepEqual(gate.needs, ["plan", "web-tests", "mobile-tests", "workspace-tests"])
+  assert.deepEqual(gate.needs, ["plan", "checks", "web-tests", "mobile-tests"])
   const step = stepNamed(gate.steps, "Require every test job or its cached result")
   assert.equal(gate.steps.indexOf(step), 0)
   assert.deepEqual(step.env, {
@@ -163,7 +170,7 @@ test("Unit Tests passes only when the plan passed and each test group passed or 
     WEB_HIT: "${{ needs.plan.outputs.web-unit-hit }}",
     MOBILE_RESULT: "${{ needs.mobile-tests.result }}",
     MOBILE_HIT: "${{ needs.plan.outputs.mobile-unit-hit }}",
-    WORKSPACE_RESULT: "${{ needs.workspace-tests.result }}",
+    WORKSPACE_RESULT: "${{ needs.checks.outputs.workspace-unit-result }}",
     WORKSPACE_HIT: "${{ needs.plan.outputs.workspace-unit-hit }}",
   })
   const results = ["success", "failure", "cancelled", "skipped"]
@@ -183,9 +190,14 @@ test("Unit Tests passes only when the plan passed and each test group passed or 
 
 test("each test group starts only without a cached result, and every event looks the result up", () => {
   const plan = workflow.jobs.plan
-  for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["workspace-tests", "workspace-unit"]]) {
+  for (const [job, group] of [["web-tests", "web-unit"], ["mobile-tests", "mobile-unit"], ["checks", "workspace-unit"]]) {
     assert.equal(workflow.jobs[job].needs, "plan")
-    assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
+    if (job === "checks") {
+      assert.equal(stepNamed(workflow.jobs.checks.steps, "Run workspaces with coverage thresholds").if, "${{ !cancelled() && needs.plan.outputs.workspace-unit-hit != 'true' }}")
+    } else {
+      assert.equal(workflow.jobs[job].if, `needs.plan.outputs.${group}-hit != 'true'`)
+    }
+    const result = job === "checks" ? "needs.checks.outputs.workspace-unit-result" : `needs.${job}.result`
     assert.equal(plan.outputs[`${group}-hit`], `\${{ steps.${group}.outputs.cache-hit == 'true' || steps.merged.outputs.${group}-hit == 'true' }}`)
     assert.equal(plan.outputs[`${group}-key`], `\${{ steps.plan.outputs.${group}-key }}`)
     const lookup = plan.steps.find((step) => step.id === group)
@@ -197,9 +209,9 @@ test("each test group starts only without a cached result, and every event looks
     const restore = unitSteps.find((step) => step.uses?.startsWith("actions/cache/restore@") && step.with.key === `\${{ needs.plan.outputs.${group}-key }}`)
     const save = unitSteps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ needs.plan.outputs.${group}-key }}`)
     for (const step of [lookup, restore, save]) assert.equal(step.with.path, variable, `${group}: the cache version includes the path, so every step names the same one`)
-    assert.equal(restore.if, `needs.${job}.result == 'skipped'`)
+    assert.equal(restore.if, `${result} == 'skipped'`)
     assert.equal(restore.with["fail-on-cache-miss"], true)
-    assert.equal(save.if, `github.event_name != 'pull_request' && needs.${job}.result == 'success'`)
+    assert.equal(save.if, `github.event_name != 'pull_request' && ${result} == 'success'`)
   }
   const planStep = plan.steps.find((step) => step.id === "plan")
   assert.match(planStep.run, /node \.github\/scripts\/plan-test-jobs\.mjs --event "\$EVENT_NAME"/)
@@ -260,15 +272,14 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
 test("required checks report on every pull request through job conditions, never a workflow path filter", () => {
   assert.equal(workflow.on.pull_request.paths, undefined)
   assert.ok(Object.hasOwn(workflow.on, "push") && Object.hasOwn(workflow.on, "workflow_dispatch"))
-  const required = { build: "Build", "type-check": "Type Check", lint: "Lint", "unit-tests": "Unit Tests", "tool-tests": "Tool Tests" }
+  const required = { build: "Build", checks: "Checks", "unit-tests": "Unit Tests" }
   for (const [id, name] of Object.entries(required)) {
     assert.equal(workflow.jobs[id].name, name)
     assert.equal(workflow.jobs[id].strategy, undefined, `${name} must keep its literal check name when its condition skips it`)
   }
   assert.equal(workflow.jobs.build.if, "needs.plan.outputs.web == 'true'")
-  assert.equal(workflow.jobs["type-check"].if, "needs.plan.outputs.type-check == 'true'")
-  assert.equal(workflow.jobs.lint.if, "github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'")
-  assert.equal(workflow.jobs["tool-tests"].if, "${{ !cancelled() }}", "Tool Tests reports a conclusion when the plan finds no tool input")
+  assert.equal(workflow.jobs.checks.if, "${{ !cancelled() }}", "Checks reports a conclusion when the plan finds no scope")
+  for (const merged of ["type-check", "lint", "tool-tests", "workspace-tests"]) assert.equal(workflow.jobs[merged], undefined, `${merged} is a step group of Checks`)
   for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
@@ -285,11 +296,11 @@ test("required checks report on every pull request through job conditions, never
   }
 })
 
-test("the Lint limit holds the longest measured pull request with half as much again", () => {
-  // WHY: Lint reads types, so its time grows with the changed files. A job of 908 files still ran ESLint at 315 s. https://github.com/thomasluizon/orbit-tickets/issues/2294
+test("the Checks limit holds the longest measured lint with half as much again", () => {
+  // WHY: Lint reads types, so its time grows with the changed files. A job of 908 files still ran ESLint at 315 s. The lint is a step of Checks. https://github.com/thomasluizon/orbit-tickets/issues/2294
   const unfinishedLintSeconds = 315
-  assert.ok(workflow.jobs.lint["timeout-minutes"] * 60 >= unfinishedLintSeconds * 1.5,
-    `Lint stops after ${workflow.jobs.lint["timeout-minutes"] * 60} s; a measured job needed more than ${unfinishedLintSeconds} s`)
+  assert.ok(workflow.jobs.checks["timeout-minutes"] * 60 >= unfinishedLintSeconds * 1.5,
+    `Checks stops after ${workflow.jobs.checks["timeout-minutes"] * 60} s; a measured job needed more than ${unfinishedLintSeconds} s`)
 })
 
 test("every pull request distributes Chromium without increasing browser concurrency on a runner", () => {
@@ -385,7 +396,7 @@ test("every test workspace runs in exactly one test job", () => {
     : [pattern])
   const tested = directories.filter((directory) => JSON.parse(readFileSync(join(root, directory, "package.json"), "utf8")).scripts?.test).sort()
   assert.deepEqual(tested, ["apps/web", "apps/mobile", ...workspaceDirectories].sort())
-  const workspaces = workflow.jobs["workspace-tests"]
+  const workspaces = workflow.jobs.checks
   assert.equal(workspaces.strategy, undefined)
   assert.equal(stepNamed(workspaces.steps, "Run workspaces with coverage thresholds").run,
     "./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage")
@@ -398,7 +409,7 @@ test("every test workspace runs in exactly one test job", () => {
 })
 
 test("workspace coverage keeps its directory tree and the gate rejects missing reports", () => {
-  const stage = stepNamed(workflow.jobs["workspace-tests"].steps, "Stage workspace coverage").run
+  const stage = stepNamed(workflow.jobs.checks.steps, "Stage workspace coverage").run
   const verify = stepNamed(unitSteps, "Verify coverage reports").run
   const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
   const artifactName = "workspace-unit-coverage-attempt-1"
@@ -510,7 +521,7 @@ test("workflow selects partial reruns before the existing missing-report gate", 
       : artifact)
     const rerun = [
       uploadArtifact("web-tests", { attempt: 2, matrix: rerunLeg, reports: webReports(rerunLeg, "passing") }),
-      uploadArtifact("workspace-tests", { attempt: 2, reports: workspaceReports("second") }),
+      uploadArtifact("checks", { attempt: 2, reports: workspaceReports("second") }),
     ]
     selectAndVerify(directory, [...firstAttempt, ...rerun])
     const reports = join(directory, "apps/web/.artifacts/unit-tests")
@@ -640,4 +651,72 @@ test("test.yml stays within 1000 lines, so the merged unit result steps stay in 
   const lines = readFileSync(resolve(root, ".github/workflows/test.yml"), "utf8").trimEnd().split("\n").length
   assert.ok(lines <= 1000, `test.yml has ${lines} lines`)
   assert.equal(workflow.jobs.plan.steps.some((step) => step.uses?.startsWith("actions/download-artifact@")), false)
+})
+
+test("Checks installs the dependency tree once and keeps every step of the four jobs that it replaces", () => {
+  const checks = workflow.jobs.checks
+  assert.equal(checks.name, "Checks")
+  assert.equal(checks.needs, "plan")
+  assert.equal(checks.strategy, undefined, "Checks keeps its literal check name when a condition skips a step")
+  assert.equal(checks.steps.filter((step) => /^npm ci\b/.test(step.run ?? "")).length, 1)
+  assert.equal(checks.outputs["workspace-unit-result"],
+    "${{ steps.workspace-unit.outcome != 'success' && steps.workspace-unit.outcome || steps.workspace-upload.outcome == 'success' && 'success' || 'failure' }}")
+  assert.equal(stepNamed(checks.steps, "Stage workspace coverage").id, "workspace-stage")
+  assert.equal(stepNamed(checks.steps, "Stage workspace coverage").if, "${{ !cancelled() && steps.workspace-unit.outcome == 'success' }}")
+  assert.equal(stepNamed(checks.steps, "Upload workspace coverage").if, "${{ !cancelled() && steps.workspace-stage.outcome == 'success' }}")
+  const names = checks.steps.map((step) => step.name).filter(Boolean)
+  for (const name of ["Require the plan", "Validate the dependency tree", "Resolve pull request changed paths", "Lint only files changed by this pull request",
+    "Restore turbo", "Run the type check", "Save turbo", "Run workspaces with coverage thresholds", "Stage workspace coverage",
+    "Upload workspace coverage", "Run the tools harness", "Test CI workflow behavior"]) assert.ok(names.includes(name), `Checks keeps the step ${name}`)
+  const validate = checks.steps.findIndex((step) => step.name === "Validate the dependency tree")
+  const turboCacheSteps = ["Remove the Turbo results that are older than 30 days", "Save turbo"]
+  for (const step of checks.steps.slice(validate + 1)) {
+    if (turboCacheSteps.includes(step.name)) continue
+    assert.match(String(step.if ?? ""), /!cancelled\(\)/, `${step.name}: a step after the install runs when an earlier step failed`)
+  }
+  assert.equal(stepNamed(checks.steps, "Run the type check").if, "${{ !cancelled() && needs.plan.outputs.type-check == 'true' }}")
+  assert.equal(stepNamed(checks.steps, "Resolve pull request changed paths").if,
+    "${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true' }}")
+  assert.equal(stepNamed(checks.steps, "Run the tools harness").if, "${{ !cancelled() && needs.plan.outputs.tools == 'true' }}")
+})
+
+// Run GitHub's step rules on the Checks steps: a step whose condition has no status function runs only when no earlier step failed.
+const statusFunction = /!cancelled\(\)|always\(\)|failure\(\)/
+const evaluate = (expression, context) => {
+  const source = String(expression).replace(/^\$\{\{\s*|\s*\}\}$/g, "")
+    .replace(/!cancelled\(\)/g, "true")
+    .replace(/steps\.([\w-]+)\.outcome/g, 'steps["$1"]')
+    .replace(/needs\.plan\.outputs\.([\w-]+)/g, 'plan["$1"]')
+    .replace(/github\.event_name/g, "event")
+  return new Function("steps", "plan", "event", `return (${source})`)(context.steps, context.plan, context.event)
+}
+const simulateChecks = (failing, plan) => {
+  const steps = {}
+  let failed = false
+  for (const step of workflow.jobs.checks.steps) {
+    const condition = step.if === undefined ? "true" : step.if
+    const runs = statusFunction.test(String(condition)) ? Boolean(evaluate(condition, { steps, plan, event: "pull_request" })) : !failed && Boolean(evaluate(condition, { steps, plan, event: "pull_request" }))
+    const outcome = !runs ? "skipped" : failing === step ? "failure" : "success"
+    if (outcome === "failure") failed = true
+    if (step.id) steps[step.id] = outcome
+  }
+  return { result: evaluate(workflow.jobs.checks.outputs["workspace-unit-result"], { steps, plan, event: "pull_request" }), steps }
+}
+
+test("workspace-unit-result reports success only when the coverage artifact uploaded, whichever Checks step fails", () => {
+  const plan = { lint: "true", "type-check": "true", tools: "true", "workspace-unit-hit": "false" }
+  const steps = workflow.jobs.checks.steps
+  const validate = steps.findIndex((step) => step.name === "Validate the dependency tree")
+  const unrelated = new Set(["Resolve pull request changed paths", "Lint only files changed by this pull request", "Run the type check", "Run the tools harness", "Test CI workflow behavior", "Validate the dependency tree"])
+  const ownSteps = new Set(["Run workspaces with coverage thresholds", "Stage workspace coverage", "Upload workspace coverage"])
+  const clean = simulateChecks(undefined, plan)
+  assert.equal(clean.result, "success")
+  assert.equal(clean.steps["workspace-upload"], "success")
+  for (const step of steps.slice(validate)) {
+    if (!unrelated.has(step.name) && !ownSteps.has(step.name)) continue
+    const { result, steps: outcomes } = simulateChecks(step, plan)
+    assert.equal(result === "success", !ownSteps.has(step.name), `${step.name} fails: output ${result}`)
+    if (result === "success") assert.equal(outcomes["workspace-upload"], "success", `${step.name} fails: the output says success and no artifact uploaded`)
+  }
+  assert.equal(simulateChecks(undefined, { ...plan, "workspace-unit-hit": "true" }).result, "skipped")
 })

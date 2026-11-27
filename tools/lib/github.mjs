@@ -21,6 +21,8 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
+/** The checks that read only the pull request, so a rerun at the same head gives the same result. */
+const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 const OWNER_LABEL = "needs:owner"
@@ -53,6 +55,11 @@ const stateQuery = (numbers) => `query DriveState($owner: String!, $name: String
   }
 }`
 
+/** A ticket page costs one point for each 100 nested reads, and the blockers are most of them, so the page reads this many blockers of a ticket. A ticket with that many reads all of its blockers in one more query. */
+const BLOCKERS_PER_PAGE = 20
+const ALL_BLOCKERS = 100
+const BLOCKER_FIELDS = "number state labels(first: 50) { nodes { name } }"
+
 const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $after: String) {
   repository(owner: $owner, name: $name) {
     issues(states: OPEN, first: 50, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
@@ -60,7 +67,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
       nodes {
         number title body lastEditedAt
         labels(first: 50) { nodes { name } }
-        blockedBy(first: 100) { nodes { number state labels(first: 50) { nodes { name } } } }
+        blockedBy(first: ${BLOCKERS_PER_PAGE}) { nodes { ${BLOCKER_FIELDS} } }
         comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt lastEditedAt author { login } } }
       }
     }
@@ -70,6 +77,12 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
 const MORE_COMMENTS_QUERY = `query DriveComments($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt lastEditedAt author { login } } } }
+  }
+}`
+
+const ALL_BLOCKERS_QUERY = `query DriveBlockers($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) { blockedBy(first: ${ALL_BLOCKERS}) { nodes { ${BLOCKER_FIELDS} } } }
   }
 }`
 
@@ -206,10 +219,27 @@ const normalizePull = (raw, ticketRepository) => {
   }
 }
 
+/** True for a failure that GitHub gave because a rate limit holds: HTTP 403 or a rate limit message. A read again at once fails the same way. */
+export const isRateLimited = (error) => /\bHTTP 403\b|rate limit/i.test(error?.message ?? "")
+
+/** The read of one batch of pull requests. A failed read runs again once at half size: the two halves of the batch, or the same single pull request. A rate limit fails at once. */
+const readBatch = async (numbers, read) => {
+  try {
+    return [await read(numbers)]
+  } catch (error) {
+    if (isRateLimited(error)) throw error
+    const middle = Math.ceil(numbers.length / 2)
+    const halves = numbers.length < 2 ? [numbers] : [numbers.slice(0, middle), numbers.slice(middle)]
+    const reads = []
+    for (const half of halves) reads.push(await read(half))
+    return reads
+  }
+}
+
 /**
  * Every open pull request of one repository. The first read lists the open numbers and holds the first `knownNumbers` of the last
- * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed read
- * fails the whole call, so no caller gets a partial state.
+ * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed batch
+ * reads again once at half size. A batch that fails twice fails the whole call, so no caller gets a partial state.
  */
 export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ...seams } = {}) => {
   if (!knownNumbers.every((number) => Number.isInteger(number) && number > 0)) throw new Error("knownNumbers must be positive integers")
@@ -217,13 +247,23 @@ export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ..
   const slug = api.slugOf(repositoryKey)
   const { owner, name } = splitSlug(slug)
   const read = async (numbers) => (await graphql(api, stateQuery(numbers), { owner, name })).repository
-  const firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
-  const first = await read(firstNumbers)
+  let firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
+  let first
+  try {
+    first = await read(firstNumbers)
+  } catch (error) {
+    if (isRateLimited(error)) throw error
+    // The numbers that the smaller read leaves out count as unread below, so the next batches read them.
+    firstNumbers = firstNumbers.slice(0, Math.ceil(firstNumbers.length / 2))
+    first = await read(firstNumbers)
+  }
   if (first.open.pageInfo.hasNextPage) throw new Error(`${slug} has more than 100 open pull requests; the driver reads 100`)
   const open = first.open.nodes.map((pull) => pull.number)
   const unread = open.filter((number) => !firstNumbers.includes(number))
   const raw = { ...first }
-  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) Object.assign(raw, await read(unread.slice(start, start + PULLS_PER_STATE_QUERY)))
+  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) {
+    for (const part of await readBatch(unread.slice(start, start + PULLS_PER_STATE_QUERY), read)) Object.assign(raw, part)
+  }
   const pulls = open.map((number) => normalizePull(raw[`pr${number}`], api.config.tickets.repository))
   return { repositoryKey, slug, defaultBranch: first.defaultBranchRef.name, numbers: open, pulls }
 }
@@ -239,6 +279,11 @@ const readMoreComments = async (api, number, after) => {
   return comments
 }
 
+const readAllBlockers = async (api, number) => {
+  const { owner, name } = splitSlug(api.config.tickets.repository)
+  return nodes((await graphql(api, ALL_BLOCKERS_QUERY, { owner, name, number })).repository.issue.blockedBy)
+}
+
 /** Every open ticket with its labels, blockers and comments. */
 export const readTickets = async (seams = {}) => {
   const api = bind(seams)
@@ -249,6 +294,7 @@ export const readTickets = async (seams = {}) => {
     for (const issue of page.nodes) {
       const labels = labelNames(issue.labels)
       const more = issue.comments.pageInfo.hasNextPage ? await readMoreComments(api, issue.number, issue.comments.pageInfo.endCursor) : []
+      const blockers = nodes(issue.blockedBy).length < BLOCKERS_PER_PAGE ? nodes(issue.blockedBy) : await readAllBlockers(api, issue.number)
       tickets.push({
         number: issue.number,
         title: issue.title,
@@ -256,7 +302,7 @@ export const readTickets = async (seams = {}) => {
         editedAt: issue.lastEditedAt ?? null,
         labels,
         repoKey: repoKeyOf(labels),
-        blockedBy: nodes(issue.blockedBy).map((blocker) => {
+        blockedBy: blockers.map((blocker) => {
           const blockerLabels = labelNames(blocker.labels)
           return { number: blocker.number, open: blocker.state === "OPEN", labels: blockerLabels, repoKey: repoKeyOf(blockerLabels) }
         }),
@@ -411,11 +457,20 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
   .filter((check) => check.passed && check.node.__typename === "CheckRun")
   .map((check) => ({ name: check.name, runId: /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] ?? null }))
 
-/** What to do about one failed check, from the names of its failed steps: a rerun for the job setup or the checkout, the owner for a barrier, otherwise a fix order. */
+/** True for a check whose result does not change on a rerun at the same head: the driver never reruns it. */
+export const isDeterministicCheck = (name) => DETERMINISTIC_CHECKS.has(name)
+
+/**
+ * What to do about one failed check, from the names of its failed steps: a rerun for the job setup or the checkout, the owner for a barrier,
+ * otherwise a fix order. A deterministic check is never a rerun: its failure goes to a fix order.
+ */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step)) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
 }
+
+/** True while a job of one workflow run has not completed. GitHub refuses to rerun the failed jobs of such a run. */
+export const runInProgress = (pull, runId) => newestChecks(pull.checks).some((check) => check.node.__typename === "CheckRun" && check.node.status !== "COMPLETED" && /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] === runId)
 
 /** The names of the failed steps of one job of a workflow run. */
 export const readFailedSteps = async (repositoryKey, runId, jobId, seams = {}) => {

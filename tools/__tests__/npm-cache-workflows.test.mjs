@@ -35,11 +35,11 @@ test("unit test steps retain their budget with setup and report time outside it"
   for (const [job, stepName, stepMinutes, jobMinutes] of [
     ["web-tests", "Run web shard with coverage", 16, 20],
     ["mobile-tests", "Run mobile shard with coverage", 10, 13],
-    ["workspace-tests", "Run workspaces with coverage thresholds", 6, 9],
+    ["checks", "Run workspaces with coverage thresholds", 6, 15],
   ]) {
     const step = workflow.jobs[job].steps.find((candidate) => candidate.name === stepName)
     assert.equal(step["timeout-minutes"], stepMinutes, `${job} owns a separate test budget`)
-    assert.equal(workflow.jobs[job]["timeout-minutes"], jobMinutes, `${job} reserves three minutes for setup and reports`)
+    assert.equal(workflow.jobs[job]["timeout-minutes"], jobMinutes, `${job} reserves its job limit for the step budget, setup and reports`)
   }
 })
 
@@ -81,11 +81,11 @@ test("no workflow or local action text names a command that installs a package a
 })
 
 test("the runner ban fails each form that installs a package at run time", () => {
-  const typeCheck = workflows.find(([file]) => file === "test.yml")[1].jobs["type-check"]
+  const typeCheck = workflows.find(([file]) => file === "test.yml")[1].jobs.checks
   const findingsOf = (run, place = (job) => job.steps.find((step) => /turbo run type-check/.test(step.run ?? ""))) => {
     const job = structuredClone(typeCheck)
     place(job).run = run
-    return runnerFindings("test.yml", { jobs: { "type-check": job } }).join("\n")
+    return runnerFindings("test.yml", { jobs: { checks: job } }).join("\n")
   }
   for (const [run, reason] of [
     ["npx -y turbo run type-check", /npx can install/],
@@ -157,7 +157,7 @@ if [ "$(wc -l < "${calls}")" -le ${failedCalls} ]; then echo "npm error code ERR
 // TLS fault in a download ends the install with ERR_SSL_CIPHER_OPERATION_FAILED.
 test("every install from the npm registry passes after one failed attempt and fails after two", () => {
   const lines = installLines()
-  assert.ok(lines.length >= 30, "the scan reads the installs of the workflows, the local actions and the Dockerfile")
+  assert.ok(lines.length >= 29,"the scan reads the installs of the workflows, the local actions and the Dockerfile")
   for (const [where, line] of lines) {
     const once = runInstall(line, 1)
     assert.equal(once.status, 0, `${where}: one failed attempt fails the step: ${line}`)

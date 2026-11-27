@@ -20,7 +20,7 @@ function subscribe(onChange: () => void) {
 
 export function useHabitInlineDepthLimit() {
   const [contentWidth, setContentWidth] = useState<number>()
-  const measureRef = useCallback((element: HTMLDivElement | null) => {
+  const measureRef = useCallback((element: HTMLElement | null) => {
     if (!element) return
     const observer = new ResizeObserver(([entry]) => setContentWidth(entry!.contentRect.width))
     observer.observe(element)

@@ -175,7 +175,7 @@ export function readHabitWhenWords(text: string, context: HabitWhenWordsContext)
   const weekday = bareWeekdayToken(text, read, context.language)
   const bareDate = weekday !== null && (context.deliberateType ?? context.itemType) !== 'habit'
   if (habitPhraseRepeats(read) && !bareDate) return { kind: 'repeat', read }
-  const whole = parseDatePhrase(bareDate ? text.slice(weekday.start, weekday.end) : text, context)
+  const whole = parseDatePhrase(bareDate ? text.slice(weekday.start, weekday.end).replace(/\.$/u, '') : text, context)
   const lone = whole.status === 'resolved' || habitPhraseRepeats(read) ? null : loneWeekdayWord(text, read)
   const result = lone === null ? whole : parseDatePhrase(lone, context)
   if (result.status !== 'resolved') return { kind: 'unresolved' }

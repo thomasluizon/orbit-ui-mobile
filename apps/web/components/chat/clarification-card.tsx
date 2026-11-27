@@ -50,10 +50,10 @@ export function ClarificationCard({ clarificationRequest, entityName, pendingOpe
     {showPreview ? <PendingOperationCard pendingOperation={pendingOperation} savedState={savedState} onStateChange={(patch) => onStateChange?.(pendingOperation.id, patch)} focusTitleOnMount onRevise={onPendingOperationRevise} onRefresh={onPendingOperationRefresh} onConfirmExecute={onPendingOperationConfirmExecute} onPrepareStepUp={onPendingOperationPrepareStepUp} onVerifyStepUp={onPendingOperationVerifyStepUp} onOpenTarget={onActionChipClick} /> : <BlockFrame state={resolve.isPending ? 'acting' : 'resting'} title={safeT(t, clarificationRequest.question)} items={[]} actions={(
       <div className={quickOptions ? 'flex w-full flex-col items-stretch gap-3' : 'flex flex-col items-start gap-3'}>
         {resolvedLabel ? <p role="status" className="text-sm text-[var(--fg-2)]">{t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel })}</p> : (
-          quickOptions ? <div role="group" aria-label={safeT(t, clarificationRequest.question)} data-option-group="" className="grid w-full min-w-0 grid-cols-2 gap-3">{quickActions.map((action) => {
+          quickOptions ? <fieldset aria-label={safeT(t, clarificationRequest.question)} data-option-group="" className="grid w-full min-w-0 grid-cols-2 gap-3">{quickActions.map((action) => {
             const label = safeT(t, action.label)
             return <OptionCard key={action.value} label={label} disabled={resolve.isPending} onSelect={() => void choose(label, action.value)} />
-          })}</div> : <ActionRow>{quickActions.map((action) => {
+          })}</fieldset> : <ActionRow>{quickActions.map((action) => {
             const label = safeT(t, action.label)
             return <Button key={action.value} variant="ghost" size="sm" disabled={resolve.isPending} onClick={() => void choose(label, action.value)}>{label}</Button>
           })}</ActionRow>
