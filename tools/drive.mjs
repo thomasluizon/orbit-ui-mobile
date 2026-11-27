@@ -1917,7 +1917,11 @@ const readWorld = async (env, mem) => {
   // A failed read names the part that failed, so `health.json` lists it as a blind part.
   const blind = (key) => (error) => { mem.health.blind.push({ key, detail: detailOf(error) }); throw error }
   const tickets = await env.github.readTickets().catch(blind("tickets"))
-  const states = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).catch(blind(key))))
+  // Every repository read settles before the throw, so each read that fails in the same outage is a blind part of this tick.
+  const settled = await Promise.allSettled(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).catch(blind(key))))
+  const failed = settled.find((result) => result.status === "rejected")
+  if (failed) throw failed.reason
+  const states = settled.map((result) => result.value)
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
   return { tickets, states }
 }

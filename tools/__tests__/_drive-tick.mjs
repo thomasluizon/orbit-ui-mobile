@@ -838,6 +838,16 @@ const healthCases = async () => {
   await unreadLimit.run()
   same("drive: a rate limit that the rate_limit read cannot name leaves rateLimitedUntil null", [healthOf(unreadLimit).lastErrorClass, healthOf(unreadLimit).rateLimitedUntil], ["rate-limit", null])
 
+  // In an outage the repository reads fail at different times. A read that fails after the first one is a blind part of the same tick.
+  const outage = scenario({ tickets: [ticket(7)] })
+  outage.env.github.readRepositoryState = async (key) => {
+    if (key === "ui") throw new Error("gh api graphql failed: gh: HTTP 502: Bad Gateway")
+    if (key === "api") { await new Promise((resolve) => setTimeout(resolve, 20)); throw new Error("gh api graphql failed: gh: HTTP 503: Service Unavailable") }
+    return { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: [], pulls: [] }
+  }
+  same("drive: a tick whose repository reads fail at different times returns retried", (await outage.run()).retried, true)
+  same("drive: a tick whose repository reads fail at different times lists each failed read in health.json", healthOf(outage).problems.map((problem) => problem.key), ["blind:ui", "blind:api"])
+
   // The reap reads the world too. Its read is no good tick: only the read of the tick itself, and the bar that follows it, count.
   const reaped = scenario({ tickets: [ticket(7)], pulls: { ui: [] } })
   keepWrites(reaped, [ticket(7)])
