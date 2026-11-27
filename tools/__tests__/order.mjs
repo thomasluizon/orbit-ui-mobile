@@ -105,6 +105,18 @@ export const cases = async () => {
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 
+  for (const kind of ORDER_KINDS) {
+    const claude = renderBrief({ kind, place: PLACE, ticket: TICKET })
+    const codex = renderBrief({ kind, place: PLACE, ticket: TICKET, runner: "codex" })
+    T(`lib/order.mjs: the ${kind} Codex brief names no /second-opinion, no Grep tool and no Claude Code`, !/\/second-opinion|Grep tool|Claude Code/.test(codex))
+    T(`lib/order.mjs: the ${kind} Codex brief reads the humanizer file and searches with rg`, codex.includes("**Copy.** Write copy with the rules in `~/.claude/skills/humanizer/SKILL.md`. Read that file first.\n") && codex.includes("Search with `rg`. Write a longer check as a `.mjs` file"))
+    const other = (brief) => brief.split("\n").filter((line) => !line.startsWith("**Copy.**") && !line.startsWith("**Commands.**"))
+    same(`lib/order.mjs: every other line of the ${kind} Codex brief is the Claude line`, other(codex), other(claude))
+    same(`lib/order.mjs: the ${kind} brief with no runner is the claude brief`, renderBrief({ kind, place: PLACE, ticket: TICKET, runner: "claude" }), claude)
+  }
+  T("lib/order.mjs: an order for the codex runner ends with the Codex brief", renderOrder({ kind: "build", ticket: TICKET, place: PLACE, runner: "codex" }).endsWith(renderBrief({ kind: "build", place: PLACE, ticket: TICKET, runner: "codex" })))
+  T("lib/order.mjs: an unknown runner is refused", await (async () => { try { renderBrief({ kind: "build", place: PLACE, ticket: TICKET, runner: "toString" }); return false } catch (error) { return /unknown runner/.test(error.message) } })())
+
   const replanBrief = renderBrief({ kind: "replan", place: PLACE, ticket: TICKET })
   T("lib/order.mjs: a replan brief is read only, fits the byte limit, names no pull request write and no delivery rule", Buffer.byteLength(replanBrief) <= 6000 && replanBrief.includes("This is a read-only order.") && !replanBrief.includes("gh pr ") && !replanBrief.includes("first push") && replanBrief.includes('Your final message is the answer of "This order", with nothing after it.'))
 
