@@ -18,6 +18,9 @@ import {
   isAncestor,
   merge,
   carriedApproval,
+  closePull,
+  deleteBranch,
+  ensureLabel,
   mergeBar,
   needsWholeDiff,
   pullfrogRuns,
@@ -552,6 +555,20 @@ const writeCases = async (seams) => {
   T("lib/github.mjs: an unknown label is refused before any edit", /Unknown label\(s\): nope/.test(await thrown(() => editLabels("tickets", 12, { add: ["nope"] }, seams(unknownRun.run)))) && unknownRun.calls.every((call) => call.args[1] !== "edit"))
   T("lib/github.mjs: an edit with nothing to change is refused", /at least one label/.test(await thrown(() => editLabels("tickets", 12, {}, seams(unknownRun.run)))))
 
+  const parkedLabel = { name: "parked", color: "FBCA04", description: "A parked item." }
+  const missingLabel = scripted([["label list", () => json(FIXTURE.ticketOperations.labels)], ["labels", () => ""]])
+  same("lib/github.mjs: a label that is missing is created with one POST of a JSON body", [await ensureLabel("ui", parkedLabel, seams(missingLabel.run)), missingLabel.calls.at(-1).args, missingLabel.calls.at(-1).input], [true, ["api", `repos/${UI}/labels`, "--method", "POST", "--input", "-"], json(parkedLabel)])
+  const knownLabel = scripted([["label list", () => json([...FIXTURE.ticketOperations.labels, { name: "parked" }])]])
+  same("lib/github.mjs: a label that exists is not created again", [await ensureLabel("tickets", parkedLabel, seams(knownLabel.run)), knownLabel.calls.length], [false, 1])
+  const closePullRun = scripted([["pulls/", () => ""], ["git/refs", () => ""]])
+  await closePull("ui", 8, seams(closePullRun.run))
+  await deleteBranch("ui", "chore/ticket-7-part-2", seams(closePullRun.run))
+  same("lib/github.mjs: a close is one PATCH of the state and a branch delete is one DELETE of its ref", closePullRun.calls.map((call) => [call.args, call.input]), [
+    [["api", `repos/${UI}/pulls/8`, "--method", "PATCH", "--input", "-"], json({ state: "closed" })],
+    [["api", `repos/${UI}/git/refs/heads/chore/ticket-7-part-2`, "--method", "DELETE"], undefined],
+  ])
+  T("lib/github.mjs: an empty branch name is refused before any call", /non-empty/.test(await thrown(() => deleteBranch("ui", " ", seams(scripted([]).run)))))
+
   const statusRoutes = (items) => [["DriveProjectItems", () => json(items)], ["DriveStatus", () => json(FIXTURE.ticketStatus.update)]]
   const statusRun = scripted(statusRoutes(FIXTURE.ticketStatus.projectItems))
   await setStatus(4, "In Review", seams(statusRun.run))
@@ -641,6 +658,10 @@ const ciCases = (open, approved) => {
   same("lib/github.mjs: any other failure is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: ["Run Domain Tests"] }), "ci-fix")
   same("lib/github.mjs: another step of Guard Migrations is a fix order", classifyCheckFailure({ name: "Guard Migrations", failedSteps: ["Fail on edits to applied migrations"] }), "ci-fix")
   same("lib/github.mjs: the barrier step under another check name is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: barrierSteps }), "ci-fix")
+  const workflowSteps = readFileSync(toolPath("../.github/workflows/test.yml"), "utf8").split(/^ {6}- /m)
+  const gateSteps = workflowSteps.filter((step) => /\$\{\{ needs\.[\w-]+\.result \}\}/.test(step)).map((step) => /^name: (.+)$/m.exec(step)?.[1])
+  T("lib/github.mjs: test.yml has steps that read the result of a needed job", gateSteps.length > 0)
+  same("lib/github.mjs: each test.yml step that reads the result of a needed job is a gate step, which gets a rerun", gateSteps.filter((step) => classifyCheckFailure({ name: "Gate", failedSteps: [step] }) !== "rerun"), [])
 }
 
 const failureStepCases = async (seams) => {
@@ -1092,7 +1113,7 @@ const FAILURE = { checks: [{ name: "Unit Tests", failedSteps: ["Run Domain Tests
 const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, partComments: PART_COMMENTS, place: PLACE, ...extra })
 
 const orderCases = async () => {
-  same("lib/order.mjs: the order kinds are the six of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
+  same("lib/order.mjs: the order kinds are the seven of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find", "replan"])
   same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
   same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "Part 5 is complete", "See Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
   same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
@@ -1128,6 +1149,8 @@ const orderCases = async () => {
   const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
   T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
   T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
+  const resumedGrant = renderResumeOrder({ kind: "merge-forward", pull: PULL, ownerNote: "Keep the left side of the conflict." })
+  T("lib/order.mjs: a resumed merge-forward order that an owner comment granted holds the comment, and one with no comment holds no owner section", resumedGrant.includes("## Owner comment") && resumedGrant.includes("Keep the left side of the conflict.") && resumedGrant.indexOf("## Owner comment") < resumedGrant.indexOf("Your first order and its brief still hold.") && !renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("## Owner comment"))
   for (const [label, call, message] of [
     ["a build order", () => renderResumeOrder({ kind: "build" }), /does not resume a session/],
     ["a fix order with no blocking class", () => renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [] } }), /needs its pull request/],
@@ -1143,10 +1166,10 @@ const orderCases = async () => {
     return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))
   }))
   T("lib/order.mjs: the brief tells the worker to decide with the recommended option and to end with NEEDS_DECISION only for the four owner matters", /Decide every choice with the recommended option/.test(build) && /NEEDS_DECISION: <question>.*money.*model or effort.*standing owner order.*irreversible/.test(build))
-  T("lib/order.mjs: every order kind that changes code holds the size cap line, and the find order holds none", ORDER_KINDS.every((kind) => {
-    const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] } }, "ci-fix": { pull: PULL, failure: FAILURE }, "merge-forward": { pull: PULL, failure: FAILURE } }
+  T("lib/order.mjs: every order kind that changes code holds the size cap line, and a read-only order holds none", ORDER_KINDS.every((kind) => {
+    const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] } }, "ci-fix": { pull: PULL, failure: FAILURE }, "merge-forward": { pull: PULL, failure: FAILURE }, replan: { replan: { stuckBranch: PLACE.branch, mergedParts: [1], currentTotal: 3, highestTotal: 3 } } }
     const text = order(kind, extras[kind] ?? {})
-    return text.includes("Keep the whole pull request at or under 1000 changed lines (aim for 300), counted by tools/lib/diff-size.mjs. A push above 1000 is refused.") === (kind !== "find")
+    return text.includes("Keep the whole pull request at or under 1000 changed lines (aim for 300), counted by tools/lib/diff-size.mjs. A push above 1000 is refused.") === (kind !== "find" && kind !== "replan")
   }))
   T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
   T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && !build.includes("`BRAND.md`"))

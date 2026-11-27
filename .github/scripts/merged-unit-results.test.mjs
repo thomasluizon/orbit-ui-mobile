@@ -17,10 +17,11 @@ const run = { id: 44216168902, run_attempt: 1, event: "pull_request", status: "c
 const artifact = { id: 14388998463, name: "unit-test-coverage", size_in_bytes: 591958, expired: false, created_at: "2026-11-18T01:45:11Z", workflow_run: { id: 44216168902, head_sha: head } }
 const keys = {
   "web-unit": "web-unit-dc5f6a3a7daa8b5c63ed87b9-095ca005d57a889ee284a950",
+  "web-cross-app-unit": "web-cross-app-unit-5a0c1e7d93b24f60a81c7e32-095ca005d57a889ee284a950",
   "mobile-unit": "mobile-unit-21bdec711a68941fb358471b-095ca005d57a889ee284a950",
   "workspace-unit": "workspace-unit-1b2e13218dbef83c5384f377-095ca005d57a889ee284a950",
 }
-const keyEnvironment = { WEB_UNIT_KEY: keys["web-unit"], MOBILE_UNIT_KEY: keys["mobile-unit"], WORKSPACE_UNIT_KEY: keys["workspace-unit"] }
+const keyEnvironment = { WEB_UNIT_KEY: keys["web-unit"], WEB_CROSS_APP_UNIT_KEY: keys["web-cross-app-unit"], MOBILE_UNIT_KEY: keys["mobile-unit"], WORKSPACE_UNIT_KEY: keys["workspace-unit"] }
 
 function api({ pulls = [pull], runs = [run], artifacts = [artifact] } = {}) {
   const paths = []
@@ -72,10 +73,14 @@ test("no result is reused without a merged pull request, a successful run from t
 })
 
 test("only a group whose stored key equals the key of this run is reused", () => {
-  assert.deepEqual(matchKeys(keys, keys), { "web-unit": true, "mobile-unit": true, "workspace-unit": true })
-  assert.deepEqual(matchKeys({ ...keys, "web-unit": "web-unit-other" }, keys), { "web-unit": false, "mobile-unit": true, "workspace-unit": true })
-  assert.deepEqual(matchKeys(undefined, keys), { "web-unit": false, "mobile-unit": false, "workspace-unit": false })
-  assert.deepEqual(matchKeys({ "web-unit": "" }, { ...keys, "web-unit": "" }), { "web-unit": false, "mobile-unit": false, "workspace-unit": false })
+  const all = (value) => ({ "web-unit": value, "web-cross-app-unit": value, "mobile-unit": value, "workspace-unit": value })
+  assert.deepEqual(matchKeys(keys, keys), all(true))
+  assert.deepEqual(matchKeys({ ...keys, "web-unit": "web-unit-other" }, keys), { ...all(true), "web-unit": false })
+  assert.deepEqual(matchKeys({ ...keys, "web-cross-app-unit": "web-cross-app-unit-other" }, keys), { ...all(true), "web-cross-app-unit": false })
+  const { "web-cross-app-unit": _stored, ...beforeTheCrossAppGroup } = keys
+  assert.deepEqual(matchKeys(beforeTheCrossAppGroup, keys), { ...all(true), "web-cross-app-unit": false }, "a pull request run from before the group has no key for it")
+  assert.deepEqual(matchKeys(undefined, keys), all(false))
+  assert.deepEqual(matchKeys({ "web-unit": "" }, { ...keys, "web-unit": "" }), all(false))
 })
 
 test("record writes the keys that match reads back", async () => {
@@ -86,10 +91,10 @@ test("record writes the keys that match reads back", async () => {
     writeFileSync(join(directory, "unit-test-keys.json"), recorded)
     let matched = ""
     assert.equal(await main(["match", "--keys-file", join(directory, "unit-test-keys.json")], { ...keyEnvironment, MOBILE_UNIT_KEY: "mobile-unit-new" }, (text) => { matched += text }), 0)
-    assert.equal(matched, "web-unit=true\nmobile-unit=false\nworkspace-unit=true\n")
+    assert.equal(matched, "web-unit=true\nweb-cross-app-unit=true\nmobile-unit=false\nworkspace-unit=true\n")
     let absent = ""
     assert.equal(await main(["match", "--keys-file", join(directory, "missing.json")], keyEnvironment, (text) => { absent += text }), 0)
-    assert.match(absent, /::notice .*stored no unit result keys\nweb-unit=false\nmobile-unit=false\nworkspace-unit=false\n$/)
+    assert.match(absent, /::notice .*stored no unit result keys\nweb-unit=false\nweb-cross-app-unit=false\nmobile-unit=false\nworkspace-unit=false\n$/)
     writeFileSync(join(directory, "broken.json"), "{")
     assert.equal(await main(["match", "--keys-file", join(directory, "broken.json")], keyEnvironment, () => {}), 1)
     assert.equal(await main(["record"], { WEB_UNIT_KEY: "a" }, () => {}), 1)

@@ -25,6 +25,8 @@ const SETUP_STEP = "Set up job"
 const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
+/** The `test.yml` steps that read the result of a needed job. A failure there comes from that job, so it is no flake. */
+const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
 
 const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
@@ -459,12 +461,12 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
 export const isDeterministicCheck = (name) => DETERMINISTIC_CHECKS.has(name)
 
 /**
- * What to do about one failed check, from the names of its failed steps: a rerun for the job setup or the checkout, the owner for a barrier,
+ * What to do about one failed check, from the names of its failed steps: a rerun for the job setup, the checkout or a gate step, the owner for a barrier,
  * otherwise a fix order. A deterministic check is never a rerun: its failure goes to a fix order.
  */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step) || GATE_STEPS.has(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
 }
 
 /** True while a job of one workflow run has not completed. GitHub refuses to rerun the failed jobs of such a run. */
@@ -589,6 +591,26 @@ export const editLabels = async (repositoryKey, number, { add = [], remove = [] 
   if (unknown.length > 0) throw new Error(`Unknown label(s): ${unknown.join(", ")}`)
   const command = repositoryKey === "tickets" ? "issue" : "pr"
   await api.run([command, "edit", String(number), "--repo", api.slugOf(repositoryKey), ...add.flatMap((label) => ["--add-label", label]), ...remove.flatMap((label) => ["--remove-label", label])])
+}
+
+/** Creates a label in a repository when it has none. The name, the color and the description are the caller's. */
+export const ensureLabel = async (repositoryKey, { name, color, description }, seams = {}) => {
+  const api = bind(seams)
+  if ((await listLabels(api, repositoryKey)).includes(name)) return false
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/labels`, "--method", "POST", "--input", "-"], { input: JSON.stringify({ name, color, description }) })
+  return true
+}
+
+/** Closes a pull request with no merge. */
+export const closePull = async (repositoryKey, number, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/pulls/${number}`, "--method", "PATCH", "--input", "-"], { input: JSON.stringify({ state: "closed" }) })
+}
+
+/** Deletes a remote branch by its name. */
+export const deleteBranch = async (repositoryKey, branch, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/git/refs/heads/${nonEmpty(branch, "branch name")}`, "--method", "DELETE"])
 }
 
 const projectItemOf = async (api, number) => {

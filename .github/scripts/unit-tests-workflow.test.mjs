@@ -211,11 +211,25 @@ test("each test group starts only without a cached result, and every event looks
     for (const step of [lookup, restore, save]) assert.equal(step.with.path, variable, `${group}: the cache version includes the path, so every step names the same one`)
     assert.equal(restore.if, `${result} == 'skipped'`)
     assert.equal(restore.with["fail-on-cache-miss"], true)
-    assert.equal(save.if, `github.event_name != 'pull_request' && ${result} == 'success'`)
+    assert.equal(save.if, `${result} == 'success'`, `${group}: every event saves the result, so a later push of a pull request reuses it`)
   }
+  // The web cross-app group has no job of its own: Unit Tests runs its tests and a pass marker is its result.
+  const cross = "web-cross-app-unit"
+  assert.equal(plan.outputs[`${cross}-hit`], `\${{ steps.${cross}.outputs.cache-hit == 'true' || steps.merged.outputs.${cross}-hit == 'true' }}`)
+  assert.equal(plan.outputs[`${cross}-key`], `\${{ steps.plan.outputs.${cross}-key }}`)
+  const crossLookup = plan.steps.find((step) => step.id === cross)
+  assert.equal(crossLookup.with["lookup-only"], true)
+  assert.equal(crossLookup.with.key, `\${{ steps.plan.outputs.${cross}-key }}`)
+  const crossRestore = unitSteps.find((step) => step.uses?.startsWith("actions/cache/restore@") && step.with.key === `\${{ needs.plan.outputs.${cross}-key }}`)
+  const crossSave = unitSteps.find((step) => step.uses?.startsWith("actions/cache/save@") && step.with.key === `\${{ needs.plan.outputs.${cross}-key }}`)
+  for (const step of [crossLookup, crossRestore, crossSave]) assert.equal(step.with.path, "${{ env.WEB_CROSS_APP_UNIT_RESULTS }}")
+  assert.equal(workflow.env.WEB_CROSS_APP_UNIT_RESULTS, "apps/web/.artifacts/web-cross-app-passed")
+  assert.equal(crossRestore.if, "needs.web-tests.result == 'skipped' && needs.plan.outputs.web-cross-app-unit-hit == 'true'")
+  assert.equal(crossRestore.with["fail-on-cache-miss"], true)
+  assert.equal(crossSave.if, "needs.plan.outputs.web-cross-app-unit-hit != 'true'")
   const planStep = plan.steps.find((step) => step.id === "plan")
   assert.match(planStep.run, /node \.github\/scripts\/plan-test-jobs\.mjs --event "\$EVENT_NAME"/)
-  assert.match(planStep.run, /run test --dry=json/)
+  assert.match(planStep.run, /run test test:cross-app --dry=json/)
   assert.equal(plan.steps.find((step) => step.uses?.startsWith("actions/checkout@")).with["fetch-depth"], 2)
   const cached = [workflow.env.WEB_UNIT_RESULTS, workflow.env.MOBILE_UNIT_RESULTS, ...workflow.env.WORKSPACE_UNIT_RESULTS.trim().split("\n")]
   assert.deepEqual(cached, ["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`))
@@ -227,7 +241,7 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
   const call = plan.steps.find((step) => step.id === "merged")
   assert.equal(call.uses, "./.github/actions/merged-unit-results")
   assert.match(call.if, /^github\.event_name != 'pull_request' && \(/)
-  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) assert.match(call.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
+  for (const group of ["web-unit", "web-cross-app-unit", "mobile-unit", "workspace-unit"]) assert.match(call.if, new RegExp(`steps\\.${group}\\.outputs\\.cache-hit != 'true'`))
   const steps = mergedAction.runs.steps
   const ids = steps.map((step) => step.id)
   const find = steps.find((step) => step.id === "merged")
@@ -243,9 +257,9 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
   assert.equal(match.run, 'node .github/scripts/merged-unit-results.mjs match --keys-file unit-test-keys.json | tee -a "$GITHUB_OUTPUT"')
   assert.equal(match.if, "steps.merged-download.outcome == 'success'", "a partial download is never matched, so main runs the tests")
   assert.ok(ids.indexOf("merged") < steps.indexOf(download) && steps.indexOf(download) < ids.indexOf("adopt"))
-  for (const group of ["web-unit", "mobile-unit", "workspace-unit"]) {
+  for (const group of ["web-unit", "web-cross-app-unit", "mobile-unit", "workspace-unit"]) {
     const prefix = group.replace("-unit", "")
-    const upper = prefix.toUpperCase()
+    const upper = prefix.toUpperCase().replaceAll("-", "_")
     assert.deepEqual([call.with[`${prefix}-key`], call.with[`${prefix}-path`], call.with[`${prefix}-hit`]],
       [`\${{ steps.plan.outputs.${group}-key }}`, `\${{ env.${upper}_UNIT_RESULTS }}`, `\${{ steps.${group}.outputs.cache-hit }}`], `${group}: the call passes the key, the path and the first lookup`)
     assert.equal(match.env[`${upper}_UNIT_KEY`], `\${{ inputs.${prefix}-key }}`)
@@ -262,6 +276,7 @@ test("a push or a dispatch on main saves the unit results of the merged pull req
   assert.equal(record.run, "node .github/scripts/merged-unit-results.mjs record > unit-test-keys.json")
   assert.deepEqual(record.env, {
     WEB_UNIT_KEY: "${{ needs.plan.outputs.web-unit-key }}",
+    WEB_CROSS_APP_UNIT_KEY: "${{ needs.plan.outputs.web-cross-app-unit-key }}",
     MOBILE_UNIT_KEY: "${{ needs.plan.outputs.mobile-unit-key }}",
     WORKSPACE_UNIT_KEY: "${{ needs.plan.outputs.workspace-unit-key }}",
   })
@@ -280,7 +295,7 @@ test("required checks report on every pull request through job conditions, never
   assert.equal(workflow.jobs.build.if, "needs.plan.outputs.web == 'true'")
   assert.equal(workflow.jobs.checks.if, "${{ !cancelled() }}", "Checks reports a conclusion when the plan finds no scope")
   for (const merged of ["type-check", "lint", "tool-tests", "workspace-tests"]) assert.equal(workflow.jobs[merged], undefined, `${merged} is a step group of Checks`)
-  for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)\b|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
+  for (const step of unitSteps) assert.doesNotMatch(String(step.if ?? ""), /outputs\.(web|type-check|lint)(?![\w-])|base_ref/, `${step.name ?? step.uses}: Unit Tests and its scan never follow a path scope`)
   // Each limit above 15 minutes is 1.5 times the measured worst run that its workflow comment names.
   const measuredAboveFifteen = {
     "web-tests": [20, "Web unit holds a 16 minute step plus setup and report time: the worst shard step took 697 s on main, and 960 s step limit plus 240 s setup is 1200 s"],
@@ -309,7 +324,7 @@ test("every pull request distributes Chromium without increasing browser concurr
   assert.deepEqual(web.strategy.matrix.project, ["chromium"])
   assert.deepEqual(web.strategy.matrix.shard, Array.from({ length: chromiumShardCount }, (_, index) => index + 1))
   assert.deepEqual(web.strategy.matrix.total, [chromiumShardCount])
-  assert.deepEqual(jsdomShards, [1, 2, 3, 4].map((shard) => ({ project: "jsdom", shard, total: 4 })))
+  assert.deepEqual(jsdomShards, [1, 2, 3].map((shard) => ({ project: "jsdom", shard, total: 3 })))
   const run = stepNamed(web.steps, "Run web shard with coverage").run
   assert.match(run, /--project=\$\{\{ matrix.project \}\}/)
   assert.match(run, /--shard=\$\{\{ matrix.shard \}\}\/\$\{\{ matrix.total \}\}/)
@@ -419,6 +434,8 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
       mkdirSync(join(directory, workspace, "coverage"), { recursive: true })
       writeFileSync(join(directory, workspace, "coverage/lcov.info"), `${workspace} coverage`)
     }
+    mkdirSync(join(directory, "apps/web/.artifacts"), { recursive: true })
+    writeFileSync(join(directory, "apps/web/.artifacts/web-cross-app-passed"), "passed\n")
     for (const workspace of workspaceDirectories) mkdirSync(join(directory, workspace, "coverage"), { recursive: true })
     assert.notEqual(run(stage).status, 0, "missing workspace coverage must fail staging")
     for (const workspace of workspaceDirectories) writeFileSync(join(directory, workspace, "coverage/lcov.info"), "")
@@ -430,6 +447,10 @@ test("workspace coverage keeps its directory tree and the gate rejects missing r
       assert.equal(readFileSync(join(directory, ".artifacts/workspace-coverage", artifactName, workspace, "coverage/lcov.info"), "utf8"), `${workspace} coverage`)
     }
     assert.equal(run(verify).status, 0)
+    const marker = join(directory, "apps/web/.artifacts/web-cross-app-passed")
+    renameSync(marker, join(directory, "held-marker"))
+    assert.notEqual(run(verify).status, 0, "a missing web cross-app pass marker must fail the gate")
+    renameSync(join(directory, "held-marker"), marker)
     for (const workspace of ["apps/web", "apps/mobile", ...workspaceDirectories]) {
       const coverage = join(directory, workspace, "coverage/lcov.info")
       const held = join(directory, "held.info")
@@ -460,7 +481,7 @@ test("Unit Tests merges coverage under the unchanged thresholds and ends with th
   assert.equal(workflow.jobs.sonarcloud, undefined)
   const upload = unitSteps.find((step) => step.with?.name === "unit-test-coverage")
   assert.equal(upload.with["if-no-files-found"], "error")
-  assert.deepEqual(upload.with.path.trim().split("\n"), [...["apps/web", "apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`), "unit-test-keys.json"])
+  assert.deepEqual(upload.with.path.trim().split("\n"), ["apps/web/coverage/lcov.info", "apps/web/.artifacts/web-cross-app-passed", ...["apps/mobile", ...workspaceDirectories].map((directory) => `${directory}/coverage/lcov.info`), "unit-test-keys.json"])
 })
 
 test("Sonar coverage merge normalizes desktop scripts measured by the web workspace", () => {
@@ -588,11 +609,16 @@ test("layout shards and the Lighthouse budget reuse the one hermetic Build", () 
   assert.equal(workflow.jobs.lighthouse["timeout-minutes"], 15)
 })
 
-test("pull request runs save no cache that a push to main saves", () => {
+// A unit result is the only cache that a pull request run saves: its key is the Turbo hash of the inputs, so a later push of
+// the same pull request that leaves those inputs equal skips the group.
+const unitResultKeys = new Set(["web-unit-key", "web-cross-app-unit-key", "mobile-unit-key", "workspace-unit-key"].map((key) => `\${{ needs.plan.outputs.${key} }}`))
+test("pull request runs save no cache that a push to main saves, except the unit results", () => {
   for (const [id, job] of Object.entries(workflow.jobs)) {
     for (const step of job.steps ?? []) {
       if (step.uses?.startsWith("actions/cache@")) assert.fail(`${id}: use actions/cache/restore with a save step that pull requests skip`)
-      if (step.uses?.startsWith("actions/cache/save@")) assert.match(step.if ?? "", /^github\.event_name != 'pull_request'/, `${id}: ${step.name}`)
+      if (!step.uses?.startsWith("actions/cache/save@")) continue
+      if (id === "unit-tests" && unitResultKeys.has(step.with.key)) assert.doesNotMatch(step.if ?? "", /pull_request/, `${id}: ${step.name} saves on every event`)
+      else assert.match(step.if ?? "", /^github\.event_name != 'pull_request'/, `${id}: ${step.name}`)
     }
   }
 })
@@ -719,4 +745,58 @@ test("workspace-unit-result reports success only when the coverage artifact uplo
     if (result === "success") assert.equal(outcomes["workspace-upload"], "success", `${step.name} fails: the output says success and no artifact uploaded`)
   }
   assert.equal(simulateChecks(undefined, { ...plan, "workspace-unit-hit": "true" }).result, "skipped")
+})
+
+test("the web cross-app tests run in Unit Tests, join the web blobs and leave a pass marker", () => {
+  const names = unitSteps.map((step) => step.name)
+  const blobs = stepNamed(unitSteps, "Run web cross-app tests into the web blobs")
+  assert.equal(blobs.if, "needs.web-tests.result == 'success'", "a web key miss always runs these tests, so the thresholds see the same tests as before")
+  assert.equal(blobs["working-directory"], "apps/web")
+  assert.match(blobs.run, /--project=cross-app/)
+  assert.match(blobs.run, /--reporter=blob/)
+  assert.match(blobs.run, /--outputFile\.blob=\.artifacts\/unit-tests\/blobs\/cross-app-1\.json/)
+  assert.match(blobs.run, /--coverage\.thresholds\.lines=0/, "the merge step applies the thresholds")
+  assert.ok(names.indexOf(blobs.name) < names.indexOf("Merge web reports and enforce coverage thresholds"))
+  assert.ok(names.indexOf("Select latest web report attempts") < names.indexOf(blobs.name), "the selection copies reports and must not drop the blob")
+  const alone = stepNamed(unitSteps, "Run web cross-app tests alone")
+  assert.equal(alone.if, "needs.web-tests.result == 'skipped' && needs.plan.outputs.web-cross-app-unit-hit != 'true'")
+  assert.equal(alone.run, "../../node_modules/.bin/vitest run --project=cross-app")
+  const write = stepNamed(unitSteps, "Write the web cross-app pass marker")
+  assert.equal(write.if, "needs.web-tests.result == 'success' || needs.plan.outputs.web-cross-app-unit-hit != 'true'")
+  const directory = mkdtempSync(join(root, ".tmp-unit-reports-"))
+  try {
+    const result = runIn(directory, write.run, { WEB_CROSS_APP_UNIT_RESULTS: workflow.env.WEB_CROSS_APP_UNIT_RESULTS })
+    assert.equal(result.status, 0, result.stderr)
+    assert.ok(readFileSync(join(directory, workflow.env.WEB_CROSS_APP_UNIT_RESULTS), "utf8").length > 0)
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test("each web test that reads apps/mobile or apps/desktop runs in the cross-app project, and no other web project reads them", { timeout: 60_000 }, () => {
+  const list = (project) => {
+    const result = spawnSync(join(root, "node_modules/.bin/vitest"), ["list", `--project=${project}`, "--filesOnly"], { cwd: join(root, "apps/web"), encoding: "utf8", env: { ...process.env, VITE_CONFIG_NATIVE_IGNORE_WARNING: "true" } })
+    assert.equal(result.status, 0, result.stderr)
+    return result.stdout.split("\n").flatMap((line) => line.startsWith(`[${project}] `) ? [line.slice(project.length + 3)] : [])
+  }
+  const crossApp = list("cross-app")
+  assert.ok(crossApp.length > 0, "the cross-app project holds tests")
+  const reads = /apps\/(mobile|desktop)\b|\.\.\/(mobile|desktop)\//
+  for (const file of crossApp) assert.match(readFileSync(join(root, "apps/web", file), "utf8"), /apps\/(mobile|desktop)\b|\.\.\/(mobile|desktop)\/|\.\.\/\$\{platform\}\/|['"]apps['"],\s*platform\b/, `${file} reads neither app`)
+  for (const project of ["jsdom", "chromium"]) {
+    const files = list(project)
+    assert.deepEqual(files.filter((file) => crossApp.includes(file)), [], `${project} must not run a cross-app test`)
+    assert.deepEqual(files.filter((file) => reads.test(readFileSync(join(root, "apps/web", file), "utf8"))), [], `${project} runs a test that reads apps/mobile or apps/desktop, so its cached result goes stale`)
+  }
+})
+
+test("the web test key holds only the desktop files its coverage measures and the cross-app key holds both apps", () => {
+  const { tasks } = JSON.parse(readFileSync(join(root, "turbo.json"), "utf8"))
+  const own = tasks["@orbit/web#test"].inputs
+  const cross = tasks["@orbit/web#test:cross-app"].inputs
+  assert.deepEqual(own.filter((input) => /apps\/(mobile|desktop|\{)/.test(input)), ["$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js"])
+  for (const input of own.filter((entry) => entry !== "$TURBO_DEFAULT$")) assert.ok(cross.includes(input), `${input}: a change of the web key must change the cross-app key, so the cross-app tests run whenever the web shards run`)
+  for (const app of ["mobile", "desktop"]) assert.ok(cross.some((input) => input.includes(`apps/${app}/`)), `the cross-app key holds apps/${app}`)
+  assert.equal(JSON.parse(readFileSync(join(root, "apps/web/package.json"), "utf8")).scripts["test:cross-app"], "vitest run --project=cross-app")
+  assert.equal(JSON.parse(readFileSync(join(root, "package.json"), "utf8")).scripts.test, "turbo run test test:cross-app")
 })
