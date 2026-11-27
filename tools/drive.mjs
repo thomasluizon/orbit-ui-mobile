@@ -1577,9 +1577,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
-  // Only a run that reported a result applied its changes. Any other end leaves them for the next launch.
-  const applied = kind === APPLY && result.result.error === null && resultText(tail) !== ""
-  if (applied) await env.github.comment("tickets", ticket.number, marked("applied", JSON.stringify({ branch, seen: exit.seen })))
+  const reported = kind === APPLY && result.result.error === null && resultText(tail) !== ""
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
@@ -1590,6 +1588,9 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const found = findPullByBranch(states, branch)
   const number = prNumber ?? found?.pull.number ?? Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
+  // A run applied its changes only when it reported a result and left the code met or on a pull request branch that holds its commits. Any other end leaves them for the next launch.
+  const applied = reported && (shas.length === 0 || (number > 0 && !(await hasUnpushedCommits(env, worktree, branch, headBefore))))
+  if (applied) await env.github.comment("tickets", ticket.number, marked("applied", JSON.stringify({ branch, seen: exit.seen })))
   // A change that the code already met leaves a branch with no commit and no pull request, which no sweep removes.
   if (applied && shas.length === 0 && !(number > 0)) await removeWorktrees(env, repoKey, [branch])
 }

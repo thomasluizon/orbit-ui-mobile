@@ -1917,6 +1917,37 @@ const ticketChangeCases = async () => {
   await asked.run()
   same("drive: an apply-comment run that asks a question applies nothing and waits for the owner", [asked.launched.length, commentsOf(asked.calls, 7).filter((text) => text.startsWith(marked("applied", ""))).length, only(asked.calls, "closeTicket").length], [1, 0, 0])
 
+  // A result alone never records a change as applied: the commits of the run must sit on a pull request branch on the remote.
+  const appliedWrites = (scene) => commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("applied", ""))).length
+  const workerHead = { value: HEAD }
+  // The head of the worktree before the worker runs, and the head after it.
+  const movesWithWorker = ["rev-parse", () => `${workerHead.value}\n`]
+  const strandedTickets = [ticket(7, { comments: [launched, late] })]
+  const stranded = scenario({ tickets: strandedTickets, routes: done(), gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7-r2\n`], ["log --format=%H", `${NEXT_HEAD}\n`]] })
+  keepWrites(stranded, strandedTickets)
+  stranded.env.worker.launch = (options) => { stranded.launched.push(options); writeFileSync(options.logFile, resultLine("The change is in.")); return Promise.resolve(clean) }
+  await stranded.run()
+  await stranded.run()
+  same("drive: an apply-comment run on main that pushed commits and opened no pull request is not recorded as applied, so the ticket stays open", [appliedWrites(stranded), only(stranded.calls, "closeTicket").length], [0, 0])
+
+  workerHead.value = HEAD
+  const lostTickets = [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), late] })]
+  const lost = scenario({ tickets: lostTickets, pulls: { ui: [pull(30)] }, gitRoutes: [movesWithWorker, ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`]] })
+  keepWrites(lost, lostTickets)
+  lost.env.worker.launch = (options) => { lost.launched.push(options); workerHead.value = NEXT_HEAD; writeFileSync(options.logFile, resultLine("The change is in.")); return Promise.resolve(clean) }
+  await lost.run()
+  await lost.run()
+  same("drive: an apply-comment run on an open pull request whose commits never reached the remote is not recorded as applied, so the pull request does not merge", [appliedWrites(lost), only(lost.calls, "merge").length], [0, 0])
+
+  workerHead.value = HEAD
+  const pushedTickets = [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), late] })]
+  const pushed = scenario({ tickets: pushedTickets, pulls: { ui: [pull(30)] }, gitRoutes: [movesWithWorker, ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7-30\n`], ["log --format=%H", `${NEXT_HEAD}\n`]] })
+  keepWrites(pushed, pushedTickets)
+  pushed.env.worker.launch = (options) => { pushed.launched.push(options); workerHead.value = NEXT_HEAD; writeFileSync(options.logFile, resultLine("The change is in.")); return Promise.resolve(clean) }
+  await pushed.run()
+  await pushed.run()
+  same("drive: an apply-comment run on an open pull request whose commits reached the remote is recorded as applied", appliedWrites(pushed), 1)
+
   const onPull = async (extra = {}, ticketExtra = {}) => {
     const scene = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), late], ...ticketExtra })], pulls: { ui: [pull(30, extra)] } })
     await scene.run()
