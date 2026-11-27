@@ -12,6 +12,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/worker.mjs`: starts and watches one headless worker.
 - `lib/worker-gh-hook.mjs`: the hook of a code worker. It blocks each `gh` write except `gh pr create` and an edit or a comment on the pull request of the worker's branch.
 - `lib/order.mjs`: writes the order that a worker receives from a ticket.
+- `lib/diff-size.mjs`: the one count of the changed lines and files of a change, and the cap of 400 lines and 30 files. `replay-scripts.json` lists the scripts that prove their own output, and a proved file counts 0.
 - `lib/github.mjs`: the one GitHub adapter of the driver: reads, the merge bar and every write.
 - `lib/config.mjs`: reads `.claude/orchestrator.json` and builds the environment of a worker.
 - `lib/github-auth.mjs`, `lib/github-read.mjs`: GitHub accounts and bounded reads.
