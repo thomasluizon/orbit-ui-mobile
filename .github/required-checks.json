@@ -1,0 +1,13 @@
+{
+  "strict": false,
+  "checks": [
+    { "context": "Unit Tests", "app_id": 15368 },
+    { "context": "Build", "app_id": 15368 },
+    { "context": "GitGuardian Security Checks", "app_id": 46505 },
+    { "context": "SonarCloud Code Analysis", "app_id": 12526 },
+    { "context": "pullfrog-approval", "app_id": 1768019 },
+    { "context": "Guards", "app_id": 15368 },
+    { "context": "PR Metadata", "app_id": 15368 },
+    { "context": "Checks", "app_id": 15368 }
+  ]
+}

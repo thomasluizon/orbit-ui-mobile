@@ -95,6 +95,7 @@ const caseModuleInputs = {
   ],
   "desktop-acceptance": ["apps/desktop/locales/en.json", "apps/desktop/locales/pt-BR.json", "apps/web/scripts/build-hermetic.mjs"],
   "check-i18n-usage": ["apps/web/app/step-up/step-up-screen.tsx", "apps/mobile/app/step-up.tsx"],
+  github: [".github/required-checks.json"],
   "android-boot": ["apps/mobile/lib/api-base.ts", "packages/shared/src/i18n/en.json"],
   "check-native-module-copies and the node_modules readers": ["apps/mobile/app.json", "package-lock.json"],
   "generate-brand-assets and build-ds-bundle": ["design/brand/orbit-lockup.svg", "design/brand/orbit-mark.svg", "design/canvas/example.svg"],

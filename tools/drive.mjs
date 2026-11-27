@@ -20,8 +20,9 @@ import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
+import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -44,6 +45,11 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   The driver also runs the release train: a train starts at most every 4 hours when a service has unreleased work, and it
   releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
   dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
+
+  The file .github/required-checks.json of a repository holds the required status checks of its main. Each tick applies it to
+  the branch protection when the two differ. The bar of a pull request that changes the file requires the list that main has
+  after the merge. Just before that merge the driver removes each dropped check from the protection, and after it sends the
+  file of main.
 
   A pull request or an order that used its 2 launches gets one more launch on claude-opus-5-5. Its order holds the failure
   history of every earlier launch, from the driver's own records. No label, no notice and no sleep hold follows a launch cap.
@@ -116,6 +122,8 @@ const COORDINATOR_RUNS = Object.freeze([QUESTIONS_RUN, HARNESS_REVIEW_RUN])
 const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
+/** The branch whose protection follows its required checks file. */
+const PROTECTED_BRANCH = "main"
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
 const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
@@ -1273,6 +1281,76 @@ const fileFlake = async (env, ctx, pull, action) => {
   await env.github.comment(ctx.repoKey, pull.number, marked("record", `driver flake-filed ${flakeKey(action.runId, action.name)}`))
 }
 
+const describeRequired = ({ strict, checks }) => `strict ${strict}: ${checks.map((check) => `${check.context} [${check.app_id ?? "any"}]`).join(", ")}`
+
+const logRequiredChecks = (env, item, from, to, why = "") => log(env, item, "required-checks", `${describeRequired(from)} -> ${describeRequired(to)}${why}`)
+
+/**
+ * Applies the required checks file of the protected branch to its protection when the two differ. A repository with no file
+ * keeps its protection. `before` is the protection from before a merge that changed the file: the file then goes out even
+ * when the protection already equals it.
+ */
+const applyRequiredChecks = async (env, repoKey, { before = null } = {}) => {
+  const file = await env.github.readRequiredChecksFile(repoKey, PROTECTED_BRANCH)
+  if (file === null) return
+  if (file.required === null) throw new Error(`${REQUIRED_CHECKS_FILE} on ${PROTECTED_BRANCH} has a wrong shape`)
+  const current = before ?? await env.github.readProtectionChecks(repoKey, PROTECTED_BRANCH)
+  if (before === null && sameRequiredChecks(current, file.required)) return
+  if (!env.dryRun) await env.github.writeProtectionChecks(repoKey, PROTECTED_BRANCH, file.required)
+  logRequiredChecks(env, repoKey, current, file.required, env.dryRun ? ", dry run" : "")
+}
+
+const requiredChecksError = (env, mem, repoKey, error) => {
+  if (isRateLimited(error)) noteReadError(mem, error)
+  log(env, repoKey, "required-checks-error", error.message)
+}
+
+/** The drift check of each tick. A repository that fails is logged and the tick goes on. */
+const syncRequiredChecks = (env, mem) => Promise.all(REPOSITORY_KEYS.map((repoKey) => applyRequiredChecks(env, repoKey).catch((error) => requiredChecksError(env, mem, repoKey, error))))
+
+/**
+ * The change that a pull request into the protected branch makes to the required checks file: `{ base, head }`, the file at
+ * its merge base (null when there is none) and at its head (null when its shape is wrong). Null when it makes no change or
+ * its head holds no file. GitHub lists at most 100 files of a pull request, so a longer one also reads the file.
+ */
+const requiredChecksChangeOf = async (env, repoKey, pull) => {
+  const mayChange = pull.files.includes(REQUIRED_CHECKS_FILE) || pull.changedFiles > pull.files.length
+  if (pull.draft || pull.baseRef !== PROTECTED_BRANCH || !mayChange) return null
+  const head = await env.github.readRequiredChecksFile(repoKey, pull.headSha)
+  if (head === null) return null
+  const repoPath = env.config.repos[repoKey]
+  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", PROTECTED_BRANCH, `refs/pull/${pull.number}/head`])
+  const mergeBase = await gitText(env, repoPath, ["merge-base", `origin/${PROTECTED_BRANCH}`, pull.headSha])
+  const base = (await env.github.readRequiredChecksFile(repoKey, mergeBase))?.required ?? null
+  const unchanged = base !== null && head.required !== null && sameRequiredChecks(base, head.required)
+  return unchanged ? null : { base, head: head.required }
+}
+
+/**
+ * Merges a pull request. One that changes the required checks file also moves the protection. GitHub refuses a merge while
+ * the protection requires a check that the head no longer reports, so such a check leaves just before the merge, and a failed
+ * merge puts it back. After the merge the file of the protected branch goes to the protection.
+ */
+const mergePull = async (env, mem, repoKey, pull) => {
+  const merge = () => env.github.merge(repoKey, pull.number, pull.headSha)
+  const item = `${repoKey}#${pull.number}`
+  if (!pull.requiredChecksChange) return merge()
+  const before = await env.github.readProtectionChecks(repoKey, PROTECTED_BRANCH)
+  const during = protectionForMerge(before, pull.requiredChecksChange)
+  if (during !== null) {
+    await env.github.writeProtectionChecks(repoKey, PROTECTED_BRANCH, during)
+    logRequiredChecks(env, item, before, during, ", before the merge")
+  }
+  try {
+    await merge()
+  } catch (error) {
+    if (during !== null) await env.github.writeProtectionChecks(repoKey, PROTECTED_BRANCH, before).then(() => logRequiredChecks(env, item, during, before, ", the merge failed"), (failure) => requiredChecksError(env, mem, repoKey, failure))
+    throw error
+  }
+  // The pull request is merged, so a failure here never fails the merge action: the drift check of the next tick applies the file.
+  await applyRequiredChecks(env, repoKey, { before }).catch((error) => requiredChecksError(env, mem, repoKey, error))
+}
+
 const executeAction = async (env, mem, ctx, pull, action) => {
   const { repoKey, ticketMap } = ctx
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
@@ -1297,7 +1375,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
-      await env.github.merge(repoKey, pull.number, pull.headSha)
+      await mergePull(env, mem, repoKey, pull)
       mem.health.merged = true
       mem.merged.delete(pull.tracks)
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
@@ -1334,6 +1412,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
+      pull.requiredChecksChange = await requiredChecksChangeOf(env, repoKey, pull).catch((error) => { noteReadError(mem, error); throw error })
       const planAgain = async () => {
         const planned = await planPull(env, mem, { ...ctx, runs }, pull)
         return stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
@@ -2588,6 +2667,8 @@ const runTick = async (env, mem) => {
   const running = runningWorkers(env, mem)
   const status = await readAccount(env, mem)
   await readWorkerAccount(env, mem)
+  // Before the state read, so each pull request reads the protection that the file asks for.
+  await syncRequiredChecks(env, mem)
   let world
   try {
     const unseen = await reapExits(env, mem)
