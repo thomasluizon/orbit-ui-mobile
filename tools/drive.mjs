@@ -46,6 +46,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   reset, and the order starts again on the other account. The driver still merges a pull request that meets the bar.
   When git cannot prepare the worktree of an order, no launch counts toward a cap. The driver logs the error, tells the owner
   once and tries that branch again after 10 minutes. Other orders use the slot meanwhile.
+  Before a build or a find launch the driver checks the ticket. A refused ticket gets needs:owner with each reason, after
+  its open pull request and its worker end. A Bug ticket with no Class line or no Permanent fix section still starts, and
+  its order writes both first. A ticket whose check cannot read the board waits for the next tick.
   The driver also runs the release train: a train starts at most every 4 hours when a service has unreleased work, and it
   releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
   dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
@@ -740,7 +743,7 @@ export const setSleep = (env, word, { out }) => {
 const reportKeyLine = (key) => `<!-- orbit-drive-key:${createHash("sha256").update(key).digest("hex").slice(0, 16)} -->`
 
 /**
- * Writes one `needs-owner` comment on a ticket, labels it `needs:owner` when it lacks it, and notifies. Only a step that needs the owner's hands calls it.
+ * Writes one `needs-owner` comment on a ticket, labels it `needs:owner` when it lacks it, and notifies. Only a step that needs the owner's hands and a refused ticket check call it.
  * The comment is the mark that stops a repeat. A report is keyed on the ticket and its reason text. The decision of the owner answers every earlier report.
  * The log line, the comment, the notification and the sleep item each come once for a key. The comment gates the log line, so a new process logs no repeat.
  */
@@ -752,7 +755,7 @@ const needsOwner = async (env, mem, { ticket, reason }) => {
   const decidedAt = ownerDecisionAt(env, ticket)
   const reported = ticket.comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (bodyAfterMarker(entry).trim() === reason || bodyAfterMarker(entry).trimEnd().endsWith(keyLine)))
   // The comment persists across a driver switch and the log memory does not, so the comment gates the line.
-  if (!reported) logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason })
+  if (!reported) logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason: oneLine(reason) })
   if (env.dryRun) return
   if (!ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
@@ -1354,7 +1357,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A ci-fix launch for a base merge and a merge-forward launch are no fault of the change, so the cap does not count them. A base-merge mark holds the head it ran at.
   const counted = launches.filter((entry) => !entry.baseMerge && entry.kind !== "merge-forward")
   const actions = flakeActions(pull)
-  // A technical stop parks the ticket, or the pull request when no open ticket tracks it. Only a step that needs the owner's hands writes `needs:owner`.
+  // A technical stop parks the ticket, or the pull request when no open ticket tracks it. Only a step that needs the owner's hands or a refused ticket check writes `needs:owner`.
   const parked = (reason) => ({ type: "park", repoKey, ticket, reason })
   const park = (reason) => [...actions, parked(reason)]
   const orderOrWait = (order) => {
@@ -1958,7 +1961,7 @@ const holdUnprepared = async (env, mem, { repoKey, ticket, branch }, error) => {
  */
 const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = () => null) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
-  const { kind, repoKey, ticket, part = null, branch } = order
+  const { kind, repoKey, ticket, part = null, branch, classStep = false } = order
   // A re-plan run reads the code in a worktree of its own: it never builds on the pull request that it replaces.
   const pull = kind === "replan" ? null : order.pull ?? null
   const stuck = kind === "replan" ? { branch: order.stuckBranch, pr: order.pull?.number ?? null, partNumber: part?.number ?? null } : null
@@ -2017,7 +2020,7 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree, runner }) : null
   const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
   const text = session === null
-    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: kind === "replan" ? null : part?.number ?? null, replan, runner })
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: kind === "replan" ? null : part?.number ?? null, replan, runner, classStep })
     : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
@@ -2517,6 +2520,25 @@ const rebuildStop = (history, { decidedAt = 0, replannedAt = 0, parkedAt = 0 } =
   return { kind: "repeat", reason: `${line} (two merged pull requests in a row left the same line)` }
 }
 
+/**
+ * What `checkTicket` says before a build or a find launch. Null for a sound ticket. `classStep`: the only reasons are a missing
+ * `Class:` line or `## Permanent fix` section, so the order writes both first. `wait`: the board could not be read. `owner`: every reason.
+ */
+const ticketRefusal = async (env, ticket) => {
+  let board
+  try { board = await env.github.readBoardFor(ticket) } catch (error) { return { wait: `the ticket check could not read the board: ${oneLine(error.message)}` } }
+  const problems = githubApi.checkTicket(ticket, board)
+  if (problems.length === 0) return null
+  if (problems.every((problem) => githubApi.FIRST_STEP_PROBLEMS.includes(problem))) return { classStep: true }
+  return { owner: `The ticket check refuses this ticket:\n${problems.map((problem) => `- ${problem}`).join("\n")}` }
+}
+
+/** The verdict of a ticket that the check stops. While an open pull request or a worker holds the ticket, that work goes on and the report waits. */
+const refusedVerdict = (refusal, busy) => {
+  if (refusal.wait !== undefined) return { reason: refusal.wait }
+  return busy ? { reason: "the ticket check refuses it, and an open pull request or a worker holds the ticket" } : { reason: "the ticket check refuses it", owner: refusal.owner }
+}
+
 /** What admission does with one ticket: an order, or the reason it waits. A part whose worker runs counts as an open part, so it blocks another part whose `Paths:` overlap and never starts twice. */
 const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null, running }) => {
   const labels = ticket.labels
@@ -2535,13 +2557,18 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   if (state === undefined) return stop(`the ${ticket.repoKey} repository could not be read this tick`)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
-  // A broken or doubled part comment parks the ticket after its open pull request merges. Until then the pull request and its worker go on.
-  const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
-  if (partFault !== null) return tracking.length > 0 || running.workers.some(({ record }) => record.ticketNumber === ticket.number) ? stop("a part comment is broken or doubled, and an open pull request or a worker holds the ticket") : { reason: "a part comment is broken or doubled", park: partFault }
+  const working = running.workers.filter(({ record }) => record.ticketNumber === ticket.number)
+  const busy = tracking.length > 0 || working.length > 0
+  // A broken or doubled part comment changes which parts the ticket has, so its check runs before the driver reads the parts.
+  if (partProblem(ticket.comments.filter((comment) => comment.kind === null)) !== null) return refusedVerdict(await ticketRefusal(env, ticket), busy)
+  const checked = async (order) => {
+    const refusal = await ticketRefusal(env, ticket)
+    if (refusal === null) return { order }
+    return refusal.classStep ? { order: { ...order, classStep: true } } : refusedVerdict(refusal, busy)
+  }
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
   if (settled !== null) return stop(settled)
-  const working = running.workers.filter(({ record }) => record.ticketNumber === ticket.number)
   if (parts.length === 0 && working.length > 0) return stop("a worker runs on its branch")
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
@@ -2564,7 +2591,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
       return { reason: end.reason, ...(end.type === "park" ? { park: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}, and the ticket used its re-plans` } : {}) }
     }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
-    return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
+    return checked({ kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining })
   }
   const partDone = (entry) => partIsDone(ticket, entry, doneBranches)
   const inFlight = (entry) => tracking.some((pull) => partBranch(ticket.number, entry.number).test(pull.headRef)) || working.some(({ record }) => record.partNumber === entry.number)
@@ -2578,7 +2605,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
       free = true
       for (const other of openParts) if (await pathsOverlap(env, env.config.repos[ticket.repoKey], entry.paths, other.paths)) free = false
     }
-    if (free) return held(ownBranch(entry.number)) ?? { order: { kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: ownBranch(entry.number), extra: "" } }
+    if (free) return held(ownBranch(entry.number)) ?? checked({ kind: entry.find ? "find" : "build part", repoKey: ticket.repoKey, ticket, part: entry, branch: ownBranch(entry.number), extra: "" })
   }
   return stop(pending.length > 0 ? "the next part waits for an open part" : tracking.length > 0 ? "an open pull request tracks it" : "no part is left to run")
 }

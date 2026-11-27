@@ -236,6 +236,11 @@ const DEFAULT_PRIMITIVE = /^apps\/[^/]+\/components\/ui\/./
 /** A JS or TS test file, or a C# file of an `orbit-api` test project. */
 const TEST_FILE = /(?:^|\/)__tests__\/.+\.[cm]?[jt]sx?$|\.(?:test|spec)\.[cm]?[jt]sx?$|^tests\/Orbit\.[^/]+\.Tests\/.+\.cs$/
 
+const NO_CLASS_LINE = "A Bug ticket needs a `Class: <name>` line."
+const NO_FIX_SECTION = "A Bug ticket needs a `## Permanent fix` section."
+/** The two refusals of `checkTicket` that a build clears by itself: the driver starts it, and its order writes both first. */
+export const FIRST_STEP_PROBLEMS = Object.freeze([NO_CLASS_LINE, NO_FIX_SECTION])
+
 const lf = (text) => String(text ?? "").replace(/\r\n/g, "\n")
 /** The value of the `Class:` line of a ticket body, or null. */
 export const classOf = (body) => CLASS_NAME_LINE.exec(lf(body))?.[1] ?? null
@@ -287,8 +292,8 @@ export const checkTicket = (ticket, board = [], { primitives = primitiveList() }
   const name = classOf(ticket.body)
   const fix = permanentFixOf(ticket.body)
   if (labels.includes(BUG_LABEL)) {
-    if (name === null) problems.push("A Bug ticket needs a `Class: <name>` line.")
-    if (fix === null) problems.push("A Bug ticket needs a `## Permanent fix` section.")
+    if (name === null) problems.push(NO_CLASS_LINE)
+    if (fix === null) problems.push(NO_FIX_SECTION)
   }
   const holdsClass = (path) => path.startsWith("eslint-rules/") || TEST_FILE.test(path) || (primitives === null ? DEFAULT_PRIMITIVE.test(path) : primitives.some((entry) => samePath(entry, path)))
   if (fix !== null && !fix.none && !fix.paths.some(holdsClass)) {
