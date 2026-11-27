@@ -21,7 +21,7 @@ export interface HabitPhraseSegment { text: string; consumed: boolean }
 
 interface NormalizedPhrase { text: string; originalStarts: number[]; originalEnds: number[] }
 interface LocalePatterns {
-  weekdays: Array<{ day: string; pattern: RegExp }>
+  weekdays: Array<{ day: string; pattern: RegExp; withNeighbor?: boolean }>
   daily: RegExp
   count: RegExp
   interval: RegExp
@@ -51,13 +51,19 @@ const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = String.raw`(?:(?:\s+(?:horas?|hrs?|hs|h))?\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
-const EN_DAY_PART = String.raw`(?:(?:\s+o['\u2019]?clock)?\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
-const EN_MERIDIEM = String.raw`(?:\s*(am|pm))?${EN_DAY_PART}`
+const PT_DAY_PART = String.raw`(?:\s+(?:horas?|hrs?|hs|h)\b)?(?:\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const EN_DAY_PART = String.raw`(?:\s+o['\u2019]?clock\b)?(?:\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
+const EN_MERIDIEM_WORD = String.raw`(a\.m\.?|p\.m\.?|am|pm)`
+const EN_MERIDIEM = String.raw`(?:\s*${EN_MERIDIEM_WORD})?${EN_DAY_PART}`
+const EN_MERIDIEM_END = String.raw`(?:\b|(?<=\.))`
 type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
 const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
   morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
+}
+const PERIOD_OF_DAILY_WORD: Readonly<Record<string, DayPeriod>> = {
+  'toda manha': 'morning', 'toda tarde': 'afternoon', 'toda noite': 'night', 'toda madrugada': 'dawn',
+  'every morning': 'morning', 'every afternoon': 'afternoon', 'every evening': 'evening', 'every night': 'night',
 }
 const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
 const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
@@ -139,15 +145,16 @@ function isEnglishNoonOffset(before: string): boolean {
 const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   'pt-BR': {
     weekdays: [
-      { day: 'Sunday', pattern: /\bdom(?:ingo)?s?\b/gu },
-      { day: 'Monday', pattern: /\bseg(?:unda)?s?(?:-feiras?)?\b/gu },
-      { day: 'Tuesday', pattern: /\btercas?(?:-feiras?)?\b/gu },
-      { day: 'Wednesday', pattern: /\bqua(?:rta)?s?(?:-feiras?)?\b/gu },
-      { day: 'Thursday', pattern: /\bqui(?:nta)?s?(?:-feiras?)?\b/gu },
-      { day: 'Friday', pattern: /\bsex(?:ta)?s?(?:-feiras?)?\b/gu },
-      { day: 'Saturday', pattern: /\bsab(?:ado)?s?\b/gu },
+      { day: 'Sunday', pattern: /\b(?:domingos?|doms?\.?)(?!\w)/gu },
+      { day: 'Monday', pattern: /\b(?:segundas?|segs?)(?:-feiras?|(?<=\bsegs?)\.)?(?!\w)/gu },
+      { day: 'Tuesday', pattern: /\btercas?(?:-feiras?)?(?!\w)/gu },
+      { day: 'Tuesday', pattern: /\bter\.?(?!\w)/gu, withNeighbor: true },
+      { day: 'Wednesday', pattern: /\b(?:quartas?|quas?)(?:-feiras?|(?<=\bquas?)\.)?(?!\w)/gu },
+      { day: 'Thursday', pattern: /\b(?:quintas?|quis?)(?:-feiras?|(?<=\bquis?)\.)?(?!\w)/gu },
+      { day: 'Friday', pattern: /\b(?:sextas?|sexs?)(?:-feiras?|(?<=\bsexs?)\.)?(?!\w)/gu },
+      { day: 'Saturday', pattern: /\b(?:sabados?|sabs?\.?)(?!\w)/gu },
     ],
-    daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
+    daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda tarde|toda noite|toda madrugada)(?![a-z])/gu,
     count: new RegExp(String.raw`\b(${PT_NUMBER})\s*(?:vez|vezes|x)\s*(?:(?:por|na|a|em)\s*)?semana\b`, 'gu'),
     interval: new RegExp(String.raw`\ba\s+cada\s+(${PT_NUMBER})\s+semanas?\b`, 'gu'),
     weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
@@ -157,7 +164,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(String.raw`\b(?:todo|cada|a cada)\s+mes,?\s+(?:(?:no|nos|em)\s+)?dias?\s+${PT_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
     ],
     times: [
-      new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+da\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,
@@ -168,15 +175,15 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
   },
   en: {
     weekdays: [
-      { day: 'Sunday', pattern: /\b(?:sun|sunday)s?\b/gu },
-      { day: 'Monday', pattern: /\b(?:mon|monday)s?\b/gu },
-      { day: 'Tuesday', pattern: /\b(?:tue|tues|tuesday)s?\b/gu },
-      { day: 'Wednesday', pattern: /\b(?:wed|weds|wednesday)s?\b/gu },
-      { day: 'Thursday', pattern: /\b(?:thu|thur|thurs|thursday)s?\b/gu },
-      { day: 'Friday', pattern: /\b(?:fri|friday)s?\b/gu },
-      { day: 'Saturday', pattern: /\b(?:sat|saturday)s?\b/gu },
+      { day: 'Sunday', pattern: /\b(?:sunday|sun)s?(?:(?<=\bsuns?)\.)?(?!\w)/gu },
+      { day: 'Monday', pattern: /\b(?:monday|mon)s?(?:(?<=\bmons?)\.)?(?!\w)/gu },
+      { day: 'Tuesday', pattern: /\b(?:tuesday|tues|tue)s?(?:(?<=\btues?)\.)?(?!\w)/gu },
+      { day: 'Wednesday', pattern: /\b(?:wednesday|weds|wed)s?(?:(?<=\bweds?)\.)?(?!\w)/gu },
+      { day: 'Thursday', pattern: /\b(?:thursday|thurs|thur|thu)s?(?:(?<=\b(?:thurs?|thus?))\.)?(?!\w)/gu },
+      { day: 'Friday', pattern: /\b(?:friday|fri)s?(?:(?<=\bfris?)\.)?(?!\w)/gu },
+      { day: 'Saturday', pattern: /\b(?:saturday|sat)s?(?:(?<=\bsats?)\.)?(?!\w)/gu },
     ],
-    daily: /\b(every day|daily|each day|every morning|every evening)\b/gu,
+    daily: /\b(every day|daily|each day|every morning|every afternoon|every evening|every night)\b/gu,
     count: new RegExp(String.raw`\b(?:(once|twice)|(${EN_NUMBER})\s*(?:time|times|x))\s*(?:(?:a|per|each)\s*)?week\b`, 'gu'),
     interval: new RegExp(String.raw`\bevery\s+(${EN_NUMBER})\s+weeks?\b`, 'gu'),
     weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
@@ -186,10 +193,10 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(String.raw`\bevery\s+${EN_MONTH_DAY_LIST}(?:\s+of\s+the\s+month(?![\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
     ],
     times: [
-      new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}\b(?![:\dh]|[.,]\d)`, 'gu'),
-      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}\b(?![:\d]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}${EN_MERIDIEM_END}(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}${EN_MERIDIEM_END}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${EN_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
-      /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*${EN_MERIDIEM_WORD}${EN_MERIDIEM_END}(?![:\d]|[.,]\d)`, 'gu'),
     ],
     noon: new RegExp(EN_NOON, 'gu'),
     isNoonOffset: isEnglishNoonOffset,
@@ -288,31 +295,42 @@ function readPeriod(dayPart: string): DayPeriod | undefined {
 function readDayPartHour(hour: number, dayPart: string): number | null {
   if (dayPart === 'am' || dayPart === 'pm') return meridiemHour(hour, dayPart)
   const period = readPeriod(dayPart)
-  if (!period) return null
+  return period ? readPeriodHour(hour, period) : null
+}
+
+function readPeriodHour(hour: number, period: DayPeriod): number | null {
   if (hour === 0) return period === 'morning' || period === 'dawn' || period === 'night' ? 0 : null
   if (hour <= 12) return HOUR_IN_PERIOD[period](hour)
   return HOUR_IN_PERIOD[period](hour - 12) === hour ? hour : null
 }
 
-function parseTime(match: RegExpExecArray): string | null {
+function parseTime(match: RegExpExecArray, impliedPeriod?: DayPeriod): string | null {
   if (match[1] === undefined) return /\se\s+mei[ao]$/u.test(match[0]) ? '12:30' : '12:00'
   const clockHour = Number.parseInt(match[1], 10)
-  const suffixes = match.slice(2)
-  const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
+  const suffixes = match.slice(2).map((value) => (value && /^[ap]\.m/u.test(value) ? `${value[0]}m` : value))
+  const minute = suffixes.includes('meia')
+    ? 30
+    : Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
   const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at |of the )/u.test(value))
-  const hour = dayPart ? readDayPartHour(clockHour, dayPart) : clockHour
-  if (hour === null) return null
-  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  const spokenHour = dayPart
+    ? readDayPartHour(clockHour, dayPart)
+    : (impliedPeriod && readPeriodHour(clockHour, impliedPeriod)) ?? clockHour
+  if (spokenHour === null) return null
+  return `${String(spokenHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
   const match = firstMatch(patterns.times, remaining) ?? firstNoonMatch(remaining, patterns)
   const dueTime = match ? parseTime(match) : null
-  if (!match || !dueTime) return { dueTime: null, token: null, remaining }
+  if (!match || !dueTime) return { dueTime: null, match: null, token: null, remaining }
   return {
-    dueTime, token: toToken(phrase, match, 'time'),
+    dueTime, match, token: toToken(phrase, match, 'time'),
     remaining: maskRange(remaining, match.index, match.index + match[0].length),
   }
+}
+
+function applyDailyPeriod(match: RegExpExecArray | null, dueTime: string | null, period: DayPeriod | undefined): string | null {
+  return match && period ? parseTime(match, period) ?? dueTime : dueTime
 }
 
 function extractInterval(
@@ -378,11 +396,26 @@ function extractCount(text: string, patterns: LocalePatterns): { match: RegExpEx
   return quantity > 0 ? { match, quantity } : null
 }
 
+const WEEKDAY_JOIN_MARK = String.raw`^\.?\s*(?:[,;/]|[-\u2013\u2014])?\s*`
+const WEEKDAY_NEIGHBOR_GLUE = new RegExp(String.raw`${WEEKDAY_JOIN_MARK}(?:(?:e(?:\s+(?:as|aos))?|a|ao|aos|as|ate)\s+)?$`, 'u')
+const SHORT_WEEKDAY = /^(?:seg|ter|qua|qui|sex|sab|dom)s?\.?$/u
+
 function matchWeekdays(text: string, patterns: LocalePatterns) {
-  return patterns.weekdays.flatMap(({ day, pattern }) => {
+  const all = patterns.weekdays.flatMap(({ day, pattern, withNeighbor }) => {
     pattern.lastIndex = 0
-    return Array.from(text.matchAll(pattern), (match) => ({ day, match }))
-  }).sort((left, right) => left.match.index - right.match.index)
+    return Array.from(text.matchAll(pattern), (match) => ({ day, match, withNeighbor: withNeighbor === true }))
+  })
+  const standalone = all.filter((weekday) => !weekday.withNeighbor)
+  const besideDay = ({ match }: (typeof all)[number]): boolean => standalone.some((other) => {
+    const [first, second] = other.match.index < match.index ? [other.match, match] : [match, other.match]
+    const glue = text.slice(first.index + first[0].length, second.index)
+    if (first.index + first[0].length > second.index || !WEEKDAY_NEIGHBOR_GLUE.test(glue)) return false
+    return SHORT_WEEKDAY.test(other.match[0]) || (RANGE_OPENER.test(text.slice(0, first.index)) && isWeekdayRangeGlue(glue))
+  })
+  return all
+    .filter((weekday) => !weekday.withNeighbor || besideDay(weekday))
+    .map(({ day, match }) => ({ day, match }))
+    .sort((left, right) => left.match.index - right.match.index)
 }
 
 function hasUnmodeledWeekdayPrefix(text: string): boolean {
@@ -509,7 +542,7 @@ function readWeekdayExclusion(
   phrase: NormalizedPhrase,
   patterns: LocalePatterns,
   locale: SupportedLocale,
-): { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved' | null {
+): { days: string[]; consumed: HabitPhraseToken[]; dailyPeriod?: DayPeriod } | 'unresolved' | null {
   const weekdays = matchWeekdays(remaining, patterns)
   if (!weekdays.some(({ match }) => hasWeekdayNegation(remaining.slice(0, match.index), locale))) return null
   const exclusions = [...remaining.matchAll(/\b(?:menos|exceto|sem ser|except|but not)\b/gu)]
@@ -538,7 +571,7 @@ function readWeekdayExclusion(
     start: phrase.originalStarts[exclusion.index]!, end: phrase.originalEnds[cursor - 1]!, kind: 'weekday',
   }]
   if (daily) consumed.unshift(toToken(phrase, daily, 'daily'))
-  return { days, consumed }
+  return { days, consumed, dailyPeriod: daily ? PERIOD_OF_DAILY_WORD[daily[1]!] : undefined }
 }
 
 function subtractConsumedTokens(token: HabitPhraseToken, consumed: HabitPhraseToken[]): HabitPhraseToken[] {
@@ -628,6 +661,7 @@ function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: L
   let cadence: HabitPhraseCadence | null = null
   let days: string[] = []
   let frequencyQuantity: number | null = null
+  let dailyPeriod: DayPeriod | undefined
   if (weekdayMatches.length > 0) {
     cadence = 'fixed'
     const fixed = readFixedWeekdays(remaining, phrase, patterns, weekdayMatches)
@@ -646,12 +680,13 @@ function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: L
       const dailyMatch = patterns.daily.exec(remaining)
       if (dailyMatch) {
         cadence = 'daily'
+        dailyPeriod = PERIOD_OF_DAILY_WORD[dailyMatch[1]!]
         consumed.push(toToken(phrase, dailyMatch, 'daily'))
       }
     }
   }
 
-  return { cadence, days, frequencyQuantity, consumed }
+  return { cadence, days, frequencyQuantity, dailyPeriod, consumed }
 }
 
 export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhraseRead {
@@ -660,7 +695,7 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   let remaining = phrase.text
   const consumed: HabitPhraseToken[] = []
   const time = extractTime(remaining, phrase, patterns)
-  const dueTime = time.dueTime
+  let dueTime = time.dueTime
   if (time.token) consumed.push(time.token)
   remaining = time.remaining
 
@@ -672,7 +707,11 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = alternating.remaining
   if (hasUnmodeledWeekday(remaining, patterns)) return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
-  if (exclusion) return buildWeekdayExclusionRead(alternating.consumed.length > 0 ? 'unresolved' : exclusion, dueTime, consumed)
+  if (exclusion) {
+    const read = alternating.consumed.length > 0 ? 'unresolved' : exclusion
+    const period = read === 'unresolved' ? undefined : read.dailyPeriod
+    return buildWeekdayExclusionRead(read, applyDailyPeriod(time.match, dueTime, period), consumed)
+  }
 
   const interval = extractInterval(remaining, phrase, patterns)
   const hasAlternation = alternating.consumed.length > 0
@@ -685,6 +724,7 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = interval.remaining
 
   const cadenceRead = extractCadence(remaining, phrase, patterns)
+  dueTime = applyDailyPeriod(time.match, dueTime, cadenceRead.dailyPeriod)
   consumed.sort((left, right) => left.start - right.start)
   consumed.push(...cadenceRead.consumed.flatMap((token) => subtractConsumedTokens(token, consumed)))
 

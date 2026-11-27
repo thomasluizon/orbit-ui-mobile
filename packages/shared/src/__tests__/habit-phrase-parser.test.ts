@@ -1092,3 +1092,125 @@ describe('weekday range tokens', () => {
     expect(segmentHabitPhrase(input, read.consumed).map((segment) => segment.text).join('')).toBe(input)
   })
 })
+
+describe('a daily word that names a part of the day', () => {
+  it.each([
+    ['toda noite às 10', 'pt-BR', '22:00'],
+    ['ler às 9 toda noite', 'pt-BR', '21:00'],
+    ['toda tarde às 3', 'pt-BR', '15:00'],
+    ['toda manhã às 7', 'pt-BR', '07:00'],
+    ['toda noite às 22', 'pt-BR', '22:00'],
+    ['toda manhã às 12', 'pt-BR', '12:00'],
+    ['every evening at 8', 'en', '20:00'],
+    ['read at 9 every night', 'en', '21:00'],
+    ['every afternoon at 3', 'en', '15:00'],
+    ['every morning at 8', 'en', '08:00'],
+  ] as const)('reads the hour of %s inside that part of the day', (input, locale, time) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.cadence).toBe('daily')
+    expect(read.dueTime).toBe(time)
+  })
+
+  it.each([
+    ['toda noite menos sexta às 10', 'pt-BR', '22:00'],
+    ['toda tarde exceto sexta às 3', 'pt-BR', '15:00'],
+    ['every evening except friday at 8', 'en', '20:00'],
+    ['every night except friday at 10', 'en', '22:00'],
+    ['every morning except friday at 8', 'en', '08:00'],
+  ] as const)('reads the hour of %s inside that part of the day with a day left out', (input, locale, time) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.cadence).toBe('fixed')
+    expect(read.days).toHaveLength(6)
+    expect(read.dueTime).toBe(time)
+  })
+
+  it('keeps an explicit part of the day over the daily word', () => {
+    expect(readHabitPhrase('toda noite às 8 da manhã', 'pt-BR').dueTime).toBe('08:00')
+    expect(readHabitPhrase('every evening at 8am', 'en').dueTime).toBe('08:00')
+  })
+})
+
+describe('the pt-BR abbreviation ter', () => {
+  it.each([
+    ['academia seg, ter e qui', ['Monday', 'Tuesday', 'Thursday']],
+    ['academia ter a sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia ter. e qui.', ['Tuesday', 'Thursday']],
+  ] as const)('reads ter beside another day: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['Ter a segunda de folga', ['Monday']],
+    ['Ter a sexta livre', ['Friday']],
+    ['Ter às sextas uma folga', ['Friday']],
+    ['Ter aos domingos um tempo pra mim', ['Sunday']],
+    ['Todo domingo ter um tempo pra mim', ['Sunday']],
+    ['Toda segunda ter aula de inglês', ['Monday']],
+    ['Toda sexta, ter uma noite de jogos', ['Friday']],
+    ['Quero ter sexta e sábado livres', ['Friday', 'Saturday']],
+    ['Na segunda e ter calma', ['Monday']],
+    ['academia segunda e ter', ['Monday']],
+    ['academia ter e quinta', ['Thursday']],
+    ['Parar de ter domingo ocupado', ['Sunday']],
+    ['Gostaria de ter sábado livre', ['Saturday']],
+    ['Antes de ter segunda livre', ['Monday']],
+    ['Treino de sexta e ter descanso no sábado', ['Friday', 'Saturday']],
+    ['Treino das sextas e ter calma', ['Friday']],
+  ] as const)('keeps ter as a verb beside a full day name: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['academia de ter a sexta', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia das ter às sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia ter até sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia seg e ter', ['Monday', 'Tuesday']],
+  ] as const)('reads ter in a range with a range opener or a short form: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['Pilates ter/qui', ['Tuesday', 'Thursday']],
+    ['academia seg/ter/qui', ['Monday', 'Tuesday', 'Thursday']],
+    ['academia às ter e às qui', ['Tuesday', 'Thursday']],
+    ['academia ter e aos sáb', ['Tuesday', 'Saturday']],
+  ] as const)('reads ter beside a day with a slash or a repeated article: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each(['Ter calma', 'Quero ter mais foco', 'ter que ler todo dia'])('keeps ter as a verb when no day stands beside it: %s', (input) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual([])
+  })
+})
+
+describe('minutes and dotted meridiem words', () => {
+  it.each([
+    ['toda sexta às 3 e meia da tarde', 'pt-BR', '15:30'],
+    ['toda sexta às 3 e meia', 'pt-BR', '03:30'],
+    ['toda sexta às 15 e meia', 'pt-BR', '15:30'],
+    ['every friday at 3 p.m.', 'en', '15:00'],
+    ['every friday at 3 p.m', 'en', '15:00'],
+    ['every friday at 9 a.m.', 'en', '09:00'],
+    ['every friday at 3:30 p.m.', 'en', '15:30'],
+    ['every friday 3 p.m.', 'en', '15:00'],
+  ] as const)('reads the time of %s', (input, locale, time) => {
+    expect(readHabitPhrase(input, locale).dueTime).toBe(time)
+  })
+
+  it('keeps the noon with half an hour', () => {
+    expect(readHabitPhrase('toda sexta ao meio-dia e meia', 'pt-BR').dueTime).toBe('12:30')
+  })
+})
+
+describe('the dot and the feira word of a day name', () => {
+  it.each([
+    ['academia toda seg.', 'pt-BR', ['Monday']],
+    ['academia seg., qua. e sex.', 'pt-BR', ['Monday', 'Wednesday', 'Friday']],
+    ['academia toda sexta feira', 'pt-BR', ['Friday']],
+    ['academia toda segunda feira', 'pt-BR', ['Monday']],
+    ['gym every mon.', 'en', ['Monday']],
+    ['gym mon-wed-fri', 'en', ['Monday', 'Wednesday', 'Friday']],
+  ] as const)('reads %s', (input, locale, days) => {
+    expect(readHabitPhrase(input, locale).days).toEqual(days)
+  })
+})
