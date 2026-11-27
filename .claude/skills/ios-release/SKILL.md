@@ -9,7 +9,7 @@ Never release on the App Store. This workflow uploads to internal TestFlight onl
 
 ## One mobile version
 
-iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter. The default path is `/android-release` first. Then run this skill after the Android dispatch, once the Android run title carries the version, at the version and commit of that Android run. If the check says no Android release of the version runs on the commit, rerun the failed iOS job once the title carries the version. Android still uploads first.
+iOS ships at the same `app_version` as Android, from the same commit. Each store keeps its own build counter. The default path is `/android-release` first. Then run this skill after the Android dispatch, once the Android run title carries the version, at the version and build commit of that Android run. The build commit is the SHA after ` at ` in the title. A title with no ` at ` builds the `headSha` of the run. If the check says no Android release of the version runs on the commit, rerun the failed iOS job once the title carries the version. Android still uploads first.
 
 The `variant` selects the GitHub environment. Each environment keeps its own records. Select the variant of the Android environment:
 
@@ -24,19 +24,28 @@ The `variant` selects the GitHub environment. Each environment keeps its own rec
 2. The workflow runs `mobile-version-pair.js check` twice. `--stage build` refuses a version that differs from the newest Android version, unless a matching Android run is queued or running on the same commit.
 3. `--stage upload --wait-minutes 45` waits for the Android record of that version. It refuses when the Android run ends with no record.
 4. Both checks refuse a commit other than the commit of the newest Android record at that version. A record with no commit makes the check refuse the version.
-5. `gh workflow run --ref` builds the tip of the branch. Dispatch only while that tip is the commit of the Android run. If the branch moved, release Android at the new `nextVersion` first.
+5. For `main`, `source_sha` selects the build commit, so `main` can move. For another branch, dispatch only while its tip is the build commit. If that branch moved, release Android at the new `nextVersion` first.
 6. Release iOS alone only for a defect that only iOS has. Pass the defect as `platform_only_reason`. Never invent a reason to pass the check.
 7. An iOS-only release uses `nextVersion` of the same plan. The check refuses an iOS-only version at or below the newest Android version.
 8. The next shared release then starts on Android at the new `nextVersion`.
 
 ## Dispatch
 
-Before dispatch, resolve the ref to the commit of the Android run. Take the `build_number` as the highest build of the matching app in App Store Connect plus one (`tools/lib/app-store-connect.mjs`). Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. The driver release train dispatches this workflow after its Android run is listed with the version in its title, and `/release` starts the same train at once.
+Before dispatch, resolve the ref and the build commit:
+
+| Release | `--ref` | `source_sha` |
+|---|---|---|
+| shared release from `main` | `main` | build commit of the Android run |
+| iOS only from `main` | `main` | `plannedSha` of the `android` entry of the release plan |
+| staging from another branch or tag | that ref | empty |
+
+The workflow accepts only a commit of `main` as `source_sha`. If an iOS-only release has no reviewed plan, run `node tools/release-plan.mjs`. Add `--environment staging --branch main` for `staging`. Take the `build_number` as the highest build of the matching app in App Store Connect plus one (`tools/lib/app-store-connect.mjs`). Never infer it from the Android version code. Check the `Mobile iOS Build` compile result when the commit changed a native input. The driver release train dispatches this workflow after its Android run is listed with the version in its title, and `/release` starts the same train at once.
 
 ```sh
 gh workflow run ios-release.yml --ref <ref> \
   -f variant=<staging-or-production> -f app_version=<version> -f build_number=<number> \
-  -f platform_only_reason=<reason or empty>
+  -f platform_only_reason=<reason or empty> \
+  -f source_sha=<build commit for main, empty for another ref>
 ```
 
 Follow only the dispatched run.

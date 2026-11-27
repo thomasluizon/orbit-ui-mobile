@@ -24,6 +24,8 @@ const animatePresenceStableKey = require("../../eslint-rules/animate-presence-st
 const noArbitraryZindex = require("../../eslint-rules/no-arbitrary-zindex.cjs")
 const noDecorativeGlow = require("../../eslint-rules/no-decorative-glow.cjs")
 const noDoubleAssertion = require("../../eslint-rules/no-double-assertion.cjs")
+const noConstantEchoTest = require("../../eslint-rules/no-constant-echo-test.cjs")
+const noSourceTextTest = require("../../eslint-rules/no-source-text-test.cjs")
 const noDraggableOnscroll = require("../../eslint-rules/no-draggable-onscroll.cjs")
 const noJsxLogicalAnd = require("../../eslint-rules/no-jsx-logical-and.cjs")
 const noOvershootEasing = require("../../eslint-rules/no-overshoot-easing.cjs")
@@ -33,6 +35,26 @@ const noScrollListenerMotion = require("../../eslint-rules/no-scroll-listener-mo
 const noSideStripeBorder = require("../../eslint-rules/no-side-stripe-border.cjs")
 const spacingScale = require("../../eslint-rules/spacing-scale.cjs")
 const noUnjustifiedDisable = require("../../eslint-rules/no-unjustified-disable.cjs")
+
+const LIE_1_EXCEPTIONS = [
+  "__tests__/components/calendar-slide-motion.test.tsx",
+  "__tests__/components/chat/pending-operation-card.test.tsx",
+  "__tests__/components/navigation/bottom-tab-bar-geometry.test.tsx",
+  "__tests__/components/navigation/notification-inbox-guided.test.tsx",
+  "__tests__/components/turnstile-widget.test.tsx",
+  "__tests__/components/ui/confirm-sheet-prop.test.tsx",
+  "__tests__/components/ui/headless-portal.test.tsx",
+  "__tests__/hooks/staging-share-links.test.tsx",
+  "__tests__/lib/theme.test.ts",
+  "__tests__/stores/auth-store.test.ts",
+]
+const LIE_2_EXCEPTIONS = [
+  "__tests__/components/ui/navigation-source.test.ts",
+  "__tests__/lib/orbit-widget.test.ts",
+  "__tests__/lib/press-shape-contract.test.ts",
+  "__tests__/screens/login-keyboard-geometry.test.tsx",
+  "__tests__/scripts/widget-header.test.ts",
+]
 
 const maxButtonWordControls = [
   { name: "button", labelProps: ["children"] },
@@ -117,6 +139,8 @@ module.exports = defineConfig([
           "no-arbitrary-zindex": noArbitraryZindex,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
+          "no-constant-echo-test": noConstantEchoTest,
+          "no-source-text-test": noSourceTextTest,
           "no-draggable-onscroll": noDraggableOnscroll,
           "no-jsx-logical-and": noJsxLogicalAnd,
           "no-overshoot-easing": noOvershootEasing,
@@ -257,6 +281,16 @@ module.exports = defineConfig([
         },
       ],
     },
+  },
+  {
+    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    ignores: LIE_1_EXCEPTIONS,
+    rules: { "local/no-constant-echo-test": "error" },
+  },
+  {
+    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
+    ignores: LIE_2_EXCEPTIONS,
+    rules: { "local/no-source-text-test": "error" },
   },
   {
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],

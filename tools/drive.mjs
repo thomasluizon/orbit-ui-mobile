@@ -22,7 +22,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -155,9 +155,6 @@ const BRANCH_TYPE = { Bug: "fix", Feature: "feature", Improvement: "chore" }
 const PAUSE_TITLE = "Driver paused: a worker stopped at a usage limit or a sign-in failure"
 const STOP_TITLE = "Driver stopped: weekly usage reached 90%"
 const RESTART_TITLE = "Driver restarted three times in ten minutes"
-const STALL_TITLE = "Driver stalled: no worker, request or merge for 60 minutes"
-const ACTIVITY_FILE = "activity.json"
-const STALL_MS = HOUR_MS
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
@@ -346,14 +343,7 @@ const branchName = (ticket, part, used) => {
   }
 }
 
-const sectionsOutside = (reviews) => reviews.flatMap((review) => {
-  const lines = review.body.split("\n")
-  const start = lines.findIndex((line) => /^## Outside this change\s*$/.test(line))
-  if (start < 0) return []
-  const end = lines.findIndex((line, index) => index > start && /^## /.test(line))
-  const text = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim()
-  return text === "" ? [] : [text]
-})
+const sectionsOutside = (reviews) => reviewSection(reviews, "Outside this change")
 
 /** The ticket comment that carries the ticket and the part to Pullfrog, which cannot read the private ticket repository. */
 export const ticketComment = ({ repository, ticket, part }) => {
@@ -369,7 +359,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
 /** What one tick tells `health.json`: its good read, the pull requests at the bar, a merge, each blind part, its first error, a hold and the rate limit reset. */
 const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null, held: false, resetAt: null })
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1392,7 +1382,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "request":
       if (action.ticketComment) await env.github.comment(repoKey, pull.number, ticketComment({ repository: env.config.tickets.repository, ticket, part }))
       await env.github.comment(repoKey, pull.number, marked("request", action.text))
-      mem.acted = true
       if (action.record) await env.github.comment(repoKey, pull.number, marked("record", action.record))
       return undefined
     case "rerun":
@@ -1408,7 +1397,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
-      mem.acted = true
       mem.health.merged = true
       mem.merged.delete(pull.tracks)
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
@@ -1421,12 +1409,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
 }
 
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
-
-/** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
-const isWaiting = (env, pull, tickets) => {
-  const ticket = tickets.find((entry) => entry.number === pull.tracks)
-  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !pull.labels.includes(PARKED) && !ticket?.labels.includes(PARKED) && !heldByReport(env, pull, ticket)
-}
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
@@ -1508,10 +1490,6 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       } finally {
         // A merge action means that the pull request meets the bar. It stays unmerged when no merge of this tick took it.
         if (plan.some((action) => action.type === "merge") && !ctx.mergedPulls.has(pull)) mem.health.green.push({ key: item, approvedAt: approvalTime(pull) })
-        // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
-        // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it.
-        const waitsForReplan = plan.some((action) => action.reason === WAITS_FOR_REPLAN)
-        if (!waitsForReplan && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
     } catch (failure) {
       log(env, item, "error", failure.message)
@@ -1698,7 +1676,7 @@ const preparationHeld = (env, mem, repoKey, branch) => (mem.unprepared.get(prepa
 const holdUnprepared = async (env, mem, { repoKey, ticket, branch }, error) => {
   const key = preparationKey(repoKey, branch)
   const reason = `the worktree of ${branch} was not prepared: ${oneLine(error.message)}`
-  mem.unprepared.set(key, { until: env.now() + PREPARE_RETRY_MS, line: `ticket#${ticket.number}: ${reason}` })
+  mem.unprepared.set(key, { until: env.now() + PREPARE_RETRY_MS })
   log(env, `ticket#${ticket.number}`, "worktree-failed", reason)
   await say(env, { key, lines: [`Orbit cannot start work: ${cut(ticket.title, TITLE_LIMIT)}`, `Git could not prepare the worktree for ${branch}. The driver tries again after ${PREPARE_RETRY_MS / 60000} minutes.`, cut(error.message, DETAIL_LIMIT)], link: issueLink(env, ticket.number) })
   return reason
@@ -2584,31 +2562,6 @@ const reapExits = async (env, mem) => {
   return unknown
 }
 
-/**
- * The stall alarm. The clock is the last tick in which a worker ran, a request went out or a pull request merged, kept in
- * `activity.json` so a restart keeps it. It resets while nothing waits, while the driver is held on purpose, and at each
- * action. After 60 minutes of waiting items with no action it logs `stall` with each reason and opens one `needs:owner` issue.
- */
-const watchStall = async (env, tickets, { acted, held, waiting }) => {
-  const path = join(env.stateDir, ACTIVITY_FILE)
-  let last = null
-  try { last = JSON.parse(readFileSync(path, "utf8")).at } catch { /* a first start has no file */ }
-  const now = env.now()
-  const issue = tickets.find((ticket) => ticket.title === STALL_TITLE) ?? null
-  if (acted || held || waiting.length === 0 || !Number.isFinite(last)) {
-    writeFileSync(path, `${JSON.stringify({ at: now })}\n`)
-    if (acted && issue !== null) await closeIssue(env, tickets, issue, "The driver acted again, so the stall ends.")
-    return
-  }
-  if (now - last < STALL_MS) return
-  const reasons = waiting.join("; ")
-  log(env, "driver", "stall", reasons)
-  if (issue !== null) return
-  const message = `The driver ran no worker, posted no request and merged nothing since ${new Date(last).toISOString()}. Waiting: ${reasons}`
-  const created = await openProblem(env, { title: STALL_TITLE, body: message, notice: { key: `stall ${new Date(last).toISOString()}`, lines: [`Orbit stalled: nothing was built, reviewed or merged since ${clock(last)}.`] } })
-  tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
-}
-
 /** The detached worktree of a coordinator run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
 const runWorktree = async (env, { stem }) => {
   const repoPath = env.config.repos.ui
@@ -2723,8 +2676,6 @@ const runTick = async (env, mem) => {
   const startedAt = env.clock()
   env.lines = []
   env.reads = new Map()
-  mem.acted = false
-  mem.waiting = []
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
@@ -2779,7 +2730,6 @@ const runTick = async (env, mem) => {
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
   const free = { main: paces.main.free, worker: paces.worker.free }
   const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
-  const unstarted = []
   // The plan of this tick can open the pause issue, so each launch reads the hold again.
   const held = () => paused || pauseIssue(tickets) || !account.ok
   // The worker account takes a launch when it has a free slot, else the main account.
@@ -2805,10 +2755,8 @@ const runTick = async (env, mem) => {
       let refused = null
       const refusal = () => (refused = limitSeen.found && name === MAIN && knownAccounts(mem).length > 1 ? LIMIT_STOP : null)
       const reason = await startWorker(env, mem, order, name, refusal).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
-      // A refused start is a chosen hold, so it stays off the stall clock.
       if (refused !== null) { reached.delete(order.ticket.number); return refused }
-      if (reason === null) { mem.acted = true; free[name] -= 1 }
-      else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
+      if (reason === null) free[name] -= 1
     }
     return null
   }
@@ -2858,10 +2806,6 @@ const runTick = async (env, mem) => {
     const runBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
     await startQuestions(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, QUESTIONS_RUN.stem, "error", error.message))
     await startHarnessReview(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, HARNESS_REVIEW_RUN.stem, "error", error.message))
-    // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock, also while its branch waits.
-    const unprepared = [...mem.unprepared.values()].filter((entry) => entry.until > env.now()).map((entry) => entry.line)
-    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...new Set([...unstarted, ...unprepared])]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()

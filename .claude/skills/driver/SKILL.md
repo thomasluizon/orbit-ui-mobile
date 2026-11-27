@@ -50,6 +50,8 @@ The driver moves to a newer driver commit of `main` by itself, at a tick with no
 
 Every tick, good or failed, writes `health.json` in the state directory (`$S` of step 4 of `/driver`). A check outside the driver reads this file to find a blind or stuck driver.
 
+The driver has no stall alarm and opens no stall issue. The checker outside the driver reads `health.json`. That checker is `tools/drive-heartbeat.mjs` of `#2339` Part 8, and the driver installs it.
+
 | Field | Meaning |
 | --- | --- |
 | `writtenAt` | The time of the last write. An old value shows that no tick ended since that time. |

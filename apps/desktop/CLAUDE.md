@@ -2,7 +2,6 @@
 
 Tauri 2 shell for macOS and Windows. The webview loads the deployed web app. This workspace owns no screens, web build or API client. Root conventions apply.
 
-- Keep the Rust entry point minimal. Do not add native commands or plugins without their carrying ticket and origin-scoped capabilities.
 - Staging is the default build. Production uses `src-tauri/tauri.production.conf.json`. Keep identifiers and webview storage separate.
 - Email sign-in, habit logging and Orbit use the web origin's existing BFF and httpOnly cookies. The native Google handoff transfers BFF cookie headers directly into the webview cookie store. Never persist tokens in native storage, JavaScript storage or configuration, or expose them to page JavaScript.
 - Keep Tauri crates and the npm CLI pinned exactly. Confirm configuration and CLI interfaces against the installed sources before you change them.
