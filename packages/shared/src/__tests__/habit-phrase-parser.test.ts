@@ -1276,7 +1276,6 @@ describe('a bare das hour range', () => {
     ['Correr das 5 a 8 quilômetros', '08:00'],
     ['Meditar das 5 a 10 segundos', '10:00'],
     ['Correr das 3 a 5 dias por semana', '05:00'],
-    ['Ler das 9 as 11 horas toda segunda', '11:00'],
     ['Estudar das 7 às 9 à noite', '21:00'],
     ['Estudar das 2 às 5 à tarde', '17:00'],
     ['Estudar das 8 às 10 pela manhã', '10:00'],
@@ -1285,5 +1284,41 @@ describe('a bare das hour range', () => {
     ['Estudar das 9 até 11 ao meio-dia', '12:00'],
   ] as const)('reads a phrase outside the form as before: %s', (input, time) => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
+
+describe('a das hour range with a day part, e meia or an hour unit', () => {
+  it.each([
+    ['Estudar das 2 às 4 da tarde', '14:00'],
+    ['Estudar das 11 às 2 da tarde', '11:00'],
+    ['Estudar das 11 às 12 da tarde', '11:00'],
+    ['Estudar das 8 às 12 da noite', '20:00'],
+    ['Estudar das 11 às 2 da madrugada', '23:00'],
+    ['Estudar das 10 às 2 da manhã', '22:00'],
+    ['Estudar das 12 às 2 da madrugada', '00:00'],
+    ['Estudar das 22 às 2 da madrugada', '22:00'],
+    ['Estudar das 10 da manhã às 2 da tarde', '10:00'],
+    ['Estudar das 9 e meia às 11', '09:30'],
+    ['Estudar das 9 às 11 e meia', '09:00'],
+  ] as const)('reads the start hour of %s', (input, time) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.dueTime).toBe(time)
+    expect(read.days).toEqual([])
+  })
+
+  it.each([
+    ['Ler das 9 as 11 horas toda segunda', '09:00'],
+    ['Ler das 9 horas às 11 horas toda segunda', '09:00'],
+    ['Ler das 9h às 11h toda segunda', '09:00'],
+    ['Ler das 9 a 11 horas toda segunda', '09:00'],
+    ['Ler das 2 a 4 da tarde toda segunda', '14:00'],
+    ['Ler das 2 às 4 horas da tarde toda segunda', '14:00'],
+    ['Ler das 9 e meia a 11 e meia toda segunda', '09:30'],
+    ['Ler das 9 às 11 da manhã toda segunda', '09:00'],
+    ['Ler das 9 da noite às 11 toda segunda', '21:00'],
+  ] as const)('reads the start hour of %s on a weekday', (input, time) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.dueTime).toBe(time)
+    expect(read.days).toEqual(['Monday'])
   })
 })
