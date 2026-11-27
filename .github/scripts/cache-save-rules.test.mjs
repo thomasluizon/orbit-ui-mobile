@@ -171,6 +171,11 @@ const MERGED_RESULTS_CALL = {
     "workspace-path": "${{ env.WORKSPACE_UNIT_RESULTS }}",
   },
 }
+// The lookup of the layout pass marker of one shard. The plan lists the shards whose lookup missed.
+const layoutMarkerLookup = (shard) => ({
+  step: { id: `layout-${shard}`, uses: "actions/cache/restore@v6", with: { key: `\${{ steps.plan.outputs.layout-key }}-${shard}`, "lookup-only": true, path: ".ci-pass/layout" } },
+  calls: [],
+})
 // The lookup after the save of a merged pull request result: the group counts as cached only when the saved entry exists.
 const mergedUnitResultsLookup = (job, calls = [MERGED_RESULTS_CALL]) => ({
   step: {
@@ -248,6 +253,7 @@ const REVIEWED_RESTORES = {
     mergedUnitResultsLookup("web-cross-app"),
     mergedUnitResultsLookup("mobile"),
     mergedUnitResultsLookup("workspace"),
+    ...[1, 2, 3, 4, 5, 6, 7, 8].map(layoutMarkerLookup),
   ],
   "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("web-cross-app", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
   "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), crossAppMarkerRestore, unitResultsRestore("mobile"), unitResultsRestore("workspace")],
@@ -804,6 +810,7 @@ const PASS_MARKERS = {
   "android-startup.yml: boot": { path: ".ci-pass/android-boot", key: "${{ needs.scope.outputs.pass-key }}" },
   "ios-build.yml: record": { path: ".ci-pass/ios-compile", key: "${{ needs.plan.outputs.pass-key }}" },
   "mobile-build.yml: build": { path: ".ci-pass/android-compile", key: "${{ needs.plan.outputs.pass-key }}" },
+  "test.yml: layout-shards": { path: ".ci-pass/layout", key: "${{ needs.plan.outputs.layout-key }}-${{ matrix.shard }}" },
 }
 const WEBPACK_CACHE_SAVERS = { "test.yml: build": "apps/web/.next/cache/webpack" }
 const TURBO_CACHE_SAVERS = { "test.yml: checks": ".turbo" }
@@ -816,7 +823,8 @@ const RULES = {
   // The key changes only with the inputs of the pass. The save writes the one file that PASS_MARKERS names for its job,
   // and the step before it writes only the commit SHA to that file. Each marker is under 300 bytes (229 and 232 bytes in
   // GET /repos/{owner}/{repo}/actions/caches), far under the 5 MB bound of LARGE_ENTRY_BYTES in sweep-actions-caches.mjs.
-  // The sweep never deletes a pass marker, so a larger file under a pass key would stay.
+  // The sweep never deletes a marker whose key holds -pass-v<N>-, so a larger file under such a key would stay. A layout marker key
+  // holds layout-pass- with no version, so the sweep deletes it like any other entry of a pull request ref.
   "pass marker": {
     actions: ["actions/cache/save"],
     check: ({ step, where, list, index }) => {

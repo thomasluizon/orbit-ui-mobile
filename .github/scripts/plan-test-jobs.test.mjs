@@ -10,7 +10,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const script = resolve(root, ".github/scripts/plan-test-jobs.mjs")
 const tasks = {
   "@orbit/web#test": "web0", "@orbit/web#test:cross-app": "cross0", "@orbit/mobile#test": "mobile0", "@orbit/desktop#test": "desktop0",
-  "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0",
+  "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0", "@orbit/web#build": "webbuild0",
 }
 
 function plan({ event = "pull_request", changed = [], hashes = tasks, workflow = "name: PR Tests\n", changedFile = true } = {}) {
@@ -157,6 +157,18 @@ test("each result key follows only its own Turbo tasks and the workflow file", (
   for (const key of keys) assert.notEqual(edited[key], base[key], key)
 })
 
+test("the layout pass key follows the web build hash, the layout inputs and the workflow file", () => {
+  const base = plan().outputs["layout-key"]
+  assert.match(base, /^layout-pass-[0-9a-f]{24}-[0-9a-f]{24}$/)
+  assert.equal(plan({ hashes: { ...tasks, "@orbit/web#test": "changed", "@orbit/mobile#test": "changed" } }).outputs["layout-key"], base, "a unit test hash changes no layout key")
+  assert.notEqual(plan({ hashes: { ...tasks, "@orbit/web#build": "webbuild1" } }).outputs["layout-key"], base)
+  assert.notEqual(plan({ workflow: "name: PR Tests\n# edited\n" }).outputs["layout-key"], base)
+  assert.equal(plan({ event: "push", changedFile: false }).outputs["layout-key"], base, "every event reads the same key")
+  for (const path of ["../layout-shard-timings.json", "plan-layout-shards.mjs", "../../tools/check-hermetic-web-build.mjs"]) {
+    assert.ok(readFileSync(join(root, ".github/scripts", path), "utf8").length > 0, `the layout key reads ${path}`)
+  }
+})
+
 test("a missing Turbo task fails and a pull request needs its changed paths", () => {
   const { "@orbit/mobile#test": _mobile, ...withoutMobile } = tasks
   const missing = plan({ hashes: withoutMobile })
@@ -166,5 +178,9 @@ test("a missing Turbo task fails and a pull request needs its changed paths", ()
   const missingCrossApp = plan({ hashes: withoutCrossApp })
   assert.equal(missingCrossApp.status, 1)
   assert.match(missingCrossApp.stderr, /@orbit\/web#test:cross-app/)
+  const { "@orbit/web#build": _build, ...withoutBuild } = tasks
+  const missingBuild = plan({ hashes: withoutBuild })
+  assert.equal(missingBuild.status, 1)
+  assert.match(missingBuild.stderr, /@orbit\/web#build/)
   assert.equal(plan({ changedFile: false }).status, 2)
 })

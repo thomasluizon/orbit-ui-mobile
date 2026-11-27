@@ -157,7 +157,7 @@ if [ "$(wc -l < "${calls}")" -le ${failedCalls} ]; then echo "npm error code ERR
 // TLS fault in a download ends the install with ERR_SSL_CIPHER_OPERATION_FAILED.
 test("every install from the npm registry passes after one failed attempt and fails after two", () => {
   const lines = installLines()
-  assert.ok(lines.length >= 29,"the scan reads the installs of the workflows, the local actions and the Dockerfile")
+  assert.ok(lines.length >= 28,"the scan reads the installs of the workflows, the local actions and the Dockerfile")
   for (const [where, line] of lines) {
     const once = runInstall(line, 1)
     assert.equal(once.status, 0, `${where}: one failed attempt fails the step: ${line}`)

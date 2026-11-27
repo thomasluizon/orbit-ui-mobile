@@ -22,26 +22,15 @@ test("Android release branch guards accept internal on every branch and require 
   }
 })
 
-test("the layout check rejects failed, cancelled and skipped prerequisites", () => {
+test("no aggregate layout job repeats a red layout shard, and a shard runs only without a pass", () => {
   const { jobs } = workflow("test")
-  const aggregate = Object.values(jobs).find((job) => job.name === "Upgrade layout geometry")
-  assert.equal(aggregate.if, "${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.web == 'true' }}")
-  assert.deepEqual(aggregate.needs, ["plan", "build", "layout-shards"])
-  const step = aggregate.steps.find((candidate) => candidate.env?.BUILD_RESULT)
-  assert.equal(step.env.BUILD_RESULT, "${{ needs.build.result }}")
-  assert.equal(step.env.SHARD_RESULT, "${{ needs.layout-shards.result }}")
-  for (const build of ["success", "failure", "cancelled", "skipped"]) {
-    for (const shards of ["success", "failure", "cancelled", "skipped"]) {
-      const result = spawnSync("bash", ["-e", "-c", step.run], {
-        env: { ...process.env, BUILD_RESULT: build, SHARD_RESULT: shards },
-      })
-      assert.equal(result.status === 0, build === "success" && shards === "success", `${build}, ${shards}`)
-    }
-  }
+  assert.equal(Object.values(jobs).some((job) => job.name === "Upgrade layout geometry"), false)
+  assert.equal(Object.values(jobs).some((job) => job.name === "Authed Today Lighthouse budget"), false)
   const shards = jobs["layout-shards"]
   assert.equal(shards.strategy["fail-fast"], false)
-  assert.deepEqual(shards.strategy.matrix.shard, [1, 2, 3, 4, 5, 6, 7, 8])
+  assert.equal(shards.strategy.matrix.shard, "${{ fromJSON(needs.plan.outputs.layout-pending || '[]') }}")
+  assert.match(shards.if, /needs\.plan\.outputs\.layout-pending != '\[\]'/)
   assert.deepEqual(shards.needs, ["plan", "build"])
   assert.equal(shards.steps.some((step) => step.run?.includes("build:hermetic")), false)
-  assert.ok(shards.steps.some((step) => step.run?.includes('--test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"')))
+  assert.ok(shards.steps.some((step) => step.run?.includes('--test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt" --max-failures=3')))
 })
