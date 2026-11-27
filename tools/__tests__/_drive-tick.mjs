@@ -1925,6 +1925,18 @@ const plannedStartCases = async () => {
     endRun(scene.env.stateDir, { exitCode: switched ? 0 : 1, error: null, now: scene.env.now() })
     return { result, planned, tripped }
   }
+  const real = driverScene()
+  await guardStart(real.env)
+  await recordStart(real.env, [])
+  const realSteps = []
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    real.state.head = OLD_PIN
+    const tick = await real.run()
+    endRun(real.env.stateDir, { exitCode: 0, error: null, now: real.env.now() })
+    await guardStart(real.env)
+    realSteps.push([tick.switched, await recordStart(real.env, [])])
+  }
+  same("drive: three starts after three real driver switches in ten minutes give no alarm, no notice, no ticket and one logged start", [realSteps, only(real.calls, "notify").length, only(real.calls, "createTicket").length, JSON.parse(readFileSync(join(real.env.stateDir, "starts.json"), "utf8")).length], [[[true, false], [true, false], [true, false]], 0, 0, 1])
   const planned = fresh("drive-starts-planned")
   const plannedSteps = []
   for (let start = 0; start < 4; start += 1) plannedSteps.push(await startAfter(planned, { switched: true }))
