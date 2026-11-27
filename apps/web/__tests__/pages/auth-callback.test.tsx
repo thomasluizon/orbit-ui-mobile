@@ -83,7 +83,7 @@ describe('Google code callback', () => {
     expect(fetchMock).not.toHaveBeenCalled()
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason: 'state_mismatch' },
+      level: 'error', tags: { provider: 'apple', reason: 'state_mismatch' }, fingerprint: ['auth_callback_failed', 'apple', 'state_mismatch'],
     })
   })
 
@@ -229,7 +229,7 @@ describe('Google code callback', () => {
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+      level: 'error', tags: { provider: 'google', reason: 'exchange_failed' }, fingerprint: ['auth_callback_failed', 'google', 'exchange_failed'],
     })
   })
 
@@ -247,7 +247,7 @@ describe('Google code callback', () => {
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.push).not.toHaveBeenCalled()
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'google', reason: 'session_changed' },
+      level: 'error', tags: { provider: 'google', reason: 'session_changed' }, fingerprint: ['auth_callback_failed', 'google', 'session_changed'],
     })
   })
 
@@ -347,7 +347,7 @@ describe('Google code callback', () => {
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.setAuth).not.toHaveBeenCalled()
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+      level: 'error', tags: { provider: 'google', reason: 'exchange_failed' }, fingerprint: ['auth_callback_failed', 'google', 'exchange_failed'],
     })
   })
 
@@ -361,7 +361,7 @@ describe('Google code callback', () => {
     render(<StrictMode><AuthCallbackContent pendingWebStates={{ apple: null, google: null }} /></StrictMode>)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'google', reason },
+      level: 'error', tags: { provider: 'google', reason }, fingerprint: ['auth_callback_failed', 'google', reason],
     })
     expect(JSON.stringify(mocks.captureMessage.mock.calls)).not.toContain('private-')
   })
@@ -402,7 +402,7 @@ describe('Google code callback', () => {
     await act(async () => { mocks.continueAccount?.() })
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' },
+      level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' }, fingerprint: ['auth_callback_failed', 'google', 'profile_hydration_failed'],
     })
     expect(mocks.push).not.toHaveBeenCalled()
   })
@@ -415,7 +415,7 @@ describe('Google code callback', () => {
     render(<AuthCallbackContent pendingWebStates={{ apple: 'expected-state', google: 'expected-state' }} />)
     await waitFor(() => expect(screen.getByTestId('callback-state')).toHaveTextContent('failed'))
     expect(mocks.captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider, reason: 'profile_hydration_failed' },
+      level: 'error', tags: { provider, reason: 'profile_hydration_failed' }, fingerprint: ['auth_callback_failed', provider, 'profile_hydration_failed'],
     })
   })
 })
