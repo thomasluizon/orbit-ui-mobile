@@ -384,6 +384,9 @@ export const isReviewPass = (review) => review.state !== "COMMENTED" || review.b
 
 const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
 
+/** The time of the review that the merge bar reads, or null when the pull request has no review pass. */
+export const approvalTime = (pull) => newestReview(pull)?.submittedAt ?? null
+
 /**
  * The newest review pass when it approves an earlier commit whose own diff equals the diff of the head, or null. `pull.sameDiffAs`
  * lists the commits with that diff. The approval carries to the head, so a clean merge of the base asks for no new review.
