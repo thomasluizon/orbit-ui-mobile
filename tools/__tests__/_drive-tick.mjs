@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -4514,6 +4514,70 @@ const codexRunnerCases = async () => {
   same("drive: a Codex fix order starts cold and never reads a transcript", [fix.launched.map(homeOf), fix.launched[0]?.invocation.command.args, only(fix.calls, "sessionExists").length, fix.messages.some((line) => line.includes("fix cold start (fix, a Codex order starts cold"))], [[CODEX_DIRECTORY], [], 0, true])
 }
 
+/** The switch `--runner claude|codex` and the live check `--runner-check`. */
+const runnerSwitchCases = async () => {
+  const VERSION = "codex-cli 0.172.0"
+  const PASS = { passed: true, reason: null }
+  const reading = { utilization: 0.2, resetsAt: RESETS_AT, status: "allowed" }
+  const checkScene = ({ version = VERSION, probeReading = reading, hook = PASS, auth = { loggedIn: true } } = {}) => {
+    const scene = scenario({})
+    const steps = []
+    Object.assign(scene.env, {
+      codexVersion: async () => { if (version instanceof Error) throw version; return version },
+      authStatus: async (name, runner) => { steps.push(["auth", name, runner]); return auth },
+    })
+    scene.env.worker.probe = async ({ invocation }) => { steps.push(["probe", invocation.command.executable]); return probeReading }
+    scene.env.worker.codexHookCheck = async (options) => { steps.push(["hook", options.repository, options.home]); return hook }
+    return { ...scene, steps }
+  }
+  const run = async (fn, scene, ...rest) => {
+    const lines = []
+    const errors = []
+    const code = await fn(scene.env, ...rest, { out: (line) => lines.push(line), err: (line) => errors.push(line) })
+    return { code, lines, errors }
+  }
+  const checkFile = (scene) => readRunnerCheck(scene.env.stateDir)
+
+  same("drive: --runner takes claude or codex and nothing else", [parseArguments(["--runner", "codex"]), parseArguments(["--runner", "claude"]).word, parseArguments(["--runner"]).error !== undefined, parseArguments(["--runner", "gpt"]).error !== undefined, parseArguments(["--runner", "codex", "--once"]).error !== undefined], [{ help: false, mode: "runner", word: "codex" }, "claude", true, true, true])
+  same("drive: --runner-check is a mode of its own", [parseArguments(["--runner-check"]), parseArguments(["--runner-check", "--once"]).error !== undefined], [{ help: false, mode: "runner-check" }, true])
+  const usage = await usageText()
+  same("drive: the usage states the runner switch and the live check", [/--runner claude\|codex/.test(usage), /--runner-check/.test(usage), /exit codes: 0 done, 1 failed runner check, 2 /.test(usage)], [true, true, true])
+
+  const refused = checkScene()
+  const noCheck = await run(setRunner, refused, "codex")
+  same("drive: --runner codex with no passed check exits 2, names the reason and keeps the setting", [noCheck.code, noCheck.errors[0].includes("the live check has not passed on codex-cli 0.172.0"), noCheck.errors[0].includes("--runner-check"), readRunner(refused.env.stateDir), existsSync(join(refused.env.stateDir, "runner-setting.json"))], [2, true, true, "claude", false])
+  writeFileSync(join(refused.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: "codex-cli 0.171.0", passedAt: iso(0) })}\n`)
+  const older = await run(setRunner, refused, "codex")
+  same("drive: a pass on another codex version is no pass", [older.code, older.errors[0].includes("it passed on codex-cli 0.171.0"), readRunner(refused.env.stateDir)], [2, true, "claude"])
+  const noBinary = checkScene({ version: new Error("spawn codex ENOENT") })
+  const missing = await run(setRunner, noBinary, "codex")
+  same("drive: --runner codex with no readable codex version exits 2 and keeps the setting", [missing.code, missing.errors[0].includes("codex --version failed"), readRunner(noBinary.env.stateDir)], [2, true, "claude"])
+
+  const passed = checkScene()
+  writeFileSync(join(passed.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const toCodex = await run(setRunner, passed, "codex")
+  const toClaude = await run(setRunner, passed, "claude")
+  const bare = await run(setRunner, noBinary, "claude")
+  same("drive: --runner codex with a pass on the same version writes the setting, and claude needs no check", [toCodex.code, toCodex.lines, toClaude.code, readRunner(passed.env.stateDir), bare.code], [0, ["The worker slots run on codex from the next tick."], 0, "claude", 0])
+
+  const good = checkScene()
+  const pass = await run(runnerCheck, good)
+  same("drive: the live check runs the probe, then the hook step, and a pass writes the version", [pass.code, good.steps, pass.lines.at(-1).startsWith("The live check passed on codex-cli 0.172.0"), checkFile(good)?.version, Number.isNaN(Date.parse(checkFile(good)?.passedAt))], [0, [["auth", "worker", "codex"], ["probe", "codex"], ["hook", REPOSITORY, "/home/x"]], true, VERSION, false])
+
+  const signedOut = checkScene({ auth: { loggedIn: false } })
+  const out = await run(runnerCheck, signedOut)
+  same("drive: the live check with no Codex login exits 3 and runs no probe", [out.code, out.errors[0].includes("codex login"), signedOut.steps.filter(([step]) => step === "probe").length, checkFile(signedOut)], [3, true, 0, null])
+
+  const blind = checkScene({ probeReading: null })
+  writeFileSync(join(blind.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const noReading = await run(runnerCheck, blind)
+  same("drive: a probe with no weekly reading fails the check, runs no hook step and removes an older pass", [noReading.code, noReading.errors[0].includes("no weekly reading"), blind.steps.filter(([step]) => step === "hook").length, checkFile(blind)], [1, true, 0, null])
+
+  const open = checkScene({ hook: { passed: false, reason: "`gh pr merge` ran, so the hook did not block it" } })
+  const merged = await run(runnerCheck, open)
+  same("drive: a hook that blocks nothing fails the check with its reason and writes no pass", [merged.code, merged.errors[0], checkFile(open)], [1, "The live check failed on codex-cli 0.172.0: `gh pr merge` ran, so the hook did not block it", null])
+}
+
 export const driverUnit = async () => {
   await diffBarCases()
   await requiredChecksDriftCases()
@@ -4577,4 +4641,5 @@ export const driverUnit = async () => {
   await paceRestartCases()
   await twoAccountCases()
   await codexRunnerCases()
+  await runnerSwitchCases()
 }
