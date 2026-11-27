@@ -111,6 +111,27 @@ describe('the guided goal create flow', () => {
     expect(onOpenGoal).toHaveBeenCalledWith('goal-new')
   })
 
+  it('creates a streak goal with no deadline and no linked habit, with the request of the current sheet', async () => {
+    renderWith('en', <CreateGoalSheet open onClose={vi.fn()} />)
+    await type('What do you want to reach?', 'Gym days')
+    await press('Continue')
+    await press('Streak')
+    expect(heading()).toHaveTextContent('How many days in a row?')
+    await type('How many days in a row?', '30')
+    await press('Continue')
+    await press('No deadline')
+    await press('Continue')
+    await press(/^By when/)
+    expect(screen.getByRole('button', { name: 'No deadline' }), 'back keeps the answer').toHaveAttribute('aria-pressed', 'true')
+    await press('No deadline')
+    await press('Create goal')
+    const draft = { ...createGoalDraft(), goalType: 'Streak' as const, description: 'Gym days', targetValue: '30', unit: en.goals.form.streakUnit, deadline: '' }
+    expect(mocks.create).toHaveBeenCalledWith(buildGoalCreationRequest(draft))
+    expect(mocks.create.mock.calls[0]![0]).not.toHaveProperty('deadline')
+    expect(screen.getByText('The goal "Gym days" is set with no deadline.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument()
+  })
+
   it('skips the habits for a goal that starts from a habit and shows that habit on the summary', async () => {
     renderWith('en', <CreateGoalSheet open onClose={vi.fn()} initialHabitIds={['habit-read']} fromHabit={{ title: 'Read' }} />)
     expect(progress()).toBe('Step 1 of 5')
@@ -174,6 +195,20 @@ describe('the guided goal create flow', () => {
     await press('Create goal')
     expect(mocks.create.mock.calls[0]![0]).toMatchObject({ deadline: '2027-01-15' })
     expect(screen.getByText(/The goal "Run" runs until January 15, 2027\./)).toBeInTheDocument()
+  })
+
+  it('keeps the step with the hint of the current form on an empty answer', async () => {
+    renderWith('pt-BR', <CreateGoalSheet open onClose={vi.fn()} />)
+    await press('Continuar')
+    expect(screen.getByText(ptBR.goals.form.titleRequired)).toBeInTheDocument()
+    expect(heading()).toHaveTextContent('O que você quer alcançar?')
+    await type('O que você quer alcançar?', 'Ler')
+    await press('Continuar')
+    await press('Progresso')
+    await type('Quanto?', '0')
+    await press('Continuar')
+    expect(screen.getByText(ptBR.goals.form.targetValueRequired)).toBeInTheDocument()
+    expect(heading()).toHaveTextContent('Quanto?')
   })
 
   it('goes back with every answer kept', async () => {
@@ -344,6 +379,28 @@ describe('the Which habits step', () => {
 describe('the guided goal edit flow', () => {
   const goal = { id: 'g1', title: 'Run 100km', targetValue: 100, unit: 'km', deadline: '2026-12-31', type: 'Standard' }
 
+  it('opens on the summary with the stored values and saves one change with the request of the current modal', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-13T12:00:00Z'))
+    const onOpenChange = vi.fn()
+    renderWith('en', <EditGoalModal open onOpenChange={onOpenChange} goal={goal} />)
+    expect(heading()).toHaveTextContent('Is this right?')
+    expect(screen.getByRole('button', { name: /Your goal/ })).toHaveTextContent('Run 100km')
+    expect(screen.getByRole('button', { name: /How much/ })).toHaveTextContent('100 km')
+    expect(screen.getByText('Progress')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Tracking/ })).not.toBeInTheDocument()
+    await press(/^By when/)
+    expect(screen.getByRole('button', { name: 'This year' }), 'the stored deadline is the answer of an edit').toHaveAttribute('aria-pressed', 'true')
+    await press('No deadline')
+    expect(heading()).toHaveTextContent('Is this right?')
+    await press('Save')
+    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: 'Run 100km', targetValue: 100, unit: 'km', deadline: null } })
+    expect(mocks.completed).toHaveBeenCalledWith('goal_edit', 1, false)
+    expect(screen.getByText('The goal "Run 100km" is saved with no deadline.')).toBeInTheDocument()
+    await press('View the goal')
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
   it('holds the save from the press: two presses in one turn send one request, and the save waits until it ends', async () => {
     let finish!: () => void
     mocks.update.mockImplementation(() => new Promise<void>((resolve) => { finish = resolve }))
@@ -356,6 +413,16 @@ describe('the guided goal edit flow', () => {
     expect(save).toHaveAttribute('aria-busy', 'true')
     await act(async () => { finish() })
     expect(screen.getByText('The goal "Run 100km" is saved with no deadline.')).toBeInTheDocument()
+  })
+
+  it('keeps an empty title in an edit and saves the title the current modal builds from the target and the unit', async () => {
+    renderWith('en', <EditGoalModal open onOpenChange={vi.fn()} goal={goal} />)
+    await press(/^Your goal/)
+    await type('What do you want to reach?', '')
+    await press('Continue')
+    expect(heading()).toHaveTextContent('Is this right?')
+    await press('Save')
+    expect(mocks.update).toHaveBeenCalledWith({ goalId: 'g1', data: { title: '100 km', targetValue: 100, unit: 'km', deadline: '2026-12-31' } })
   })
 
   it('closes an unchanged edit with no discard prompt', async () => {
