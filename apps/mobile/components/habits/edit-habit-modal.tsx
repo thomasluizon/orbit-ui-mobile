@@ -43,7 +43,7 @@ import {
   hasHabitFormProposal,
   rebaseSelectedIds,
   describeEditDetailsError,
-  resolveGuidedEditDetails,
+  resolveEditDetails,
 } from '@orbit/shared/utils'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
@@ -205,9 +205,8 @@ function EditHabitDraft({
     retry: retryDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const sessionHabitId = open && habit ? habit.id : null
-  const detailFieldsPending = open && !!habit && detailPending
-  const guidedDetails = resolveGuidedEditDetails({ habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
-  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryFailed, guidedDetails.summaryError, translate, () => { void retryDetail() })
+  const details = resolveEditDetails({ habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const detailsFailure = describeEditDetailsError(details.failureShown, details.shownError, translate, () => { void retryDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, parentIsGeneral, translate)
 
   const { closeSheet } = useSheetHost()
@@ -230,7 +229,7 @@ function EditHabitDraft({
     formHelpers.form.setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
   }, [formHelpers.form])
 
-  const detailToastError = guidedDetails.toastError
+  const detailToastError = details.toastError
   useEffect(() => {
     if (detailToastError) {
       showError(
@@ -422,7 +421,7 @@ function EditHabitDraft({
   }
 
   function handleSubmit(completion?: GuidedHabitCompletion) {
-    if (!habit || guidedDetails.blocked) return
+    if (!habit || details.blocked) return
     void runSubmission((startRequest) => submitSave(startRequest, completion))
   }
 
@@ -540,7 +539,7 @@ function EditHabitDraft({
     isEmojiSuggesting,
     ...emojiFailureFields(visibleFailure),
     isSuggesting: suggestion.isPending,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} onRetryDetail={() => void retryDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || details.blocked} onRetryDetail={() => void retryDetail()} />,
     defaultExpanded: true,
     lockedGeneral: parent.lockedGeneral,
     onUpgrade: navigateToUpgrade,
@@ -565,7 +564,7 @@ function EditHabitDraft({
           <FlowScreen label={t(formHelpers.isOneTime ? 'habits.editTask' : 'habits.editHabit')} onDismiss={requestDismiss} result={result}>
             <HabitFormInteractionProvider disabled={saving}>
               <GuidedHabitFlow mode="edit" formHelpers={formHelpers} fields={{ ...fieldProps, parentValue: parent.value, linkedGoals: habitDetail?.linkedGoals ?? habit.linkedGoals }} lockedGeneral={parent.lockedGeneral} fromConversation={Boolean(initialSuggestion)}
-                pending={saving} detailsLoading={guidedDetails.loading} detailsError={guidedDetailsError} saveError={saveError} createLabel={t('common.save')}
+                pending={saving} detailsLoading={details.loading} detailsError={detailsFailure} saveError={saveError} createLabel={t('common.save')}
                 onSubmit={handleSubmit} onClose={requestDismiss} />
             </HabitFormInteractionProvider>
             {discardDialog}

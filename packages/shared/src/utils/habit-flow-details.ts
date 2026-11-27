@@ -70,36 +70,36 @@ export interface EditDetailsRead<ReadError> {
   error: ReadError | null
 }
 
-export interface GuidedEditDetails<ReadError> {
-  /** The first read, or the retry of a failed one, runs. The summary shows a skeleton for each row. */
+export interface EditDetails<ReadError> {
+  /** The first read runs. The retry of a failed read counts too. */
   loading: boolean
-  /** The read failed, or it cannot run: no read is in flight and no stored value exists. The summary states it with a retry. */
-  summaryFailed: boolean
-  /** The error of the failed read. Null when the read cannot run, because it holds no error. */
-  summaryError: ReadError | null
-  /** The error the toast states: one the summary does not state itself. */
+  /** The edit states a failure with a retry: a read that cannot run, or a failed read. */
+  failureShown: boolean
+  /** The error of the failed read that the edit states. Null when the read cannot run, because it holds no error. */
+  shownError: ReadError | null
+  /** The error the toast states: one the edit does not state itself. */
   toastError: ReadError | null
-  /** The summary holds no stored value yet, so the save stays off. */
+  /** The edit holds no stored value yet, so the fields and the save stay off. */
   blocked: boolean
 }
 
 /**
- * What the guided edit summary shows for the stored details of the habit. The detail read fills the whole form,
- * so the summary waits for it. A habit created offline has no stored details yet: its list record is the whole
- * record, so neither a paused read nor a failed read blocks it. A read that is not in flight and holds no value
- * (disabled or paused) never loads, so the summary states it with a retry instead of a skeleton that never ends.
+ * What an edit shows for the stored details of the habit. The detail read fills the whole form, so the edit waits
+ * for it. A habit created offline has no stored details yet: its list record is the whole record, so neither a
+ * paused read nor a failed read blocks it. A read that is not in flight and holds no value (disabled or paused)
+ * never loads, so the edit states it with a retry instead of a wait that never ends. The edit also states a failed read.
  */
-export function resolveGuidedEditDetails<ReadError>(read: EditDetailsRead<ReadError>): GuidedEditDetails<ReadError> {
-  if (read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, summaryFailed: false, summaryError: null, toastError: read.error, blocked: false }
+export function resolveEditDetails<ReadError>(read: EditDetailsRead<ReadError>): EditDetails<ReadError> {
+  if (read.habitId === null || read.habitId.startsWith('offline-habit-')) return { loading: false, failureShown: false, shownError: null, toastError: read.error, blocked: false }
   const failed = !read.hasDetail && read.error !== null
   const stalled = !read.hasDetail && read.error === null && read.pending && !read.fetching
   const loading = read.fetching && (read.pending || failed)
-  const summaryFailed = (failed && !read.fetching) || stalled
-  const blocked = loading || summaryFailed
-  return { loading, summaryFailed, summaryError: failed && !read.fetching ? read.error : null, toastError: blocked ? null : read.error, blocked }
+  const failureShown = stalled || (failed && !read.fetching)
+  const blocked = loading || failureShown
+  return { loading, failureShown, shownError: failed && !read.fetching ? read.error : null, toastError: blocked ? null : read.error, blocked }
 }
 
-/** The failed detail read as the guided summary states it: the message and the retry. Null with no failed read. A read that cannot run has no error and gets the generic message. */
+/** The detail read failure as the edit states it: the message and the retry. Null with no failure to state. A read that cannot run has no error and gets the generic message. */
 export function describeEditDetailsError(failed: boolean, error: unknown, translate: Parameters<typeof getFriendlyErrorMessage>[1], onRetry: () => void): { message: string; onRetry: () => void } | null {
   if (!failed) return null
   return { message: error ? getFriendlyErrorMessage(error, translate, 'errors.fetchHabitDetails', 'habit') : translate('errors.fetchHabitDetails'), onRetry }

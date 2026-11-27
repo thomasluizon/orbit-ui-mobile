@@ -782,6 +782,17 @@ describe('the edit surface', () => {
     expect(state.refetchDetail).toHaveBeenCalledTimes(1)
   })
 
+  it('never holds the summary of a habit created offline, whose list record is the whole record', async () => {
+    state.detailPending = true
+    const habit = createMockHabit({ ...storedHabit, id: 'offline-habit-7' })
+    render(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onOpenChange={vi.fn()} habit={habit} /></QueryClientProvider>)
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    expect(summary().querySelector('[data-summary-skeleton]')).toBeNull()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(save()).toBeEnabled()
+    expect(save()).not.toHaveAttribute('aria-busy')
+  })
+
   it('shows the skeleton again while the retry of a failed detail read runs', async () => {
     state.detailError = new Error('offline')
     state.detailFetching = true

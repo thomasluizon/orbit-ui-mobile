@@ -785,6 +785,19 @@ describe('the Android edit surface', () => {
     tree.unmount()
   })
 
+  it('never holds the summary of a habit created offline, whose list record is the whole record', async () => {
+    state.detailPending = true
+    const habit = createMockHabit({ ...storedHabit, id: 'offline-habit-7' })
+    const tree = renderNavigation(<QueryClientProvider client={new QueryClient()}><EditHabitModal open onClose={vi.fn()} habit={habit} /></QueryClientProvider>)
+    await settle()
+    expect(heading(tree)).toBe(ptBR.habits.flow.confirm.question)
+    expect(summarySkeleton(tree)).toBeUndefined()
+    expect(alerts(tree)).toHaveLength(0)
+    expect(saveAction(tree)?.props.accessibilityState).toMatchObject({ disabled: false })
+    expect(saveAction(tree)?.props.accessibilityState).not.toMatchObject({ busy: true })
+    tree.unmount()
+  })
+
   it('shows the skeleton again while the retry of a failed detail read runs', async () => {
     state.detailError = new Error('offline')
     state.detailFetching = true
