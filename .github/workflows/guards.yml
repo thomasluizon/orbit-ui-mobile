@@ -39,10 +39,11 @@ jobs:
         uses: ./.github/actions/restore-npm-cache
       - name: Use the repository npm version
         if: ${{ !cancelled() }}
-        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+        # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund || npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
       - name: Install dependencies
         if: ${{ !cancelled() }}
-        run: npm ci --no-audit
+        run: npm ci --no-audit || npm ci --no-audit
       - name: Resolve pull request changed paths
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
         env:
@@ -217,6 +218,6 @@ jobs:
         # no other job installs it.
         run: |
           set -euo pipefail
-          npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund
+          npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund || npm ci --prefix .github/react-doctor --ignore-scripts --no-audit --no-fund
           .github/react-doctor/node_modules/.bin/react-doctor . --blocking error --scope changed --base origin/${{ github.base_ref }} --no-dead-code --no-supply-chain --no-score --yes
         if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
