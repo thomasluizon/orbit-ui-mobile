@@ -158,8 +158,10 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, repla
     case "find":
       return `Read only the slice that the part names. Your final message is the area list, then the findings table with one row per finding as \`path:line | class | fix\`, and nothing after the table. Commit nothing, push nothing and open no pull request.`
     case "replan": {
-      const merged = replan.mergedParts.length === 0 ? "none" : replan.mergedParts.join(", ")
-      return `The plan on the branch \`${replan.stuckBranch}\` used its launches and still fails. The earlier launches are below. Merged parts: ${merged}. Total of the part set in force: ${replan.currentTotal}. Highest total of any part set on the ticket: ${replan.highestTotal}.\n\nRead only. Commit nothing, push nothing and open no pull request. Choose how the work goes on. End your final message with exactly one answer and nothing after it.\n\n- \`Plan: fresh\` on its own line, then a short note for the next worker. The same scope goes on a new branch from \`origin/main\`.\n- \`Plan: split\` on its own line, then the full new part set. Each part starts with \`## Part n of m: <title>\`. Number the parts 1 to m, and make m higher than ${replan.highestTotal}. Write the merged parts with their number and title, and add the new, smaller parts after them.`
+      const listed = (numbers) => (numbers.length === 0 ? "none" : numbers.join(", "))
+      const merged = listed(replan.mergedParts)
+      const open = listed(replan.openParts ?? [])
+      return `The plan on the branch \`${replan.stuckBranch}\` used its launches and still fails. The earlier launches are below. Merged parts: ${merged}. Total of the part set in force: ${replan.currentTotal}. Highest total of any part set on the ticket: ${replan.highestTotal}. Open parts: ${open}.\n\nRead only. Commit nothing, push nothing and open no pull request. Choose how the work goes on. End your final message with exactly one answer and nothing after it.\n\n- \`Plan: fresh\` on its own line, then a short note for the next worker. The same scope goes on a new branch from \`origin/main\`.\n- \`Plan: split\` on its own line, then the full new part set. Each part starts with \`## Part n of m: <title>\`. Number the parts 1 to m, and make m higher than ${replan.highestTotal}. Write the merged parts and the open parts with their number and title, and add the new, smaller parts after them.`
     }
     default:
       throw new Error(`unknown order kind: ${kind}`)

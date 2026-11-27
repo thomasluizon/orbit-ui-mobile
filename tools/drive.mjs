@@ -1033,10 +1033,10 @@ const replanRunning = (running, ticketNumber) => running.workers.some(({ record 
  * What a plan does when its ladder ends (2 launches on the worker model, then 1 on the coordinator model): one re-plan run, or
  * the park once the ticket used its re-plans. A running re-plan run makes the plan wait.
  */
-const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches }) => {
+const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches, pulls }) => {
   if (replanRunning(running, ticket.number)) return { type: "none", reason: WAITS_FOR_REPLAN }
   if (replansSincePark(ticket).length >= MAX_REPLANS) return { type: "park", repoKey, ticket, reason: `the plan on ${branch} used its launches after ${MAX_REPLANS} re-plans` }
-  return { type: "order", kind: "replan", repoKey, ticket, pull, part, branch: replanBranch(ticket), stuckBranch: branch, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }
+  return { type: "order", kind: "replan", repoKey, ticket, pull, part, branch: replanBranch(ticket), stuckBranch: branch, model: workerApi.COORDINATOR_MODEL, openParts: openPartNumbers(ticket, partsOf(ticket), pulls, running.workers, branch), history: failureHistory(env, launches) }
 }
 
 /**
@@ -1087,7 +1087,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
     if (!counted.some(ranOpus)) return [...actions, { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }]
     const part = partsOf(ticket).find((entry) => partBranch(ticket.number, entry.number).test(pull.headRef)) ?? null
-    return [...actions, ladderEnd(env, { ticket, repoKey, pull, part, branch: pull.headRef, running, launches })]
+    return [...actions, ladderEnd(env, { ticket, repoKey, pull, part, branch: pull.headRef, running, launches, pulls: state.pulls })]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.skip) log(env, item, `review skip (${need.skip})`)
@@ -1392,12 +1392,22 @@ const partIsDone = (ticket, entry, mergedBranches) => (entry.find
   ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`)
   : [...mergedBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
 
-/** The facts that a re-plan order names: the merged parts (read fresh) and the total of the part set in force. */
-const replanFacts = async (env, mem, ticket, stuck) => {
+/**
+ * The numbers of the parts that stand in flight apart from the stuck plan: a part with an open tracking pull request on a branch
+ * other than `exceptBranch`, or a part build that a worker runs. A split keeps each of them with its number, as it keeps a merged
+ * part, because the pull request of the part still merges under that number.
+ */
+const openPartNumbers = (ticket, parts, pulls, workers, exceptBranch) => parts
+  .filter((entry) => pulls.some((pull) => pull.tracks === ticket.number && pull.headRef !== exceptBranch && partBranch(ticket.number, entry.number).test(pull.headRef))
+    || workers.some(({ record }) => record.ticketNumber === ticket.number && record.partNumber === entry.number && record.kind === "build part" && record.branch !== exceptBranch))
+  .map((entry) => entry.number)
+
+/** The facts that a re-plan order names: the merged parts (read fresh), the open parts that the order carries, and the total of the part set in force. */
+const replanFacts = async (env, mem, ticket, stuck, openParts) => {
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   const parts = partsOf(ticket)
   const merged = new Set(history.map((entry) => entry.headRefName))
-  return { stuckBranch: stuck.branch, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
+  return { stuckBranch: stuck.branch, openParts, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
 }
 
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
@@ -1425,7 +1435,7 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
-  const replan = kind === "replan" ? await replanFacts(env, mem, ticket, stuck) : null
+  const replan = kind === "replan" ? await replanFacts(env, mem, ticket, stuck, order.openParts ?? []) : null
   const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
   const model = order.model ?? workerApi.WORKER_MODEL
   const startedIso = new Date(env.now()).toISOString()
@@ -1618,9 +1628,10 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
     return
   }
   const merged = new Set((await mergedHistory(env, mem, ticket, { fresh: true })).map((entry) => entry.headRefName))
+  const flying = new Set(openPartNumbers(ticket, parts, states.find((entry) => entry.repositoryKey === repoKey)?.pulls ?? [], runningWorkers(env, mem).workers, stuck.branch))
   const total = answer.parts.length
   for (const [index, body] of answer.parts.entries()) {
-    const kept = parts.find((entry) => entry.number === index + 1 && partIsDone(ticket, entry, merged))
+    const kept = parts.find((entry) => entry.number === index + 1 && (partIsDone(ticket, entry, merged) || flying.has(entry.number)))
     await env.github.comment("tickets", ticket.number, kept === undefined ? body : withTotal(kept.comment.body.trim(), total))
   }
 }
@@ -1953,7 +1964,7 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
     if (launches.length >= MAX_ORDER_LAUNCHES) {
       if (launches.some(ranOpus)) {
         // The Opus launch ran too: the ladder ends. One re-plan run, or the park after the re-plans.
-        const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, part: order.part ?? null, branch: order.branch, running, launches })
+        const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, part: order.part ?? null, branch: order.branch, running, launches, pulls: states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? [] })
         if (end.type === "park") {
           await parkTicket(env, tickets, [], end)
           decisions.set(ticket.number, `parked: ${end.reason}`)

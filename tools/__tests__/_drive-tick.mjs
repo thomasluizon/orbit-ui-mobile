@@ -3110,11 +3110,11 @@ const replanCases = async () => {
   same("drive: an open pull request on the branch of a re-plan record closes with a replan comment and loses its branch, and nothing launches for it", [only(stranded.calls, "closePull").map((entry) => entry.slice(1)), only(stranded.calls, "deleteBranch").map((entry) => entry.slice(1)), commentsOf(stranded.calls, 30).map((text) => text.split("\n")[0]), stranded.launched.length], [[["ui", 30]], [["ui", branch]], [marked("replan", "").trim()], 0])
 
   // The answers.
-  const reaped = async ({ tickets = [ticket(7, { comments: ladder(branch) })], answer, stuck = { branch, pr: 30, partNumber: null }, partNumber = null, routes = [], headRef = branch }) => {
-    const pulls = { ui: [pull(30, { headRef, reviews: [finding] })], api: [], landing: [] }
+  const reaped = async ({ tickets = [ticket(7, { comments: ladder(branch) })], answer, stuck = { branch, pr: 30, partNumber: null }, partNumber = null, routes = [], headRef = branch, otherPulls = [] }) => {
+    const pulls = { ui: [pull(30, { headRef, reviews: [finding] }), ...otherPulls], api: [], landing: [] }
     const scene = scenario({ tickets, pulls, routes })
     keepWrites(scene, tickets)
-    scene.env.github.closePull = async (key, number) => { scene.calls.push(["closePull", key, number]); pulls.ui.splice(0, pulls.ui.length) }
+    scene.env.github.closePull = async (key, number) => { scene.calls.push(["closePull", key, number]); pulls.ui.splice(pulls.ui.findIndex((entry) => entry.number === number), 1) }
     leftBehind(scene, { kind: "replan", branch: "chore/ticket-7-replan", stuck, partNumber, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-replan" }, resultLine(answer), "chore-ticket-7-replan")
     await scene.run()
     return scene
@@ -3142,6 +3142,16 @@ const replanCases = async () => {
   same("drive: a split answer posts each part as a plain comment, keeps the merged part with its number and its text, and closes the pull request", [posted.length, posted[0], posted[1].split("\n")[0], posted[3].split("\n")[0], only(split.calls, "closePull").length, JSON.parse(recordsOn(split, "replan")[0]).plan], [4, "Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: second a", "## Part 4 of 4: second c", 1, "split"])
   const next = split.launched.find((entry) => entry.order.includes("## This order (build part)"))
   T("drive: after a split the merged part stays done and the next part builds on a new branch of the new set", split.launched.length === 1 && next !== undefined && next.order.includes("(Part 2 of 4)") && next.worktree.endsWith("chore-ticket-7-part-2-r2"), split.launched.map((entry) => entry.worktree).join(" "))
+  // A part whose pull request is open keeps its number in a split, as a merged part does: its pull request stands for that number.
+  const threeParts = () => ticket(7, { comments: [partComment(1, 3, "Paths: a/"), partComment(2, 3, "Paths: b/"), partComment(3, 3, "Paths: c/"), ...ladder(partBranch2, "fix", 2)] })
+  const openThree = () => pull(31, { headRef: "chore/ticket-7-part-3", checksComplete: false, reviews: [] })
+  const openSplit = await reaped({ tickets: [threeParts()], answer: "Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: two a\n## Part 3 of 4: two b\n## Part 4 of 4: three", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne], otherPulls: [openThree()] })
+  const openPosted = plainOn(openSplit)
+  same("drive: a split keeps the part whose pull request is open with its number and its text, and closes only the stuck pull request", [openPosted.length, openPosted[0], openPosted[1].split("\n")[0], openPosted[2], openPosted[3].split("\n")[0], only(openSplit.calls, "closePull").map((entry) => entry.slice(1))], [4, "Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: two a", "Part 3 of 4: part 3\nPaths: c/", "## Part 4 of 4: three", [["ui", 30]]])
+  const openScene = scenario({ tickets: [threeParts()], pulls: { ui: [pull(30, { headRef: partBranch2, reviews: [finding] }), openThree()] }, routes: [mergedOne] })
+  await openScene.run()
+  const openOrder = openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.order ?? ""
+  T("drive: the re-plan order names the part with an open pull request as a part to keep", openOrder.includes("Merged parts: 1.") && openOrder.includes("Open parts: 3."), openOrder.slice(0, 400))
   const refused = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 2: one\n## Part 2 of 2: two", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   same("drive: a split with the total in force is no usable part set, so it counts as fresh with a note that says why", [JSON.parse(recordsOn(refused, "replan")[0]).plan, plainOn(refused).length, recordsOn(refused, "replan-note")[0]?.includes("is not higher than the total 2")], ["fresh", 0, true])
   const olderLarger = [...[1, 2, 3, 4].map((number) => comment(null, `Part ${number} of 4: old ${number}`, -(9000 - number) * 1000)), ...[1, 2, 3].map((number) => comment(null, `Part ${number} of 3: new ${number}`, -(8000 - number) * 1000))]
