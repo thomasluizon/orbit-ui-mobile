@@ -51,8 +51,9 @@ const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = String.raw`(?:(?:\s+(?:horas?|hrs?|hs|h))?\s+(?:d[ae]|a)\s+(manha|tarde|noite|madrugada)\b)?`
-const EN_MERIDIEM = String.raw`(?:\s*(am|pm)|(?:\s+o['\u2019]?clock)?\s+(in the (?:morning|afternoon|evening)|at night))?`
+const PT_DAY_PART = String.raw`(?:(?:\s+(?:horas?|hrs?|hs|h))?\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const EN_DAY_PART = String.raw`(?:(?:\s+o['\u2019]?clock)?\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
+const EN_MERIDIEM = String.raw`(?:\s*(am|pm))?${EN_DAY_PART}`
 type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
 const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
@@ -176,7 +177,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     times: [
       new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}\b(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}\b(?![:\d]|[.,]\d)`, 'gu'),
-      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${EN_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
     ],
     noon: new RegExp(EN_NOON, 'gu'),
@@ -255,8 +256,7 @@ const HOUR_IN_PERIOD: Readonly<Record<DayPeriod, (hour: number) => number | null
 }
 
 function readPeriod(dayPart: string): DayPeriod | undefined {
-  if (dayPart === 'at night') return 'night'
-  return DAY_PERIODS[dayPart.replace(/^in the /u, '')]
+  return DAY_PERIODS[dayPart.replace(/^(?:in the|at|of the) /u, '')]
 }
 
 function readDayPartHour(hour: number, dayPart: string): number | null {
@@ -273,7 +273,7 @@ function parseTime(match: RegExpExecArray): string | null {
   const clockHour = Number.parseInt(match[1], 10)
   const suffixes = match.slice(2)
   const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
-  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at night)/u.test(value))
+  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at |of the )/u.test(value))
   const hour = dayPart ? readDayPartHour(clockHour, dayPart) : clockHour
   if (hour === null) return null
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
