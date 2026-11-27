@@ -334,6 +334,33 @@ describe('the guided goal edit flow on Android', () => {
     tree.unmount()
   })
 
+  it('shows the field message the server sends for a refused edit and sends no result', async () => {
+    await i18n.changeLanguage('en')
+    mocks.update.mockRejectedValue(createApiClientError(400, { errors: { Title: ['Server title failure'] } }, 'Fallback'))
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^How much/)
+    await type(tree, 'How much?', '120')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Save')
+    expect(texts(tree)).toContain('Server title failure')
+    expect(resultSentence(tree)).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('keeps a general failure out of the field messages and states it on the summary', async () => {
+    await i18n.changeLanguage('en')
+    mocks.update.mockRejectedValue(createApiClientError(500, { error: 'Unavailable' }, 'Fallback'))
+    const tree = renderNavigation(<EditGoalModal open onClose={vi.fn()} goal={goal} />)
+    await tap(tree, /^How much/)
+    await type(tree, 'How much?', '120')
+    await tap(tree, 'Continue')
+    await tap(tree, 'Save')
+    expect(texts(tree)).not.toContain('Server title failure')
+    expect(resultSentence(tree)).toBeUndefined()
+    expect(texts(tree).some((entry) => /try again|could not/i.test(entry))).toBe(true)
+    tree.unmount()
+  })
+
   it('closes an unchanged edit with no discard prompt and asks before it drops a change', async () => {
     const onClose = vi.fn()
     const tree = renderNavigation(<EditGoalModal open onClose={onClose} goal={goal} />)

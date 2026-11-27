@@ -2251,4 +2251,120 @@ describe('HabitDetailScreen', () => {
     expect(findPillButton(tree!.root, 'habits.detail.rescheduleAccept')).toBeDefined()
   })
 
+
+  it('offers Pro and Not now on the free rescue card without asking Orbit', () => {
+    openRescueGate()
+    mocks.hasProAccess = false
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const card = tree.root.findByProps({ testID: 'rescue-free-card' })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
+    expect(card.findAllByType('OrbitMascot')).toHaveLength(0)
+    expect(textsOf(card)).toEqual(['habits.detail.proGate', 'habits.reschedule.freePrompt', 'habits.reschedule.dismiss', 'habits.reschedule.upgrade'])
+    expect(card.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
+    expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+
+    expect(findPillButton(tree.root, 'habits.reschedule.upgrade')!.props.accessibilityRole).toBe('link')
+    TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.upgrade') })
+    expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
+
+    TestRenderer.act(() => { pressPillButton(card, 'habits.reschedule.dismiss') })
+    expect(tree.root.findAllByProps({ testID: 'rescue-free-card' })).toHaveLength(0)
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+  })
+
+  it('shows a rescue only for an older overdue habit and handles request states', () => {
+    openRescueGate()
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const wait = tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }).findAll((node: TestNode) => typeof node.type === 'string' && node.props.testID === 'rescue-loading-skeleton')[0]!
+    expect(wait.findAllByType('Skeleton').map((block: TestNode) => [block.props.variant, block.props.label])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', undefined]])
+    expect(textsOf(tree.root)).not.toContain('habits.detail.rescheduleLoading')
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+    expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
+
+    mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
+    expect(textsOf(tree.root)).not.toContain('habits.detail.orbit.slippingLine')
+
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(textsOf(tree.root.findAllByType('Proposed').find(isRescueProposal)!.findByProps({ accessibilityLiveRegion: 'polite' }))).toContain('habits.detail.rescheduleError')
+    expect(findPillButton(tree.root, 'habits.detail.rescheduleAccept')).toBeUndefined()
+    expect(textsOf(findPillButton(tree.root, 'habits.reschedule.suggestDate')!)).toContain('habits.reschedule.suggestDate')
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.suggestDate') })
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+    TestRenderer.act(() => { pressPillButton(tree.root, 'habits.reschedule.dismiss') })
+    expect(tree.root.findAllByProps({ children: 'habits.detail.rescheduleError' })).toHaveLength(0)
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+  })
+
+  it('shows the drawn proposal and puts it away for this visit only', () => {
+    openRescueGate()
+    mocks.uses24HourClock = true
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-20', dueTime: '07:30:00', days: ['Tuesday', 'Thursday'], rationale: 'Walk before work.' }
+    let tree!: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" />) })
+    const proposal = tree.root.findAllByType('Proposed').find(isRescueProposal)!
+    expect(textsOf(proposal)).toEqual([
+      'Thu, Aug 20 · 07:30',
+      'dates.daysShort.tuesday, dates.daysShort.thursday',
+      'Walk before work.',
+      'habits.detail.rescheduleFinePrint',
+      'habits.reschedule.dismiss',
+      'habits.detail.rescheduleAccept',
+    ])
+    expect(proposal.findAllByType('PillButton').map((button: TestNode) => [button.props.variant, button.props.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
+    expect(textsOf(tree.root)).not.toContain('habits.detail.slipping')
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+
+    const focus = vi.spyOn(AccessibilityInfo, 'setAccessibilityFocus')
+    TestRenderer.act(() => { pressPillButton(proposal, 'habits.reschedule.dismiss') })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(0)
+    expect(textsOf(tree.root)).toContain('habits.detail.orbit.slippingLine')
+    expect(focus).toHaveBeenCalledOnce()
+    focus.mockRestore()
+
+    mocks.detail = { ...makeDetail(), id: 'habit-2' }
+    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-2" />) })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(1)
+
+    mocks.detail = makeDetail()
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    TestRenderer.act(() => { tree.update(<HabitDetailScreen habitId="habit-1" />) })
+    expect(tree.root.findAllByType('Proposed').filter(isRescueProposal)).toHaveLength(1)
+  })
+
+  it('asks before logging a date before the habit existed', async () => {
+    expect(en.habits.detail.logDateConfirmMessage).toBe('This logs {name} on {date}.')
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = []
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'header-log' }).props.onPress())
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateQuestion' }).props.confirmLabel).toBe('habits.detail.logDateConfirmLog')
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
+  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
+    const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    let tree: ReturnType<typeof TestRenderer.create>
+    TestRenderer.act(() => { tree = TestRenderer.create(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />) })
+    TestRenderer.act(() => tree!.root.findByProps({ testID: 'child-child-1' }).props.actions.onLog())
+    expect(mocks.log).not.toHaveBeenCalled()
+    await TestRenderer.act(async () => {
+      tree!.root.findByProps({ testID: 'confirm-habits.detail.logDateQuestion' }).props.onConfirm()
+      await Promise.resolve()
+    })
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+  })
 })
