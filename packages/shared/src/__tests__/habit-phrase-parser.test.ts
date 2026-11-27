@@ -1214,3 +1214,30 @@ describe('the dot and the feira word of a day name', () => {
     expect(readHabitPhrase(input, locale).days).toEqual(days)
   })
 })
+
+describe('the one-character ellipsis as an end mark', () => {
+  it.each([
+    ['Pagar todo dia 5…', 'pt-BR'],
+    ['Pay rent every 5th…', 'en'],
+  ] as const)('ends a list of month days: %s', (input, locale) => {
+    expect(readHabitPhrase(input, locale).monthDays).toEqual([5])
+  })
+
+  it.each([
+    ['every day except friday…', 'en'],
+    ['todo dia menos sexta …', 'pt-BR'],
+  ] as const)('ends a weekday exclusion: %s', (input, locale) => {
+    expect(readHabitPhrase(input, locale).days).toEqual(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Saturday', 'Sunday'])
+  })
+
+  it.each([
+    'Run next… friday',
+    'Run friday next…',
+  ])('keeps a weekday qualifier beside the mark: %s', (input) => {
+    expect(readHabitPhrase(input, 'en').cadence).toBeNull()
+  })
+
+  it.each(['weekly…', '…toda semana'])('reads a weekly phrase beside the mark: %s', (input) => {
+    expect(isWeeklyRecurrencePhrase(input)).toBe(true)
+  })
+})

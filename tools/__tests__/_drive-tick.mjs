@@ -88,6 +88,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
+      harnessReviewInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5", "harness-review"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       logContextTokens, sessionExists: (options) => (calls.push(["sessionExists", options]), sessions),
       processDirectories: () => (calls.push(["directories"]), directories),
@@ -909,6 +910,7 @@ const reviewCases = async () => {
   same("drive: a pull request with a fix launch gets the whole-diff request", await owed("fix", {}, true), [`${PLAIN} whole diff`])
   same("drive: a pull request with 31 changed files gets the whole-diff request", await owed("files", { changedFiles: 31 }), [`${PLAIN} whole diff`])
   same("drive: a pull request that changes package-lock.json gets the whole-diff request", await owed("lock", { files: ["package-lock.json"] }), [`${PLAIN} whole diff`])
+  same("drive: a pull request that changes Cargo.lock gets the whole-diff request", await owed("cargo", { files: ["apps/desktop/src-tauri/Cargo.lock"] }), [`${PLAIN} whole diff`])
   same("drive: a three-file pull request with no fix round gets no whole-diff request", await owed("plain", {}), [])
   const asked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -2 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE)] })] } })
   await asked.run()
@@ -1507,6 +1509,179 @@ const rateLimitBody = (core, graphql = { remaining: 4000, reset: RATE_LIMIT_RESE
 const failRepository = (scene, key, message = "gh api graphql failed: HTTP 504") => {
   const read = scene.env.github.readRepositoryState
   scene.env.github.readRepositoryState = async (name, options) => { if (name === key) throw new Error(message); return read(name, options) }
+}
+
+const healthOf = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "health.json"), "utf8"))
+const saveHealth = (scene, record) => writeFileSync(join(scene.env.stateDir, "health.json"), `${JSON.stringify(record)}\n`)
+const rateLimitReads = (scene) => only(scene.calls, "gh").filter((entry) => entry[1] === "api rate_limit").length
+const BAD_GATEWAY = "gh api graphql -f query=query { x } failed: gh: HTTP 502: Bad Gateway"
+const REFUSED_MERGE = "gh pr merge failed: a repository rule refuses the merge"
+/** A record of a good read two minutes ago, with one pull request at the bar and one blind part. */
+const LAST_HEALTH = { writtenAt: iso(-2 * MINUTE), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: null, rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "x" }, { key: "unmerged:ui#12", since: iso(-30 * MINUTE), detail: "approved, meets the bar, not merged" }] }
+/** The values of a record that only a good read changes, with the error and the problem keys of the last tick. */
+const keptHealth = (scene) => { const record = healthOf(scene); return [record.lastGoodTickAt, record.openPulls, record.oldestGreenApprovedAt, record.lastErrorClass, record.problems.map((problem) => problem.key)] }
+/** A pull request at the bar whose approval is `offset` old. */
+const approved = (number, offset, extra = {}) => pull(number, { reviews: [review("APPROVED", HEAD, offset)], ...extra })
+
+const healthReadCases = async () => {
+  const good = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })], api: [pull(40, { reviews: [] })] } })
+  await good.run()
+  same("drive: a good tick writes health.json with its read time, its pull request count and no problem", healthOf(good), { writtenAt: iso(0), lastGoodTickAt: iso(0), lastMergeAt: null, openPulls: 2, oldestGreenApprovedAt: null, lastErrorClass: null, rateLimitedUntil: null, problems: [] })
+
+  const failingApi = (message, { routes = [], sleeping = false, dryRun = false } = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], routes, sleeping, dryRun })
+    failRepository(scene, "api", message)
+    return scene
+  }
+  const first = failingApi(BAD_GATEWAY)
+  same("drive: a tick whose api read fails goes on with the other repositories", (await first.run()).retried, false)
+  same("drive: a tick that fails one read writes health.json with the error class and the blind part", healthOf(first), { writtenAt: iso(0), lastGoodTickAt: null, lastMergeAt: null, openPulls: null, oldestGreenApprovedAt: null, lastErrorClass: "server", rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(0), detail: "gh: HTTP 502: Bad Gateway" }] })
+
+  const noTickets = scenario({ tickets: [ticket(7)] })
+  noTickets.env.github.readTickets = async () => { throw new Error(BAD_GATEWAY) }
+  same("drive: a tick that fails its ticket read writes the error class and blind:tickets", [(await noTickets.run()).retried, ...keptHealth(noTickets)], [true, null, null, null, "server", ["blind:tickets"]])
+
+  // In an outage the repository reads fail at different times. A read that fails after the first one is a blind part of the same tick.
+  const outage = scenario({ tickets: [ticket(7)] })
+  const outageRead = outage.env.github.readRepositoryState
+  outage.env.github.readRepositoryState = async (key) => {
+    if (key === "ui") throw new Error(BAD_GATEWAY)
+    if (key === "api") { await new Promise((resolve) => setTimeout(resolve, 20)); throw new Error("gh api graphql failed: error connecting to api.github.com") }
+    return outageRead(key)
+  }
+  await outage.run()
+  same("drive: a tick whose repository reads fail at different times lists each failed read in health.json and takes the class of the first one", [healthOf(outage).lastErrorClass, healthOf(outage).problems.map((problem) => problem.key)], ["server", ["blind:ui", "blind:api"]])
+
+  // When every repository read fails, the class comes from the first gh error, not from the wrapped message that holds the query and its pull request numbers.
+  const allBlind = scenario({ tickets: [ticket(7)] })
+  allBlind.env.github.readRepositoryState = async () => { throw new Error("gh api graphql -f query=query { repository { pr401: pullRequest(number: 401) { id } } } failed: gh: HTTP 502: Bad Gateway") }
+  same("drive: a tick whose every repository read fails with HTTP 502 and pull request number 401 in its query has the class server", [(await allBlind.run()).retried, healthOf(allBlind).lastErrorClass, healthOf(allBlind).problems.map((problem) => [problem.key, problem.detail])], [true, "server", ["ui", "api", "landing"].map((key) => [`blind:${key}`, "gh: HTTP 502: Bad Gateway"])])
+
+  const limited = failingApi("gh api graphql failed: gh: API rate limit already exceeded for user ID 1. (HTTP 403)", { routes: [["api rate_limit", rateLimitBody({ remaining: 4000, reset: RATE_LIMIT_RESET - 60 }, { remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  saveHealth(limited, LAST_HEALTH)
+  await limited.run()
+  const limitedRecord = { writtenAt: iso(0), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: "rate-limit", rateLimitedUntil: new Date(RATE_LIMIT_RESET * 1000).toISOString(), problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "gh: API rate limit already exceeded for user ID 1. (HTTP 403)" }, LAST_HEALTH.problems[1]] }
+  same("drive: a rate limited read keeps the last good values, names the refill time and keeps the start of the blind part", healthOf(limited), limitedRecord)
+  same("drive: a rate limited tick reads gh api rate_limit once for its hold and for health.json", rateLimitReads(limited), 1)
+  limited.env.now = () => NOW + MINUTE
+  same("drive: a tick that a rate limit holds keeps the last health.json and moves only writtenAt", [(await limited.run()).held, healthOf(limited), rateLimitReads(limited)], [true, { ...limitedRecord, writtenAt: iso(MINUTE) }, 1])
+
+  const unreadLimit = failingApi("gh api graphql failed: gh: API rate limit exceeded (HTTP 403)")
+  await unreadLimit.run()
+  same("drive: a rate limit that the rate_limit read cannot name leaves rateLimitedUntil null", [healthOf(unreadLimit).lastErrorClass, healthOf(unreadLimit).rateLimitedUntil, rateLimitReads(unreadLimit)], ["rate-limit", null, 1])
+
+  const backoff = scenario({ tickets: [ticket(7)] })
+  backoff.env.github.readTickets = async () => { throw new Error(BAD_GATEWAY) }
+  for (let attempt = 0; attempt < 3; attempt += 1) await backoff.run()
+  const beforeHold = healthOf(backoff)
+  backoff.env.now = () => NOW + MINUTE
+  same("drive: a tick that the backoff holds keeps the last health.json and moves only writtenAt", [(await backoff.run()).held, healthOf(backoff)], [true, { ...beforeHold, writtenAt: iso(MINUTE) }])
+
+  // The reap reads the world too. Only the read of the tick, with each pull request checked against the bar, makes a good tick.
+  const reaping = (failsAt) => {
+    const scene = scenario({ tickets: [ticket(7)] })
+    keepWrites(scene, [ticket(7)])
+    leftBehind(scene)
+    scene.mem.account = ACCOUNT
+    saveHealth(scene, LAST_HEALTH)
+    const read = scene.env.github.readRepositoryState
+    scene.reads = 0
+    scene.env.github.readRepositoryState = async (key) => { if (failsAt(scene.reads++)) throw new Error(BAD_GATEWAY); return read(key) }
+    return scene
+  }
+  const tickBlind = reaping((index) => index >= 3)
+  same("drive: a tick whose reap read works and whose own read fails keeps the last good values of health.json", [(await tickBlind.run()).retried, tickBlind.reads, ...keptHealth(tickBlind)], [true, 6, iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["blind:ui", "blind:api", "blind:landing", "unmerged:ui#12"]])
+  const reapBlind = reaping((index) => index === 1)
+  same("drive: a tick whose reap read misses one repository is no good tick and lists the blind part", [(await reapBlind.run()).retried, reapBlind.reads, ...keptHealth(reapBlind)], [false, 6, iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["blind:api", "unmerged:ui#12"]])
+
+  const twiceBlind = reaping((index) => index === 1 || index === 4)
+  await twiceBlind.run()
+  same("drive: a part that the reap read and the tick read both miss is one blind part", healthOf(twiceBlind).problems.map((problem) => problem.key), ["blind:api", "unmerged:ui#12"])
+
+  // An error of the reap that is no read: the driver cannot end the group that a dead worker left.
+  const reapThrows = scenario({ tickets: [ticket(7)] })
+  leftBehind(reapThrows)
+  reapThrows.mem.account = ACCOUNT
+  writeFileSync(join(reapThrows.env.stateDir, "chore-ticket-7.pid"), JSON.stringify({ pid: 4242 }))
+  reapThrows.env.pidHeld = () => false
+  reapThrows.env.worker.killWorkerTree = () => { throw new Error("kill EPERM") }
+  same("drive: a tick whose reap throws with no failed read names the error as error:tick", [(await reapThrows.run()).retried, ...keptHealth(reapThrows)], [true, null, null, null, "other", ["error:tick"]])
+
+  const asleep = failingApi(BAD_GATEWAY, { sleeping: true })
+  await asleep.run()
+  same("drive: while sleep is on a failed read still writes health.json and sends no notification", [healthOf(asleep).lastErrorClass, only(asleep.calls, "notify").length], ["server", 0])
+  const dry = failingApi(BAD_GATEWAY, { dryRun: true })
+  await dry.run()
+  same("drive: a dry run writes no health.json", existsSync(join(dry.env.stateDir, "health.json")), false)
+  const unwritable = scenario({ tickets: [ticket(7)] })
+  mkdirSync(join(unwritable.env.stateDir, "health.json"))
+  same("drive: a health.json that cannot be written does not fail the tick and logs the error", [(await unwritable.run()).retried, unwritable.messages.filter((line) => / health error \(EISDIR/.test(line)).length], [false, 1])
+}
+
+const healthBarCases = async () => {
+  const refusing = (pulls, options = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], pulls: { ui: pulls }, ...options })
+    scene.env.github.merge = async () => { throw new Error(REFUSED_MERGE) }
+    return scene
+  }
+  const red = approved(32, -200 * MINUTE, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()] })
+  const unapproved = pull(33, { reviews: [] })
+  const waiting = refusing([approved(31, -40 * MINUTE), approved(30, -90 * MINUTE), red, unapproved])
+  await waiting.run()
+  same("drive: oldestGreenApprovedAt names the oldest approved pull request that meets the bar and is not merged", [healthOf(waiting).oldestGreenApprovedAt, healthOf(waiting).problems.map((problem) => [problem.key, problem.since])], [iso(-90 * MINUTE), [["unmerged:ui#30", iso(-90 * MINUTE)], ["unmerged:ui#31", iso(-40 * MINUTE)]]])
+  same("drive: a tick whose merge is refused is a good tick with no error class", keptHealth(waiting), [iso(0), 4, iso(-90 * MINUTE), null, ["unmerged:ui#30", "unmerged:ui#31"]])
+
+  const merging = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE)] } })
+  await merging.run()
+  same("drive: a merged pull request is no unmerged problem and sets lastMergeAt", [only(merging.calls, "merge").length, healthOf(merging).oldestGreenApprovedAt, healthOf(merging).problems, healthOf(merging).lastMergeAt], [1, null, [], iso(0)])
+
+  // Every ready pull request merges in one tick, so the record drops each merged one and keeps each refused one.
+  const mixed = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE), approved(31, -40 * MINUTE), approved(32, -20 * MINUTE)] } })
+  const merge = mixed.env.github.merge
+  mixed.env.github.merge = async (key, number, sha) => { if (number === 31) throw new Error(REFUSED_MERGE); return merge(key, number, sha) }
+  await mixed.run()
+  same("drive: a tick with two merges and one refused merge lists only the refused pull request as unmerged", [only(mixed.calls, "merge").map((entry) => entry[2]), healthOf(mixed).oldestGreenApprovedAt, healthOf(mixed).problems.map((problem) => problem.key), healthOf(mixed).lastMergeAt], [[30, 32], iso(-40 * MINUTE), ["unmerged:ui#31"], iso(0)])
+
+  const planThrows = refusing([approved(30, -90 * MINUTE)], { routes: [["api rate_limit", rateLimitBody({ remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  await planThrows.run()
+  planThrows.env.now = () => NOW + 2 * MINUTE
+  planThrows.env.github.pullfrogRuns = async () => { throw new Error("gh run list --repo thomasluizon/orbit-ui-mobile failed: gh: API rate limit exceeded for user ID 1. (HTTP 403)") }
+  await planThrows.run()
+  same("drive: a tick whose pull request plan throws is no good tick, names the error and keeps the last good values", [...keptHealth(planThrows), healthOf(planThrows).rateLimitedUntil], [iso(0), 1, iso(-90 * MINUTE), "rate-limit", ["unmerged:ui#30", "error:tick"], new Date(RATE_LIMIT_RESET * 1000).toISOString()])
+
+  const missedTwice = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
+  const againThrows = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwice }), pull(31)] } })
+  const againRead = againThrows.env.github.readRepositoryState
+  // The second pull request plans again after the first one labels the ticket. Only that second plan fails.
+  againThrows.env.github.readRepositoryState = async (...args) => {
+    const state = await againRead(...args)
+    const later = state.pulls.find((entry) => entry.number === 31)
+    if (later) {
+      const comments = later.comments
+      Object.defineProperty(later, "comments", { get: () => { if (only(againThrows.calls, "editLabels").length > 0) throw new Error(BAD_GATEWAY); return comments } })
+    }
+    return state
+  }
+  await againThrows.run()
+  same("drive: a pull request whose second plan throws is no good tick and names the error class", keptHealth(againThrows), [null, null, null, "server", ["error:tick"]])
+
+  // A Pullfrog limit pauses the driver before the act step reaches the bar. A failed pause leaves the pull request unchecked.
+  const unchecked = scenario({ tickets: [ticket(7)], runs: [failedRun(61, 30)], routes: [["--log-failed", LIMIT_LOG]], pulls: { ui: [approved(30, -90 * MINUTE)] } })
+  unchecked.env.github.createTicket = async () => { throw new Error("gh issue create failed: gh: HTTP 502: Bad Gateway") }
+  saveHealth(unchecked, LAST_HEALTH)
+  await unchecked.run()
+  same("drive: a pull request that an error stops before the bar check is no good tick and keeps the last good values", keptHealth(unchecked), [iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["unmerged:ui#12", "error:tick"]])
+
+  const early = scenario({ tickets: [ticket(7)], pulls: { ui: [approved(30, -90 * MINUTE)] }, auth: { ...AUTH, loggedIn: false } })
+  early.env.github.createTicket = async () => { throw new Error("gh issue create failed: gh: HTTP 502: Bad Gateway") }
+  saveHealth(early, LAST_HEALTH)
+  const earlyError = await early.run().then(() => null, (error) => error.message)
+  same("drive: a tick that throws between its read and the bar throws and keeps the last good values of health.json", [earlyError, ...keptHealth(early)], ["gh issue create failed: gh: HTTP 502: Bad Gateway", iso(-2 * MINUTE), 3, iso(-30 * MINUTE), "server", ["unmerged:ui#12", "error:tick"]])
+
+  const late = scenario({ tickets: [ticket(8, { labels: ["repo:ui", "owner-work"] })] })
+  late.env.github.comment = async () => { throw new Error("gh issue comment failed: gh: HTTP 502: Bad Gateway") }
+  const lateError = await late.run().then(() => null, (error) => error.message)
+  same("drive: a tick that throws after the bar keeps its good read and names the error", [lateError, ...keptHealth(late)], ["gh issue comment failed: gh: HTTP 502: Bad Gateway", iso(0), 0, null, "server", ["error:tick"]])
 }
 
 const readFailureCases = async () => {
@@ -2878,6 +3053,107 @@ const questionsCases = async () => {
   same("drive: questions: an adopted run inside its ceiling is left alone", only(young.calls, "kill"), [])
 }
 
+const REVIEW_ORDER = "/ticket --auto --parked"
+const REVIEW_WORKTREE = "/r/orbit-worktrees/ui/harness-review"
+const HOUR = 60 * MINUTE
+const reviewRuns = (scene) => scene.launched.filter((entry) => entry.order === REVIEW_ORDER)
+const reviewLines = (scene) => scene.messages.filter((line) => / harness-review (launch|exit|wait|refused|kill)/.test(line)).map((line) => line.slice(line.indexOf(" harness-review ") + 1))
+const reviewStart = (scene) => { try { return JSON.parse(readFileSync(join(scene.env.stateDir, "harness-review.json"), "utf8")).startedAt } catch { return null } }
+const startedReviewAt = (scene, offset) => writeFileSync(join(scene.env.stateDir, "harness-review.json"), `${JSON.stringify({ startedAt: iso(offset) })}\n`)
+const reviewPidFile = (scene, offset = -MINUTE) => writeFileSync(join(scene.env.stateDir, "harness-review.pid"), `${JSON.stringify({ pid: process.pid, worktree: REVIEW_WORKTREE, startedAt: iso(offset) })}\n`)
+const parkedTicket = (number = 8, extra = {}) => ticket(number, { labels: ["repo:ui", "Improvement", "parked"], ...extra })
+
+/** The daily harness review of parked items: when it starts, how it runs, and the new branch of an item that it takes back. */
+const harnessReviewCases = async () => {
+  const reviewed = async (label, expected, options, before = () => {}) => {
+    const scene = scenario({ driver: {}, ...options })
+    before(scene)
+    await scene.run()
+    await scene.mem.harnessReview
+    same(`drive: harness review: ${label}`, reviewRuns(scene).length, expected)
+    return scene
+  }
+
+  const first = scenario({ driver: {}, tickets: [parkedTicket()], sleeping: true })
+  let finish
+  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => resolve({ exitCode: 0 }) }) }
+  await first.run()
+  const [run] = reviewRuns(first)
+  same("drive: harness review: a parked item and no review in 24 hours start exactly one run", first.launched.length, 1)
+  same("drive: harness review: the run is headless in its own worktree, with its order, pid file and log", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "harness-review-"))], [REVIEW_WORKTREE, REVIEW_ORDER, join(first.env.stateDir, "harness-review.pid"), true])
+  same("drive: harness review: the run uses its own invocation on the coordinator model and the owner login", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5", "harness-review"], "owner-token"])
+  same("drive: harness review: the start is kept in harness-review.json and the launch is logged", [reviewStart(first), reviewLines(first)], [iso(0), ["harness-review launch"]])
+  await first.run()
+  same("drive: harness review: the next tick starts none while the run is live", reviewRuns(first).length, 1)
+  finish()
+  await first.mem.harnessReview
+  await first.run()
+  same("drive: harness review: a second tick inside 24 hours starts none after the exit, and the exit is logged", [reviewRuns(first).length, reviewLines(first)], [1, ["harness-review launch", "harness-review exit (0)"]])
+  const sleepFile = join(first.env.stateDir, "sleep-items.json")
+  same("drive: harness review: the driver sends no notice, writes no sleep item and writes nothing to GitHub for the run", [only(first.calls, "notify").length, existsSync(sleepFile), first.messages.filter((line) => line.includes("sleep held")).length, only(first.calls, "comment").length, only(first.calls, "editLabels").length], [0, false, 0, 0, 0])
+
+  await reviewed("no parked item means no run", 0, { tickets: [ticket(8)] })
+  await reviewed("a needs:owner item alone means no run", 0, { tickets: [heldTicket(8)] })
+  await reviewed("a parked pull request alone starts one run", 1, { tickets: [ticket(7)], pulls: { ui: [pull(30, { labels: ["parked"] })] } })
+  await reviewed("a start 23 hours old starts none, as after a restart", 0, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -23 * HOUR))
+  await reviewed("a start exactly 24 hours old starts none", 0, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -24 * HOUR))
+  const daily = await reviewed("a start more than 24 hours old starts one", 1, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -24 * HOUR - MINUTE))
+  same("drive: harness review: the new start replaces the old one", reviewStart(daily), iso(0))
+  await reviewed("the dry run starts none", 0, { tickets: [parkedTicket()], dryRun: true })
+  const plain = scenario({ tickets: [parkedTicket()] })
+  await plain.run()
+  same("drive: harness review: a tick with no driver worktree starts none", reviewRuns(plain).length, 0)
+
+  const both = scenario({ driver: {}, tickets: [ticket(7), parkedTicket()], token: "worker-token" })
+  await both.run()
+  await both.mem.harnessReview
+  same("drive: harness review: the run takes no worker slot, so the admissible ticket starts on the worker token", both.launched.map((entry) => [entry.order === REVIEW_ORDER ? "review" : entry.worktree.split("/").at(-1), entry.invocation.environment.GH_TOKEN]).sort(), [["chore-ticket-7", "worker-token"], ["review", "owner-token"]])
+
+  const stopped = await reviewed("the main account at 90% with no allowance starts none", 0, { tickets: [parkedTicket()], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await stopped.run()
+  same("drive: harness review: the stop is logged once with the parked item and the start stays unwritten", [reviewLines(stopped), reviewStart(stopped)], [["harness-review wait (the main account is stopped: ticket#8)"], null])
+  await reviewed("the main account at 90% with the allowance starts one", 1, { tickets: [parkedTicket()], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: { resetsAt: RESETS_AT } })
+  await reviewed("a signed-out login starts none", 0, { tickets: [parkedTicket()], auth: { ...AUTH, loggedIn: false } })
+  const noLogin = await reviewed("a missing owner login starts none, also with a worker token", 0, { tickets: [parkedTicket()], ownerToken: null, token: "worker-token" })
+  same("drive: harness review: a missing owner login is logged and the start stays unwritten", [reviewLines(noLogin), reviewStart(noLogin)], [["harness-review refused (no owner gh login: run gh auth login)"], null])
+  await reviewed("a live run of an earlier driver process holds the next one back", 0, { tickets: [parkedTicket()] }, (scene) => reviewPidFile(scene))
+
+  const switching = driverScene({ tickets: [parkedTicket()] })
+  let leave = () => {}
+  switching.env.worker.launch = (options) => { switching.launched.push(options); reviewPidFile(switching); return new Promise((resolve) => { leave = () => resolve({ exitCode: 0 }) }) }
+  const switchTick = await switching.run()
+  same("drive: harness review: a live run with its pid file does not hold the driver switch", [switchTick.switched, reviewRuns(switching).length], [true, 1])
+  leave()
+  await switching.mem.harnessReview
+  const unadopted = driverScene({ tickets: [parkedTicket()] })
+  unadopted.env.worker.launch = (options) => { unadopted.launched.push(options); return new Promise(() => {}) }
+  const unadoptedResult = await unadopted.run()
+  same("drive: harness review: a launch with no live pid file holds the switch, as a worker does", [unadoptedResult.switched, unadopted.checkouts()], [false, []])
+
+  const overdue = driverScene({ driver: {}, tickets: [] })
+  reviewPidFile(overdue, -WORKER_LIMITS.hardCeilingMs - MINUTE)
+  await overdue.run()
+  await overdue.run()
+  same("drive: harness review: an adopted run past its hard ceiling gets SIGTERM, then SIGKILL on the next tick", [only(overdue.calls, "kill"), reviewLines(overdue).length], [[["kill", process.pid, "SIGTERM"], ["kill", process.pid, "SIGKILL"]], 1])
+
+  // The review removes `parked`. Each branch that launched before the park counts as used, so the new plan has its own launches.
+  const OPUS = "claude-opus-5-5"
+  const ladder = (branch, kind = "build", part = null) => [launchComment(kind, branch, -50 * HOUR, part), launchComment(kind, branch, -49 * HOUR, part), launchComment(kind, branch, -48 * HOUR, part, { model: OPUS })]
+  const park = comment("parked", "Parked by the driver.", -40 * HOUR)
+  const replanned = (branch, offset) => [comment("replan", JSON.stringify({ plan: "fresh", branch, pr: null, part: null, count: 1, at: iso(offset) }), offset), launchComment("replan", "chore/ticket-7-replan", offset - MINUTE, null, { model: OPUS })]
+  const takenBack = async (label, comments, expected, extra = {}) => {
+    const scene = scenario({ tickets: [ticket(7, { comments })], ...extra })
+    await scene.run()
+    const record = commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("launch", ""))).map((text) => JSON.parse(text.split("\n").slice(1).join("\n")))[0]
+    same(`drive: harness review: ${label}`, [record?.kind, record?.branch, record?.model, commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("parked", ""))).length], [...expected, 0])
+  }
+  await takenBack("a ticket that the review took back builds on a new branch on the worker model", [...ladder("chore/ticket-7"), park], ["build", "chore/ticket-7-r2", "claude-sonnet-5-5"])
+  await takenBack("a ticket that parked after its re-plans skips every left branch", [...ladder("chore/ticket-7"), ...replanned("chore/ticket-7", -47 * HOUR), ...ladder("chore/ticket-7-r2"), park], ["build", "chore/ticket-7-r3", "claude-sonnet-5-5"])
+  const newSet = [1, 2].map((number) => comment(null, `## Part ${number} of 3: new ${number}`, -(39 * HOUR) + number))
+  await takenBack("a new part set of the review builds its open part on a new branch and keeps the merged part", [...ladder("chore/ticket-7-part-2", "build part", 2), park, ...newSet, comment(null, "## Part 3 of 3: new 3", -39 * HOUR + 3)], ["build part", "chore/ticket-7-part-2-r2", "claude-sonnet-5-5"], { routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])] })
+  await takenBack("a branch with a launch only after the park keeps its name and its count", [...ladder("chore/ticket-7"), park, launchComment("build", "chore/ticket-7-r2", -30 * HOUR), launchComment("build", "chore/ticket-7-r2", -29 * HOUR)], ["build", "chore/ticket-7-r2", OPUS])
+}
+
 const OLD_PIN = "1".repeat(40)
 const NEW_PIN = "2".repeat(40)
 const LATER_PIN = "3".repeat(40)
@@ -3870,6 +4146,7 @@ export const driverUnit = async () => {
   await paceCases()
   await sleepCases()
   await questionsCases()
+  await harnessReviewCases()
   await usageLimitCases()
   await workerCases()
   await resumeCases()
@@ -3895,6 +4172,8 @@ export const driverUnit = async () => {
   await robustnessCases()
   await readFailureCases()
   await holdCases()
+  await healthReadCases()
+  await healthBarCases()
   await cliCases()
   await blockingClassCases()
   await reportHoldCases()

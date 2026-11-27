@@ -15,13 +15,21 @@ const androidFixture = JSON.parse(readFileSync(toolPath("__tests__/android-deplo
 const renderFixture = JSON.parse(readFileSync(toolPath("__tests__/render-release-fixture.json"), "utf8"))
 const FIRST = "a".repeat(40)
 const SECOND = "b".repeat(40)
+const THIRD = "c".repeat(40)
+const NO_GREEN = "no main commit with green test.yml and guards.yml push runs"
+const PASSED = { status: "completed", conclusion: "success" }
+const FAILED = { status: "completed", conclusion: "failure" }
+const QUEUED = { status: "queued", conclusion: null }
 const IDS = { api: "srv-aaaaaaaaaaaaaaaaaaaa", web: "srv-bbbbbbbbbbbbbbbbbbbb" }
 const LANDING = "srv-ffffffffffffffffffff"
 const STAGING_LANDING = "srv-dddddddddddddddddddd"
 const clone = (value) => structuredClone(value)
 
-function clientFor({ ahead = [], diverged = [], imageApi = false, androidUploads = null } = {}) {
+/** `mainCommits` lists the UI `main` newest first. `pushRuns` gives the push runs of one workflow, newest first; by default each commit passed. */
+function clientFor({ ahead = [], diverged = [], imageApi = false, androidUploads = null, mainCommits = null, pushRuns = null } = {}) {
   const calls = []
+  const uiHead = mainCommits?.[0] ?? (ahead.includes("web") || ahead.includes("android") ? SECOND : FIRST)
+  const commitOf = (sha) => ({ ...clone(fixture.commit), sha, commit: { ...clone(fixture.commit.commit), message: "Latest change\nBody" } })
   const read = (path) => {
     calls.push(path)
     const repository = path.match(/^repos\/[^/]+\/([^/]+)\//)?.[1]
@@ -35,10 +43,13 @@ function clientFor({ ahead = [], diverged = [], imageApi = false, androidUploads
       ] }
     }
     if (path.includes("/commits/")) {
-      const commit = clone(fixture.commit)
-      commit.sha = ahead.includes(service) || repository === "orbit-ui-mobile" && ahead.includes("android") ? SECOND : FIRST
-      commit.commit.message = "Latest change\nBody"
-      return commit
+      return commitOf(repository === "orbit-ui-mobile" ? uiHead : ahead.includes(service) ? SECOND : FIRST)
+    }
+    if (path.includes("/commits?")) return (mainCommits ?? [uiHead]).map(commitOf)
+    const workflow = path.match(/\/actions\/workflows\/([a-z]+\.yml)\/runs\?/)?.[1]
+    if (workflow) {
+      const runs = pushRuns?.(workflow) ?? (mainCommits ?? [uiHead]).map((sha) => ({ head_sha: sha, ...PASSED }))
+      return { workflow_runs: clone(runs) }
     }
     if (path.includes("/deployments?")) {
       if (path.includes("task=android-release")) {
@@ -53,7 +64,7 @@ function clientFor({ ahead = [], diverged = [], imageApi = false, androidUploads
       comparison.ahead_by = 1
       comparison.behind_by = diverged.includes(service) ? 1 : 0
       comparison.total_commits = 1
-      comparison.commits[0].sha = ahead.includes(service) || repository === "orbit-ui-mobile" && ahead.includes("android") ? SECOND : FIRST
+      comparison.commits[0].sha = path.split("...")[1]
       comparison.commits[0].commit.message = "Undeployed change\nBody"
       return comparison
     }
@@ -87,6 +98,7 @@ export async function cases() {
   await apiHealthCases()
   await customDomainCases()
   await androidBaselineCases()
+  await greenCommitCases()
   let missingBranch = ""
   try { await planRelease(clientFor(), "staging", IDS) } catch (error) { missingBranch = error.message }
   T("staging requires a selected branch", missingBranch === "invalid branch for environment")
@@ -376,6 +388,60 @@ async function androidBaselineCases() {
     paginatedAndroid.calls.some((path) => path.includes("task=android-release") && path.endsWith("page=2")))
   T("Android baseline selects the deployment environment", paginatedAndroid.calls.some((path) =>
     path.includes("task=android-release&environment=production")))
+}
+
+async function greenCommitCases() {
+  const mainCommits = [THIRD, SECOND, FIRST]
+  const runsOf = (byWorkflow) => (workflow) => byWorkflow[workflow].map(([head_sha, result]) => ({ head_sha, ...result }))
+  const planWith = async (byWorkflow, options = {}) => {
+    const client = clientFor({ ahead: ["api", "landing"], mainCommits, pushRuns: runsOf(byWorkflow), ...options })
+    const plan = await planRelease(client, "production", IDS)
+    return { client, api: plan.services[0], web: plan.services[1], landing: plan.services[2], android: plan.services[3] }
+  }
+  const older = [[SECOND, PASSED], [FIRST, PASSED]]
+
+  const behindHead = await planWith({ "test.yml": older, "guards.yml": older })
+  for (const service of [behindHead.web, behindHead.android]) {
+    T(`${service.name} plans the second newest commit when the head has no runs`, service.needsRelease && service.headSha === THIRD &&
+      service.plannedSha === SECOND && service.commits[0].sha === SECOND, JSON.stringify(service))
+  }
+  T("web dispatch and compare use the green commit", behindHead.web.dispatchCommand.endsWith(`-f sha=${SECOND}`) &&
+    behindHead.client.calls.includes(`repos/thomasluizon/orbit-ui-mobile/compare/${FIRST}...${SECOND}`) &&
+    !behindHead.client.calls.some((call) => call.includes("orbit-ui-mobile/compare/") && call.endsWith(THIRD)))
+  T("the plan reads the push runs of main once for each workflow", ["test.yml", "guards.yml"].every((workflow) =>
+    behindHead.client.calls.filter((call) => call === `repos/thomasluizon/orbit-ui-mobile/actions/workflows/${workflow}/runs?branch=main&event=push&per_page=100`).length === 1) &&
+    behindHead.client.calls.filter((call) => call === "repos/thomasluizon/orbit-ui-mobile/commits?sha=main&per_page=100").length === 1)
+  T("api and landing keep the head of main", [behindHead.api, behindHead.landing].every((service) => service.plannedSha === SECOND && service.headSha === SECOND) &&
+    !behindHead.client.calls.some((call) => /orbit-(api|landing-page)\/(actions\/workflows|commits\?)/.test(call)))
+
+  for (const [label, headRuns] of [["a failed", [[THIRD, FAILED]]], ["a queued", [[THIRD, QUEUED]]], ["a newer failed run before a passed", [[THIRD, FAILED], [THIRD, PASSED]]]]) {
+    const plan = await planWith({ "test.yml": [[THIRD, PASSED], ...older], "guards.yml": [...headRuns, ...older] })
+    T(`a commit with green test.yml and ${label} guards.yml run is not chosen`, plan.web.plannedSha === SECOND && plan.android.plannedSha === SECOND)
+  }
+
+  const none = await planWith({ "test.yml": [[THIRD, PASSED]], "guards.yml": [[SECOND, PASSED]] })
+  for (const service of [none.web, none.android]) {
+    T(`${service.name} with no green pair carries the baseline error`, service.baselineError === NO_GREEN && !service.plannedSha &&
+      !service.dispatchCommand && !service.needsRelease && !service.noBaseline, JSON.stringify(service))
+  }
+  T("a missing green commit preserves the other service plans", none.api.needsRelease && none.landing.needsRelease)
+
+  const ahead = await planWith({ "test.yml": [[FIRST, PASSED]], "guards.yml": [[FIRST, PASSED]] },
+    { androidUploads: [{ track: "open", sha: SECOND }] })
+  T("a deployed commit after the newest green one is not stepped back", !ahead.android.needsRelease && ahead.android.plannedSha === FIRST &&
+    ahead.android.deployedSha === SECOND && ahead.android.commits.length === 0)
+
+  const branch = clientFor({ ahead: ["web", "android"] })
+  const branchPlan = await planRelease(branch, "staging", IDS, "internal", "feature/release")
+  T("a staging branch plan keeps the head of the branch", branchPlan.services[1].plannedSha === SECOND &&
+    branchPlan.services[3].plannedSha === SECOND && !branch.calls.some((call) => call.includes("/actions/workflows/")))
+
+  let shape = ""
+  const malformed = clientFor()
+  const read = malformed.read
+  malformed.read = (path) => path.includes("/actions/workflows/") ? { workflow_runs: [{ head_sha: "short", status: "completed" }] } : read(path)
+  try { await planRelease(malformed, "production", IDS) } catch (error) { shape = error.message }
+  T("a malformed workflow run list is an error", shape.includes("unexpected shape"), shape)
 }
 
 if (isDirect) {

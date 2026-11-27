@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readHabitPhrase } from '../utils/habit-phrase-parser'
-import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, resolveEditDetails, summaryValueStep } from '../utils/habit-flow-details'
+import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, isShortWeekdayWord, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, resolveEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -138,7 +138,7 @@ describe('readHabitWhenWords: a bare weekday', () => {
   const wednesday = { ...context, referenceDate: '2026-11-25' }
   const english = { ...wednesday, locale: 'en', language: 'en' as const }
 
-  it.each(['sexta', 'próxima sexta', 'sexta-feira'])('reads "%s" as the next Friday for a task', (words) => {
+  it.each(['sexta', 'próxima sexta', 'sexta-feira', 'sexta…', 'próxima sexta …'])('reads "%s" as the next Friday for a task', (words) => {
     expect(readHabitWhenWords(words, { ...wednesday, itemType: 'task' })).toEqual({ kind: 'date', date: '2026-11-27' })
   })
 
@@ -313,6 +313,12 @@ describe('readHabitWhenWords: a weekday with a time or a part of the day', () =>
   })
 })
 
+describe('isShortWeekdayWord', () => {
+  it('reads a short weekday name before the one-character ellipsis', () => {
+    expect(isShortWeekdayWord('qua…')).toBe(true)
+  })
+})
+
 describe('habitFlowFieldStep', () => {
   it('opens the step that owns a server field error', () => {
     expect(habitFlowFieldStep('title')).toBe('what')
@@ -416,6 +422,7 @@ describe('readHabitPhraseDate', () => {
     ['pay the bill on the 20th', 'en', '2026-11-20', 'on the 20th'],
     ['renew the passport 12/05/2027', 'pt-BR', '2027-05-12', '12/05/2027'],
     ['call mom tomorrow at 9am', 'en', '2026-11-14', 'tomorrow'],
+    ['call mom tomorrow…', 'en', '2026-11-14', 'tomorrow'],
   ] as const)('reads the date in %s', (phrase, locale, date, words) => {
     expect(dateOf(phrase, locale)).toEqual({ date, words })
   })

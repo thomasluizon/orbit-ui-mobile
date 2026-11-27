@@ -69,6 +69,7 @@ import {
   workerConfigDirectory,
   workerEnvironmentFor,
   questionsInvocation,
+  harnessReviewInvocation,
   workerInvocation,
   workerSettings,
   worktreeOccupants,
@@ -855,6 +856,17 @@ const skillAndEnvironmentCases = async () => {
   same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "questions").map((name) => [name, "off"])) })
   same("lib/worker.mjs: the questions run keeps the shared deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
   T("lib/worker.mjs: the questions run writes ticket bodies, so it gets no GitHub hook and no code worker rule", !("hooks" in questionsSettings) && !questionsSettings.permissions.deny.includes("Bash(gh issue edit*)"))
+  const reviewHome = join(root, "drive-worker", "review-home")
+  for (const name of ["pdf", "humanizer", "ticket"]) {
+    mkdirSync(join(reviewHome, ".claude", "skills", name), { recursive: true })
+    writeFileSync(join(reviewHome, ".claude", "skills", name, "SKILL.md"), "x")
+  }
+  const review = harnessReviewInvocation({ home: reviewHome, parentEnvironment: parent, token: "owner-login-token" })
+  const reviewSettings = JSON.parse(review.command.args.at(-1))
+  same("lib/worker.mjs: the harness review uses claude-opus-5-5 at effort high and no other argument changes", [review.command.args.slice(0, 5), review.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
+  same("lib/worker.mjs: the harness review keeps the ticket skill and the humanizer skill on and turns off the rest", reviewSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "ticket").map((name) => [name, "off"])) })
+  same("lib/worker.mjs: the harness review keeps the shared deny list and environment, with the owner token", [reviewSettings.permissions.deny, review.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  T("lib/worker.mjs: the harness review writes tickets and labels, so it gets no GitHub hook", !("hooks" in reviewSettings))
   const ownSettings = JSON.parse(workerInvocation({ home, parentEnvironment: parent, token: TOKEN, own: { worktree: "/work/tree", branch: "chore/ticket-9" } }).command.args.at(-1))
   T("lib/worker.mjs: the invocation of a launch names its working tree and branch to the hook", ownSettings.hooks.PreToolUse[0].hooks[0].command.endsWith("--worktree '/work/tree' --branch 'chore/ticket-9' || exit 2"), ownSettings.hooks.PreToolUse[0].hooks[0].command)
   same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
@@ -1220,7 +1232,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/driver-health.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1238,6 +1250,10 @@ const skillMarkerCases = () => {
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
   // An order carries the ticket body, the part comments and the findings. A plain answer comment reaches no worker, so the body holds every answer.
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  T("skills/questions: section 4 also records each answer with update-ticket.mjs note --decision", questions.includes("node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>"), "section 4 has no note call")
+  // A sleep decision is an answer too, so the sleep skill writes the body and the note, as section 4 says.
+  const sleep = skillText("sleep")
+  T("skills/sleep: each sleep decision goes into the ticket body and into a note --decision comment", sleep.includes("ticket body") && sleep.includes("node tools/update-ticket.mjs note --decision"), "the sleep skill misses the body write or the note call")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
@@ -1252,6 +1268,9 @@ const skillMarkerCases = () => {
   const skillNames = readdirSync(join(REPO_ROOT, ".claude", "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
   const issueCommands = skillNames.flatMap((name) => [...skillText(name).matchAll(/`(gh issue [^`]*)`/g)].map((match) => [name, match[1]]))
   same("skills: every gh issue command names the ticket repository", issueCommands.filter(([, command]) => !command.includes(`--repo ${TICKET_REPOSITORY}`)), [])
+  const parkedRun = skillText("ticket").split("\n## --auto --parked\n")[1] ?? ""
+  T("skills/ticket: the --auto --parked section writes an owner step with the needs-owner marker that the driver reads, and names the owner list of /questions", parkedRun.includes("<!-- orbit-drive:needs-owner -->") && parkedRun.includes(".claude/skills/questions/SKILL.md"), "the section is missing or incomplete")
+  T("skills/ticket: the --auto --parked section removes parked from pull requests and tickets as its last step", /8\. Remove `parked` last.*gh pr edit .*--remove-label parked.*gh issue edit .*--remove-label parked/.test(parkedRun), parkedRun)
   const progress = skillText("progress")
   // A part is a comment of its ticket, and `partNumber` is the number in its first line, never an issue number.
   T("skills/progress: the part title comes from the part comment of the ticket", progress.includes(`gh issue view <ticketNumber> --repo ${TICKET_REPOSITORY} --json title,comments`) && progress.includes("Part <partNumber> of <m>") && !/for the part\b/.test(progress), "the skill reads the part as an issue")

@@ -15,13 +15,13 @@ export const APPROVAL_CHECK_MISSING = `required-check-missing:${PULLFROG_APPROVA
 const PULLS_PER_STATE_QUERY = 8
 const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
-const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
+const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Cargo\.toml|Cargo\.lock|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
 const MARKER = /^<!-- orbit-drive:([a-z-]+) -->/
 const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
-/** The checks that read only the pull request, so a rerun at the same head gives the same result. */
+/** The checks that read only the pull request, so a rerun at the same head, text and labels gives the same result. */
 const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
@@ -368,6 +368,9 @@ export const isReviewPass = (review) => review.state !== "COMMENTED" || review.b
 
 const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
 
+/** The time of the review that the merge bar reads, or null when the pull request has no review pass. */
+export const approvalTime = (pull) => newestReview(pull)?.submittedAt ?? null
+
 /**
  * The newest review pass when it approves an earlier commit whose own diff equals the diff of the head, or null. `pull.sameDiffAs`
  * lists the commits with that diff. The approval carries to the head, so a clean merge of the base asks for no new review.
@@ -574,6 +577,18 @@ export const rerunFailed = async (repositoryKey, runId, seams = {}) => {
 export const comment = async (repositoryKey, number, body, seams = {}) => {
   const api = bind(seams)
   await api.run(["api", `repos/${api.slugOf(repositoryKey)}/issues/${number}/comments`, "--method", "POST", "--input", "-"], { input: JSON.stringify({ body: nonEmpty(body, "comment body") }) })
+}
+
+const EDIT_COMMENT_MUTATION = `mutation DriveEditComment($id: ID!, $body: String!) {
+  updateIssueComment(input: { id: $id, body: $body }) { issueComment { id } }
+}`
+
+/** Replaces the body of one issue comment, by its node id. The body goes on stdin, because a comment can be long. */
+export const editComment = async (id, body, seams = {}) => {
+  const api = bind(seams)
+  const input = JSON.stringify({ query: EDIT_COMMENT_MUTATION, variables: { id: nonEmpty(id, "comment id"), body: nonEmpty(body, "comment body") } })
+  const response = parseJson("gh api graphql", await api.run(["api", "graphql", "--input", "-"], { input }))
+  if (response?.errors || response?.data?.updateIssueComment?.issueComment?.id !== id) throw new Error(`updateIssueComment failed: ${JSON.stringify(response?.errors ?? response).slice(0, 500)}`)
 }
 
 const listLabels = async (api, repositoryKey) => {

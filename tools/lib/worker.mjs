@@ -12,7 +12,7 @@ import { escapeRegex } from "./escape-regex.mjs"
 
 /** The model of every worker launch, except the launch at a cap, which runs the coordinator model. */
 export const WORKER_MODEL = "claude-sonnet-5-5"
-/** The coordinator model: the owner session and the questions run use it. */
+/** The coordinator model: the owner session, the questions run and the harness review use it. */
 export const COORDINATOR_MODEL = "claude-opus-5-5"
 const EFFORT = "high"
 const KEYCHAIN_ITEM = "orbit-worker-github-token"
@@ -33,7 +33,7 @@ export const WORKER_LIMITS = Object.freeze({
   sampleMs: 30 * 1000,
 })
 
-/** What a worker and the questions run may not run. Nothing here reaches production, and neither of them merges. */
+/** What a worker, the questions run and the harness review may not run. Nothing here reaches production, and none of them merges. */
 export const WORKER_DENY = Object.freeze([
   "Edit(**/.github/migration-contracts.json)",
   "Write(**/.github/migration-contracts.json)",
@@ -72,7 +72,7 @@ export const WORKER_SKILLS_OFF = Object.freeze([
   "android-release", "audit-security", "dev-server", "driver", "flag", "investigate", "ios-release", "morning", "over-limit", "progress", "questions", "release", "sleep", "ticket",
 ])
 
-/** The GitHub writes that a code worker may never run and the questions run may. The `gh` hook blocks every other write. */
+/** The GitHub writes that a code worker may never run, and the questions run and the harness review may. The `gh` hook blocks every other write of a code worker. */
 export const CODE_WORKER_DENY = Object.freeze([
   "Bash(gh pr close*)",
   "Bash(gh issue close*)",
@@ -228,12 +228,20 @@ export const workerInvocation = ({ home, parentEnvironment, token, configDirecto
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
 
+/** The skills that stay on in the harness review: the one that re-plans and the one that writes its comments. */
+export const HARNESS_REVIEW_SKILLS = Object.freeze(["humanizer", "ticket"])
+
 /**
- * The command and the environment of the questions run: the worker's settings without the GitHub limits of a code worker,
- * because it writes ticket bodies, comments and labels. It has the coordinator model and the `questions` skill on.
- * The token is the owner's login, never the worker token.
+ * The command and the environment of a run on the coordinator model: the worker's settings without the GitHub limits of a code
+ * worker, because it writes ticket bodies, comments and labels. The token is the owner's login, never the worker token.
  */
-export const questionsInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills: QUESTIONS_SKILLS, codeWorker: false })
+const coordinatorInvocation = ({ home, parentEnvironment, token }, keepSkills) => workerInvocation({ home, parentEnvironment, token, model: COORDINATOR_MODEL, keepSkills, codeWorker: false })
+
+/** The questions run keeps the `questions` skill on. */
+export const questionsInvocation = (options) => coordinatorInvocation(options, QUESTIONS_SKILLS)
+
+/** The harness review keeps the `ticket` skill on. */
+export const harnessReviewInvocation = (options) => coordinatorInvocation(options, HARNESS_REVIEW_SKILLS)
 
 /**
  * The prefixes that the installed claude CLI (2.1.329) classifies as a reached usage limit. The CLI tags such a

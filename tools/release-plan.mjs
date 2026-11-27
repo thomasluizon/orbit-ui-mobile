@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url"
 const USAGE = `usage: release-plan.mjs [--environment production|staging] [--branch <name>] [--track internal|open|production]
 
 List commits not yet released to production or staging, with planned SHAs and pinned dispatch commands.
+Web and Android on main plan the newest of the last 100 main commits with green test.yml and guards.yml push runs.
+Every other plan uses the head of the branch.
 API and web baselines read live health. Landing reads live Render deploys.
 Unreadable baselines are reported alongside the other service plans.
 Android reads Play upload deployment records for the track.
@@ -22,6 +24,8 @@ const SERVICES = [
   { name: "android", repo: "orbit-ui-mobile", workflow: "android-release.yml" },
 ]
 const SHA = /^[a-f0-9]{40}$/
+export const GATE_WORKFLOWS = ["test.yml", "guards.yml"]
+export const NO_GREEN_COMMIT = "no main commit with green test.yml and guards.yml push runs"
 
 export const githubClient = {
   read(path) {
@@ -31,7 +35,11 @@ export const githubClient = {
           ? "[.[] | {sha,payload:{track:.payload.track}}]"
           : path.includes("/compare/")
             ? "{ahead_by,behind_by,total_commits,commits:[.commits[] | {sha,commit:{message:.commit.message}}]}"
-            : "{sha,commit:{message:.commit.message}}"
+            : path.includes("/runs?")
+              ? "{workflow_runs:[.workflow_runs[] | {head_sha,status,conclusion}]}"
+              : path.includes("/commits?")
+                ? "[.[] | {sha,commit:{message:.commit.message}}]"
+                : "{sha,commit:{message:.commit.message}}"
     return JSON.parse(execFileSync("gh", ["api", path, "--jq", projection],
       { encoding: "utf8", timeout: 30_000, maxBuffer: 4 * 1024 * 1024 }))
   },
@@ -75,6 +83,31 @@ export const productionServiceIds = (client = githubClient) => ({
 const expectArray = (value, path) => {
   if (!Array.isArray(value)) throw new Error(`GitHub returned an unexpected array at ${path}`)
   return value
+}
+
+/** The commits whose newest push run of one workflow on `main` passed. */
+const passedPushShas = (client, workflow) => {
+  const path = `repos/${OWNER}/orbit-ui-mobile/actions/workflows/${workflow}/runs?branch=main&event=push&per_page=100`
+  const runs = client.read(path)?.workflow_runs
+  if (!Array.isArray(runs) || runs.some((run) => !SHA.test(run?.head_sha) || typeof run.status !== "string")) {
+    throw new Error(`GitHub workflow runs at ${path} have an unexpected shape`)
+  }
+  // GitHub lists the newest run first, so the first run of a commit is the one that counts.
+  const newest = new Map()
+  for (const run of runs) if (!newest.has(run.head_sha)) newest.set(run.head_sha, run)
+  return new Set([...newest.values()].filter((run) => run.status === "completed" && run.conclusion === "success").map((run) => run.head_sha))
+}
+
+/** The newest of the last 100 `main` commits that passed every gate workflow, with the SHAs of the commits after it. Null when none passed. */
+const newestGreenCommit = (client) => {
+  const path = `repos/${OWNER}/orbit-ui-mobile/commits?sha=main&per_page=100`
+  const commits = expectArray(client.read(path), path)
+  if (commits.some((commit) => !SHA.test(commit?.sha) || typeof commit.commit?.message !== "string")) {
+    throw new Error(`GitHub commits at ${path} have an unexpected shape`)
+  }
+  const passed = GATE_WORKFLOWS.map((workflow) => passedPushShas(client, workflow))
+  const index = commits.findIndex((commit) => passed.every((shas) => shas.has(commit.sha)))
+  return index === -1 ? null : { commit: commits[index], newerShas: commits.slice(0, index).map((commit) => commit.sha) }
 }
 
 async function landingServiceId(client, environment) {
@@ -145,7 +178,7 @@ async function renderBaseline(client, service, serviceIds, environment) {
   return health.commit
 }
 
-async function planService(client, service, environment, branch, serviceIds, track) {
+async function planService(client, service, environment, branch, serviceIds, track, greenCommit) {
   const repo = `${OWNER}/${service.repo}`
   const headPath = `repos/${repo}/commits/${encodeURIComponent(branch)}`
   const head = await client.read(headPath)
@@ -161,13 +194,22 @@ async function planService(client, service, environment, branch, serviceIds, tra
   } catch (error) {
     return { ...plannedService, branch, headSha: head.sha, baselineError: error.message }
   }
-  if (deployedSha === head.sha) return { ...plannedService, branch, headSha: head.sha, deployedSha, commits: [], needsRelease: false }
+  // The head of main can have no Tests or Guards run of its own, and a UI release refuses such a commit.
+  const gated = service.repo === "orbit-ui-mobile" && branch === "main"
+  const green = gated ? greenCommit() : null
+  if (gated && green === null) return { ...plannedService, branch, headSha: head.sha, baselineError: NO_GREEN_COMMIT }
+  const target = green?.commit ?? head
+  const planned = { ...plannedService, branch, headSha: head.sha, plannedSha: target.sha }
+  // A hand release can serve a commit after the newest green one. The plan never steps back from it.
+  if (deployedSha === target.sha || green?.newerShas.includes(deployedSha)) {
+    return { ...planned, deployedSha, commits: [], needsRelease: false }
+  }
   if (deployedSha === null) {
-    return { ...plannedService, branch, headSha: head.sha, deployedSha: null,
-      commits: [{ sha: head.sha, message: head.commit.message.split("\n")[0] }],
+    return { ...planned, deployedSha: null,
+      commits: [{ sha: target.sha, message: target.commit.message.split("\n")[0] }],
       needsRelease: true, noBaseline: true }
   }
-  const path = `repos/${repo}/compare/${deployedSha}...${head.sha}`
+  const path = `repos/${repo}/compare/${deployedSha}...${target.sha}`
   const comparison = await client.read(path)
   if (!Number.isInteger(comparison?.ahead_by) || !Number.isInteger(comparison.behind_by) ||
       !Number.isInteger(comparison.total_commits) || !Array.isArray(comparison.commits)) {
@@ -183,7 +225,7 @@ async function planService(client, service, environment, branch, serviceIds, tra
     }
     return { sha: commit.sha, message: commit.commit.message.split("\n")[0] }
   })
-  return { ...plannedService, branch, headSha: head.sha, deployedSha, commits,
+  return { ...planned, deployedSha, commits,
     needsRelease: commits.length > 0 || comparison.behind_by > 0,
     ...(comparison.behind_by > 0 ? { deployedFromOtherBranch: true } : {}) }
 }
@@ -199,15 +241,14 @@ export async function planRelease(client = githubClient, environment = "producti
       (environment === "staging" && (!branch || !/^(?!-)[A-Za-z0-9._/-]+$/.test(branch)))) {
     throw new Error("invalid branch for environment")
   }
-  const planned = await Promise.all(SERVICES.map((service) => planService(client, service, environment, branch, serviceIds, track)))
+  let green
+  const greenCommit = () => (green ??= { value: newestGreenCommit(client) }).value
+  const planned = await Promise.all(SERVICES.map((service) => planService(client, service, environment, branch, serviceIds, track, greenCommit)))
   return { environment, branch, services: planned.map((service) => {
-    if (service.baselineError) return service
+    if (service.baselineError || service.name === "android") return service
     return {
       ...service,
-      plannedSha: service.headSha,
-      ...(service.name !== "android" ? {
-        dispatchCommand: `gh workflow run release.yml --repo ${OWNER}/${service.repo} --ref main -f environment=${environment} -f branch='${branch}' -f sha=${service.headSha}`,
-      } : {}),
+      dispatchCommand: `gh workflow run release.yml --repo ${OWNER}/${service.repo} --ref main -f environment=${environment} -f branch='${branch}' -f sha=${service.plannedSha}`,
     }
   }) }
 }
