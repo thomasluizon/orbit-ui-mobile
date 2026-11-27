@@ -21,7 +21,7 @@ import {
   mergeBar,
   needsWholeDiff,
   pullfrogRuns,
-  pullfrogRunsOf,
+  runsNaming,
   isRateLimited,
   readDependabotUpdateTypes,
   readFailedSteps,
@@ -438,8 +438,8 @@ const pullfrogAndDeploymentCases = async (seams) => {
   const named = { ...FIXTURE.pullfrogRuns.response[0], databaseId: 1, displayTitle: `Respond to mention on #${7 * 10} [zzzzz]` }
   const { run, calls } = scripted([["--workflow pullfrog.yml", () => json([...FIXTURE.pullfrogRuns.response, named])]])
   const all = await pullfrogRuns("ui", seams(run))
-  const runs = pullfrogRunsOf(all, 7)
-  same("lib/github.mjs: one read of the Pullfrog runs serves every pull request of the repository", [calls.length, all.length, pullfrogRunsOf(all, 70).map((entry) => entry.databaseId)], [1, FIXTURE.pullfrogRuns.response.length + 1, [1]])
+  const runs = runsNaming(all, 7)
+  same("lib/github.mjs: one read of the Pullfrog runs serves every pull request of the repository", [calls.length, all.length, runsNaming(all, 70).map((entry) => entry.databaseId)], [1, FIXTURE.pullfrogRuns.response.length + 1, [1]])
   same("lib/github.mjs: the Pullfrog runs of a pull request are the runs that name it", runs.map((entry) => entry.databaseId), FIXTURE.pullfrogRuns.response.map((entry) => entry.databaseId))
   same("lib/github.mjs: the run list asks for pullfrog.yml with the recorded fields", calls[0].args.slice(0, 7), ["run", "list", "--repo", UI, "--workflow", "pullfrog.yml", "--json"])
   same("lib/github.mjs: a run keeps its status, conclusion and times", [runs[0].status, runs[0].conclusion, runs[0].createdAt, runs[0].updatedAt], ["completed", "success", "2026-11-20T08:59:18Z", "2026-11-20T09:05:30Z"])
@@ -1049,7 +1049,7 @@ const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, partComm
 const orderCases = async () => {
   same("lib/order.mjs: the order kinds are the six of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
   same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
-  same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "part 1 of 3", " Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
+  same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "Part 5 is complete", "See Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
   same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
 
   for (const kind of ORDER_KINDS) {

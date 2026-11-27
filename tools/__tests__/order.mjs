@@ -1,5 +1,7 @@
-import { ORDER_KINDS, ownerParts, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
-import { T, same } from "./_harness.mjs"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, partOf, partProblem, renderBrief, renderOrder } from "../lib/order.mjs"
+import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
 const TICKET = { number: 9, title: "A ticket title", body: "The ticket body.", repository: "owner/tickets" }
@@ -14,10 +16,15 @@ export const cases = async () => {
     ["### #2 Part 4 of 8", { number: 4, total: 8 }],
     ["# #7 Part 12 of 13: the title", { number: 12, total: 13 }],
     ["Part 3 of 4\n\nBody that says Part 9 of 9.", { number: 3, total: 4 }],
+    ["#Part 1 of 3", { number: 1, total: 3 }],
+    ["part 1 of 3", { number: 1, total: 3 }],
+    [" Part 1 of 3", { number: 1, total: 3 }],
+    ["## **Part 2 of 5**: bold", { number: 2, total: 5 }],
+    ["###### Part 2 of 5", { number: 2, total: 5 }],
   ]
   for (const [heading, want] of forms) same(`lib/order.mjs: the heading "${heading.split("\n")[0]}" reads as a part`, partOf({ body: heading }), want)
 
-  const none = ["See Part 1 of 3", "The rebrand is Part 1 of 3", "# Title\nPart 1 of 3", "#Part 1 of 3", "# #7Part 1 of 3", "Parts of speech", "Part 1 of", "part 1 of 3", " Part 1 of 3", "# #abc Part 1 of 3"]
+  const none = ["See Part 1 of 3", "The rebrand is Part 1 of 3", "# Title\nPart 1 of 3", "# #7Part 1 of 3", "Parts of speech", "Part 1 of", "# #abc Part 1 of 3", "####### Part 1 of 3", "Superseded: # Part 1 of 2"]
   for (const body of none) same(`lib/order.mjs: "${body.replaceAll("\n", "\\n")}" reads as no part`, partOf({ body }), null)
 
   const sets = [
@@ -35,6 +42,38 @@ export const cases = async () => {
   T("lib/order.mjs: the build part order shows the heading of the part without its # marks", part.includes("### #9 Part 2 of 5: step 2 (this order)") && part.includes("- #9 Part 1 of 5: step 1") && !part.includes("# #9 Part 2 of 5: step 2\n\nBODY-2\n\n## "))
   const mixed = renderOrder({ kind: "build part", ticket: TICKET, partComments: sets, place: PLACE, partNumber: 2 })
   T("lib/order.mjs: a build part order of a ticket with two part sets reads the newest set", mixed.includes("(Part 2 of 13)") && !mixed.includes("old one") && !mixed.includes("old two"))
+
+  const fixtures = JSON.parse(readFileSync(join(REPO_ROOT, "tools/__tests__/fixtures/ticket-comments.json"), "utf8"))
+  const live = (number) => fixtures[number].map((entry) => ({ ...entry, kind: null }))
+  const numbers = (number) => ownerParts(live(number)).map((comment) => partOf(comment).number)
+
+  const first = live(2121)
+  same("lib/order.mjs: #2121 real comments, the four `# Part n of 4` comments are parts", first.slice(0, 4).map((comment) => partOf(comment)), [1, 2, 3, 4].map((number) => ({ number, total: 4 })))
+  const ticket2121 = { number: 2121, title: "T", body: "B", repository: "owner/tickets" }
+  const unique2121 = first.filter((comment) => !comment.body.startsWith("# Part 3 of 4, owner order"))
+  const order2121 = renderOrder({ kind: "build part", ticket: ticket2121, partComments: unique2121, place: PLACE, partNumber: 3 })
+  T("lib/order.mjs: #2121 build part order holds the full part 3 and the first line of the other three", order2121.includes("### Part 3 of 4: Move onboarding and auth to the Orbit logic (this order)") && order2121.includes("- Part 1 of 4: Build the guided create and edit flows: one question in each step") && order2121.includes("- Part 4 of 4: Move Perfil and settings to the Orbit logic, and move the AI settings slug") && order2121.includes("(Part 3 of 4)"))
+  same("lib/order.mjs: #2121 real comments, the owner order that repeats part 3 is a second live comment of part 3", duplicateParts(first).map((entry) => [entry.number, entry.comments.map((comment) => comment.url)]), [[3, [first[2].url, first[4].url]]])
+  T("lib/order.mjs: #2121 part problem names both comment URLs", partProblem(first)?.includes(first[2].url) && partProblem(first)?.includes(first[4].url))
+  same("lib/order.mjs: #2121 work order for the sign-in part is no part and no broken heading", [partOf(first[6]), brokenPartHeadings([first[6]])], [null, []])
+
+  same("lib/order.mjs: #2123 old sets of 2 and the set of 13 give the set of 13 with no duplicate", [numbers(2123).length, partProblem(live(2123))], [13, null])
+  same("lib/order.mjs: #2124 old set of 3 and the set of 2 give the set of 2 with no duplicate", [numbers(2124), partProblem(live(2124))], [[1, 2], null])
+  same("lib/order.mjs: #2125 the set of 3 is in force and notes, decisions and the Part 5 status hold nothing", [numbers(2125), partProblem(live(2125))], [[1, 2, 3], null])
+  same("lib/order.mjs: #2129 \"# Work order, part 2:\" is no part and holds nothing", [numbers(2129), partProblem(live(2129))], [[], null])
+  same("lib/order.mjs: #2187 the 24 parts are sound and the launch comments hold nothing", [numbers(2187).length, partProblem(live(2187))], [24, null])
+  T("lib/order.mjs: #2125 \"## Part 5 is complete\" is no part", partOf(live(2125)[10]) === null && brokenPartHeadings([live(2125)[10]]).length === 0)
+  T("lib/order.mjs: #2187 \"Owner-session launch for #2187 Part 2\" is no part", live(2187).slice(38).every((comment) => partOf(comment) === null && brokenPartHeadings([comment]).length === 0))
+
+  const superseded = [owner("Part 1 of 2: old", "2026-11-01T10:00:00Z"), owner("Part 2 of 2: old", "2026-11-01T10:01:00Z")]
+  const retitled = superseded.map((comment) => ({ ...comment, body: `Superseded: ${comment.body}` }))
+  same("lib/order.mjs: a comment that starts with Superseded: reads as no part and is no broken heading", [retitled.map(partOf), brokenPartHeadings(retitled)], [[null, null], []])
+
+  const broken = ["Part 1 of", "# Part 2 of two", "Part 3/4", "## Parte 2 de 5", "Part 2:", "# Part 4", "Part 1"]
+  same("lib/order.mjs: a heading that starts like a part and is not one is broken", broken.map((body) => brokenPartHeadings([{ body }]).length), [1, 1, 1, 1, 1, 1, 1])
+  const fault = partProblem([{ body: "Part 3/4: a", url: "https://example.test/c1" }])
+  same("lib/order.mjs: a broken heading problem quotes the line and names the comment URL once", [fault.includes('"Part 3/4: a"'), fault.match(/https?:\/\/[^\s"]+/g)], [true, ["https://example.test/c1"]])
+  same("lib/order.mjs: a dash ban holds in the part problem text", /[\u2013\u2014]/.test(fault), false)
 
   for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
