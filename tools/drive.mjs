@@ -16,7 +16,7 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "./lib/driver-health.mjs"
-import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
+import { changesDriver, collectCrash, crashesOfSwitch, endRun, endedWithSwitch, lastLine, markSwitch, readPin, rolledBackFrom, startedAfterSwitch, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
@@ -3230,6 +3230,7 @@ const switchDriver = async (env, mem) => {
     return false
   }
   writePin(env.stateDir, { from: head, to: next, at: new Date(env.now()).toISOString(), rolledBack: false })
+  markSwitch(env.stateDir)
   log(env, "driver", "switch", `from ${shortSha(head)} to ${shortSha(next)}`)
   return true
 }
@@ -3241,6 +3242,7 @@ const switchDriver = async (env, mem) => {
  */
 export const guardStart = async (env) => {
   const head = await gitText(env, env.driverWorktree, ["rev-parse", "HEAD"])
+  const plannedStart = endedWithSwitch(env.stateDir)
   const crashes = crashesOfSwitch({ pin: readPin(env.stateDir), head, crashes: collectCrash(env.stateDir, env.now()) })
   if (crashes.length > 0) {
     const pin = readPin(env.stateDir)
@@ -3248,16 +3250,20 @@ export const guardStart = async (env) => {
     await reportRollback(env, { failedSha: head, previousSha: pin.from, error: crashes.at(-1).error, reason: `The new version ended with an error ${crashes.length} times within 10 minutes of the switch.` })
     return true
   }
-  startRun(env.stateDir, { sha: head, pid: process.pid, now: env.now() })
+  startRun(env.stateDir, { sha: head, pid: process.pid, now: env.now(), plannedStart })
   return false
 }
 
-/** Appends the start time and reports three starts in ten minutes. */
+/**
+ * Appends the start time and reports three unplanned starts in ten minutes. A start after a driver switch of the previous run
+ * is planned: the run record says so, and the start log does not keep it.
+ */
 export const recordStart = async (env, tickets = []) => {
   const path = join(env.stateDir, "starts.json")
   let starts = []
   try { starts = JSON.parse(readFileSync(path, "utf8")) } catch { /* the first start has no file */ }
   const now = env.now()
+  if (startedAfterSwitch(env.stateDir)) return false
   starts = [...starts, new Date(now).toISOString()].filter((time) => now - Date.parse(time) < 24 * HOUR_MS)
   writeFileSync(path, `${JSON.stringify(starts)}\n`)
   if (starts.filter((time) => now - Date.parse(time) < RESTART_WINDOW_MS).length < 3) {
