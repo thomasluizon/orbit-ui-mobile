@@ -27,7 +27,7 @@ jobs:
   # The Windows x86 build of a pull request runs in installed (windows-latest) of desktop-acceptance.yml.
   # A pass recorded for the same inputs skips the compile. A push to main and a dispatch compile all four targets.
   plan:
-    name: Select desktop targets
+    name: Plan desktop build
     runs-on: ubuntu-latest
     timeout-minutes: 3
     outputs:
@@ -64,7 +64,7 @@ jobs:
           fi
           echo 'matrix=["aarch64-apple-darwin"]' >> "$GITHUB_OUTPUT"
           git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/desktop-paths.txt"
-          if grep -E '^apps/desktop/|^\.github/workflows/desktop-build\.yml$' "$RUNNER_TEMP/desktop-paths.txt" | grep -Evq '\.md$' && [ "${PASS_HIT:-}" != true ]; then
+          if grep -E '^apps/desktop/|^\.github/workflows/desktop-build\.yml$' "$RUNNER_TEMP/desktop-paths.txt" | grep -Ev '\.md$' > /dev/null && [ "${PASS_HIT:-}" != true ]; then
             echo 'run=true' >> "$GITHUB_OUTPUT"
           else
             echo 'run=false' >> "$GITHUB_OUTPUT"
