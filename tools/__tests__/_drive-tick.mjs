@@ -1266,6 +1266,41 @@ const updateCases = async () => {
   const parentMerges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1" }), pull(30, { baseRef: "chore/ticket-7-part-1", comments: [comment("ticket", "T")] })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await parentMerges.run()
   same("drive: a child whose base pull request merged in the same tick is retargeted and updated, and it is not merged", [only(parentMerges.calls, "merge").map((entry) => entry[2]), only(parentMerges.calls, "retarget"), only(parentMerges.calls, "updateBranch")], [[29], [["retarget", "ui", 30, "main"]], [["updateBranch", "ui", 30]]])
+  await staleBaseCases()
+}
+
+/** The fake git answers `git log --since` with the commits of main (an offset from NOW and the paths that the commit changed) that the given time does not pass. */
+const mainLog = (commits) => ["log --since=", (args) => {
+  const since = Date.parse(args.find((text) => text.startsWith("--since=")).slice("--since=".length))
+  return commits.filter((commit) => NOW + commit.at >= since).map((commit) => commit.files.map((path) => `${path}\0`).join("")).join("")
+}]
+
+/** A merge candidate whose base moved after the CI of its head started. The CI of the fixture head started 60 minutes before NOW. */
+const staleBaseCases = async () => {
+  const drive = "tools/drive.mjs"
+  const staleScene = (commits, files, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files, checks: [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()], ...extra })] }, gitRoutes: [mainLog(commits)], routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const outcome = (scene) => [only(scene.calls, "updateBranch"), only(scene.calls, "merge").map((entry) => entry[2])]
+  const shared = staleScene([{ at: -30 * MINUTE, files: [drive] }], [drive])
+  await shared.run()
+  same("drive: a code path that main gained after the CI started and the pull request changes gets one update and no merge", outcome(shared), [[["updateBranch", "ui", 30]], []])
+  same("drive: the update for a shared path logs the paths and records the new head", [shared.messages.some((line) => line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), commentsOf(shared.calls, 30).includes(marked("record", `driver update-branch -> ${NEXT_HEAD}`))], [true, true])
+  const read = only(shared.calls, "git").find((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))
+  same("drive: the read of main starts 5 minutes before the first CI start, skips the commits that the head holds, and lists names with no rename", [read.find((text) => text.startsWith("--since=")), read.slice(-2), read.includes("--no-renames")], [`--since=${new Date(NOW - 65 * MINUTE).toISOString()}`, ["origin/main", `^${HEAD}`], true])
+  const lead = staleScene([{ at: -62 * MINUTE, files: [drive] }], [drive])
+  await lead.run()
+  same("drive: a commit of main inside the 5 minutes before the first CI start counts as unseen", outcome(lead), [[["updateBranch", "ui", 30]], []])
+  const other = staleScene([{ at: -30 * MINUTE, files: ["apps/web/a.ts"] }], [drive])
+  await other.run()
+  same("drive: a commit of main after the CI started with no shared path lets the pull request merge with no update", outcome(other), [[], [30]])
+  const before = staleScene([{ at: -120 * MINUTE, files: [drive] }], [drive])
+  await before.run()
+  same("drive: a commit of main before the CI started lets the pull request merge with no update", outcome(before), [[], [30]])
+  const markdown = staleScene([{ at: -30 * MINUTE, files: ["docs/x.md"] }], ["docs/x.md"])
+  await markdown.run()
+  same("drive: a Markdown file that both sides changed is no shared code path, so the pull request merges", outcome(markdown), [[], [30]])
+  const stacked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", labels: [OWNER_LABEL] }), pull(30, { baseRef: "chore/ticket-7-part-1", files: [drive] })] }, gitRoutes: [mainLog([{ at: -30 * MINUTE, files: [drive] }])] })
+  await stacked.run()
+  same("drive: a stacked pull request reads no unseen path of main and gets no update", [only(stacked.calls, "updateBranch"), only(stacked.calls, "git").some((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))], [[], false])
 }
 
 const ciCases = async () => {
@@ -4203,7 +4238,7 @@ const diffBarCases = async () => {
   const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
   same("drive: fixed context and a Tracks line merges", only(tracking.calls, "merge").length, 1)
 
-  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")))
+  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")) && !call.some((text) => text.startsWith("--since=")))
   same("drive: the changed paths come from git diff between the base and the head, with no rename detection", read(clean).filter((call) => call.includes("--name-only")), [["git", "diff", "--name-only", "--no-renames", "-z", `${"c".repeat(40)}...${HEAD}`]])
   same("drive: the commit messages come from git log between the base and the head", read(clean).filter((call) => call.includes("--format=%B%x00")), [["git", "log", "--format=%B%x00", `${"c".repeat(40)}..${HEAD}`]])
 
