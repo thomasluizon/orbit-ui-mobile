@@ -59,7 +59,9 @@ vi.mock('next-intl', () => ({
 let mockHabitDetailResult: {
   data: unknown
   isPending: boolean
+  isFetching?: boolean
   error: unknown
+  retry?: () => void
 } = { data: null, isPending: false, error: null }
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -525,13 +527,44 @@ describe('EditHabitModal', () => {
   })
 
   it('disables the fields and the save button while the habit detail is loading', () => {
-    mockHabitDetailResult = { data: null, isPending: true, error: null }
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: true, error: null }
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
     expect(screen.getByRole('group')).toBeDisabled()
+    expect(screen.getByRole('group')).toHaveAttribute('aria-busy', 'true')
+    expect(screen.queryByRole('alert')).toBeNull()
     const saveButton = screen.getByText('common.save').closest('button')
     expect(saveButton).toBeDisabled()
+  })
+
+  it('states a detail read that cannot run with a retry, never a wait that does not end', () => {
+    const retry = vi.fn()
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: false, error: null, retry }
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('errors.fetchHabitDetails')
+    expect(screen.getByRole('group')).toBeDisabled()
+    expect(screen.getByRole('group')).not.toHaveAttribute('aria-busy')
+    expect(screen.getByText('common.save').closest('button')).toBeDisabled()
+    fireEvent.submit(screen.getByTestId('sheet').querySelector('form')!)
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
+    const retryButton = screen.getByRole('button', { name: 'common.retry' })
+    expect(retryButton).toHaveAttribute('type', 'button')
+    fireEvent.click(retryButton)
+    expect(retry).toHaveBeenCalledOnce()
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('never holds the fields of a habit created offline', () => {
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: false, error: null }
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={createMockHabit({ id: 'offline-habit-7' })} />,
+    )
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.getByRole('group')).not.toBeDisabled()
+    expect(screen.getByText('common.save').closest('button')).not.toBeDisabled()
   })
 
   it('enables the fields once the habit detail has loaded', () => {

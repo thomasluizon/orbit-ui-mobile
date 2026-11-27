@@ -3,7 +3,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs"
 import { join, relative } from "node:path"
 
-import { appStoreBuildNumber, CADENCE_MS, dispatchArguments, healthUrl, manualStepsOf, nextAction, readTrainState, realPorts, releaseTick, requestTrain, trainSummary, TRAIN_FILE } from "../lib/release-train.mjs"
+import { appStoreBuildNumber, CADENCE_MS, dispatchArguments, healthUrl, manualStepsOf, mobileMergeHold, nextAction, readTrainState, realPorts, releaseTick, requestTrain, trainSummary, TRAIN_FILE } from "../lib/release-train.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const FIXTURE = JSON.parse(readFileSync(new URL("./release-train-fixture.json", import.meta.url), "utf8"))
@@ -535,6 +535,31 @@ const urlSubstringCases = () => {
   same("release-train: no tools file checks a URL with a substring match, so no host hides inside the URL", found, [])
 }
 
+const mergeHoldCases = async () => {
+  const w = world()
+  same("release-train: no train means no mobile merge hold", mobileMergeHold(w.state()), null)
+  const holds = []
+  for (let count = 0; count < 80; count++) {
+    await w.tick()
+    const { train } = w.state()
+    holds.push(mobileMergeHold(w.state()))
+    if (train && train.status !== "running") break
+  }
+  const first = holds.findIndex((hold) => hold !== null)
+  const { train } = w.state()
+  const last = holds.findLastIndex((hold) => hold !== null)
+  T("release-train: the mobile merge hold starts when the mobile plan is read", first >= 0 && holds[first].sha === train.mobile.sha && holds[first].id === train.id, JSON.stringify(holds[first]))
+  T("release-train: the mobile merge hold stays on until the last mobile step is dispatched, with no gap", holds.slice(first, last + 1).every((hold) => hold !== null))
+  same("release-train: the mobile merge hold is off when the train is complete", [train.status, holds.at(-1)], ["complete", null])
+  const lastMobile = train.steps.filter((step) => ["android", "ios"].includes(step.kind)).at(-1)
+  same("release-train: the last hold tick is the tick that dispatches the last mobile production step", [lastMobile.id, lastMobile.state], ["ios-production", "verified"])
+  const step = (kind, state) => ({ kind, state })
+  const wait = (steps, extra = {}) => ({ train: { id: "t", status: "running", mobile: { sha: "s" }, steps, ...extra } })
+  same("release-train: a pending mobile step holds", mobileMergeHold(wait([step("release", "pending"), step("ios", "pending")])), { id: "t", sha: "s" })
+  same("release-train: a pending release step with every mobile step dispatched does not hold", mobileMergeHold(wait([step("android", "dispatched"), step("ios", "verified"), step("release", "pending")])), null)
+  same("release-train: a stopped train does not hold", mobileMergeHold(wait([step("ios", "pending")], { status: "stopped" })), null)
+}
+
 export const cases = async () => {
   await fullTrainCases()
   await cadenceCases()
@@ -545,6 +570,7 @@ export const cases = async () => {
   await refusalCases()
   await stoppedCases()
   await mobileCases()
+  await mergeHoldCases()
   await requestCases()
   await unitCases()
   await dryRunCases()

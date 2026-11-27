@@ -62,10 +62,11 @@ function inlineStartPadding(paddingX: number, iconOnly: boolean, leadingIcon: bo
 export function actionStyle(size: ButtonSize, iconOnly = false, matchedWidth = false, leadingIcon = false, hugLabel = false, minimumHeight?: number): CSSProperties & { '--pill-hit-padding'?: string } {
   const sizeSpec = BUTTON_SIZES[size]
   return {
-    '--pill-hit-padding': iconOnly && minimumHeight !== undefined && minimumHeight >= TOUCH_TARGET_MIN ? '0px' : undefined,
+    '--pill-hit-padding': iconOnly && minimumHeight !== undefined ? `${Math.max(0, (TOUCH_TARGET_MIN - minimumHeight) / 2)}px` : undefined,
     flexShrink: 0,
     fontFamily: 'var(--font-sans)',
     height: sizeSpec.height,
+    minWidth: iconOnly ? minimumHeight : undefined,
     width: iconOnly ? Math.max(minimumHeight ?? sizeSpec.height, sizeSpec.height) : matchedWidth ? MATCHED_PILL_WIDTH : hugLabel ? 'auto' : undefined,
     paddingInlineStart: inlineStartPadding(sizeSpec.paddingX, iconOnly, leadingIcon),
     paddingInlineEnd: iconOnly ? SPACING.s0 : sizeSpec.paddingX,

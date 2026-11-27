@@ -75,6 +75,7 @@ jobs:
 
       # npm ci installs Turbo at the entries of the root lockfile, so the plan reads the same Turbo as the test jobs, with
       # no resolve and without the workspace tree. The restored npm cache holds the archives.
+      # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
       - name: Hash the test tasks and read the changed paths
         id: plan
         env:
@@ -82,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
-          npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
+          npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline || npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
           "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test --dry=json > "$RUNNER_TEMP/turbo-test.json"
           if [ "$EVENT_NAME" = pull_request ]; then
             git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"
@@ -165,7 +166,7 @@ jobs:
         with:
           restore-older-entry: ${{ github.event_name == 'pull_request' }}
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
 
       # Every Linux job restores this entry. This job runs on every push to main, so it is the one that saves it.
       - name: Save the npm cache
@@ -264,9 +265,9 @@ jobs:
       - uses: ./.github/actions/restore-npm-cache
 
       - name: Use the repository npm version
-        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
+        run: npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund || npm install --global "$(node -p "require('./package.json').packageManager")" --no-audit --no-fund
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
 
       - name: Validate the dependency tree
         env:
@@ -329,7 +330,7 @@ jobs:
       - uses: ./.github/actions/restore-npm-cache
 
       # The scanner resolves tsconfig extends and dependency types from node_modules.
-      - run: npm ci
+      - run: npm ci || npm ci
 
       # download-artifact v8 extracts a lone pattern match at `path` and several matches into folders named
       # after each artifact. merge-multiple extracts at `path` for any count, and each artifact holds one
@@ -578,7 +579,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - run: npm ci || npm ci
       - name: Run web shard with coverage
         timeout-minutes: 16
         working-directory: apps/web
@@ -623,7 +624,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - run: npm ci || npm ci
       - name: Run mobile shard with coverage
         timeout-minutes: 10
         working-directory: apps/mobile
@@ -663,7 +664,7 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci
+      - run: npm ci || npm ci
       - name: Run workspaces with coverage thresholds
         timeout-minutes: 6
         run: ./node_modules/.bin/turbo run test --filter=@orbit/desktop --filter=@orbit/shared --filter=@orbit/eslint-rules --concurrency=1 -- --coverage
@@ -701,7 +702,7 @@ jobs:
 
       - uses: ./.github/actions/restore-npm-cache
 
-      - run: npm ci
+      - run: npm ci || npm ci
 
       - name: Restore turbo
         id: turbo-cache
@@ -731,7 +732,9 @@ jobs:
     needs: plan
     if: github.event_name == 'pull_request' && needs.plan.outputs.lint == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Lint reads types, so its time grows with the changed files: 908 files need more than 315 s. A lint of every file
+    # needs an estimated 800 s. The limit holds that run.
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v7
@@ -751,7 +754,7 @@ jobs:
 
       - uses: ./.github/actions/restore-npm-cache
 
-      - run: npm ci
+      - run: npm ci || npm ci
 
       - name: Lint only files changed by this pull request
         shell: bash
@@ -806,7 +809,7 @@ jobs:
 
       - uses: ./.github/actions/restore-npm-cache
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
 
       - uses: actions/download-artifact@v8
         with:
@@ -891,7 +894,7 @@ jobs:
 
       - uses: ./.github/actions/restore-npm-cache
 
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
 
       - uses: actions/download-artifact@v8
         with:

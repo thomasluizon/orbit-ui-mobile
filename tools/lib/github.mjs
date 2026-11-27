@@ -11,6 +11,8 @@ const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"])
 const PULLFROG_APPROVAL = { context: "pullfrog-approval", appId: 1768019 }
 /** The merge bar failure that only a Pullfrog pass at the head clears: the required check exists only on a commit that Pullfrog reviewed. */
 export const APPROVAL_CHECK_MISSING = `required-check-missing:${PULLFROG_APPROVAL.context}`
+/** A state query with every open pull request of a large repository ends in HTTP 502 or 504 at GitHub, so each query holds this many at most. */
+const PULLS_PER_STATE_QUERY = 8
 const WHOLE_DIFF_FILES = 30
 const WHOLE_DIFF_WINDOW_BYTES = 200
 const MANIFEST_FILE = /(?:^|\/)(?:package\.json|package-lock\.json|Directory\.Packages\.props|packages\.lock\.json|[^/]+\.csproj)$/
@@ -19,16 +21,17 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
+/** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
+const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 const OWNER_LABEL = "needs:owner"
 
-const PULL_FIELDS = (number) => `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
   files(first: 100) { nodes { path } }
   commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } statusCheckRollup { state } } } }
-  baseRef { name target { __typename oid }
-    compare(headRef: "refs/pull/${number}/head") { behindBy baseTarget { oid } headTarget { oid } }
+  baseRef { name
     branchProtectionRule { requiredStatusChecks { context app { databaseId } } } }
   statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage } nodes {
     __typename
@@ -46,7 +49,7 @@ const stateQuery = (numbers) => `query DriveState($owner: String!, $name: String
   repository(owner: $owner, name: $name) {
     defaultBranchRef { name }
     open: pullRequests(states: OPEN, first: 100) { pageInfo { hasNextPage } nodes { number } }
-    ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) { ${PULL_FIELDS(number)} }`).join("\n    ")}
+    ${numbers.map((number) => `pr${number}: pullRequest(number: ${number}) { ${PULL_FIELDS} }`).join("\n    ")}
   }
 }`
 
@@ -163,7 +166,6 @@ const normalizeComment = (comment) => ({
 })
 
 const normalizePull = (raw, ticketRepository) => {
-  const behind = raw.baseRef?.compare
   const protection = raw.baseRef?.branchProtectionRule
   return {
     number: raw.number,
@@ -177,8 +179,6 @@ const normalizePull = (raw, ticketRepository) => {
     baseRef: raw.baseRefName,
     baseSha: raw.baseRefOid,
     mergeState: raw.mergeStateStatus,
-    // A comparison counts only when it names this head and this base tip, so a stale read never reports a clean branch.
-    behindBy: behind?.headTarget?.oid === raw.headRefOid && behind?.baseTarget?.oid === raw.baseRef?.target?.oid && Number.isInteger(behind.behindBy) ? behind.behindBy : null,
     body: raw.body ?? "",
     tracks: tracksOf(raw.body ?? "", ticketRepository),
     changedFiles: raw.changedFiles,
@@ -205,18 +205,24 @@ const normalizePull = (raw, ticketRepository) => {
   }
 }
 
-/** Every open pull request of one repository in one read. `knownNumbers` from the last tick lets one read hold all of them. */
+/**
+ * Every open pull request of one repository. The first read lists the open numbers and holds the first `knownNumbers` of the last
+ * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed read
+ * fails the whole call, so no caller gets a partial state.
+ */
 export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ...seams } = {}) => {
   if (!knownNumbers.every((number) => Number.isInteger(number) && number > 0)) throw new Error("knownNumbers must be positive integers")
   const api = bind(seams)
   const slug = api.slugOf(repositoryKey)
   const { owner, name } = splitSlug(slug)
-  const read = (numbers) => graphql(api, stateQuery(numbers), { owner, name })
-  const first = (await read(knownNumbers)).repository
+  const read = async (numbers) => (await graphql(api, stateQuery(numbers), { owner, name })).repository
+  const firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
+  const first = await read(firstNumbers)
   if (first.open.pageInfo.hasNextPage) throw new Error(`${slug} has more than 100 open pull requests; the driver reads 100`)
   const open = first.open.nodes.map((pull) => pull.number)
-  const unread = open.filter((number) => !knownNumbers.includes(number))
-  const raw = { ...first, ...(unread.length > 0 ? (await read(unread)).repository : {}) }
+  const unread = open.filter((number) => !firstNumbers.includes(number))
+  const raw = { ...first }
+  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) Object.assign(raw, await read(unread.slice(start, start + PULLS_PER_STATE_QUERY)))
   const pulls = open.map((number) => normalizePull(raw[`pr${number}`], api.config.tickets.repository))
   return { repositoryKey, slug, defaultBranch: first.defaultBranchRef.name, numbers: open, pulls }
 }
@@ -297,12 +303,14 @@ export const needsWholeDiff = (pull, { fixLaunches = 0 } = {}) =>
 
 /**
  * An APPROVED whole-diff review submitted after the driver's request for its own commit. It covers the head at that
- * commit, or at a later head when every later commit is a clean base merge (two parents and an empty remerge diff).
+ * commit, or at a later head when every later commit is a clean base merge (two parents and an empty remerge diff) or the
+ * own diff of that commit equals the diff of the head (`pull.sameDiffAs`).
  */
 export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = [] } = {}) =>
   pull.reviews.some((review) => {
     const requestedAt = wholeDiffRequests[review.commit]
     if (review.state !== "APPROVED" || !inWholeDiffWindow(review.body) || requestedAt === undefined || Date.parse(review.submittedAt) <= Date.parse(requestedAt)) return false
+    if ((pull.sameDiffAs ?? []).includes(review.commit)) return true
     const position = pull.commits.findIndex((commit) => commit.sha === review.commit)
     return position >= 0 && pull.commits.slice(position + 1).every((commit) => commit.parents === 2 && cleanMerges.includes(commit.sha))
   })
@@ -311,6 +319,15 @@ export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = 
 export const isReviewPass = (review) => review.state !== "COMMENTED" || review.body.trim() !== "" || review.blocking.length > 0
 
 const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
+
+/**
+ * The newest review pass when it approves an earlier commit whose own diff equals the diff of the head, or null. `pull.sameDiffAs`
+ * lists the commits with that diff. The approval carries to the head, so a clean merge of the base asks for no new review.
+ */
+export const carriedApproval = (pull) => {
+  const review = newestReview(pull)
+  return review !== null && review.state === "APPROVED" && review.commit !== pull.headSha && (pull.sameDiffAs ?? []).includes(review.commit) ? review : null
+}
 
 /** The first of major, minor and patch that differs between two dotted versions, or null when either is not numeric. */
 const semverChange = (from, to) => {
@@ -351,8 +368,9 @@ const dependabotFailures = (types) => {
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
- * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket) and, for a
- * Dependabot pull request, `updateTypes`.
+ * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
+ * (true while a `needs-owner` report holds a pull request with no open ticket) and, for a Dependabot pull request,
+ * `updateTypes`.
  */
 export const mergeBar = (pull, context = {}) => {
   const failed = []
@@ -363,17 +381,15 @@ export const mergeBar = (pull, context = {}) => {
   if (!SHA.test(pull.headSha)) failed.push("head-unknown")
   failed.push(...checkFailures(pull))
   const review = newestReview(pull)
-  if (review === null || review.commit !== pull.headSha || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
+  if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")
   if (!pull.threadsComplete) failed.push("threads-incomplete")
   const unresolved = pull.threads.filter((thread) => !thread.resolved).length
   if (unresolved > 0) failed.push(`threads-unresolved:${unresolved}`)
-  if (pull.behindBy === null) failed.push("behind-unknown")
-  else if (pull.behindBy > 0) failed.push(`behind:${pull.behindBy}`)
   if (pull.mergeState !== "CLEAN") failed.push(`merge-state:${pull.mergeState}`)
   if ((context.blockers ?? []).length > 0) failed.push(`blocked-by:${context.blockers.join(",")}`)
   if (dependabot) failed.push(...dependabotFailures(context.updateTypes))
-  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL)) failed.push("needs-owner")
+  if (pull.labels.includes(OWNER_LABEL) || (context.ticketLabels ?? []).includes(OWNER_LABEL) || context.reportHeld) failed.push("needs-owner")
   return failed
 }
 
@@ -393,10 +409,10 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
   .filter((check) => check.passed && check.node.__typename === "CheckRun")
   .map((check) => ({ name: check.name, runId: /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] ?? null }))
 
-/** What to do about one failed check, from the names of its failed steps: a rerun for the setup step, the owner for a barrier, otherwise a fix order. */
+/** What to do about one failed check, from the names of its failed steps: a rerun for the job setup or the checkout, the owner for a barrier, otherwise a fix order. */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.includes(SETUP_STEP) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step)) ? "rerun" : "ci-fix"
 }
 
 /** The names of the failed steps of one job of a workflow run. */
