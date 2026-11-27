@@ -1293,6 +1293,7 @@ describe('a das hour range with a day part, e meia or an hour unit', () => {
     ['Estudar das 11 às 2 da tarde', '11:00'],
     ['Estudar das 11 às 12 da tarde', '11:00'],
     ['Estudar das 8 às 12 da noite', '20:00'],
+    ['Estudar das 5 às 7 da noite', '17:00'],
     ['Estudar das 11 às 2 da madrugada', '23:00'],
     ['Estudar das 10 às 2 da manhã', '22:00'],
     ['Estudar das 12 às 2 da madrugada', '00:00'],
@@ -1320,5 +1321,34 @@ describe('a das hour range with a day part, e meia or an hour unit', () => {
     const read = readHabitPhrase(input, 'pt-BR')
     expect(read.dueTime).toBe(time)
     expect(read.days).toEqual(['Monday'])
+  })
+
+  it.each([
+    ['Estudar das 4 às 6 da noite', '16:00'],
+    ['Estudar das 5 às 9 da noite', '17:00'],
+    ['Estudar das 5 às 12 da noite', '17:00'],
+    ['Estudar das 12 às 7 da noite', '12:00'],
+    ['Estudar das 5 da noite às 7', '17:00'],
+    ['Estudar das 5 da noite às 7 da noite', '17:00'],
+    ['Estudar das 5 da noite às 2 da madrugada', '17:00'],
+    ['Estudar toda noite das 5 às 7', '17:00'],
+    ['Estudar das 4 às 2 da madrugada', '16:00'],
+    ['Estudar das 5 às 3 da manhã', '17:00'],
+    ['Estudar das 5 e meia às 7 da noite', '17:30'],
+  ] as const)('reads the evening start of the night range %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+
+  it.each([
+    ['Estudar das 1 às 3 da noite', '01:00'],
+    ['Estudar das 1 às 5 da noite', '01:00'],
+    ['Estudar das 3 às 5 da noite', '03:00'],
+    ['Estudar das 0 às 7 da noite', '00:00'],
+    ['Estudar das 12 às 3 da manhã', '00:00'],
+    ['Estudar das 12 às 2 da madrugada', '00:00'],
+    ['Estudar das 6 às 7 da noite', '18:00'],
+    ['Estudar toda noite das 8 às 10', '20:00'],
+  ] as const)('keeps the small hours of the night range %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
   })
 })

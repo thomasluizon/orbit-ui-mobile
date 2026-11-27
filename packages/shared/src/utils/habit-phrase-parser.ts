@@ -319,23 +319,43 @@ function readPeriodHour(hour: number, period: DayPeriod): number | null {
   return HOUR_IN_PERIOD[period](hour - 12) === hour ? hour : null
 }
 
+function readNightRangeStart(start: number, endHour: number): number {
+  const small = readPeriodHour(start, 'night')
+  if (small === null || small >= 12 || start < 1 || start > 12) return small ?? start
+  const limit = endHour || 24
+  if (small + 12 <= limit) return small + 12
+  return small <= limit ? small : small + 12
+}
+
 function readRangeStartBeforeEnd(start: number, end: number, endPeriod: string): number | null {
   const period = DAY_PERIODS[endPeriod]!
   const endHour = readPeriodHour(end, period)
   if (endHour === null) return null
+  if (period === 'night') return readNightRangeStart(start, endHour)
   const startInPeriod = readPeriodHour(start, period)
   if (startInPeriod !== null && startInPeriod <= (endHour || 24)) return startInPeriod
-  if (period === 'afternoon') return start
-  return readPeriodHour(start, 'night') ?? start
+  return period === 'afternoon' ? start : readNightRangeStart(start, endHour)
+}
+
+function readRangeNightEnd(end: number, endPeriod: string | undefined): number | null {
+  return readPeriodHour(end, endPeriod ? DAY_PERIODS[endPeriod]! : 'night')
+}
+
+function readRangeStartInPeriod(start: number, period: DayPeriod, end: number, endPeriod: string | undefined): number | null {
+  if (period !== 'night') return readPeriodHour(start, period)
+  const endHour = readRangeNightEnd(end, endPeriod)
+  return endHour === null ? readPeriodHour(start, period) : readNightRangeStart(start, endHour)
 }
 
 function parseHourRange(match: RegExpExecArray, groups: Record<string, string | undefined>, impliedPeriod?: DayPeriod): string | null {
   const start = Number.parseInt(match[1]!, 10)
+  const end = Number.parseInt(groups.endHour!, 10)
   const minute = groups.startHalf ? 30 : Number.parseInt(match[2] ?? match[3] ?? '0', 10)
   let hour: number | null
-  if (groups.startPeriod) hour = readPeriodHour(start, DAY_PERIODS[groups.startPeriod]!)
-  else if (groups.endPeriod) hour = readRangeStartBeforeEnd(start, Number.parseInt(groups.endHour!, 10), groups.endPeriod)
-  else hour = (impliedPeriod && readPeriodHour(start, impliedPeriod)) ?? start
+  if (groups.startPeriod) hour = readRangeStartInPeriod(start, DAY_PERIODS[groups.startPeriod]!, end, groups.endPeriod)
+  else if (groups.endPeriod) hour = readRangeStartBeforeEnd(start, end, groups.endPeriod)
+  else if (impliedPeriod) hour = readRangeStartInPeriod(start, impliedPeriod, end, undefined) ?? start
+  else hour = start
   if (hour === null) return null
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
