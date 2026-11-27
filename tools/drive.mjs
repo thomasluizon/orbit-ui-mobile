@@ -1010,6 +1010,20 @@ const sharedUnseenPaths = async (env, repoPath, pull, base) => {
   return [...new Set(unseen.stdout.split(/[\0\n]/).filter((path) => own.has(path)))].sort()
 }
 
+/** The log reason of an update for shared paths: the paths, or the first 5 and the count of the rest. */
+const staleReason = (shared) => `main changed ${shared.length > 5 ? `${shared.slice(0, 5).join(", ")} and ${shared.length - 5} more` : shared.join(", ")} after the CI of this head started`
+
+/**
+ * Every plan of a repository ends before its first merge runs, so a merge of this tick is a commit that no plan read from main.
+ * A planned merge into the default branch becomes an update when a pull request that merged earlier in the tick changed a code path that this one also changes.
+ */
+const afterMergesOfTick = (ctx, pull, action) => {
+  if (pull.baseRef !== ctx.state.defaultBranch) return action
+  const landed = new Set([...ctx.mergedPulls].filter((other) => other.baseRef === ctx.state.defaultBranch).flatMap((other) => other.files ?? []))
+  const shared = [...new Set((pull.files ?? []).filter((path) => CODE_PATH.test(path) && landed.has(path)))].sort()
+  return shared.length === 0 ? action : { type: "update", reason: staleReason(shared) }
+}
+
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
 const ownDiff = async (env, repoPath, base, sha) => {
   const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "--binary", `origin/${base}...${sha}`])
@@ -1346,7 +1360,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     const shared = pull.baseRef === state.defaultBranch ? await sharedUnseenPaths(env, env.config.repos[repoKey], pull, state.defaultBranch) : []
     // Being behind the base branch alone never updates a branch. A code path that the base gained after the CI started, and that this pull request also changes, does.
     // A re-run never helps: it runs on the old test merge commit, and only a push builds a new one.
-    if (shared.length > 0) return [...actions, { type: "update", reason: `main changed ${shared.length > 5 ? `${shared.slice(0, 5).join(", ")} and ${shared.length - 5} more` : shared.join(", ")} after the CI of this head started` }]
+    if (shared.length > 0) return [...actions, { type: "update", reason: staleReason(shared) }]
     return [...actions, { type: "merge" }]
   }
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
@@ -1681,7 +1695,8 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       const labelled = !ownerAtPlan && pull.tracks !== null && holdsTicket(ctx.ticketMap.get(pull.tracks))
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
-      const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const replanned = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const plan = replanned.map((action) => (action.type === "merge" ? afterMergesOfTick(ctx, pull, action) : action))
       checked = true
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)

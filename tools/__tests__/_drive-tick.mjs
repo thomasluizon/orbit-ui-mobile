@@ -1300,6 +1300,21 @@ const staleBaseCases = async () => {
   same("drive: a Markdown file that both sides changed is no shared code path, so the pull request merges", outcome(markdown), [[], [30]])
   const stacked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", labels: [OWNER_LABEL] }), pull(30, { baseRef: "chore/ticket-7-part-1", files: [drive] })] }, gitRoutes: [mainLog([{ at: -30 * MINUTE, files: [drive] }])] })
   await stacked.run()
+  // Every plan of a repository ends before the first merge runs, so a merge of this tick is a commit that no plan read.
+  // The fake git answers the file list by head, so the two heads differ.
+  const SECOND_HEAD = "e".repeat(40)
+  const pair = (second, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: [drive], checks: lintChecks }), pull(31, { files: second, checks: lintChecks, headSha: SECOND_HEAD, commits: [{ sha: SECOND_HEAD, parents: 1 }], reviews: [review("APPROVED", SECOND_HEAD)], ...extra })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const lintChecks = [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()]
+  const twice = pair([drive])
+  await twice.run()
+  same("drive: two pull requests of one tick that change one code path merge the first and update the second", [only(twice.calls, "merge").map((entry) => entry[2]), only(twice.calls, "updateBranch")], [[30], [["updateBranch", "ui", 31]]])
+  same("drive: the update that follows a merge of the same tick logs the shared paths", twice.messages.some((line) => line.includes("ui#31") && line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), true)
+  const apart = pair(["apps/web/a.ts"])
+  await apart.run()
+  same("drive: two pull requests of one tick with no shared code path both merge", [only(apart.calls, "merge").map((entry) => entry[2]), only(apart.calls, "updateBranch")], [[30, 31], []])
+  const docs = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: ["docs/x.md"] }), pull(31, { files: ["docs/x.md"] })] } })
+  await docs.run()
+  same("drive: two pull requests of one tick that change one Markdown file both merge", [only(docs.calls, "merge").map((entry) => entry[2]), only(docs.calls, "updateBranch")], [[30, 31], []])
   same("drive: a stacked pull request reads no unseen path of main and gets no update", [only(stacked.calls, "updateBranch"), only(stacked.calls, "git").some((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))], [[], false])
 }
 
