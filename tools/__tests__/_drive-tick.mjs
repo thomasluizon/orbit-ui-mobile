@@ -141,13 +141,13 @@ const clean = { exitCode: 0, killed: null, sessionId: "s1", utilization: null, r
 const heads = (before, after) => { const queue = [before, after]; return ["rev-parse", () => `${queue.length > 1 ? queue.shift() : queue[0]}\n`] }
 
 /** Makes the fake GitHub keep the driver's writes to the tickets, so the next tick reads them the way GitHub returns them. */
-const keepWrites = (scene, tickets) => {
+const keepWrites = (scene, tickets, at = -3600 * 1000) => {
   const { comment: write, editLabels: relabel, createTicket: create } = scene.env.github
   const find = (key, number) => (key === "tickets" ? tickets.find((entry) => entry.number === number) : undefined)
   scene.env.github.comment = async (key, number, body) => {
     await write(key, number, body)
     const kind = /^<!-- orbit-drive:([a-z-]+) -->/.exec(body)?.[1] ?? null
-    find(key, number)?.comments.push(comment(kind, kind === null ? body : body.split("\n").slice(1).join("\n")))
+    find(key, number)?.comments.push(comment(kind, kind === null ? body : body.split("\n").slice(1).join("\n"), at))
   }
   scene.env.github.editLabels = async (key, number, change) => {
     await relabel(key, number, change)
@@ -1330,6 +1330,14 @@ const closeCases = async () => {
   const parkedBefore = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -7200 * 1000)] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
   await parkedBefore.run()
   same("drive: a parked comment from before the merge does not lift a blocked Remaining line", [parkedBefore.launched.length, only(parkedBefore.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked"]])
+  const secondRoundTickets = [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -7200 * 1000)] })]
+  const secondRound = scenario({ tickets: secondRoundTickets, routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
+  keepWrites(secondRound, secondRoundTickets, 0)
+  await secondRound.run()
+  const secondPark = [secondRound.launched.length, parkedComments(secondRound.calls, 7).length]
+  secondRoundTickets[0].labels = secondRoundTickets[0].labels.filter((label) => label !== "parked")
+  await secondRound.run()
+  same("drive: a second blocked park writes its own parked comment, so the next tick after the review takes it back builds", [secondPark, secondRound.launched.length, /## This order \(build\)/.test(orderText(secondRound)), parkedComments(secondRound.calls, 7).length], [[0, 1], 1, true, 1])
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
   const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
@@ -2958,6 +2966,18 @@ const harnessReviewCases = async () => {
   const newSet = [1, 2].map((number) => comment(null, `## Part ${number} of 3: new ${number}`, -(39 * HOUR) + number))
   await takenBack("a new part set of the review builds its open part on a new branch and keeps the merged part", [...ladder("chore/ticket-7-part-2", "build part", 2), park, ...newSet, comment(null, "## Part 3 of 3: new 3", -39 * HOUR + 3)], ["build part", "chore/ticket-7-part-2-r2", "claude-sonnet-5-5"], { routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])] })
   await takenBack("a branch with a launch only after the park keeps its name and its count", [...ladder("chore/ticket-7"), park, launchComment("build", "chore/ticket-7-r2", -30 * HOUR), launchComment("build", "chore/ticket-7-r2", -29 * HOUR)], ["build", "chore/ticket-7-r2", OPUS])
+
+  // A second park whose re-plan runs left no record: its own comment restarts the re-plan count and leaves the branch of that round.
+  const unrecorded = [-20, -19].map((hours) => launchComment("replan", "chore/ticket-7-replan", hours * HOUR, null, { model: OPUS }))
+  const again = [ticket(7, { comments: [...ladder("chore/ticket-7"), park, ...[-30, -29].map((hours) => launchComment("build", "chore/ticket-7-r2", hours * HOUR)), launchComment("build", "chore/ticket-7-r2", -28 * HOUR, null, { model: OPUS }), ...unrecorded] })]
+  const reparked = scenario({ tickets: again })
+  keepWrites(reparked, again, 0)
+  await reparked.run()
+  const secondPark = [reparked.launched.length, commentsOf(reparked.calls, 7).filter((text) => text.startsWith(marked("parked", ""))).length]
+  again[0].labels = again[0].labels.filter((label) => label !== "parked")
+  await reparked.run()
+  const rebuilt = commentsOf(reparked.calls, 7).filter((text) => text.startsWith(marked("launch", ""))).map((text) => JSON.parse(text.split("\n").slice(1).join("\n")))
+  same("drive: harness review: a second park with unrecorded re-plan runs writes its own comment, and the taken-back ticket builds on a new branch", [secondPark, rebuilt.map((record) => [record.kind, record.branch, record.model])], [[0, 1], [["build", "chore/ticket-7-r3", "claude-sonnet-5-5"]]])
 }
 
 const OLD_PIN = "1".repeat(40)

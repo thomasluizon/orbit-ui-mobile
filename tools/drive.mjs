@@ -1903,14 +1903,12 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   const branches = [...new Set(launches.map((entry) => entry.branch))]
   const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
   const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
-  const newestReplan = newestOf(ticket.comments, "replan")
   // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
   await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
   ticket.labels.push(PARKED)
-  if (!(newestOf(ticket.comments, PARKED) > newestReplan)) {
-    const text = `Parked by the driver: ${reason}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
-    await env.github.comment("tickets", ticket.number, marked(PARKED, text))
-  }
+  // Each park writes its own comment: the re-plan count, the left branches and the `blocked` stop read the time of the newest one.
+  const text = `Parked by the driver: ${reason}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
+  await env.github.comment("tickets", ticket.number, marked(PARKED, text))
   for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
   const today = new Date(env.now()).toISOString().slice(0, 10)
   const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length
