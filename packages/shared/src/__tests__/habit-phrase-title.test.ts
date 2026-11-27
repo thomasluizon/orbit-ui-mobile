@@ -108,3 +108,52 @@ describe('getHabitPhraseTitle', () => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(phrase)
   })
 })
+
+describe('a title beside a day or a range of days', () => {
+  it.each([
+    ['academia de segunda a sexta', 'pt-BR', 'academia'],
+    ['academia de segunda', 'pt-BR', 'academia'],
+    ['academia das segundas às sextas', 'pt-BR', 'academia'],
+    ['academia às segundas e às quartas', 'pt-BR', 'academia'],
+    ['reunião às 10 da manhã de segunda a sexta', 'pt-BR', 'reunião'],
+    ['gym from monday to friday', 'en', 'gym'],
+    ['gym from monday', 'en', 'gym'],
+  ] as const)('drops the word that opens the days: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+
+  it.each([
+    ['Aula de inglês toda sexta', 'pt-BR', 'Aula de inglês'],
+    ['Pagar conta de luz toda sexta', 'pt-BR', 'Pagar conta de luz'],
+    ['Class from home every friday', 'en', 'Class from home'],
+  ] as const)('keeps a word that belongs to the title: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+
+  it.each([
+    ['academia seg, ter e qui', 'pt-BR', 'academia'],
+    ['academia toda seg.', 'pt-BR', 'academia'],
+    ['academia seg., qua. e sex.', 'pt-BR', 'academia'],
+    ['academia toda sexta feira', 'pt-BR', 'academia'],
+    ['gym mon-wed-fri', 'en', 'gym'],
+    ['gym every mon.', 'en', 'gym'],
+  ] as const)('leaves nothing of a day name: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+
+  it('keeps a dash and a comma that join title words', () => {
+    expect(getHabitPhraseTitle('Pull-ups, squats every friday', 'en')).toBe('Pull-ups, squats')
+  })
+})
+
+describe('a title beside a spoken hour', () => {
+  it.each([
+    ['Ler toda sexta às 9 horas', 'pt-BR', 'Ler'],
+    ['Ler toda sexta às 9 h', 'pt-BR', 'Ler'],
+    ['Ler toda sexta às 3 e meia da tarde', 'pt-BR', 'Ler'],
+    ["Read every friday at 9 o'clock", 'en', 'Read'],
+    ['Read every friday at 3 p.m.', 'en', 'Read'],
+  ] as const)('removes the whole hour: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+})
