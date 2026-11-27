@@ -696,8 +696,8 @@ it('sends one Sentry event for each different load failure, with the kind, the s
       extra: { description, elapsed_ms }, fingerprint: ['turnstile_load_failed', kind, String(status_code ?? code ?? '')] }]
   expect(vi.mocked(captureMessage).mock.calls).toEqual([
     event('http', host, 429, null, 'Too Many Requests', 0),
-    event('challenge', 'challenges.cloudflare.com', null, '300010', null, 36_000),
-    event('challenge', 'challenges.cloudflare.com', null, null, null, 36_000),
+    event('challenge', 'challenges.cloudflare.com', null, '300010', null, 96_000),
+    event('challenge', 'challenges.cloudflare.com', null, null, null, 96_000),
     event('bridge_deadline', host, null, null, null, 96_000),
   ])
   expect(JSON.stringify(vi.mocked(captureMessage).mock.calls)).not.toMatch(/site-key|siteKey|turnstile-bridge|secret-token|example\.org/)
@@ -780,9 +780,33 @@ it('reports a Cloudflare script that fails at once as one script event and one s
   TestRenderer.act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
   expect(shownSentences(renderer)).toEqual(['auth.turnstileFailed'])
   expect(vi.mocked(captureMessage).mock.calls).toEqual([
-    deadlineEvent('script', 'challenges.cloudflare.com', 0),
+    deadlineEvent('script', 'challenges.cloudflare.com', TURNSTILE_LOAD_DEADLINE_MS - TURNSTILE_RETRY_INTERVAL_MS),
     deadlineEvent('script_deadline', 'challenges.cloudflare.com', TURNSTILE_LOAD_DEADLINE_MS - TURNSTILE_RETRY_INTERVAL_MS),
   ])
+})
+
+it('sends no Sentry event for a script or challenge failure that the bridge then passes, and one event for each failure when the bridge then fails', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  post(bridge!, { failure: { kind: 'script' } })
+  post(bridge!, { failure: { kind: 'challenge', code: '300010' } })
+  post(bridge!, { state: 'loading' })
+  post(bridge!, { state: 'solved', token: 'passed-token' })
+  TestRenderer.act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
+  expect(vi.mocked(captureMessage).mock.calls, 'a pass drops the held failures').toEqual([])
+})
+
+it('reports the held bridge failures when the bridge posts failed', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  post(bridge!, { failure: { kind: 'challenge', code: '300010' } })
+  post(bridge!, { state: 'loading' })
+  expect(vi.mocked(captureMessage).mock.calls, 'a challenge that runs again waits for the result').toEqual([])
+  post(bridge!, { failure: { kind: 'challenge', code: '110200' } })
+  post(bridge!, { state: 'failed' })
+  expect(vi.mocked(captureMessage).mock.calls.map(([, context]) => (context as { tags: { code: string } }).tags.code)).toEqual(['300010', '110200'])
 })
 
 it('reports a failure again after Retry, because Retry starts a new load', async () => {

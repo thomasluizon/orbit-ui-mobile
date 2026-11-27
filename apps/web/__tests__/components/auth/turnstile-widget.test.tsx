@@ -514,9 +514,9 @@ it('gives each failure to the caller in place of Sentry when the caller reports 
   const callbacks = renderWidget.mock.calls[0]![1] as { 'error-callback': (code: string) => boolean }
   act(() => { callbacks['error-callback']('600010') })
   act(() => { callbacks['error-callback']('600010') })
-  expect(onFailure, 'a failure that the widget runs again is not given yet').not.toHaveBeenCalled()
   act(() => { callbacks['error-callback']('110200') })
-  expect(onFailure.mock.calls).toEqual([[{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '110200' }]])
+  expect(onFailure.mock.calls, 'the caller holds the failures, so each one reaches it at once').toEqual([
+    [{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '600010' }], [{ kind: 'challenge', code: '110200' }]])
   expect(captureMessage).not.toHaveBeenCalled()
 })
 

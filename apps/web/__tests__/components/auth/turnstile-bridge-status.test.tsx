@@ -66,7 +66,7 @@ it('draws only the Cloudflare challenge and leaves status and retry to the nativ
   ])
 })
 
-it('tells the native host the check is still loading, and no failure yet, while the widget runs a failed first challenge again', async () => {
+it('tells the native host the check is still loading while the widget runs a failed first challenge again', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'widget-1')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   const postMessage = vi.fn()
@@ -84,6 +84,7 @@ it('tells the native host the check is still loading, and no failure yet, while 
   expect(postedMessages(postMessage)).toEqual([
     { stage: 'script_started' },
     { stage: 'script_loaded' },
+    { failure: { kind: 'challenge', code: '600010' } },
     { state: 'loading' },
     { token: null },
     { state: 'interactive' },
@@ -131,6 +132,7 @@ it('tells the native host when the Cloudflare script load starts and when the sc
   expect(renderWidget).toHaveBeenCalledOnce()
   expect(postedMessages(postMessage), 'a script request again in the same load does not start a new stage').toEqual([
     { stage: 'script_started' },
+    { failure: { kind: 'script' } },
     { state: 'loading' },
     { token: null },
     { stage: 'script_loaded' },

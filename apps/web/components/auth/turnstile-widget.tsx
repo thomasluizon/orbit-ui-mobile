@@ -169,6 +169,10 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
     else report.current?.({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
   }, [])
   const holdFailure = useCallback((failure: ChallengeFailure) => {
+    if (onFailureRef.current) {
+      onFailureRef.current(failure)
+      return
+    }
     if (!held.current.some(({ kind, code }) => kind === failure.kind && code === failure.code)) held.current.push(failure)
   }, [])
   const clearHeldFailures = useCallback(() => { held.current = [] }, [])
