@@ -1826,6 +1826,18 @@ const readWorld = async (env, mem) => {
 }
 
 /**
+ * Sends SIGKILL to the process group of the worker that `${stem}.pid` names, only when no process holds that pid. A process that holds it
+ * is a live worker or an unrelated program that reuses a stale pid, and its group is not a worker's. Once the leader is gone, the negative
+ * pid reaches only its leftover children, because a group id is never reused while a member lives. A missing or unreadable file means
+ * this process already ended the group.
+ */
+const killLeftoverGroup = (env, stem) => {
+  let pid
+  try { pid = JSON.parse(readFileSync(join(env.stateDir, `${stem}.pid`), "utf8")).pid } catch { return }
+  if (Number.isInteger(pid) && !env.pidHeld(pid)) env.worker.killWorkerTree(pid, "SIGKILL")
+}
+
+/**
  * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
  * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
  * read, and it takes one only when a record waits.
@@ -1839,6 +1851,8 @@ const reapExits = async (env, mem) => {
   const { tickets, states } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
     rmSync(launchRecordPath(env, stem), { force: true })
+    // A worker that this process did not wait for has no `finish` here to end the children it left in its group, and its pid file is still there.
+    if (!mem.results.has(stem)) killLeftoverGroup(env, stem)
     rmSync(join(env.stateDir, `${stem}.pid`), { force: true })
     const killedBy = mem.orphans.get(stem)?.reason ?? null
     const result = mem.results.get(stem) ?? { ...exitFromLog(record.logFile), killed: killedBy, killReason: killedBy === null ? null : env.worker.KILL_REASONS[killedBy] }
@@ -2050,12 +2064,15 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
 }
 
 /**
- * At the end of a tick with no worker of its own running, moves the driver to the newer driver commit of origin/main. The
- * new commit must start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when
- * the driver must exit with code 0, so launchd starts the new version. A launch record on disk survives the switch.
+ * At the end of a tick, moves the driver to the newer driver commit of origin/main, while workers run. A worker is a detached
+ * process with its own pid file, launch record and worktree, so the restarted driver adopts it from them. The new commit must
+ * start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when the driver must
+ * exit with code 0, so launchd starts the new version. No switch happens in a dry run, while the questions run is live (it runs
+ * in the driver worktree), while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
  */
 const switchDriver = async (env, mem) => {
-  if (!env.selfUpdate || env.dryRun || mem.running.size > 0 || mem.questions !== null || runningWorkers(env, mem).workers.length > 0) return false
+  if (!env.selfUpdate || env.dryRun || mem.questions !== null || mem.results.size > 0) return false
+  if ([...mem.running.keys()].some((stem) => pidFileOf(env, stem) === null)) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)
@@ -2201,6 +2218,8 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
     processAlive: workerApi.isWorkerProcess,
+    // EPERM means a process of another user holds the pid, so the pid is held.
+    pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
     invocation: async (token, name = MAIN, own = null) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
