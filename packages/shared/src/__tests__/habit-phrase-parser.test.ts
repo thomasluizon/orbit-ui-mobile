@@ -1222,7 +1222,34 @@ describe('a pt-BR range of hours', () => {
     ['Estudar das 9:30 às 11:00', '09:30'],
     ['Estudar das 2 às 4 da tarde', '14:00'],
     ['Estudar de 9 até as 11', '09:00'],
+    ['Estudar das 9 e meia às 11 toda segunda', '09:30'],
+    ['Estudar das 9 às 11 e meia toda segunda', '09:00'],
+    ['Estudar das 10 da manhã às 2 da tarde', '10:00'],
+    ['Estudar das 9 horas às 11 horas', '09:00'],
+    ['Estudar das 9 ao meio-dia', '09:00'],
   ] as const)('reads the start hour as the due time: %s', (phrase, dueTime) => {
     expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
+  })
+
+  it.each([
+    ['Estudar das 11 às 2 da tarde', '11:00'],
+    ['Trabalhar das 10 às 2 da tarde', '10:00'],
+    ['Almoço das 11 às 1 da tarde toda segunda', '11:00'],
+    ['Estudar das 11 às 12 da tarde', '11:00'],
+    ['Estudar das 8 às 12 da noite', '20:00'],
+    ['Estudar das 2 às 4 da tarde', '14:00'],
+    ['Estudar das 14 às 16 da tarde', '14:00'],
+  ] as const)('puts the day part of the end on the start only when the start is in the range: %s', (phrase, dueTime) => {
+    expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
+  })
+
+  it.each([
+    ['Academia de 2 até 3 vezes por semana', 'flexible'],
+    ['Meditar de 10 até 20 minutos', null],
+    ['Correr de 5 até 10 km toda segunda', 'fixed'],
+  ] as const)('reads a range of a quantity with no due time: %s', (phrase, cadence) => {
+    const read = readHabitPhrase(phrase, 'pt-BR')
+    expect(read.dueTime).toBeNull()
+    expect(read.cadence).toBe(cadence)
   })
 })

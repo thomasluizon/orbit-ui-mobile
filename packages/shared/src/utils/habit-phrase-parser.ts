@@ -51,7 +51,9 @@ const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = String.raw`(?:\s+(?:horas?|hrs?|hs|h)\b)?(?:\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const PT_DAY_PART_LEAD = String.raw`(?:\s+(?:horas?|hrs?|hs|h)\b)?(?:\s+(?:d[ae]|pela|a)\s+`
+const PT_DAY_PART = String.raw`${PT_DAY_PART_LEAD}(manha|tarde|noite|madrugada)\b)?`
+const PT_RANGE_END_DAY_PART = String.raw`${PT_DAY_PART_LEAD}(?<endPart>manha|tarde|noite|madrugada)\b)?`
 const EN_DAY_PART = String.raw`(?:\s+o['\u2019]?clock\b)?(?:\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
 const EN_MERIDIEM_WORD = String.raw`(a\.m\.?|p\.m\.?|am|pm)`
 const EN_MERIDIEM = String.raw`(?:\s*${EN_MERIDIEM_WORD})?${EN_DAY_PART}`
@@ -77,12 +79,12 @@ const WEEKDAY_RANGE_WORDS = new Set([
 ])
 const MONTH_SCOPE_LEADS = new Set(['of', 'in', 'on', 'every', 'each', 'this', 'next', 'last'])
 const MONTH_SCOPE_FILLERS = new Set(['the', 'every', 'each', 'this', 'next', 'last', 'odd', 'even'])
-const PT_HOUR_RANGE_CLOCK = String.raw`(?::[0-5]\d|h(?:[0-5]\d)?)?`
+const PT_HOUR_RANGE_CLOCK = String.raw`(?::[0-5]\d|h(?:[0-5]\d)?|\s+e\s+meia\b(?!-))?`
+const PT_RANGE_START_GROUPS = 6
 function ptHourRange(opener: string, joiner: string): RegExp {
-  return new RegExp(
-    String.raw`\b${opener}\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s+${joiner}\s+(?:[01]?\d|2[0-3])${PT_HOUR_RANGE_CLOCK}\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`,
-    'gu',
-  )
+  const start = String.raw`([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}`
+  const end = String.raw`(?:${joiner}\s+(?<endHour>[01]?\d|2[0-3])${PT_HOUR_RANGE_CLOCK}\b|(?:ao|${joiner})\s+meio-dia\b)${PT_RANGE_END_DAY_PART}`
+  return new RegExp(String.raw`\b${opener}\s+${start}\s+${end}(?![:\dh]|[.,]\d)`, 'gu')
 }
 const PT_NOON =String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
 const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
@@ -171,8 +173,8 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(String.raw`\b(?:todo|cada|a cada)\s+mes,?\s+(?:(?:no|nos|em)\s+)?dias?\s+${PT_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
     ],
     times: [
-      ptHourRange('das', String.raw`(?:as|a|ate(?:\s+as)?)`),
-      ptHourRange('de', String.raw`(?:as|ate(?:\s+as)?)`),
+      ptHourRange('das', String.raw`(?:as|a|ate\s+as)`),
+      ptHourRange('de', String.raw`(?:as|ate\s+as)`),
       new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
@@ -313,17 +315,25 @@ function readPeriodHour(hour: number, period: DayPeriod): number | null {
   return HOUR_IN_PERIOD[period](hour - 12) === hour ? hour : null
 }
 
+function readRangeEndPeriod(startHour: number, range: Record<string, string | undefined> | undefined): DayPeriod | undefined {
+  const period = range?.endPart ? readPeriod(range.endPart) : undefined
+  const endHour = Number.parseInt(range?.endHour ?? '12', 10)
+  const startsBeforeNoon = period === 'afternoon' && endHour === 12 && startHour < 12
+  return startHour > endHour || startsBeforeNoon ? undefined : period
+}
+
 function parseTime(match: RegExpExecArray, impliedPeriod?: DayPeriod): string | null {
   if (match[1] === undefined) return /\se\s+mei[ao]$/u.test(match[0]) ? '12:30' : '12:00'
   const clockHour = Number.parseInt(match[1], 10)
-  const suffixes = match.slice(2).map((value) => (value && /^[ap]\.m/u.test(value) ? `${value[0]}m` : value))
+  const period = impliedPeriod ?? readRangeEndPeriod(clockHour, match.groups)
+  const suffixes = match.slice(2, match.groups && PT_RANGE_START_GROUPS).map((value) => (value && /^[ap]\.m/u.test(value) ? `${value[0]}m` : value))
   const minute = suffixes.includes('meia')
     ? 30
     : Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
   const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at |of the )/u.test(value))
   const spokenHour = dayPart
     ? readDayPartHour(clockHour, dayPart)
-    : (impliedPeriod && readPeriodHour(clockHour, impliedPeriod)) ?? clockHour
+    : (period && readPeriodHour(clockHour, period)) ?? clockHour
   if (spokenHour === null) return null
   return `${String(spokenHour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }

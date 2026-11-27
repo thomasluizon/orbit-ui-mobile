@@ -181,6 +181,9 @@ describe('a title at the end of a sentence', () => {
     ['Read every monday.', 'en', 'Read'],
     ['Read every monday!', 'en', 'Read'],
     ['Ler toda segunda ...', 'pt-BR', 'Ler'],
+    ['Read ch. every monday.', 'en', 'Read ch.'],
+    ['Ler o cap. toda segunda.', 'pt-BR', 'Ler o cap.'],
+    ['Ler. Todo dia.', 'pt-BR', 'Ler.'],
   ] as const)('leaves no end mark after a removed span: %s', (phrase, locale, title) => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })
@@ -197,7 +200,22 @@ describe('a title beside a range of hours', () => {
     ['Aula de segunda a sexta das 8 às 12', 'Aula'],
     ['Estudar das 9h às 11h toda segunda', 'Estudar'],
     ['Estudar de 9 às 11 toda segunda', 'Estudar'],
+    ['Estudar das 9 e meia às 11 toda segunda', 'Estudar'],
+    ['Estudar das 9 às 11 e meia toda segunda', 'Estudar'],
+    ['Estudar das 10 da manhã às 2 da tarde', 'Estudar'],
+    ['Estudar das 11 às 2 da tarde', 'Estudar'],
+    ['Estudar das 9 ao meio-dia', 'Estudar'],
   ] as const)('removes the whole range: %s', (phrase, title) => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
+
+describe('a title beside a range of a quantity', () => {
+  it.each([
+    ['Academia de 2 até 3 vezes por semana', 'Academia de 2 até'],
+    ['Meditar de 10 até 20 minutos', 'Meditar de 10 até 20 minutos'],
+    ['Correr de 5 até 10 km toda segunda', 'Correr de 5 até 10 km'],
+  ] as const)('keeps the words of the range: %s', (phrase, expected) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(expected)
   })
 })
