@@ -1066,9 +1066,11 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
     // An owner comment after the conflict report of this head grants one more merge-forward launch at it.
     if (order.kind === "merge-forward") {
-      const atHead = launches.filter((entry) => entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)
+      // The launches and the grants before the newest owner decision are answered, so a decided conflict gets its first launch again.
+      const since = ownerDecisionAt(env, ticket)
+      const atHead = launchesOf(ticket, since).filter((entry) => entry.branch === pull.headRef && entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)
       const stopText = `${item} at ${pull.headSha}: ${item} still conflicts with the base branch after a merge-forward launch at this head.`
-      const forwardGrants = stopGrants(ticket, stopText)
+      const forwardGrants = stopGrants({ ...ticket, comments: ticket.comments.filter((entry) => Date.parse(entry.createdAt) > since) }, stopText)
       if (atHead.length === 0) return [...actions, { ...order, baseMergeHead: pull.headSha }]
       if (atHead.length <= forwardGrants.length) return [...actions, { ...order, baseMergeHead: pull.headSha, ownerNote: forwardGrants[atHead.length - 1].body }]
       return [...actions, { type: "needs-owner", reason: `${item} still conflicts with the base branch after a merge-forward launch at this head. Launches: ${atHead.length}. Open: merge conflict with the base branch`, relabel: true }]
