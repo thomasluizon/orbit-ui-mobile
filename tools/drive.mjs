@@ -1339,8 +1339,20 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
 
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
-/** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. Returns null when the worker started, else the reason it did not. */
-const startWorker = async (env, mem, candidate, accountName = MAIN) => {
+/** Takes one launch back from a ticket, so it counts toward no cap. */
+const refundLaunch = async (env, ticket, { kind, partNumber, branch, prNumber }, why) => {
+  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
+  log(env, `ticket#${ticket.number}`, "launch-refund", why)
+}
+
+/**
+ * Starts one worker for an order and records its launch on the ticket first, so a crash still counts. `blocked` is read after
+ * the last wait of the start: a reason takes the launch back and starts no worker. Returns null when the worker started, else
+ * the reason it did not.
+ */
+const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = () => null) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
   const token = await env.worker.readWorkerToken()
@@ -1371,6 +1383,11 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
   const invocation = await env.invocation(token, accountName, { worktree, branch })
   const account = stateOf(mem, accountName).account?.key ?? null
+  const refusal = blocked()
+  if (refusal !== null) {
+    await refundLaunch(env, ticket, { kind, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null }, `${kind} on ${branch} starts no worker: ${refusal}`)
+    return refusal
+  }
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
@@ -1487,10 +1504,7 @@ const stopAndRefund = async (env, mem, ticket, exit, result) => {
   const name = nameOfKey(mem, account)
   const until = result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS
   await stopAccount(env, mem, name, until, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
-  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
-  await env.github.comment("tickets", ticket.number, body)
-  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
-  log(env, `ticket#${ticket.number}`, "launch-refund", `${kind} on ${branch} starts again on the other account`)
+  await refundLaunch(env, ticket, { kind, partNumber, branch, prNumber }, `${kind} on ${branch} starts again on the other account`)
 }
 
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
@@ -2067,7 +2081,7 @@ export const tick = async (env, mem) => {
   // The worker account takes a launch when it has a free slot, else the main account.
   // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
   const limitSeen = { found: false }
-  // The tickets whose order reached `startWorker`. An early order that never got there goes back to the late admission.
+  // The tickets whose order reached `startWorker` and kept its launch. Each other early order goes back to the late admission.
   const reached = new Set()
   const LIMIT_STOP = "a Pullfrog limit stops the main account"
   // Returns the reason that the launches stopped before the end of the list, or null.
@@ -2078,7 +2092,12 @@ export const tick = async (env, mem) => {
       const name = free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       reached.add(order.ticket.number)
-      const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A plan can find a limit while a start runs. With a second account, a start on the main account then launches no worker.
+      let refused = null
+      const refusal = () => (refused = limitSeen.found && name === MAIN && knownAccounts(mem).length > 1 ? LIMIT_STOP : null)
+      const reason = await startWorker(env, mem, order, name, refusal).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A refused start is a chosen hold, so it stays off the stall clock.
+      if (refused !== null) { reached.delete(order.ticket.number); return refused }
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
