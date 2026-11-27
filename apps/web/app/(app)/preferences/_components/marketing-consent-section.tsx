@@ -57,13 +57,13 @@ export function MarketingConsentSection({
         {t('profile.marketingEmails.questionDescription')}
       </p>
       {guided ? (
-        <div role="group" aria-label={t('profile.marketingEmails.question')} data-option-group="" className="grid grid-cols-2 gap-3">
+        <fieldset aria-label={t('profile.marketingEmails.question')} data-option-group="" className="grid grid-cols-2 gap-3 min-w-0">
           <OptionCard label={t('profile.marketingEmails.decline')} disabled={mutation.isPending} onSelect={() => mutation.mutate(false)} />
           <OptionCard label={t('profile.marketingEmails.accept')} disabled={mutation.isPending} onSelect={() => mutation.mutate(true)} />
-        </div>
+        </fieldset>
       ) : <fieldset
         disabled={mutation.isPending}
-        className="m-0 flex flex-wrap gap-2 border-0 p-0"
+        className="m-0 flex min-w-0 flex-wrap gap-2 border-0 p-0"
       ><ActionRow>
         <PillButton size="sm" variant="ghost" onClick={() => mutation.mutate(false)}>
           {t('profile.marketingEmails.decline')}

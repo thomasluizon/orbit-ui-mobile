@@ -39,7 +39,12 @@ export default [
           .map((full) => [full, "error"]),
       ),
       "sonarjs/cognitive-complexity": ["error", 15],
+      "sonarjs/regex-complexity": "error",
     },
+  },
+  {
+    files: ["src/utils/*-phrase-parser.ts", "src/__tests__/*-phrase-parser.test.ts"],
+    rules: { "sonarjs/no-nested-conditional": "error" },
   },
   {
     files: ["**/*.{js,mjs,cjs}"],

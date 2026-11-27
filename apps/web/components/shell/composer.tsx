@@ -105,9 +105,8 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
   const maxWidth = layout.availableWidth > 0 ? layout.availableWidth - COMPOSER_CHIP_GAP - COMPOSER_CHIP_PEEK : undefined
   return (
     <div ref={layoutRef} data-composer-suggestion-row className="min-w-0">
-      <div
+      <fieldset
         aria-label={label}
-        role="group"
         data-focus-inset=""
         onFocusCapture={revealFocusedControl}
         style={{ gap: layout.gap, paddingInlineStart: layout.paddingStart }}
@@ -132,7 +131,7 @@ function SuggestionStrip({ suggestions, label }: Readonly<Pick<ComposerProps, 's
             </span>
           </button>
         ))}
-      </div>
+      </fieldset>
     </div>
   )
 }
@@ -470,7 +469,7 @@ function ComposerContent({ props }: Readonly<{ props: WebComposerProps }>) {
 }
 
 export function Composer(props: Readonly<WebComposerProps>) {
-  const composerRef = useRef<HTMLDivElement>(null)
+  const composerRef = useRef<HTMLFieldSetElement>(null)
   const inputDisabled = !isComposerEditable(props.state)
   useEffect(() => {
     if (!props.autoFocus) return
@@ -491,21 +490,20 @@ export function Composer(props: Readonly<WebComposerProps>) {
   const canRetry = props.onRetry !== undefined
 
   return (
-    <div
+    <fieldset
       ref={composerRef}
       aria-busy={props.state === 'sending'}
       data-state={props.state}
       data-composer-root
-      role="group"
       aria-label={props.words.inputLabel ?? props.words.placeholder}
       tabIndex={-1}
       data-has-attachments={hasAttachments ? '' : undefined}
       data-can-retry={canRetry ? '' : undefined}
-      className="@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] py-4"
+      className="@container flex shrink-0 flex-col border-t border-[var(--hairline)] bg-[var(--bg)] py-4 min-w-0"
     >
       <div data-composer-content="" className="mx-auto flex w-full max-w-[740px] flex-col gap-3 px-4">
         <ComposerContent props={props} />
       </div>
-    </div>
+    </fieldset>
   )
 }

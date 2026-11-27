@@ -243,3 +243,62 @@ describe('ResultDialog on Android', () => {
     expect(Modal).toBeDefined()
   })
 })
+
+describe('QuestionFlow column and groups on Android', () => {
+  const styleOf = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>)
+  const host = (tree: ReturnType<typeof renderNavigation>, testID: string) => tree.hosts().find((node) => node.props.testID === testID)!
+
+  it('holds Orbit and the line in one group with a gap of 12 inside a block with a gap of 24', () => {
+    const tree = renderNavigation(flow())
+    expect(styleOf(host(tree, 'question-flow-orbit-group'))).toMatchObject({ gap: 12, width: '100%' })
+    expect(styleOf(host(tree, 'question-flow-step-when'))).toMatchObject({ gap: 24, maxWidth: 592 })
+    tree.unmount()
+  })
+
+  it('gives the header and the pinned primary row the 592 column of the block', () => {
+    const tree = renderNavigation(flow())
+    expect(styleOf(host(tree, 'question-flow-column'))).toMatchObject({ width: '100%', maxWidth: 592 })
+    expect(styleOf(host(tree, 'question-flow-column'))).not.toHaveProperty('paddingHorizontal')
+    tree.unmount()
+  })
+
+  it('renders the secondary as a ghost pill before the primary, 12 apart', () => {
+    const onPress = vi.fn()
+    const tree = renderNavigation(flow({ secondary: { label: 'Salvar modelo', onPress } }))
+    expect(styleOf(host(tree, 'question-flow-action-row'))).toMatchObject({ flexDirection: 'row', gap: 12 })
+    const labels = textOf(tree).filter((text) => text === 'Salvar modelo' || text === 'Continuar')
+    expect(labels).toEqual(['Salvar modelo', 'Continuar'])
+    const pills = host(tree, 'question-flow-action-row').findAll((node) => typeof node.props.testID === 'string' && node.props.testID.startsWith('button-'))
+    expect([...new Set(pills.map((node) => node.props.testID))]).toEqual(['button-ghost-sm', 'button-primary-sm'])
+    press(pills[0]!)
+    expect(onPress).toHaveBeenCalledTimes(1)
+    tree.unmount()
+  })
+
+  it('renders no action row without a secondary', () => {
+    const tree = renderNavigation(flow())
+    expect(tree.hosts().some((node) => node.props.testID === 'question-flow-action-row')).toBe(false)
+    tree.unmount()
+  })
+})
+
+describe('OptionGroup reasons on Android', () => {
+  it('shows one reason under the whole grid, once', () => {
+    const tree = renderNavigation(flow({ options: <><OptionCard label="Não" disabled disabledReason="Limpe a lista." onSelect={vi.fn()} /><OptionCard label="Sim" disabled disabledReason="Limpe a lista." onSelect={vi.fn()} /></> }))
+    const group = tree.hosts().find((node) => node.props.testID === 'option-group')!
+    expect(StyleSheet.flatten(group.props.style as StyleProp<ViewStyle>)).toMatchObject({ gap: 8 })
+    const reasons = tree.hosts().filter((node) => node.props.testID === 'option-group-reason')
+    expect(reasons).toHaveLength(1)
+    expect(reasons[0]!.props.children).toBe('Limpe a lista.')
+    expect(textOf(tree).filter((text) => text === 'Limpe a lista.')).toHaveLength(1)
+    tree.unmount()
+  })
+
+  it('sets a minimum height of 56 on the card', () => {
+    const tree = renderNavigation(<OptionCard label="Hoje" onSelect={vi.fn()} />)
+    const card = tree.hosts().find((node) => node.props.testID === 'option-card')!
+    const style = typeof card.props.style === 'function' ? (card.props.style as (state: { pressed: boolean }) => unknown)({ pressed: false }) : card.props.style
+    expect(StyleSheet.flatten(style as StyleProp<ViewStyle>)).toMatchObject({ minHeight: 56 })
+    tree.unmount()
+  })
+})

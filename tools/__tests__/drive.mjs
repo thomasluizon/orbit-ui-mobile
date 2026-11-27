@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process"
 import { EventEmitter } from "node:events"
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
 import {
@@ -22,6 +22,7 @@ import {
   needsWholeDiff,
   pullfrogRuns,
   runsNaming,
+  isRateLimited,
   readDependabotUpdateTypes,
   readFailedSteps,
   readRepositoryState,
@@ -35,7 +36,7 @@ import {
   updateBranch,
   wholeDiffApproved,
 } from "../lib/github.mjs"
-import { ORDER_KINDS, partOf, renderBrief, renderOrder } from "../lib/order.mjs"
+import { ORDER_KINDS, partOf, renderBrief, renderOrder, renderResumeOrder } from "../lib/order.mjs"
 import { parityExemptTerms } from "../lib/parity-scope.mjs"
 import { sendTelegram } from "../lib/telegram.mjs"
 import {
@@ -54,6 +55,11 @@ import {
   WORKER_DENIED_TOOLS,
   WORKER_DENY,
   WORKER_LIMITS,
+  logContextTokens,
+  RESUME_TOKEN_LIMIT,
+  resumeInvocation,
+  sessionExists,
+  sessionFile,
   WORKER_SKILLS_OFF,
   workerCommand,
   workerAccountEnvironment,
@@ -122,7 +128,7 @@ const stateResponse = (numbers) => {
 }
 
 /** A gh runner that lists `open` and answers each pull request that a state query names. `requested` keeps the numbers of each query. */
-const batchedState = (open, { failAt = null } = {}) => {
+const batchedState = (open, { failOn = [], message = "HTTP 502" } = {}) => {
   const requested = []
   let active = 0
   let mostActive = 0
@@ -133,7 +139,7 @@ const batchedState = (open, { failAt = null } = {}) => {
     mostActive = Math.max(mostActive, ++active)
     await new Promise((resolve) => setImmediate(resolve))
     active -= 1
-    if (call === failAt) throw new Error("gh api graphql failed: HTTP 502")
+    if (failOn.includes(call)) throw new Error(`gh api graphql failed: ${message}`)
     const response = stateResponse(open)
     const sample = response.data.repository.pr2509
     delete response.data.repository.pr2509
@@ -258,9 +264,25 @@ const githubUnit = async () => {
   same("lib/github.mjs: known and new numbers make one merged state", mixedState.pulls.map((pull) => pull.number), current)
   same("lib/github.mjs: no number is read twice, and each open number is read", [read.length, new Set(read).size, current.every((number) => read.includes(number))], [15, 15, true])
 
-  const failing = batchedState(many, { failAt: 3 })
+  const failing = batchedState(many, { failOn: [3, 4] })
   const failure = await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(failing.run) }))
-  same("lib/github.mjs: a failed third batch fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.length], [true, 3])
+  same("lib/github.mjs: a batch that fails again at half size fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.map((numbers) => numbers.length)], [true, [8, 8, 8, 4]])
+  const half = batchedState(many, { failOn: [3] })
+  const halved = await readRepositoryState("ui", { knownNumbers: many, ...seams(half.run) })
+  same("lib/github.mjs: a failed batch reads again as two halves and the read goes on with the later batches", half.requested.map((numbers) => numbers.length), [8, 8, 8, 4, 4, 8, 3])
+  same("lib/github.mjs: the halves of a failed batch fill the state in the order of the open list", halved.pulls.map((pull) => pull.number), many)
+  const lone = batchedState(many.slice(0, 9), { failOn: [3] })
+  await readRepositoryState("ui", { knownNumbers: [], ...seams(lone.run) })
+  same("lib/github.mjs: a failed batch of one pull request reads that one again", lone.requested.map((numbers) => numbers.length), [0, 8, 1, 1])
+  const firstFail = batchedState(many, { failOn: [1] })
+  const recovered = await readRepositoryState("ui", { knownNumbers: many, ...seams(firstFail.run) })
+  const firstRead = firstFail.requested.slice(1).flat()
+  same("lib/github.mjs: a failed first read goes on with half of the known numbers and the rest read in later batches", [firstFail.requested[1].length, recovered.pulls.length, firstRead.length, new Set(firstRead).size], [4, 35, 35, 35])
+  const limited = batchedState(many, { failOn: [3], message: "HTTP 403: API rate limit exceeded" })
+  same("lib/github.mjs: a rate limit on a batch fails at once with no read at half size", [/rate limit/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(limited.run) }))), limited.requested.length], [true, 3])
+  const limitedFirst = batchedState(many, { failOn: [1], message: "HTTP 403" })
+  same("lib/github.mjs: a rate limit on the first read fails at once", [/HTTP 403/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(limitedFirst.run) }))), limitedFirst.requested.length], [true, 1])
+  same("lib/github.mjs: HTTP 403 and a rate limit message are rate limits and HTTP 502 is not", ["gh api graphql failed: HTTP 403: Forbidden", "You have exceeded a secondary rate limit", "gh api graphql failed: HTTP 502"].map((message) => isRateLimited(new Error(message))), [true, true, false])
 
   T("lib/github.mjs: more than 100 open pull requests is refused", /more than 100 open/.test(await thrown(() => {
     const response = stateResponse([2509])
@@ -275,6 +297,20 @@ const githubUnit = async () => {
   const ticketRun = ticketRoute(FIXTURE.tickets.response)
   const tickets = await readTickets(seams(ticketRun.run))
   same("lib/github.mjs: every open ticket comes back in one read", [ticketRun.calls.length, tickets.map((ticket) => ticket.number)], [1, [2183, 2186, 2187, 2191, 2125]])
+  T("lib/github.mjs: the ticket page reads 20 blockers of each ticket", ticketRun.calls[0].text.includes("blockedBy(first: 20)") && !ticketRun.calls[0].text.includes("blockedBy(first: 100)"))
+  const blockerNode = (number) => ({ number, state: number % 2 === 0 ? "OPEN" : "CLOSED", labels: { nodes: [{ name: "repo:ui" }] } })
+  const crowded = structuredClone(FIXTURE.tickets.response)
+  crowded.data.repository.issues.nodes[0].blockedBy.nodes = Array.from({ length: 20 }, (_, index) => blockerNode(index + 1))
+  crowded.data.repository.issues.nodes[1].blockedBy.nodes = Array.from({ length: 19 }, (_, index) => blockerNode(index + 1))
+  const crowdedRun = scripted([
+    ["DriveBlockers", () => json({ data: { repository: { issue: { blockedBy: { nodes: Array.from({ length: 34 }, (_, index) => blockerNode(index + 1)) } } } } })],
+    ["DriveTickets", () => json(crowded)],
+  ])
+  const crowdedTickets = await readTickets(seams(crowdedRun.run))
+  const blockerReads = crowdedRun.calls.filter((call) => call.text.includes("DriveBlockers"))
+  same("lib/github.mjs: a ticket with a full page of 20 blockers reads all of its blockers in one more query", [blockerReads.length, blockerReads[0].text.includes("number=2183"), blockerReads[0].text.includes("blockedBy(first: 100)"), crowdedTickets[0].blockedBy.length], [1, true, true, 34])
+  same("lib/github.mjs: a ticket with 19 blockers reads no more", crowdedTickets[1].blockedBy.length, 19)
+  same("lib/github.mjs: the blockers of the second read keep their state and repository", crowdedTickets[0].blockedBy.slice(0, 2).map((blocker) => [blocker.number, blocker.open, blocker.repoKey]), [[1, false, "ui"], [2, true, "ui"]])
   const byNumber = Object.fromEntries(tickets.map((ticket) => [ticket.number, ticket]))
   same("lib/github.mjs: a ticket keeps its labels and its one repo: label", [byNumber[2186].labels, byNumber[2186].repoKey], [["repo:ui", "Improvement", "parity:no", "harness"], "ui"])
   same("lib/github.mjs: a blocker keeps its state, labels and repository", byNumber[2191].blockedBy.map((blocker) => [blocker.number, blocker.open, blocker.repoKey]), [[2187, true, "ui"], [2190, true, "api"]])
@@ -404,12 +440,11 @@ const mergeBarCases = (approved) => {
 }
 
 const pullfrogAndDeploymentCases = async (seams) => {
-  const runsFor = async (responseRuns, number) => {
-    const { run, calls } = scripted([["--workflow pullfrog.yml", () => json(responseRuns)]])
-    return { runs: runsNaming(await pullfrogRuns("ui", seams(run)), number), calls }
-  }
   const named = { ...FIXTURE.pullfrogRuns.response[0], databaseId: 1, displayTitle: `Respond to mention on #${7 * 10} [zzzzz]` }
-  const { runs, calls } = await runsFor([...FIXTURE.pullfrogRuns.response, named], 7)
+  const { run, calls } = scripted([["--workflow pullfrog.yml", () => json([...FIXTURE.pullfrogRuns.response, named])]])
+  const all = await pullfrogRuns("ui", seams(run))
+  const runs = runsNaming(all, 7)
+  same("lib/github.mjs: one read of the Pullfrog runs serves every pull request of the repository", [calls.length, all.length, runsNaming(all, 70).map((entry) => entry.databaseId)], [1, FIXTURE.pullfrogRuns.response.length + 1, [1]])
   same("lib/github.mjs: the Pullfrog runs of a pull request are the runs that name it", runs.map((entry) => entry.databaseId), FIXTURE.pullfrogRuns.response.map((entry) => entry.databaseId))
   same("lib/github.mjs: the run list asks for pullfrog.yml with the recorded fields", calls[0].args.slice(0, 7), ["run", "list", "--repo", UI, "--workflow", "pullfrog.yml", "--json"])
   same("lib/github.mjs: a run keeps its status, conclusion and times", [runs[0].status, runs[0].conclusion, runs[0].createdAt, runs[0].updatedAt], ["completed", "success", "2026-11-20T08:59:18Z", "2026-11-20T09:05:30Z"])
@@ -984,7 +1019,42 @@ const directoryCases = () => {
   T("lib/worker.mjs: the real lsof lists the cwd of this process", real.some(({ pid, path }) => pid === process.pid && path === realpathSync(process.cwd())), JSON.stringify(real.filter(({ pid }) => pid === process.pid)))
 }
 
+const resumeCases = () => {
+  const invocation = { command: { executable: "claude", args: ["-p", "--model", "m"] }, environment: { A: "1" } }
+  same("lib/worker.mjs: a resume adds --resume and the session id to the worker arguments and changes nothing else", resumeInvocation(invocation, "sess-9"), { command: { executable: "claude", args: ["-p", "--model", "m", "--resume", "sess-9"] }, environment: { A: "1" } })
+  same("lib/worker.mjs: a resume leaves the invocation that it reads unchanged", invocation.command.args, ["-p", "--model", "m"])
+  mkdirSync(join(root, "resume-home", ".claude", "skills"), { recursive: true })
+  const real = workerInvocation({ home: join(root, "resume-home"), parentEnvironment: {}, token: "t" })
+  const resumed = resumeInvocation(real, "sess-9")
+  same("lib/worker.mjs: a resumed worker keeps the worker model, effort and settings", [resumed.command.args.slice(0, -2), resumed.command.args.slice(-2), resumed.environment], [real.command.args, ["--resume", "sess-9"], real.environment])
+  T("lib/worker.mjs: the resume token limit is 200000", RESUME_TOKEN_LIMIT === 200000)
+
+  const usage = (input, write, read, extra = {}) => JSON.stringify({ type: "assistant", message: { usage: { input_tokens: input, cache_creation_input_tokens: write, cache_read_input_tokens: read, ...extra } } })
+  const logOf = (name, lines) => { const path = join(root, name); writeFileSync(path, lines.join("\n")); return path }
+  const result = JSON.stringify({ type: "result", usage: { input_tokens: 9, cache_creation_input_tokens: 9, cache_read_input_tokens: 9999999 } })
+  same("lib/worker.mjs: the context is the usage of the last assistant record and not the usage of the result", logContextTokens(logOf("context-a.log", [usage(2, 300, 1000), usage(3, 400, 5000), result, ""])), 5403)
+  same("lib/worker.mjs: a usage with only some counts sums those counts", logContextTokens(logOf("context-b.log", [usage(10, undefined, 20)])), 30)
+  same("lib/worker.mjs: a log with no assistant usage gives null", [logContextTokens(logOf("context-c.log", [result])), logContextTokens(logOf("context-d.log", [JSON.stringify({ type: "assistant", message: {} })])), logContextTokens(join(root, "context-missing.log"))], [null, null, null])
+  same("lib/worker.mjs: an assistant record with a count that is no number gives null", logContextTokens(logOf("context-e.log", [usage("x", 1, 2)])), null)
+  const big = JSON.stringify({ type: "user", message: { content: "x".repeat(1024 * 1024 + 50) } })
+  same("lib/worker.mjs: the last assistant record is found across read chunks, with no final line end", logContextTokens(logOf("context-f.log", [usage(1, 1, 1), big, usage(5, 6, 7)])), 18)
+
+  const worktree = join(root, "resume-worktree")
+  mkdirSync(worktree, { recursive: true })
+  const real1 = realpathSync(worktree)
+  const file = sessionFile({ configDirectory: "/c", worktree, sessionId: "sess-1" })
+  same("lib/worker.mjs: the transcript is under the config directory, in the real working path with each other character as a dash", file, `/c/projects/${real1.replace(/[^A-Za-z0-9]/g, "-")}/sess-1.jsonl`)
+  same("lib/worker.mjs: a path over 200 characters has no known transcript", sessionFile({ configDirectory: "/c", worktree: `/${"a".repeat(201)}`, sessionId: "s" }), null)
+  const config = join(root, "resume-config")
+  const transcript = sessionFile({ configDirectory: config, worktree, sessionId: "sess-1" })
+  const before = sessionExists({ configDirectory: config, worktree, sessionId: "sess-1" })
+  mkdirSync(dirname(transcript), { recursive: true })
+  writeFileSync(transcript, "{}\n")
+  same("lib/worker.mjs: a session exists when its transcript is on disk", [before, sessionExists({ configDirectory: config, worktree, sessionId: "sess-1" }), sessionExists({ configDirectory: config, worktree, sessionId: "sess-2" })], [false, true, false])
+}
+
 const workerUnit = async () => {
+  resumeCases()
   occupantCases()
   directoryCases()
   settingsCases()
@@ -1053,6 +1123,14 @@ const orderCases = async () => {
   const longSection = oneLong.slice(oneLong.indexOf("## Earlier launches"), oneLong.indexOf("## Brief"))
   const fenceLines = longSection.split("\n").filter((line) => /^`{3,}$/.test(line))
   T("lib/order.mjs: one earlier launch that is over 16,000 bytes drops its oldest check-log lines and keeps the result tail and every fence", Buffer.byteLength(longSection.slice(0, longSection.indexOf("\n\nThe launches above failed."))) <= 16000 + 40 && longSection.includes("RESULT-TAIL-KEPT") && !longSection.includes("CUT-AWAY") && fenceLines.length > 0 && fenceLines.length % 2 === 0 && longSection.indexOf("The launches above failed. Find why before you change code.") >= 0 && oneLong.indexOf("The launches above failed. Find why before you change code.") < oneLong.indexOf("## Brief") && longSection.includes("LOG LINE 119"), `${Buffer.byteLength(longSection)} bytes, ${fenceLines.length} fence lines`)
+
+  const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
+  T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
+  T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
+  for (const [label, call, message] of [
+    ["a build order", () => renderResumeOrder({ kind: "build" }), /does not resume a session/],
+    ["a fix order with no blocking class", () => renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [] } }), /needs its pull request/],
+  ]) T(`lib/order.mjs: a resumed order refuses ${label}`, message.test(String(((() => { try { call() } catch (error) { return error.message } return "" })()))))
 
   const build = order("build", { partComments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))

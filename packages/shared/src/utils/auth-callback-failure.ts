@@ -25,13 +25,14 @@ export function readAuthCallbackInput(error: boolean, code: unknown, state: unkn
   return { reason: null, code, state }
 }
 
+/** Reports a callback failure once. The fingerprint gives each provider and reason its own Sentry issue, because Sentry groups a message event by its text. */
 export function createAuthCallbackFailureReporter(provider: 'apple' | 'google', capture: (message: string, context: {
-  level: 'error'; tags: { provider: 'apple' | 'google'; reason: AuthCallbackFailureReason }
+  level: 'error'; tags: { provider: 'apple' | 'google'; reason: AuthCallbackFailureReason }; fingerprint: string[]
 }) => unknown): (reason: AuthCallbackFailureReason) => void {
   let reported = false
   return (reason) => {
     if (reported) return
     reported = true
-    capture('auth_callback_failed', { level: 'error', tags: { provider, reason } })
+    capture('auth_callback_failed', { level: 'error', tags: { provider, reason }, fingerprint: ['auth_callback_failed', provider, reason] })
   }
 }

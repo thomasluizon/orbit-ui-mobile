@@ -8,6 +8,7 @@ const require = createRequire(import.meta.url)
 const webDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const environment = {
   ...process.env,
+  ORBIT_HERMETIC_BUILD: "1",
   API_BASE: "http://127.0.0.1:5099",
   NEXT_PUBLIC_EVENT_API_BASE: process.env.HERMETIC_DESKTOP_ORIGIN ?? "http://127.0.0.1:5099",
   NEXT_PUBLIC_SITE_URL: process.env.HERMETIC_DESKTOP_ORIGIN ?? LAYOUT_ORIGIN,

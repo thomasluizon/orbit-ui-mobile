@@ -223,7 +223,7 @@ describe('Pending preview geometry in Chromium', () => {
         const header = frame.querySelector('header')!
         const next = [...frame.querySelectorAll('[role="status"], div[aria-live="polite"]')]
           .find(region => region.textContent.trim())!
-        const row = frame.querySelector<HTMLElement>('div[aria-live="polite"] > div > div')!
+        const row = frame.querySelector<HTMLElement>('div[aria-live="polite"] > :is(div, fieldset) > div')!
         const style = getComputedStyle(frame)
         return { inset: parseFloat(style.paddingLeft), gap: next.getBoundingClientRect().top - header.getBoundingClientRect().bottom,
           rowInset: parseFloat(getComputedStyle(row).paddingLeft), countFont: getComputedStyle(header.querySelector('span')!).fontFamily,

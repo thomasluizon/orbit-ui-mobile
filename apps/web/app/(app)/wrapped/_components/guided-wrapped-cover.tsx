@@ -88,11 +88,11 @@ export function GuidedWrappedCover({ period, onSelectPeriod, state, onStart, onR
             </div>
             <div className="flex w-full flex-col gap-3">
               <h2 id={questionId} className="text-balance text-[17px] font-medium leading-6 text-[var(--fg-1)]">{t('wrapped.periodQuestion')}</h2>
-              <div role="group" aria-labelledby={questionId} data-option-group="" className="grid w-full grid-cols-2 gap-3">
+              <fieldset aria-labelledby={questionId} data-option-group="" className="grid w-full grid-cols-2 gap-3 min-w-0">
                 {RECAP_SHARE_PERIODS.map((value) => (
                   <OptionCard key={value} label={t(`wrapped.periods.${value}`)} selected={period === value} onSelect={() => onSelectPeriod(value)} />
                 ))}
-              </div>
+              </fieldset>
             </div>
             {state === 'loading' ? <Skeleton variant="settings" rows={3} label={t('wrapped.loading')} /> : null}
           </div>

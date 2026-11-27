@@ -577,7 +577,7 @@ it.each(['network', 'gateway'])('reports one failed Google exchange when the API
   await mount(<><AuthCallbackScreen /><AuthCallbackScreen /></>)
   await vi.waitFor(() => expect(captureMessage).toHaveBeenCalledOnce())
   expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' }, fingerprint: ['auth_callback_failed', 'google', 'exchange_failed'],
   })
   expect(requestCount(API.auth.googleCode)).toBe(1)
   expect(useAuthStore.getState().isAuthenticated).toBe(false)

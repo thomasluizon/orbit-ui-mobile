@@ -61,7 +61,7 @@ for (const width of [320, 412, 1352]) {
           const geometry = await row.evaluate(element => {
             const text = element.querySelector('span')!
             const bounds = element.getBoundingClientRect()
-            return { left: bounds.left, width: bounds.width, groupWidth: element.closest('[role="group"]')!.getBoundingClientRect().width, title: element.getAttribute('title'),
+            return { left: bounds.left, width: bounds.width, groupWidth: element.closest('fieldset')!.getBoundingClientRect().width, title: element.getAttribute('title'),
               scrollWidth: text.scrollWidth, clientWidth: text.clientWidth,
               scrollHeight: text.scrollHeight, clientHeight: text.clientHeight,
               overflow: getComputedStyle(text).textOverflow, fontSize: parseFloat(getComputedStyle(text).fontSize) }

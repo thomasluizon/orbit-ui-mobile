@@ -47,6 +47,7 @@ export * from './habit-structure-core'
 export * from './habit-delete-core'
 
 export { createUseDelayedLoading } from './delayed-loading-core'
+export { createOptionReasons, distinctOptionReasons, setOptionReason, type ReportOptionReason } from './option-reasons-core'
 export { createUseGuidedGoalFlow, type GuidedGoalFlowNavigation } from './guided-goal-flow-core'
 export { createUseGuidedOnboardingNavigation } from './guided-onboarding-navigation-core'
 export { createQuestionFlowHooks } from './question-flow-core'
