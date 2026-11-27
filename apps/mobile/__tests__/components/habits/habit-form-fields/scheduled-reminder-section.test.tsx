@@ -106,6 +106,11 @@ function buttonWithLabel(tree: TestTree, label: string): TestNode | undefined {
   return buttons(tree).find((node) => node.props.accessibilityLabel === label);
 }
 
+function dayRadioLabels(tree: TestTree): unknown[] {
+  const dayLabels = ['habits.form.scheduledReminderDayBefore', 'habits.form.scheduledReminderSameDay'];
+  return [...new Set(tree.root.findAll((node) => node.props.accessibilityRole === 'radio').map((node) => node.props.accessibilityLabel))].filter((label) => dayLabels.includes(label as string));
+}
+
 function texts(tree: TestTree): unknown[] {
   return tree.root
     .findAll((node) => node.type === "Text")
@@ -236,9 +241,17 @@ describe("ScheduledReminderSection", () => {
     expect(onSetScheduledReminders).not.toHaveBeenCalled()
   })
 
+  it('shows the day heading and both day options when day-before is allowed', () => {
+    const { tree } = render({})
+    expect(texts(tree)).toContain('habits.form.scheduledReminder')
+    expect(dayRadioLabels(tree)).toEqual(['habits.form.scheduledReminderDayBefore', 'habits.form.scheduledReminderSameDay'])
+  })
+
   it('hides day-before for today without removing stored clocks', () => {
     const { tree, onSetScheduledReminders } = render({ hideDayBefore: true, scheduledReminders: [{ when: 'day_before', time: '20:00' }] })
     expect(tree.root.findAll((node) => node.props.accessibilityRole === 'radio' && node.props.accessibilityLabel === 'habits.form.scheduledReminderDayBefore')).toHaveLength(0)
+    expect(dayRadioLabels(tree)).toEqual([])
+    expect(texts(tree)).not.toContain('habits.form.scheduledReminder')
     const picker = tree.root.findAll((node) => node.type === 'TimeField')[0]!
     TestRenderer.act(() => (picker.props as { onChange: (value: string) => void }).onChange('09:00'))
     expect(onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '20:00' }, { when: 'same_day', time: '09:00' }])
