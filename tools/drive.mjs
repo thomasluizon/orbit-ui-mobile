@@ -1720,9 +1720,7 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
       await gitText(env, path, ["fetch", "origin", branch])
       await gitText(env, path, ["merge", "--ff-only", `origin/${branch}`])
     }
-    return path
-  }
-  if (fresh) {
+  } else if (fresh) {
     await gitText(env, repoPath, ["fetch", "origin", "main"])
     await gitText(env, repoPath, ["worktree", "add", "-b", branch, path, "origin/main"])
   } else {

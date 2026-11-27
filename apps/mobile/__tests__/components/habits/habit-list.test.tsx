@@ -238,13 +238,9 @@ const offlineMocks = vi.hoisted(() => {
   function receiveHabitToggle(endpoint: string): null {
     const match = endpoint.match(/^\/api\/habits\/([^/]+)\/log$/)
     const habitId = match?.[1]
-    if (!habitId) return null
-
-    appliedHabitIds.push(habitId)
-    if (loggedHabits.has(habitId)) {
-      loggedHabits.delete(habitId)
-    } else {
-      loggedHabits.add(habitId)
+    if (habitId) {
+      appliedHabitIds.push(habitId)
+      if (!loggedHabits.delete(habitId)) loggedHabits.add(habitId)
     }
     return null
   }
