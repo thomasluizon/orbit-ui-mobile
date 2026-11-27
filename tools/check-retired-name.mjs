@@ -67,6 +67,9 @@ export const KEPT_FILES = new Map([
   ["apps/mobile/app/profile/astra.tsx", { path: true, body: false, reason: "the route file name is the legacy slug /profile/astra that stored links open" }],
   ["apps/web/lib/conversation-entry-query.ts", { path: false, body: true, reason: "it reads the legacy conversation query parameter of stored notification links" }],
   ["evals/ai-eval/__tests__/fixtures/offer-contract.json", { path: false, body: true, reason: "a copy of the API OpenAPI document, which names its schemas AstraNextAction" }],
+  ["packages/shared/scripts/__fixtures__/openapi.json", { path: false, body: true, reason: "a copy of the API OpenAPI document of orbit-api 84b8829f, which still tags its controller ProactiveAstra" }],
+  ["packages/shared/scripts/__fixtures__/openapi_v1-r2.json", { path: false, body: true, reason: "a copy of the API OpenAPI document of orbit-api 84b8829f, which still tags its controller ProactiveAstra" }],
+  ["packages/shared/scripts/__fixtures__/openapi_v2-r2.json", { path: false, body: true, reason: "a copy of the API OpenAPI document of orbit-api 84b8829f, which still tags its controller ProactiveAstra" }],
   ["packages/shared/src/__tests__/orbit-copy.test.ts", { path: false, body: true, reason: "its guard test names the retired word to prove that no visible copy carries it" }],
   ["tools/check-retired-name.mjs", { path: false, body: true, reason: "this guard names the word it forbids" }],
 ])

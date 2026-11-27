@@ -36,6 +36,13 @@ export const cases = () => {
   })
   check("check-retired-name.mjs", "accepts the wire names of the allowlist", ["--root", wire], { status: 0, stdout: /Retired name guard passed/ })
 
+  const fixtures = stageRepository("producer-fixtures", {
+    "packages/shared/scripts/__fixtures__/openapi.json": `{"tags":[{"name":"Proactive${retired}"}]}\n`,
+    "packages/shared/scripts/__fixtures__/openapi_v1-r2.json": `{"tags":[{"name":"Proactive${retired}"}]}\n`,
+    "packages/shared/scripts/__fixtures__/openapi_v2-r2.json": `{"tags":[{"name":"Proactive${retired}"}]}\n`,
+  })
+  check("check-retired-name.mjs", "keeps the three producer OpenAPI fixtures as the producer wrote them", ["--root", fixtures], { status: 0, stdout: /Retired name guard passed/ })
+
   const body = stageRepository("body", { "apps/web/components/button.tsx": `export const ${retired}Button = () => null\n` })
   check("check-retired-name.mjs", "rejects a component named after the retired name", ["--root", body], { status: 1, stderr: new RegExp(`button\\.tsx:1: export const ${retired}Button`) })
 
