@@ -57,6 +57,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
 
   A pull request or an order that used its 1 launch gets one more launch on claude-opus-5-5. Its order holds the failure
   history of every earlier launch, from the driver's own records. No label, no notice and no sleep hold follows a launch cap.
+  A pull request that conflicts with main gets 2 merge-forward rounds, which the launch cap does not count. At the third
+  conflict it goes to the re-plan run.
   While an open ticket or pull request carries parked, the driver starts one headless harness review by itself, at most once
   in 24 hours: /ticket --auto --parked on claude-opus-5-5, on the main account, with no worker slot. The review re-plans each
   parked item and removes parked. A branch that launched before a park counts as used, so the new plan takes a new branch.
@@ -149,6 +151,8 @@ const WAITS_FOR_REPLAN = "waits for the re-plan"
 const MAIN_ONLY_WAIT = "an order on the coordinator model waits for the main account"
 /** Re-plans of one ticket before it parks. A re-plan is one Opus run, so this bounds the tokens that one ticket can spend. */
 const MAX_REPLANS = 1
+/** The merge-forward rounds of one branch before its re-plan. A conflict with the base branch is no fault of the change, so a round is no fix launch. */
+const MAX_CONFLICT_ROUNDS = 2
 const PARKED = "parked"
 const PARKED_LABEL = { name: PARKED, color: "FBCA04", description: "The driver parked it after its re-plans. The daily harness review re-plans it." }
 const ANSWER_KEPT_CHARS = 8000
@@ -736,36 +740,31 @@ export const setSleep = (env, word, { out }) => {
 const reportKeyLine = (key) => `<!-- orbit-drive-key:${createHash("sha256").update(key).digest("hex").slice(0, 16)} -->`
 
 /**
- * Writes one `needs-owner` comment, labels the ticket `needs:owner` when it lacks it, and notifies. A label change on an open pull request starts its checks again, so the pull request keeps its labels.
- * The comment is the mark that stops a repeat. A report is keyed on the pull request, its head and its `cause` class, never on
- * the reason text, so a changed check list at the same head and cause keeps one report. A ticket with no pull request keys on its
- * `cause`, which is the reason text unless the caller names a class. With no ticket, one report only, and that report holds the pull request (`heldByReport`).
- * A `relabel` report restores a removed label and writes no comment and sends no notification.
+ * Writes one `needs-owner` comment on a ticket, labels it `needs:owner` when it lacks it, and notifies. Only a step that needs the owner's hands calls it.
+ * The comment is the mark that stops a repeat. A report is keyed on the ticket and its reason text. The decision of the owner answers every earlier report.
  * The log line, the comment, the notification and the sleep item each come once for a key. The comment gates the log line, so a new process logs no repeat.
  */
-const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, cause = plainReason, relabel = false }) => {
-  const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
-  const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
-  const key = pull ? `${item} ${pull.headSha} ${cause}` : `${item} ${cause}`
-  const comments = ticket ? ticket.comments : pull.comments
+const needsOwner = async (env, mem, { ticket, reason }) => {
+  const item = `ticket#${ticket.number}`
+  const key = `${item} ${reason}`
   const keyLine = reportKeyLine(key)
   // A report from before the owner decision is answered, so the same reason after the decision is a new report.
-  const decidedAt = ticket ? ownerDecisionAt(env, ticket) : 0
-  const reported = comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (ticket === null || bodyAfterMarker(entry).trim() === reason || bodyAfterMarker(entry).trimEnd().endsWith(keyLine)))
+  const decidedAt = ownerDecisionAt(env, ticket)
+  const reported = ticket.comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (bodyAfterMarker(entry).trim() === reason || bodyAfterMarker(entry).trimEnd().endsWith(keyLine)))
   // The comment persists across a driver switch and the log memory does not, so the comment gates the line.
   if (!reported) logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason })
-  if (env.dryRun || (reported && !relabel)) return
-  if (ticket && !ticket.labels.includes(OWNER)) {
+  if (env.dryRun) return
+  if (!ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
   }
   if (reported) return
   const body = marked("needs-owner", `${reason}\n${keyLine}`)
-  await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, body)
-  comments.push({ kind: "needs-owner", body, createdAt: new Date(env.now()).toISOString() })
-  const link = ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "needs-owner", body, createdAt: new Date(env.now()).toISOString() })
+  const link = issueLink(env, ticket.number)
   holdItem(env, { link, reason, key })
-  await say(env, { key: `needs-owner ${item} ${pull?.headSha ?? ""} ${plainReason}`, lines: [`Orbit needs you: ${cut(ticket?.title || item, TITLE_LIMIT)}`, cut(plainReason, DETAIL_LIMIT)], link })
+  await say(env, { key: `needs-owner ${item} ${reason}`, lines: [`Orbit needs you: ${cut(ticket.title || item, TITLE_LIMIT)}`, cut(reason, DETAIL_LIMIT)], link })
 }
 
 const PACE_FILE = "pace.json"
@@ -1319,24 +1318,6 @@ const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, run
 }
 
 /**
- * The owner comments on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
- * and holds `stopText`: the conflict report of one head. Each owner comment after it grants one more launch, and a later stop
- * report asks for the next one.
- */
-const stopGrants = (ticket, stopText) => {
-  const grants = []
-  let capped = false
-  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
-    if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(stopText)
-    else if (entry.kind === null && capped && partOf(entry) === null) {
-      grants.push(entry)
-      capped = false
-    }
-  }
-  return grants
-}
-
-/**
  * The launch facts of one plan, newest first. A launch writes its facts file when it starts and adds its exit when it ends, so
  * every field comes from the driver and none from a worker's own summary. A launch with no facts file shows only its record.
  */
@@ -1381,17 +1362,13 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     if (ticket === null) return park(`${item} needs a ${order.kind} order and no open ticket tracks it`)
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
-    // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
-    // An owner comment after the conflict report of this head grants one more merge-forward launch at it.
+    // A conflict with the base branch is no fault of the change, so a merge-forward order skips the fix cap. The branch gets MAX_CONFLICT_ROUNDS rounds on every head, then the re-plan.
+    // The rounds before the newest owner decision are answered, so a decided conflict gets its first round again.
     if (order.kind === "merge-forward") {
-      // The launches and the grants before the newest owner decision are answered, so a decided conflict gets its first launch again.
-      const since = ownerDecisionAt(env, ticket)
-      const atHead = launchesOf(ticket, since).filter((entry) => entry.branch === pull.headRef && entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)
-      const stopText = `${item} at ${pull.headSha}: ${item} still conflicts with the base branch after a merge-forward launch at this head.`
-      const forwardGrants = stopGrants({ ...ticket, comments: ticket.comments.filter((entry) => Date.parse(entry.createdAt) > since) }, stopText)
-      if (atHead.length === 0) return [...actions, { ...order, baseMergeHead: pull.headSha }]
-      if (atHead.length <= forwardGrants.length) return [...actions, { ...order, baseMergeHead: pull.headSha, ownerNote: forwardGrants[atHead.length - 1].body }]
-      return [...actions, { type: "needs-owner", reason: `${item} still conflicts with the base branch after a merge-forward launch at this head. Launches: ${atHead.length}. Open: merge conflict with the base branch`, relabel: true }]
+      const rounds = launchesOf(ticket, ownerDecisionAt(env, ticket)).filter((entry) => entry.branch === pull.headRef && entry.kind === "merge-forward")
+      if (rounds.length < MAX_CONFLICT_ROUNDS) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+      const part = partsOf(ticket).find((entry) => partBranch(ticket.number, entry.number).test(pull.headRef)) ?? null
+      return [...actions, ladderEnd(env, { ticket, repoKey, pull, part, branch: pull.headRef, running, launches, pulls: state.pulls, cause: `The branch \`${pull.headRef}\` still conflicts with \`origin/main\` after ${rounds.length} merge-forward rounds.` })]
     }
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
     // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
@@ -1678,7 +1655,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       for (const suspect of action.suspects ?? []) await env.github.comment(repoKey, pull.number, marked("record", `driver flake-suspect ${flakeKey(action.runId, suspect.name)}\n${suspect.lines.join("\n")}`))
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
-    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
     case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
     // Two triggers update a branch: a retargeted child still holds its parent's commits, so main is merged in before the first pass reads its diff,
@@ -1699,7 +1675,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
@@ -1774,8 +1750,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
         for (const action of plan) {
           if (action.type === "order") orders.push(action)
           else if (action.type !== "none") {
-            // A hold logs itself in `needsOwner`, once for each report key.
-            if (action.type !== "needs-owner") log(env, item, describe(action))
+            log(env, item, describe(action))
             if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
           }
         }
@@ -2042,8 +2017,8 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree, runner }) : null
   const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
   const text = session === null
-    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], ownerNote: order.ownerNote ?? null, place, partNumber: kind === "replan" ? null : part?.number ?? null, replan, runner })
-    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null })
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: kind === "replan" ? null : part?.number ?? null, replan, runner })
+    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
