@@ -19,7 +19,7 @@ export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly
   const [submitted, setSubmitted] = useState(false)
   const chips = getChatFollowUps({ followUps: [...followUps], followUpContext })
   if (!chips.length) return null
-  return <div aria-label={t('chat.followUps.label')} role="group" className="flex w-full min-w-0 gap-2 overflow-x-auto py-2">
+  return <fieldset aria-label={t('chat.followUps.label')} className="flex w-full min-w-0 gap-2 overflow-x-auto py-2">
     <ActionRow layout="scroll">{chips.map(item => <Button key={item.question} size="sm" variant="ghost" minimumHeight={TOUCH_TARGET_MIN} retainLeadingIcon
       leadingIcon={<OrbitMascot size={16} />} accessibleName={item.label}
       disabled={submitted} onClick={() => {
@@ -29,5 +29,5 @@ export function FollowUpChips({ followUps, followUpContext, onSelect }: Readonly
         onSelect(item.question)
       }}>{item.label}</Button>)}
     </ActionRow>
-  </div>
+  </fieldset>
 }

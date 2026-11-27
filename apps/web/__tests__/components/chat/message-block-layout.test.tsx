@@ -345,7 +345,7 @@ describe('Astra block layout in Chromium', () => {
           return { previousProse: bounds(prose(turns[0]!)!), currentProse: prose(turns[1]!) ? bounds(prose(turns[1]!)!) : null,
             turn: bounds(turns[1]!), blocks: [...turns[1]!.querySelectorAll('section[data-state]')].map(bounds),
             composer: bounds(document.querySelector('[data-composer-input-row]')!),
-            chips: document.querySelector('[data-composer-root] [role="group"]') !== null,
+            chips: document.querySelector('[data-composer-root] fieldset') !== null,
             prose: [...turns[1]!.querySelectorAll('[data-bubble-role="ai"]')].map(bounds),
             next: bounds(turns[2]!.querySelector('[data-bubble-role="user"]')!),
             contentBottom: Math.max(...[...turns[1]!.querySelectorAll('section[data-state], section[data-state] *')]

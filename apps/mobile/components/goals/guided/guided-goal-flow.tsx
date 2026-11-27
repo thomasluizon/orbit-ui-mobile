@@ -63,6 +63,7 @@ export function GoalFlowContent({ flowId, flow, view, requestClose, discard, dis
         onClose={requestClose}
         options={view.options}
         primary={view.primary}
+        secondary={view.secondary}
       >
         {view.free}
       </QuestionFlow>

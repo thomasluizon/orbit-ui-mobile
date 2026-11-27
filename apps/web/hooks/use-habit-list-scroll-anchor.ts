@@ -4,7 +4,7 @@ import { useCallback } from 'react'
 import { scroll } from 'motion/react'
 
 export function useHabitListScrollAnchor(parentId: string | null = null) {
-  return useCallback((list: HTMLDivElement | null) => {
+  return useCallback((list: HTMLElement | null) => {
     const scroller = list?.closest<HTMLElement>('[data-shell-scroller]')
     if (!list || !scroller) return
     let content: HTMLElement = list

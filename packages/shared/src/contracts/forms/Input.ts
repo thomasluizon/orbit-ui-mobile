@@ -23,6 +23,7 @@ type InputBase = {
   onBlur?: () => void
   onCancel?: () => void
   trailing?: React.ReactNode
+  radius?: 12 | 16
 }
 
 type SingleLineInput = {
