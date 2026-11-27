@@ -236,7 +236,7 @@ const FILED_BY_DRIVER = /^Filed by: driver[ \t]*$/m
 const PRIMITIVE_LIST_FILE = new URL("../lint-changed.mjs", import.meta.url)
 /** Until `tools/lint-changed.mjs` lists the primitives, a file of the `ui` folder of an app is one. */
 const DEFAULT_PRIMITIVE = /^apps\/[^/]+\/components\/ui\/./
-const TEST_FILE = /(?:^|\/)__tests__\/|\.(?:test|spec)\.[cm]?[jt]sx?$/
+const TEST_FILE = /(?:^|\/)__tests__\/|\.(?:test|spec)\.[cm]?[jt]sx?$|^tests\/[^/]+\.Tests\/.+\.cs$/
 
 const lf = (text) => String(text ?? "").replace(/\r\n/g, "\n")
 /** The value of the `Class:` line of a ticket body, or null. */

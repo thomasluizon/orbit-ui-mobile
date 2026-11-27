@@ -4372,6 +4372,7 @@ const ticketCheckCases = async () => {
     ["a Bug with no section", bug("Class: example class"), [], /needs a `## Permanent fix` section/],
     ["a section with no code", bug(fixed("Fix it.")), [], /names no path under/],
     ["a bare none line", bug(fixed("none:")), [], /names no path under/],
+    ["an API helper outside a test project", bug(fixed("`tests/Shared/CommandRepository.cs`"), { labels: ["repo:api", "Bug"] }), [], /names no path under/],
     ["a ui file that the primitive list omits", bug(fixed("`apps/web/components/ui/card.tsx`")), [], /names no path under/],
     ["a repeat that misses the earlier code", bug(rule), earlier(fixed("`eslint-rules/old.cjs`")), /repeats #3[\s\S]*old\.cjs/],
     ["a none line on a repeat of a class with code", bug(fixed("none: a reason")), earlier(fixed("`eslint-rules/old.cjs`")), /repeats #3/],
@@ -4381,6 +4382,7 @@ const ticketCheckCases = async () => {
   for (const [name, ticket, board, pattern] of refused) T(`drive: the ticket check refuses ${name}`, checkTicket(ticket, board, { primitives }).some((problem) => pattern.test(problem)), JSON.stringify(checkTicket(ticket, board, { primitives })))
   const accepted = [
     ["a rule path", bug(rule), []], ["a none line with a reason", bug(fixed("none: a reason")), []], ["a test file", bug(fixed("`tools/__tests__/a.mjs:4`")), []],
+    ["an API test file", bug(fixed("`tests/Orbit.Application.Tests/Commands/Habits/ReorderHabitsCommandHandlerTests.cs`"), { labels: ["repo:api", "Bug"] }), []],
     ["a primitive file", bug(fixed("`apps/web/components/ui/button.tsx`")), []], ["a repeat that names the earlier code", bug(rule), earlier(fixed("`eslint-rules/a.cjs`"))],
     ["an edit that keeps the part number", bug(rule, edit("## Part 1 of 2: new")), []], ["a body with CRLF line ends", bug(rule.replaceAll("\n", "\r\n")), []],
     ["a driver ticket with no lock label", bug("Filed by: driver", { labels: ["Improvement"] }), []],
