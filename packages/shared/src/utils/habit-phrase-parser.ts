@@ -81,7 +81,11 @@ const PT_RANGE_MARKED_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?
 const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
 const PT_NOON_OFFSET_TAIL = String.raw`\s+(?:e|menos)\s+(?:\d{1,2}(?![\w:])|um\s+quarto\b|meia\s+hora\b|(?:${[...PT_OFFSET_WORDS].join('|')})\b)`
 const PT_RANGE_NOON_END = String.raw`(?:ao|as|ate(?:\s+o)?)\s+(?<endNoon>meio-dia)(?!${PT_NOON_OFFSET_TAIL})(?:\s+e\s+mei[ao]\b(?!-))?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})\b)?(?![\w-]|[:.,]\d)`
-const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::([0-5]\d)|h([0-5]\d)?)?${PT_RANGE_START_MARKS}\s+(?:(?:(?:ate\s+as|ate|as)|a(?=\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}|${PT_RANGE_MARKED_END})))\s+${PT_RANGE_END}|${PT_RANGE_NOON_END})`
+const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d)|h(?<startHMinute>[0-5]\d)?)?${PT_RANGE_START_MARKS}\s+(?:(?:(?:ate\s+as|ate|as)|a(?=\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}|${PT_RANGE_MARKED_END})))\s+${PT_RANGE_END}|${PT_RANGE_NOON_END})`
+const PT_DE_RANGE_JOINER = String.raw`(?:ate\s+as|as)`
+const PT_DE_RANGE_UNIT_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d)?\s+${PT_HOUR_UNIT}\b`
+const PT_DE_RANGE_START_UNIT = String.raw`(?:\s+${PT_HOUR_UNIT}\b(?=\s+${PT_DE_RANGE_JOINER}\s+${PT_DE_RANGE_UNIT_END}))?`
+const PT_DE_HOUR_RANGE = String.raw`\bde\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d))?${PT_DE_RANGE_START_UNIT}\s+${PT_DE_RANGE_JOINER}\s+${PT_RANGE_END}(?!\s+(?:vez|vezes|x)\b)`
 const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
 const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
 const WEEKDAY_GLUE_LEAD = /^\.?(?:\s+feiras?)?/u
@@ -181,6 +185,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     ],
     times: [
       new RegExp(PT_HOUR_RANGE, 'gu'),
+      new RegExp(PT_DE_HOUR_RANGE, 'gu'),
       new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
@@ -353,7 +358,7 @@ function parseHourRange(match: RegExpExecArray, groups: Record<string, string | 
   const start = Number.parseInt(match[1]!, 10)
   const end = groups.endNoon ? 12 : Number.parseInt(groups.endHour!, 10)
   const endPeriod = groups.endNoon ? 'tarde' : groups.endPeriod
-  const minute = groups.startHalf ? 30 : Number.parseInt(match[2] ?? match[3] ?? '0', 10)
+  const minute = groups.startHalf ? 30 : Number.parseInt(groups.startMinute ?? groups.startHMinute ?? '0', 10)
   let hour: number | null
   if (groups.startPeriod) hour = readRangeStartInPeriod(start, DAY_PERIODS[groups.startPeriod]!, end, endPeriod)
   else if (endPeriod) hour = readRangeStartBeforeEnd(start, end, endPeriod)
