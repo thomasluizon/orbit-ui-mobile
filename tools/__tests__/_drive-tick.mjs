@@ -1157,6 +1157,16 @@ const readFailureCases = async () => {
   failRepository(record, "api")
   await record.run()
   same("drive: the launch record of an unknown repository waits for the next tick and the record of a read repository is reaped", [existsSync(apiRecord), existsSync(uiRecord)], [true, false])
+
+  // The reap read fails for ui and the tick read passes. The kept record must hold its ticket: no launch, record intact.
+  const kept = scenario({ tickets: [ticket(7)] })
+  const keptRecord = leftBehind(kept, {}, "", "chore-ticket-7")
+  const keptBefore = readFileSync(keptRecord, "utf8")
+  const keptRead = kept.env.github.readRepositoryState
+  let keptReads = 0
+  kept.env.github.readRepositoryState = async (name, options) => { if (name === "ui" && (keptReads += 1) === 1) throw new Error("gh api graphql failed: HTTP 504"); return keptRead(name, options) }
+  const keptResult = await kept.run()
+  same("drive: a repository that only the reap could not read stays unknown for the whole tick: no launch, the record intact", [kept.launched.length, existsSync(keptRecord) && readFileSync(keptRecord, "utf8") === keptBefore, keptResult.lines.find((line) => line.includes("#7:"))], [0, true, `ticket ${REPOSITORY}#7: wait: the ui repository could not be read this tick`])
 }
 
 const holdCases = async () => {

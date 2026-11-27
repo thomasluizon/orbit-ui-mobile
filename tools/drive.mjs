@@ -1882,14 +1882,15 @@ const settleReads = async (env, mem, { failed }) => {
 /**
  * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
  * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
- * read, and it takes one only when a record waits.
+ * read, and it takes one only when a record waits. It returns the repositories that its read could not see. The record of each
+ * waits for the next tick, so the tick treats each of them as unknown for the whole tick.
  */
 const reapExits = async (env, mem) => {
   // A dry run writes nothing, so it leaves every record for the driver that runs. Until the account is known, a reading of a worker
   // belongs to no account, so the records wait for the tick that reads it.
-  if (env.dryRun || mem.account === null) return
+  if (env.dryRun || mem.account === null) return []
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
-  if (gone.length === 0) return
+  if (gone.length === 0) return []
   const { tickets, states, unknown } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
     // The record of a repository that this read could not see waits for the next tick.
@@ -1902,6 +1903,7 @@ const reapExits = async (env, mem) => {
     mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
+  return unknown
 }
 
 /**
@@ -1974,8 +1976,9 @@ export const tick = async (env, mem) => {
   await readWorkerAccount(env, mem)
   let world
   try {
-    await reapExits(env, mem)
+    const unseen = await reapExits(env, mem)
     world = await readWorld(env, mem)
+    world.states = world.states.filter((state) => !unseen.includes(state.repositoryKey))
   } catch (error) {
     log(env, "tick", "retry", error.message)
     // A failed read that the read itself did not note (a failure of the reap) still counts as a failed tick.
