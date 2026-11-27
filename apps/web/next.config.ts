@@ -66,6 +66,12 @@ export function isSentryBuildSilent(env: Record<string, string | undefined>) {
   return !env.CI && !env.SENTRY_AUTH_TOKEN && !env.NEXT_PUBLIC_WEB_COMMIT_SHA
 }
 
+// WHY: By default the plugin only logs a failed release or source map upload, so the build passes with no source map. A build with a token must fail instead.
+export function handleSentryBuildError(env: Record<string, string | undefined>, error: Error) {
+  if (env.SENTRY_AUTH_TOKEN) throw error
+  console.warn(error)
+}
+
 export default process.env.NODE_ENV === 'development'
   ? intlConfig
   : withSentryConfig(intlConfig, {
@@ -74,4 +80,5 @@ export default process.env.NODE_ENV === 'development'
       silent: isSentryBuildSilent(process.env),
       widenClientFileUpload: true,
       release: { name: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined },
+      errorHandler: (error) => handleSentryBuildError(process.env, error),
     })

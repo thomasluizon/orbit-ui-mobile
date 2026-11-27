@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { isSentryBuildSilent } from '../next.config'
+import { describe, expect, it, vi } from 'vitest'
+import { handleSentryBuildError, isSentryBuildSilent } from '../next.config'
 
 describe('isSentryBuildSilent', () => {
   it('stays silent in a local build with no CI variable, no token and no release SHA', () => {
@@ -17,5 +17,20 @@ describe('isSentryBuildSilent', () => {
 
   it('logs in a CI build', () => {
     expect(isSentryBuildSilent({ CI: 'true' })).toBe(false)
+  })
+})
+
+describe('handleSentryBuildError', () => {
+  it('throws the upload error when the build has a token', () => {
+    const error = new Error('SSL peer certificate or SSH remote key was not OK')
+    expect(() => handleSentryBuildError({ SENTRY_AUTH_TOKEN: 'token' }, error)).toThrow(error)
+  })
+
+  it('logs the error and lets the build pass when it has no token', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const error = new Error('no token')
+    expect(() => handleSentryBuildError({}, error)).not.toThrow()
+    expect(warn).toHaveBeenCalledWith(error)
+    warn.mockRestore()
   })
 })
