@@ -905,12 +905,25 @@ const ciCases = async () => {
   const again = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: failing().checks, comments: [comment("ticket", "T"), comment("record", "driver rerun 9001")] })] }, failedSteps: ["Set up job"] })
   await again.run()
   same("drive: a run that was rerun once becomes a ci-fix order", [only(again.calls, "rerunFailed").length, again.launched.length], [0, 1])
-  const gateway = await run(["Install"], [["--log-failed", "error: HTTP 504: Gateway Timeout\n"]])
+  const gateway = await run(["Install"], [["actions/jobs/11/logs", "error: HTTP 504: Gateway Timeout\n"]])
   same("drive: a GitHub 504 gets one rerun", only(gateway.calls, "rerunFailed").length, 1)
   const barrier = await run(["Require deployment barriers for schema contractions"], [], "Guard Migrations", true)
   same("drive: a Guard Migrations barrier failure gives needs:owner and no order", [barrier.launched.length, only(barrier.calls, "editLabels").length], [0, 2])
-  const other = await run(["Unit tests"], [["--log-failed", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
+  const other = await run(["Unit tests"], [["actions/jobs/11/logs", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
   T("drive: any other failure gives one ci-fix order with the failed lines", other.launched.length === 1 && /AssertionError/.test(orderText(other)) && only(other.calls, "rerunFailed").length === 0)
+
+  const recorded = READS.failedJobLog
+  const recordedLog = [["actions/jobs/11/logs", recorded.lines.join("\n")]]
+  const suspects = (scene) => commentsOf(scene.calls, 30).filter((text) => text.includes("driver flake-suspect"))
+  const checkout = await run(recorded.failedSteps, recordedLog, "Layout shard 6")
+  same("drive: a failed checkout step gets one rerun and no flake record", [only(checkout.calls, "rerunFailed"), checkout.launched.length, suspects(checkout).length], [[["rerunFailed", "ui", "9001"]], 0, 0])
+  const stuck = await run(recorded.failedSteps, recordedLog, "Layout shard 6", true)
+  T("drive: a checkout that fails after the rerun gets a ci-fix order whose lines end at the last error of the job", stuck.launched.length === 1 && /exit code 128/.test(orderText(stuck)) && !/Cleaning up orphan processes/.test(orderText(stuck)), orderText(stuck))
+
+  const inJob = (name, jobId) => check(name, "FAILURE", { databaseId: jobId, detailsUrl: `https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/9001/job/${jobId}` })
+  const two = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [inJob("Build", 21), inJob("Lint", 22), approvalCheck()], comments: [comment("ticket", "T")] })] }, failedSteps: ["Run tests"], routes: [["actions/jobs/21/logs", "the build broke\n##[error]build\npost step\n"], ["actions/jobs/22/logs", "the lint broke\n##[error]lint\npost step\n"]] })
+  await two.run()
+  same("drive: each flake record of one run holds the lines of its own job, up to its last error", suspects(two).map((text) => text.split("\n").slice(1)), [["driver flake-suspect 9001 Build", "the build broke", "##[error]build"], ["driver flake-suspect 9001 Lint", "the lint broke", "##[error]lint"]])
   const conflict = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await conflict.run()
   T("drive: a conflict gives a merge-forward order", conflict.launched.length === 1 && /merge-forward/.test(orderText(conflict)))
@@ -1155,7 +1168,7 @@ const baseMergeCases = async () => {
   const capped = (branch) => [launch("fix", branch), launch("ci-fix", branch)]
 
   // landing#150: Build is red after the merge of 8dbc88950, and the branch had used its two fix launches.
-  const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "Error: the page lists the iPhone app twice\n"]] })
+  const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["actions/jobs/11/logs", "Error: the page lists the iPhone app twice\n"]] })
   await landing.run()
   const launchRecord = JSON.parse(commentsOf(landing.calls, 7).find((text) => text.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
   same("drive: landing#150, Build red after the merge of 8dbc88950 with the cap spent, gets a ci-fix order that the cap does not count and no needs:owner", [landing.launched.length, only(landing.calls, "editLabels").length, only(landing.calls, "notify").length, launchRecord.kind, launchRecord.baseMerge], [1, 0, 0, "ci-fix", LANDING_150.merge])
@@ -1179,7 +1192,7 @@ const baseMergeCases = async () => {
   same("drive: a review finding on a clean merge head is still counted against the cap", [fix.launched.length, only(fix.calls, "editLabels").length], [0, 2])
 
   // ui#2528: Tool Tests is red only on github-auth at the clean merge 11b42534c.
-  const toolTests = (extra) => merged(UI_2528, "ui", { checks: [check("Tool Tests", "FAILURE"), approvalCheck()], tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "not ok github-auth: the token cache expired before the read\n"]], steps: ["Run tool tests"], ...extra })
+  const toolTests = (extra) => merged(UI_2528, "ui", { checks: [check("Tool Tests", "FAILURE"), approvalCheck()], tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], routes: [["actions/jobs/11/logs", "not ok github-auth: the token cache expired before the read\n"]], steps: ["Run tool tests"], ...extra })
   const first = toolTests({ comments: [comment("ticket", "T")] })
   await first.run()
   same("drive: ui#2528, Tool Tests red at the clean merge, gets one rerun of the run before any launch, no needs:owner", [only(first.calls, "rerunFailed"), first.launched.length, only(first.calls, "editLabels").length], [[["rerunFailed", "ui", "9001"]], 0, 0])
