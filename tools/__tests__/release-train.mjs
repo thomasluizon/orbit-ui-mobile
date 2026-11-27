@@ -52,6 +52,7 @@ const world = ({ plan = planOf(), files = {}, manual = {}, outcomes = {}, noCred
       if (mainMoves[workflow]) main[key] = sha("f")
     },
     listRuns: async (key, workflow) => structuredClone(runs.get(`${key}:${workflow}`) ?? (workflow === "android-release.yml" ? [{ ...FIXTURE.run, headSha: OLD.android, createdAt: "2026-11-01T00:00:00Z", displayTitle: `Android Release 1.4.0 (${codes}) to open on main` }] : [])),
+    listMainRuns: async () => [],
     runStatus: async (key, runId) => {
       const run = [...runs.values()].flat().find((entry) => entry.databaseId === runId)
       return { status: run.status, conclusion: run.conclusion, url: run.url, headSha: run.headSha }
@@ -411,8 +412,38 @@ const refusalCases = async () => {
   moved.ports().waitRelease = async () => { moved.main.ui = sha("e"); return { code: 1, result: { reason: "FAILED" } } }
   const movedStatus = moved.ports().runStatus
   moved.ports().runStatus = async (key, runId) => ({ ...(await movedStatus(key, runId)), conclusion: "failure" })
-  await moved.drain()
-  same("release-train: a refusal while main moved past the planned SHA dispatches no tests and stops the train", [dispatchesOf(moved.events).filter((event) => event.startsWith("dispatch test.yml")).length, moved.state().train.status], [0, "stopped"])
+  await moved.drain(260)
+  same("release-train: a refusal while main moved past the planned SHA dispatches no tests and stops the train at the wait ceiling when no run exists at the planned SHA",
+    [dispatchesOf(moved.events).filter((event) => event.startsWith("dispatch test.yml")).length, moved.state().train.status, moved.state().train.steps.find((step) => step.state === "failed")?.reason],
+    [0, "stopped", "the Tests and Guards runs did not finish before the wait ceiling of 360 minutes"])
+
+  /** A mobile train whose Android staging run is refused while main moves. The push runs at the recorded commit have the status that `pushAt` gives for the minutes since the refusal. */
+  const pushed = async (pushAt) => {
+    let androidRefused = null
+    const train = world({ plan: planOf({ api: { needs: false }, web: { needs: false }, landing: { needs: false } }), files: { ui: ["apps/mobile/a.ts"] }, outcomes: { failedLog: refusal } })
+    train.ports().waitRelease = async (options) => {
+      train.events.push(`verify ${options.repo} ${options.workflow}`)
+      if (options.workflow === "android" && androidRefused === null) { androidRefused = train.clock.now; train.main.ui = sha("e"); return { code: 1, result: { reason: "FAILED" } } }
+      return { code: 0, result: { reason: "SUCCESS" } }
+    }
+    const status = train.ports().runStatus
+    train.ports().runStatus = async (key, runId) => { const entry = await status(key, runId); return entry.url.endsWith("5001") ? { ...entry, conclusion: "failure" } : entry }
+    // The push runs started when the commit merged, before the train dispatched anything. The workflow list is not cut at a dispatch time.
+    train.ports().listMainRuns = async (key, workflow) => androidRefused === null ? [] : [
+      { ...FIXTURE.run, databaseId: 9000, event: "push", headSha: NEW.web, createdAt: "2026-11-25T11:00:00Z", ...pushAt((train.clock.now - androidRefused) / 60000, workflow) },
+      { ...FIXTURE.run, databaseId: 9001, event: "push", headSha: sha("e"), createdAt: "2026-11-25T12:30:00Z", status: "queued", conclusion: null },
+    ]
+    await train.drain(260)
+    return train
+  }
+  const green = await pushed((minutes) => minutes < 10 ? { status: "queued", conclusion: null } : { status: "completed", conclusion: "success" })
+  const androidSources = dispatchesOf(green.events).filter((event) => event.startsWith("dispatch android-release.yml")).map((event) => [event.match(/track=\w+/)[0], event.match(/source_sha=(\w+)/)[1]])
+  same("release-train: a refusal while main moved dispatches no tests and waits for the push runs at the recorded commit",
+    [dispatchesOf(green.events).filter((event) => event.startsWith("dispatch test.yml") || event.startsWith("dispatch guards.yml")).length, green.state().train.status, green.tickets.bugs.length], [0, "complete", 0])
+  same("release-train: Android staging dispatches again with the same source_sha after the push runs turn green", androidSources.slice(0, 2), [["track=internal", NEW.web], ["track=internal", NEW.web]])
+  same("release-train: every Android dispatch of the train builds the recorded commit", androidSources.every(([, source]) => source === NEW.web), true)
+  const red = await pushed((minutes) => minutes < 10 ? { status: "queued", conclusion: null } : { status: "completed", conclusion: "failure" })
+  same("release-train: a push run at the recorded commit that fails stops the train", [red.state().train.status, red.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the Tests or Guards run at the planned SHA failed"])
 }
 
 const stoppedCases = async () => {
@@ -519,6 +550,8 @@ const portCases = async () => {
     if (text.includes("run list")) {
       // The newest 30 runs of test.yml are pull request runs. Only the `--event workflow_dispatch` filter reaches the dispatched runs behind them.
       const dispatched = args[args.indexOf("--event") + 1] === "workflow_dispatch"
+      // The push runs of main carry the head branch main, and the pull request runs carry the branch of the pull request.
+      if (args[args.indexOf("--branch") + 1] === "main" && !args.includes("--event")) return { status: 0, stdout: JSON.stringify([{ databaseId: 8001, event: "push", headBranch: "main", headSha: NEW.web }]), stderr: "" }
       const pulls = Array.from({ length: 30 }, (_, index) => ({ databaseId: 100 + index, event: "pull_request", displayTitle: "other" }))
       const dispatchedRuns = [{ databaseId: 7001, event: "workflow_dispatch", displayTitle: "Android Release 1.4.0 (812) to open on main" }, { databaseId: 7002, event: "workflow_dispatch", displayTitle: "Android Release 1.4.1 (815) to internal on main" }]
       return { status: 0, stdout: JSON.stringify(dispatched ? dispatchedRuns : pulls), stderr: "" }
@@ -531,6 +564,7 @@ const portCases = async () => {
   same("release-train: the real port reads the compare files with one request on the first page", [files.length, calls.filter((entry) => entry.some((part) => part.includes?.("compare/"))).length], [120, 1])
   same("release-train: the real port returns null for a compare that lists 300 files, which is incomplete", await ports.changedFiles("web", OLD.web, "c".repeat(40)), null)
   same("release-train: the real run list read returns the dispatched run behind 30 pull request runs", (await ports.listRuns("ui", "test.yml")).map((entry) => entry.databaseId), [7001, 7002])
+  same("release-train: the real main run list read returns the push run of main behind 30 pull request runs", (await ports.listMainRuns("ui", "test.yml")).map((entry) => entry.databaseId), [8001])
   same("release-train: the newest Android code is the highest code of the run titles", await ports.newestAndroidCode(), 815)
   await ports.dispatch(["workflow", "run", "release.yml", "--repo", "thomasluizon/orbit-api"])
   await ports.waitRelease({ repo: "api", workflow: "release", run: 5, sha: NEW.api, workflowSha: NEW.api, serviceUrl: "https://api.useorbit.org" })

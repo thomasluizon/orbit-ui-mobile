@@ -275,28 +275,32 @@ const resolveRun = async (ctx, step) => {
   return ctx.now() - step.dispatchedAt > RUN_FIND_MS ? { error: "no unique new run appeared for the dispatch" } : { run: null }
 }
 
+/** A refusal while `main` is at the planned commit dispatches Tests and Guards. A refusal after `main` moved dispatches nothing: the push runs at the planned commit exist and are never cancelled, so the step waits for them. */
 const startTests = async (ctx, state, step) => {
-  const sha = step.plannedSha
   const head = await ctx.ports.mainHead(SERVICES[step.service].repoKey).catch(() => null)
-  if (head !== sha) return stopTrain(ctx, state, step, `the release was refused for a missing green Tests or Guards run, and main moved from ${sha} to ${head}`)
-  try {
-    for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
-  } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
+  const dispatch = head === step.plannedSha
+  if (dispatch) {
+    try {
+      for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
+    } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
+  }
   step.state = "testing"
   step.previousRunId = step.runId
   step.runId = null
-  step.tests = { dispatchedAt: ctx.now(), ran: {}, readRunningAt: {} }
+  step.tests = { dispatchedAt: ctx.now(), ran: {}, readRunningAt: {}, dispatched: dispatch }
   step.retried = true
   save(ctx, state)
-  stepLine(ctx, step, "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml")
+  stepLine(ctx, step, dispatch ? "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml" : "refused for a missing green Tests or Guards run, and main moved: waits for the runs at the planned SHA")
 }
 
 /** A Tests or Guards run waits in the runner queue behind the pull request runs, so the run ceiling counts the run time and the queue has its own ceiling. */
 const checkTests = async (ctx, state, step) => {
   const repoKey = SERVICES[step.service].repoKey
   const workflows = ["test.yml", "guards.yml"]
-  const newest = async (workflow) => (await ctx.ports.listRuns(repoKey, workflow))
-    .filter((run) => run.headSha === step.plannedSha && Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS)
+  // A train state written before the push wait has no `dispatched` flag and always dispatched.
+  const dispatched = step.tests.dispatched !== false
+  const newest = async (workflow) => (await (dispatched ? ctx.ports.listRuns : ctx.ports.listMainRuns)(repoKey, workflow))
+    .filter((run) => run.headSha === step.plannedSha && (!dispatched || Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
   const runs = [await newest(workflows[0]), await newest(workflows[1])]
   if (runs.some((run) => run?.status === "completed" && run.conclusion !== "success")) return stopTrain(ctx, state, step, "the Tests or Guards run at the planned SHA failed")
@@ -510,6 +514,7 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
       return found
     },
     dispatch: async (args) => { await gh(args) },
+    listMainRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--branch", "main", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     listRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     runStatus: async (key, runId) => parseJson("gh api run", await gh(["api", `repos/${repoOf(key)}/actions/runs/${runId}`, "--jq", "{status,conclusion,url:.html_url,headSha:.head_sha}"])),
     failedLog: async (key, runId) => (await gh(["run", "view", String(runId), "--repo", repoOf(key), "--log-failed"])).slice(-20000),
