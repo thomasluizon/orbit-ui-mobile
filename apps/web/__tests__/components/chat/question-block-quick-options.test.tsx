@@ -3,9 +3,10 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
 import pt from '@orbit/shared/i18n/pt-BR.json'
-import { questionBlockFixture as block } from '@orbit/shared/test-support/chat-fixtures'
+import { questionBlockFixture as block, questionAnswersFixture } from '@orbit/shared/test-support/chat-fixtures'
 import type { BlockAnswerInteraction } from '@orbit/shared/chat'
 import { QuestionBlock } from '@/components/chat/question-block'
+import { canReloadDesktopWeb } from '@/lib/desktop-web-release'
 
 afterEach(cleanup)
 const interaction = (): BlockAnswerInteraction => ({ isOnline: true, isSending: false, atMessageLimit: false, allowance: 5, send: vi.fn(async () => ({ ok: true as const })) })
@@ -13,17 +14,14 @@ const question = (prompt: string) => document.querySelector(`[data-question-inva
 const optionGroup = (prompt: string) => document.querySelector<HTMLElement>(`[data-option-group][aria-label="${prompt}"]`)!
 const element = (send: BlockAnswerInteraction, locale = 'en') => <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : pt}><QuestionBlock block={block} interaction={send} /></NextIntlClientProvider>
 
-async function answerEverything(quick: boolean) {
-  const send = interaction()
+function answerEverything(send: BlockAnswerInteraction) {
   render(element(send))
-  const next = () => { if (quick) fireEvent.click(screen.getByRole('button', { name: en.chat.question.next })) }
-  const choose = (prompt: string, name: RegExp | string) => quick
-    ? fireEvent.click(within(optionGroup(prompt)).getByRole('button', { name }))
-    : fireEvent.click(within(screen.getByRole('radiogroup', { name: prompt })).getByRole('radio', { name }))
+  const next = () => fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
+  const choose = (prompt: string, name: RegExp | string) => fireEvent.click(within(optionGroup(prompt)).getByRole('button', { name }))
   choose('When?', /Morning/)
   fireEvent.click(screen.getByRole('checkbox', { name: 'Walking' }))
   fireEvent.click(screen.getByRole('checkbox', { name: 'Reading' }))
-  fireEvent.change(screen.getAllByLabelText(en.chat.choice.freeText).at(quick ? 0 : 1)!, { target: { value: 'Swimming' } })
+  fireEvent.change(screen.getAllByLabelText(en.chat.choice.freeText).at(0)!, { target: { value: 'Swimming' } })
   next()
   fireEvent.click(within(screen.getByRole('radiogroup', { name: 'How much energy?' })).getByRole('radio', { name: '3' }))
   next()
@@ -31,9 +29,8 @@ async function answerEverything(quick: boolean) {
   for (let index = 0; index < 3; index++) fireEvent.keyDown(screen.getByRole('slider'), { key: 'ArrowRight' })
   next()
   choose('Add a reminder?', en.common.no)
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.chat.choice.submit })) })
-  return send.send as ReturnType<typeof vi.fn>
 }
+const submit = () => act(async () => { fireEvent.click(screen.getByRole('button', { name: en.chat.choice.submit })) })
 
 it('marks the pressed quick option as selected, moves to the next question, and keeps the answer on the way back', () => {
   render(element(interaction()))
@@ -128,4 +125,45 @@ it('does not move focus when the flag turns on or off after the block mounted', 
     view.rerender(element(interaction()))
     expect(outside).toHaveFocus()
   } finally { outside.remove() }
+})
+
+it('sends every typed answer once through the owning registry, then locks and shows the chosen values', async () => {
+  const send = interaction()
+  answerEverything(send)
+  expect(canReloadDesktopWeb()).toBe(false)
+  await submit()
+  expect(send.send).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ kind: 'question', answer: { blockId: block.blockId, selectedIds: [], answers: questionAnswersFixture } }))
+  expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  const settled = screen.getByText(/You chose When\?: Morning/)
+  expect(settled.parentElement).toHaveFocus()
+  expect(settled).toHaveTextContent('Add a reminder?: No')
+  expect(canReloadDesktopWeb()).toBe(true)
+})
+
+it('blocks a second submit while the first answer is sending, disables every input and keeps the answers for a retry', async () => {
+  let finish!: (value: { ok: false; status: number }) => void
+  const send = { ...interaction(), send: vi.fn<BlockAnswerInteraction['send']>(() => new Promise(resolve => { finish = resolve })) }
+  answerEverything(send)
+  await submit()
+  await submit()
+  expect(send.send).toHaveBeenCalledTimes(1)
+  expect(screen.getAllByRole('textbox').every(input => input.hasAttribute('disabled'))).toBe(true)
+  await act(async () => { finish({ ok: false, status: 500 }) })
+  expect(screen.getByText(en.chat.choice.error)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: en.chat.choice.submit })).not.toBeDisabled()
+  expect(within(optionGroup('Add a reminder?')).getByRole('button', { name: en.common.no })).toHaveAttribute('aria-pressed', 'true')
+})
+
+it('links the required hint to the first unanswered question, focuses it and sends nothing', async () => {
+  const send = interaction()
+  render(element(send))
+  fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
+  fireEvent.click(screen.getByRole('button', { name: en.chat.question.next }))
+  await submit()
+  const first = question('When?') as HTMLElement
+  expect(first).toHaveAttribute('aria-invalid', 'true')
+  expect(first).toHaveAttribute('aria-describedby', expect.stringContaining('-hint'))
+  expect(document.getElementById(first.getAttribute('aria-describedby')!)).toHaveTextContent(en.chat.question.required)
+  expect(within(first).getAllByRole('button')[0]).toHaveFocus()
+  expect(send.send).not.toHaveBeenCalled()
 })
