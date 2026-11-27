@@ -6,6 +6,7 @@ import { dirname, join } from "node:path"
 import { readDriveConfig, workerEnvironment } from "../lib/config.mjs"
 import {
   bodyFindings,
+  classLines,
   classifyCheckFailure,
   closeTicket,
   comment,
@@ -33,6 +34,7 @@ import {
   rerunFailed,
   resolveThreads,
   retarget,
+  reviewSection,
   setStatus,
   trackedMergeSha,
   unmetDeployFirst,
@@ -247,6 +249,12 @@ const githubUnit = async () => {
   same("lib/github.mjs: a BLOCKING paragraph of a review body is a finding with no path and no line, and its text runs to the Pullfrog divider", bodyState.map((review) => [review.blocking.length, review.blocking[0].path, review.blocking[0].line, review.blocking[0].body.startsWith("BLOCKING: missed requirement"), review.blocking[0].body.includes("Smallest fix:"), review.blocking[0].body.includes("PULLFROG_DIVIDER")]), [[1, null, null, true, true, false], [1, null, null, true, true, false]])
   same("lib/github.mjs: bodyFindings splits at the next BLOCKING line, stops at a heading, and ignores a BLOCKING word inside a line", bodyFindings("Two classes. BLOCKING: not at a line start.\n\nBLOCKING: first\nmore of first\n\nBLOCKING: second\n\n## Outside this change\n\nnot a finding").map((entry) => entry.body), ["BLOCKING: first\nmore of first", "BLOCKING: second"])
   same("lib/github.mjs: a body with no BLOCKING line gives no finding", [bodyFindings("").length, bodyFindings("No BLOCKING finding remains.").length], [0, 0])
+
+  const sectionReviews = [{ body: "Verdict\n\n## Outside this change   \n\nsrc/x.mjs:4 loses data.\n\n## Class checks\n\n- a | type | x:1 | s\n" }, { body: "## Outside this change\n\n   \n## Class checks\n- b | test | y:2 | t" }, { body: "No section here." }]
+  same("lib/github.mjs: reviewSection reads the Outside section of each review as the driver did", reviewSection(sectionReviews, "Outside this change"), ["src/x.mjs:4 loses data."])
+  same("lib/github.mjs: reviewSection stops at the next heading and leaves out an empty section", [reviewSection(sectionReviews, "Class checks"), reviewSection([{ body: "## A\none\n## B\ntwo" }], "A"), reviewSection([{ body: "## Outside this change extra\ntext" }], "Outside this change")], [["- a | type | x:1 | s", "- b | test | y:2 | t"], ["one"], []])
+  same("lib/github.mjs: classLines reads two good lines, skips a line with three fields and a line with the check docs, and keeps the first line of a key", classLines([{ body: "## Class checks\n- Rule-One | lint rule | a.mjs:3 | First.\n- two-key | type | b.mjs:9 | Second.\n- three | test | c.mjs:1\n- four | docs | d.mjs:2 | Not a check.\n- rule-one | hook | e.mjs:5 | Same key again." }, { body: "## Class checks\n- TWO-KEY | test | f.mjs:6 | Same key in a second review." }]), [{ key: "rule-one", check: "lint rule", at: "a.mjs:3", sentence: "First." }, { key: "two-key", check: "type", at: "b.mjs:9", sentence: "Second." }])
+  same("lib/github.mjs: a review with no Class checks section gives no class line", classLines([{ body: "## Outside this change\n- a | type | x:1 | s" }, { body: "" }]), [])
 
   const unknown = await readPulls([2509, 2510], [])
   same("lib/github.mjs: a number the last tick did not know costs one more read for those numbers only", [unknown.calls.length, unknown.calls[0].text.includes("pr2509"), unknown.calls[1].text.includes("pr2509"), unknown.calls[1].text.includes("pr2510")], [2, false, true, true])

@@ -173,6 +173,35 @@ export const bodyFindings = (body) => {
   return findings.map((lines) => ({ path: null, line: null, body: lines.join("\n").trim() }))
 }
 
+/** The trimmed text under the exact line `## <heading>` of each review, up to the next `## ` line. A review with no such section or an empty one adds nothing. */
+export const reviewSection = (reviews, heading) => reviews.flatMap((review) => {
+  const lines = review.body.split("\n")
+  const start = lines.findIndex((line) => line.trimEnd() === `## ${heading}`)
+  if (start < 0) return []
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "))
+  const text = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim()
+  return text === "" ? [] : [text]
+})
+
+const CLASS_CHECKS = new Set(["lint rule", "type", "test", "hook"])
+const CLASS_LINE = /^- ([^|]+)\|([^|]+)\|([^|]+)\|(.+)$/
+
+/**
+ * The class lines of the `## Class checks` sections of Pullfrog reviews, each `- <key> | <check> | <path:line> | <sentence>`, as `{ key, check, at, sentence }`.
+ * A line that does not read this way is skipped. A key that two lines name gives the first line only.
+ */
+export const classLines = (reviews) => {
+  const lines = new Map()
+  for (const line of reviewSection(reviews, "Class checks").flatMap((text) => text.split("\n"))) {
+    const match = CLASS_LINE.exec(line.trim())
+    if (!match) continue
+    const [key, check, at, sentence] = match.slice(1).map((field) => field.trim())
+    if (key === "" || at === "" || sentence === "" || !CLASS_CHECKS.has(check.toLowerCase())) continue
+    if (!lines.has(key.toLowerCase())) lines.set(key.toLowerCase(), { key: key.toLowerCase(), check: check.toLowerCase(), at, sentence })
+  }
+  return [...lines.values()]
+}
+
 const normalizeComment = (comment) => ({
   id: comment.id,
   url: comment.url,
