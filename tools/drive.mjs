@@ -20,7 +20,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, reviewSection, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -337,14 +337,7 @@ const branchName = (ticket, part, used) => {
   }
 }
 
-const sectionsOutside = (reviews) => reviews.flatMap((review) => {
-  const lines = review.body.split("\n")
-  const start = lines.findIndex((line) => /^## Outside this change\s*$/.test(line))
-  if (start < 0) return []
-  const end = lines.findIndex((line, index) => index > start && /^## /.test(line))
-  const text = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim()
-  return text === "" ? [] : [text]
-})
+const sectionsOutside = (reviews) => reviewSection(reviews, "Outside this change")
 
 /** The ticket comment that carries the ticket and the part to Pullfrog, which cannot read the private ticket repository. */
 export const ticketComment = ({ repository, ticket, part }) => {
