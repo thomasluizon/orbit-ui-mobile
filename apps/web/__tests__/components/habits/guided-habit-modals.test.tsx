@@ -682,6 +682,42 @@ describe('the edit surface', () => {
     expect(closed).toHaveBeenCalledWith(false)
   })
 
+  it('asks before it discards a changed edit, keeps the change on Keep editing and closes only on discard', async () => {
+    const { closed } = mountEdit()
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    await press(/^Hora/)
+    await press('20:00')
+    await press(ptBR.habits.flow.close)
+    expect(await screen.findByText(ptBR.common.discardChangesTitle)).toBeInTheDocument()
+    expect(closed).not.toHaveBeenCalled()
+    await press(ptBR.common.keepEditing)
+    await waitFor(() => expect(screen.queryByText(ptBR.common.discardChangesTitle)).not.toBeInTheDocument())
+    expect(closed).not.toHaveBeenCalled()
+    await press(ptBR.habits.flow.close)
+    await press(ptBR.common.discardChangesAction)
+    await waitFor(() => expect(closed).toHaveBeenCalledWith(false))
+    expect(state.update).not.toHaveBeenCalled()
+  })
+
+  it('ignores the result of a save after the habit of the edit has been replaced', async () => {
+    let finish!: () => void
+    state.update.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+    const client = new QueryClient()
+    const closed = vi.fn()
+    const saved = vi.fn()
+    const view = render(<QueryClientProvider client={client}><EditHabitModal open habit={storedHabit} onOpenChange={closed} onSaved={saved} /></QueryClientProvider>)
+    await waitFor(() => expect(heading()).toHaveTextContent(ptBR.habits.flow.confirm.question))
+    await press(/^Hora/)
+    await press('20:00')
+    await press(ptBR.common.save)
+    await waitFor(() => expect(finish).toBeDefined())
+    view.unmount()
+    await act(async () => { finish() })
+    expect(closed).not.toHaveBeenCalled()
+    expect(saved).not.toHaveBeenCalled()
+    expect(state.completed).not.toHaveBeenCalled()
+  })
+
   it('saves the time change only and closes with the result dialog for the change', async () => {
     state.saved = { ...storedHabit, dueTime: '20:00' }
     mountEdit()
