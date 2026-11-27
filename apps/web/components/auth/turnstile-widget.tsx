@@ -162,12 +162,20 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
     held.current = []
   }, [])
   useEffect(() => { onFailureRef.current = onFailure }, [onFailure])
-  useEffect(startReport, [resetKey, startReport])
 
   const recordFailure = useCallback((failure: ChallengeFailure) => {
     if (onFailureRef.current) onFailureRef.current(failure)
     else report.current?.({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
   }, [])
+  const sendHeldFailures = useCallback(() => {
+    const pending = held.current
+    held.current = []
+    for (const failure of pending) recordFailure(failure)
+  }, [recordFailure])
+  useEffect(() => {
+    startReport()
+    return sendHeldFailures
+  }, [resetKey, startReport, sendHeldFailures])
   const holdFailure = useCallback((failure: ChallengeFailure) => {
     if (onFailureRef.current) {
       onFailureRef.current(failure)
@@ -177,10 +185,9 @@ function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFai
   }, [])
   const clearHeldFailures = useCallback(() => { held.current = [] }, [])
   const recordFinalFailure = useCallback((failure: ChallengeFailure) => {
-    for (const earlier of held.current) recordFailure(earlier)
-    held.current = []
+    sendHeldFailures()
     recordFailure(failure)
-  }, [recordFailure])
+  }, [recordFailure, sendHeldFailures])
   return { holdFailure, clearHeldFailures, recordFinalFailure, startReport }
 }
 

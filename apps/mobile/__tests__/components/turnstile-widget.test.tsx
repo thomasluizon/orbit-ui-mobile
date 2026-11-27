@@ -797,6 +797,17 @@ it('sends no Sentry event for a script or challenge failure that the bridge then
   expect(vi.mocked(captureMessage).mock.calls, 'a pass drops the held failures').toEqual([])
 })
 
+it('reports the held bridge failures and the held 503 status when the widget unmounts before the load ends', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderer = await renderWithFakeClock()
+  const [bridge] = bridges(renderer)
+  TestRenderer.act(() => bridge!.props.onHttpError(httpError(bridge!.props.source.uri, 503, 'Service Unavailable')))
+  post(bridges(renderer)[0]!, { failure: { kind: 'script' } })
+  expect(vi.mocked(captureMessage).mock.calls).toEqual([])
+  TestRenderer.act(() => renderer.unmount())
+  expect(vi.mocked(captureMessage).mock.calls.map(([, context]) => (context as { tags: { kind: string } }).tags.kind)).toEqual(['http', 'script'])
+})
+
 it('reports the held bridge failures when the bridge posts failed', async () => {
   vi.mocked(captureMessage).mockClear()
   const renderer = await renderWithFakeClock()

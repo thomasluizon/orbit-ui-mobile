@@ -180,3 +180,16 @@ it('sends no Sentry event for a script load failure that the next script load pa
   act(() => { vi.advanceTimersByTime(3 * TURNSTILE_LOAD_DEADLINE_MS) })
   expect(sentry.captureMessage).not.toHaveBeenCalled()
 })
+
+it('sends the held script failure when a quiet widget with no caller report unmounts before the load deadline', async () => {
+  sentry.captureMessage.mockClear()
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  onTestFinished(() => { vi.useRealTimers() })
+  vi.resetModules()
+  const { TurnstileWidget: FreshWidget } = await import('@/components/auth/turnstile-widget')
+  const view = render(<FreshWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} />)
+  await failScriptLoad()
+  expect(sentry.captureMessage).not.toHaveBeenCalled()
+  view.unmount()
+  expect(sentry.captureMessage.mock.calls.map(([, context]) => (context as { tags: { kind: string } }).tags.kind)).toEqual(['script'])
+})

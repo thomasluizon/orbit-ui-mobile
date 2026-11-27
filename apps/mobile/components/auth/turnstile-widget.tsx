@@ -95,7 +95,12 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
 
   useEffect(() => { onTokenRef.current = onToken }, [onToken])
   useEffect(() => { bridgeStage.current = null }, [resetKey, attempt])
-  useEffect(() => { heldFailure.current = null; retryStatusCount.current = 0; bridgeFailures.current = [] }, [resetKey])
+  useEffect(() => () => {
+    if (heldFailure.current) reportFailure(heldFailure.current)
+    reportBridgeFailures()
+    heldFailure.current = null
+    retryStatusCount.current = 0
+  }, [resetKey, reportFailure, reportBridgeFailures])
 
   useEffect(() => {
     let active = true

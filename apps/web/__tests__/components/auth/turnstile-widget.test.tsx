@@ -504,6 +504,23 @@ it('sends no Sentry event for a challenge failure that the next run passes, and 
     status_code: null, code: '300010', fingerprint: ['turnstile_load_failed', 'challenge', '300010'] }])
 })
 
+it('sends the held challenge failures when the widget unmounts or the form asks for a new challenge before the check ends', async () => {
+  vi.mocked(captureMessage).mockClear()
+  const renderWidget = vi.fn((..._args: unknown[]) => 'unmounted-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  const view = render(<TurnstileWidget siteKey="site-key" resetKey={0} quiet onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const first = renderWidget.mock.calls[0]![1] as ChallengeCallbacks
+  act(() => { first['error-callback']('300010') })
+  expect(reportedFailures()).toEqual([])
+  view.rerender(<TurnstileWidget siteKey="site-key" resetKey={1} quiet onToken={vi.fn()} />)
+  expect(reportedFailures().map((event) => event.fingerprint[2]), 'a new challenge ends the load').toEqual(['300010'])
+
+  act(() => { first['error-callback']('600010') })
+  view.unmount()
+  expect(reportedFailures().map((event) => event.fingerprint[2])).toEqual(['300010', '600010'])
+})
+
 it('gives each failure to the caller in place of Sentry when the caller reports it, as the native bridge does', async () => {
   vi.mocked(captureMessage).mockClear()
   const renderWidget = vi.fn((..._args: unknown[]) => 'bridge-widget')
