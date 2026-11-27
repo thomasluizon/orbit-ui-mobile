@@ -71,7 +71,7 @@ describe('Closed header and badge typography in Chromium', () => {
     const { container } = render(<>
       <AppBar title={ptBR.habits.form.newHabit} onBack={vi.fn()} backLabel={ptBR.common.back} />
       <PageHeader title={ptBR.profile.submenus.account} backLabel={ptBR.common.backToProfile} onBack={vi.fn()} />
-      <main tabIndex={-1}><section tabIndex={-1} className="orbit-focus-inset"><ul tabIndex={-1}><li tabIndex={-1}><div tabIndex={-1} role="group">Wayfinding</div></li></ul></section></main>
+      <main tabIndex={-1}><section tabIndex={-1} className="orbit-focus-inset"><ul tabIndex={-1}><li tabIndex={-1}><fieldset tabIndex={-1} aria-label="Wayfinding">Wayfinding</fieldset></li></ul></section></main>
       <aside tabIndex={-1} className="shadow-[inset_1px_0_0_var(--hairline)]">Panel</aside>
       <div role="dialog" tabIndex={-1} className="focus-visible:outline-2">Conversation</div>
       <button tabIndex={-1}>Button</button><a tabIndex={-1} href="#target">Link</a>
@@ -88,7 +88,7 @@ describe('Closed header and badge typography in Chromium', () => {
       await page.keyboard.press('Tab')
       for (const forcedColors of ['none', 'active'] as const) {
         await page.emulateMedia({ forcedColors })
-        const targets = page.locator('h1, main, section, ul, li, [role="group"], aside, [role="dialog"]')
+        const targets = page.locator('h1, main, section, ul, li, fieldset, aside, [role="dialog"]')
         for (const target of await targets.all()) {
           await page.getByRole('button', { name: ptBR.common.back, exact: true }).focus()
           const shadow = await target.evaluate((element) => getComputedStyle(element).boxShadow)

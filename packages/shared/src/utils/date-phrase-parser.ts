@@ -122,10 +122,10 @@ function relativeDate(phrase: string, referenceDate: string): DatePhraseResult |
   }
   if (/^(?:depois de amanha|(?:the )?day after tomorrow)$/.test(phrase)) return shiftDate(referenceDate, 2)
   if (phrase === 'tomorrow' || phrase === 'amanha') return shiftDate(referenceDate, 1)
-  const offset = /^(?:in (\d+) (days?|weeks?)|(?:em|daqui a) (\d+) (dias?|semanas?))$/.exec(phrase)
+  const offset = /^in (\d+) (days?|weeks?)$/.exec(phrase) ?? /^(?:em|daqui a) (\d+) (dias?|semanas?)$/.exec(phrase)
   if (!offset) return null
-  const weeks = /^(?:week|semana)/.test(offset[2] ?? offset[4] ?? '')
-  return shiftDate(referenceDate, Number(offset[1] ?? offset[3]) * (weeks ? 7 : 1))
+  const weeks = /^(?:week|semana)/.test(offset[2] ?? '')
+  return shiftDate(referenceDate, Number(offset[1]) * (weeks ? 7 : 1))
 }
 
 export function parseDatePhrase(input: string, context: DatePhraseContext): DatePhraseResult {

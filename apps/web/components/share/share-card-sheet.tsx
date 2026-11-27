@@ -51,11 +51,11 @@ function SharePeriodControl({ guided, period, disabled, onSelect }: Readonly<Sha
     return <div data-share-period-question="" className="flex min-w-0 flex-col gap-2"><span data-field-question="" aria-hidden="true" className="text-sm font-medium text-[var(--fg-2)]">{question}</span><SegmentedControl label={question} value={period} options={[{ value: 'week', label: t('shareCard.periods.week') }, { value: 'month', label: t('shareCard.periods.month') }, { value: 'year', label: t('shareCard.periods.year') }]} disabled={disabled} onChange={onSelect} fullWidth /></div>
   }
   return (
-    <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">
+    <fieldset aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3 min-w-0">
       {RECAP_SHARE_PERIODS.map((value) => (
         <OptionCard key={value} label={t(`shareCard.periods.${value}`)} selected={period === value} disabled={disabled} onSelect={() => onSelect(value)} />
       ))}
-    </div>
+    </fieldset>
   )
 }
 

@@ -263,12 +263,12 @@ export function useSummaryView({ flow, formHelpers, props }: Readonly<ViewInput 
   return {
     question: t('habits.flow.confirm.question'),
     line: flow.offline ? t('habits.flow.orbit.offline') : fromConversation,
-    free: <div role="group" aria-label={t('habits.flow.confirm.question')} className="flex flex-col gap-3">
+    free: <fieldset aria-label={t('habits.flow.confirm.question')} className="flex flex-col gap-3 min-w-0">
       {waiting ?? <SummaryRows flow={flow} formHelpers={formHelpers} props={props} />}
       {props.notice}
       {props.saveError ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{props.saveError}</p> : null}
       {detailsReady ? <QuestionRow question={t('habits.flow.more')} onPress={() => flow.open('more')} /> : null}
-    </div>,
+    </fieldset>,
     primary: { label: props.createLabel, onPress: () => props.onSubmit({ stepCount: flow.steps.length, usedAiRead: flow.usedAiRead }), loading: props.pending || Boolean(props.detailsLoading), disabled: !props.detailsLoading && Boolean(props.detailsError) },
   }
 }

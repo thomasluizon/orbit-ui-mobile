@@ -86,11 +86,21 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   const bridgeStage = useRef<TurnstileBridgeStage | null>(null)
   const heldFailure = useRef<TurnstileLoadFailure | null>(null)
   const retryStatusCount = useRef(0)
+  const bridgeFailures = useRef<TurnstileLoadFailure[]>([])
   const { recordFailure, leaveBreadcrumb, reportFailure, startReport } = useLoadFailureReport(resetKey)
+  const reportBridgeFailures = useCallback(() => {
+    for (const failure of bridgeFailures.current) reportFailure(failure)
+    bridgeFailures.current = []
+  }, [reportFailure])
 
   useEffect(() => { onTokenRef.current = onToken }, [onToken])
   useEffect(() => { bridgeStage.current = null }, [resetKey, attempt])
-  useEffect(() => { heldFailure.current = null; retryStatusCount.current = 0 }, [resetKey])
+  useEffect(() => () => {
+    if (heldFailure.current) reportFailure(heldFailure.current)
+    reportBridgeFailures()
+    heldFailure.current = null
+    retryStatusCount.current = 0
+  }, [resetKey, reportFailure, reportBridgeFailures])
 
   useEffect(() => {
     let active = true
@@ -112,13 +122,14 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
       deadlineLive.current = false
       clearTimeout(reloadTimer.current)
       if (heldFailure.current) reportFailure(heldFailure.current)
+      reportBridgeFailures()
       recordFailure(bridgeStage.current ? STAGE_DEADLINES[bridgeStage.current] : { kind: 'bridge_deadline', host: bridgeHost })
       onTokenRef.current(null)
       setState('failed')
     }, TURNSTILE_LOAD_DEADLINE_MS)
     stopDeadline.current = () => clearTimeout(deadline)
     return () => clearTimeout(deadline)
-  }, [resetKey, load, appActive, bridgeHost, recordFailure, reportFailure])
+  }, [resetKey, load, appActive, bridgeHost, recordFailure, reportFailure, reportBridgeFailures])
 
   useEffect(() => () => clearTimeout(reloadTimer.current), [])
 
@@ -131,6 +142,21 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   function clearHeldFailure() {
     heldFailure.current = null
     retryStatusCount.current = 0
+  }
+
+  function holdBridgeFailure(failure: TurnstileLoadFailure) {
+    if (failure.kind === 'script_deadline') {
+      reportBridgeFailures()
+      recordFailure(failure)
+      return
+    }
+    leaveBreadcrumb(failure)
+    if (!bridgeFailures.current.some(({ kind, code }) => kind === failure.kind && code === failure.code)) bridgeFailures.current.push(failure)
+  }
+
+  function settleBridgeFailures(next: WidgetState) {
+    if (next === 'failed') reportBridgeFailures()
+    if (next === 'solved') bridgeFailures.current = []
   }
 
   function failLoad(temporary: boolean, delayMs = TURNSTILE_RETRY_INTERVAL_MS) {
@@ -179,10 +205,11 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     }
     if (!message || typeof message !== 'object') return
     const failure = readBridgeFailure(message)
-    if (failure) recordFailure({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
+    if (failure) holdBridgeFailure({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
     const stage = readBridgeStage(message)
     if (stage) {
       clearHeldFailure()
+      if (stage === 'script_loaded') bridgeFailures.current = bridgeFailures.current.filter(({ kind }) => kind !== 'script')
       bridgeStage.current = stage
       if (deadlineLive.current) setLoad((value) => value + 1)
     }
@@ -194,6 +221,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
       message.state === 'failed' || message.state === 'expired'
     )) {
       clearHeldFailure()
+      settleBridgeFailures(message.state)
       endLoad()
       if (message.state === 'loading') setLoad((value) => value + 1)
       setState(message.state)
@@ -205,6 +233,7 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
     endLoad()
     startReport()
     clearHeldFailure()
+    bridgeFailures.current = []
     setLoad((value) => value + 1)
     setState('loading')
     setAttempt((value) => value + 1)

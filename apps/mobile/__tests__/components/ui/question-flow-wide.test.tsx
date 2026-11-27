@@ -34,6 +34,13 @@ describe('the one-question flow at 1024 and above on Android', () => {
     expect(control.props.hitSlop).toBe(4)
   })
 
+  it('draws both header slots at 40, so each control sits on an edge of the column', async () => {
+    const root = await mount(1024)
+    const column = root.root.findAll((node) => node.props.testID === 'question-flow-column' && typeof node.type === 'string').at(0)!
+    const parts = column.props.children as { props: { style: unknown } }[]
+    for (const slot of [parts.at(0)!, parts.at(-1)!]) expect(flat(slot.props.style)).toMatchObject({ width: 40, height: 40 })
+  })
+
   it('sets the question at 28 and the option card at the compact control height', async () => {
     const root = await mount(1024)
     const heading = root.root.findAll((node) => node.props.accessibilityRole === 'header' && typeof node.type === 'string').at(0)!
@@ -50,11 +57,11 @@ describe('the one-question flow on a phone width on Android', () => {
     expect(control.props.hitSlop).toBeUndefined()
   })
 
-  it('keeps the question at 28 and the option card at 72', async () => {
+  it('keeps the question at 28 and the option card at 56', async () => {
     const root = await mount(375)
     const heading = root.root.findAll((node) => node.props.accessibilityRole === 'header' && typeof node.type === 'string').at(0)!
     expect(flat(heading.props.style)).toMatchObject({ fontSize: 28, lineHeight: 33 })
     const card = root.root.findAll((node) => node.props.testID === 'option-card' && typeof node.type !== 'string').at(-1)!
-    expect(controlStyle(card as never)).toMatchObject({ minHeight: 72, paddingVertical: 12 })
+    expect(controlStyle(card as never)).toMatchObject({ minHeight: 56, paddingVertical: 12 })
   })
 })

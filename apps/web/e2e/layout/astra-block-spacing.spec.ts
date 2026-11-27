@@ -50,7 +50,7 @@ for (const width of [412, 600, 1352]) {
               return { turn: bounds(article), previous: bounds(article.previousElementSibling!),
                 avatar: avatar ? bounds(avatar) : null, prose: prose ? bounds(prose) : null, blocks: [...article.querySelectorAll('section[data-state]')].map(bounds),
                 composer: bounds(document.querySelector('[data-shell-conversation] [data-composer-input-row]')!),
-                chips: document.querySelector('[data-shell-conversation] [data-composer-root] [role="group"]') !== null,
+                chips: document.querySelector('[data-shell-conversation] [data-composer-root] fieldset') !== null,
               }
             })
             expect(geometry.turn.top - geometry.previous.bottom).toBeCloseTo(16, 1)

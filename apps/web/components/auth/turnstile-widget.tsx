@@ -156,15 +156,39 @@ function useTurnstileScript({ onLoadState, onScriptStage }: Readonly<{
 function useLoadFailureReport(resetKey: number, onFailure: ChallengeProps['onFailure']) {
   const onFailureRef = useRef(onFailure)
   const report = useRef<ReturnType<typeof createTurnstileLoadFailureReporter> | null>(null)
-  const startReport = useCallback(() => { report.current = createTurnstileLoadFailureReporter(captureMessage) }, [])
+  const held = useRef<ChallengeFailure[]>([])
+  const startReport = useCallback(() => {
+    report.current = createTurnstileLoadFailureReporter(captureMessage)
+    held.current = []
+  }, [])
   useEffect(() => { onFailureRef.current = onFailure }, [onFailure])
-  useEffect(startReport, [resetKey, startReport])
 
   const recordFailure = useCallback((failure: ChallengeFailure) => {
     if (onFailureRef.current) onFailureRef.current(failure)
     else report.current?.({ ...failure, host: TURNSTILE_CHALLENGE_HOST })
   }, [])
-  return { recordFailure, startReport }
+  const sendHeldFailures = useCallback(() => {
+    const pending = held.current
+    held.current = []
+    for (const failure of pending) recordFailure(failure)
+  }, [recordFailure])
+  useEffect(() => {
+    startReport()
+    return sendHeldFailures
+  }, [resetKey, startReport, sendHeldFailures])
+  const holdFailure = useCallback((failure: ChallengeFailure) => {
+    if (onFailureRef.current) {
+      onFailureRef.current(failure)
+      return
+    }
+    if (!held.current.some(({ kind, code }) => kind === failure.kind && code === failure.code)) held.current.push(failure)
+  }, [])
+  const clearHeldFailures = useCallback(() => { held.current = [] }, [])
+  const recordFinalFailure = useCallback((failure: ChallengeFailure) => {
+    sendHeldFailures()
+    recordFailure(failure)
+  }, [recordFailure, sendHeldFailures])
+  return { holdFailure, clearHeldFailures, recordFinalFailure, startReport }
 }
 
 function useChallengeDeadline({ running, resetKey, runSigns, onDeadline }: Readonly<{ running: boolean; resetKey: number; runSigns: number; onDeadline: () => void }>) {
@@ -186,11 +210,12 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   const handledResetKey = useRef(resetKey)
   const [state, setState] = useState<WidgetState>('idle')
   const [runSigns, setRunSigns] = useState(0)
-  const { recordFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
+  const { holdFailure, clearHeldFailures, recordFinalFailure, startReport } = useLoadFailureReport(resetKey, onFailure)
   const { loaded, loadAgain } = useTurnstileScript({
     onScriptStage,
     onLoadState: (next) => {
-      recordFailure({ kind: next === 'failed' ? 'script_deadline' : 'script' })
+      if (next === 'failed') recordFinalFailure({ kind: 'script_deadline' })
+      else holdFailure({ kind: 'script' })
       setState(next)
       onStateChange?.(next)
       onToken(null)
@@ -200,6 +225,10 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   useEffect(() => {
     callbacksRef.current = { onToken, onStateChange }
   }, [onToken, onStateChange])
+
+  useEffect(() => {
+    if (loaded) clearHeldFailures()
+  }, [loaded, clearHeldFailures])
 
   useEffect(() => {
     const container = containerRef.current
@@ -216,11 +245,12 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
     }
 
     function fail(code: string) {
-      recordFailure({ kind: 'challenge', code })
       if (automaticRetriesRef.current >= MAX_AUTOMATIC_RETRIES || !isRetriedFailure(code)) {
+        recordFinalFailure({ kind: 'challenge', code })
         update('failed')
         return true
       }
+      holdFailure({ kind: 'challenge', code })
       automaticRetriesRef.current += 1
       update('loading')
       retryTimerRef.current = window.setTimeout(() => {
@@ -240,6 +270,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
       retry: 'never',
       callback: (token) => {
         automaticRetriesRef.current = 0
+        clearHeldFailures()
         update('solved', token)
       },
       'error-callback': fail,
@@ -255,7 +286,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
       if (widgetId != null) getTurnstile()?.remove(widgetId)
       widgetIdRef.current = null
     }
-  }, [containerRef, loaded, siteKey, theme, language, recordFailure])
+  }, [containerRef, loaded, siteKey, theme, language, holdFailure, clearHeldFailures, recordFinalFailure])
 
   const runAgain = useCallback(() => {
     window.clearTimeout(retryTimerRef.current)
@@ -268,7 +299,7 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   useChallengeDeadline({
     running: hasRunDeadline && loaded !== null && state === 'loading', resetKey, runSigns,
     onDeadline: () => {
-      recordFailure({ kind: 'run_deadline' })
+      recordFinalFailure({ kind: 'run_deadline' })
       setState('failed')
       onStateChange?.('failed')
       onToken(null)

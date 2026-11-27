@@ -42,10 +42,10 @@ export function useHabitListDrag(visibilityState: HabitListDragInputs['visibilit
   const { habits } = roots
   const { todayStr, habitsById, getChildren, reorderHabitsMut } = queries
   const { collapsedIds, setCollapsedIds } = collapse
-  const listContainerRef = useRef<HTMLDivElement>(null)
+  const listContainerRef = useRef<HTMLFieldSetElement>(null)
   const anchorList = useHabitListScrollAnchor(drill.currentParentId)
   const { maxInlineDepth, measureRef } = useHabitInlineDepthLimit()
-  const setListContainerRef = useCallback((element: HTMLDivElement | null) => {
+  const setListContainerRef = useCallback((element: HTMLFieldSetElement | null) => {
     listContainerRef.current = element
     const releaseMeasurement = measureRef(element)
     const releaseAnchor = anchorList(element)
