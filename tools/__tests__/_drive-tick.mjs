@@ -3090,6 +3090,18 @@ const replanCases = async () => {
   await labelFirst.run()
   T("drive: a park writes the ticket label before the parked comment", labelFirst.calls.findIndex((entry) => entry[0] === "editLabels" && entry[1] === "tickets") < labelFirst.calls.findIndex((entry) => entry[0] === "comment" && entry[3].startsWith(marked("parked", ""))))
 
+  // A park in this tick stops the order of every other pull request of the ticket, planned before or after the park.
+  const partsSpent = () => ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-1", "fix", 1), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
+  for (const sibling of [31, 29]) {
+    const siblingScene = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(sibling, { headRef: "chore/ticket-7-part-2", reviews: [finding] })] } })
+    await siblingScene.run()
+    same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and labels it`, [siblingScene.launched.length, only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)).sort(), recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["tickets", 7], ["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], 1, [0, 0, 0, 0]])
+  }
+  const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
+  const admitPark = scenario({ tickets: [buildSpent], pulls: { ui: [pull(31, { headRef: "chore/ticket-7-part-1", reviews: [finding] })] } })
+  await admitPark.run()
+  same("drive: a park in admission starts no order that the act step planned for the ticket, and labels its open pull request", [admitPark.launched.length, only(admitPark.calls, "editLabels").map((entry) => entry.slice(1, 3)), recordsOn(admitPark, "parked").length, noNotice(admitPark)], [0, [["tickets", 7], ["ui", 31]], 1, [0, 0, 0, 0]])
+
   // A parked item gets no order and no notice.
   const skipTicket = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: ladder(branch) })], pulls: { ui: [pull(30, { reviews: [finding] })] }, sleeping: true })
   await skipTicket.run()
@@ -3125,6 +3137,22 @@ const replanCases = async () => {
   T("drive: the replan comment names the plan and links the ticket that holds the answer", commentsOf(fresh.calls, 30)[0].includes("chose fresh") && commentsOf(fresh.calls, 30)[0].includes("https://github.com/thomasluizon/orbit-tickets/issues/7") && freshRecord.answer.includes("Use the smaller path."))
   T("drive: the replan record comes before the close, so a failed step never gives a free re-plan", fresh.calls.findIndex((entry) => entry[0] === "comment" && entry[3].startsWith(marked("replan", "{"))) < fresh.calls.findIndex((entry) => entry[0] === "closePull"))
   same("drive: after a fresh answer the same tick builds with the note and counts no launch of the old plan", [fresh.launched.length, fresh.launched[0]?.order.includes("## Notes of the re-plan") && fresh.launched[0].order.includes("Use the smaller path."), fresh.launched[0]?.invocation.model], [1, true, "claude-sonnet-5-5"])
+  // A note whose post fails after the record and the close is posted on a later read, once.
+  const noteTickets = [ticket(7, { comments: ladder(branch) })]
+  const notePulls = { ui: [pull(30, { reviews: [finding] })], api: [], landing: [] }
+  const noteScene = scenario({ tickets: noteTickets, pulls: notePulls })
+  keepWrites(noteScene, noteTickets)
+  noteScene.env.github.closePull = async (key, number) => { noteScene.calls.push(["closePull", key, number]); notePulls.ui.splice(notePulls.ui.findIndex((entry) => entry.number === number), 1) }
+  const noteWrite = noteScene.env.github.comment
+  let noteWrites = 0
+  noteScene.env.github.comment = async (key, number, body) => {
+    if (body.startsWith(marked("replan-note", "")) && (noteWrites += 1) === 1) throw new Error("HTTP 502 from the comment write")
+    return noteWrite(key, number, body)
+  }
+  leftBehind(noteScene, { kind: "replan", branch: "chore/ticket-7-replan", stuck: { branch, pr: 30, partNumber: null }, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-replan" }, resultLine("Plan: fresh\nUse the smaller path."), "chore-ticket-7-replan")
+  await noteScene.run()
+  await noteScene.run()
+  same("drive: a fresh note whose post fails is posted on a later read, once, and the record keeps it whole", [noteTickets[0].comments.filter((entry) => entry.kind === "replan-note").map((entry) => entry.body.split("\n").slice(1).join("\n")), JSON.parse(recordsOn(noteScene, "replan")[0]).note], [["Use the smaller path."], "Use the smaller path."])
   const dropped = await reaped({ answer: "I could not decide." })
   same("drive: a missing answer counts as fresh with no note", [JSON.parse(recordsOn(dropped, "replan")[0]).plan, recordsOn(dropped, "replan-note").length, only(dropped.calls, "closePull").length], ["fresh", 0, 1])
 
@@ -3142,6 +3170,30 @@ const replanCases = async () => {
   same("drive: a split answer posts each part as a plain comment, keeps the merged part with its number and its text, and closes the pull request", [posted.length, posted[0], posted[1].split("\n")[0], posted[3].split("\n")[0], only(split.calls, "closePull").length, JSON.parse(recordsOn(split, "replan")[0]).plan], [4, "Part 1 of 4: part 1\nPaths: a/", "## Part 2 of 4: second a", "## Part 4 of 4: second c", 1, "split"])
   const next = split.launched.find((entry) => entry.order.includes("## This order (build part)"))
   T("drive: after a split the merged part stays done and the next part builds on a new branch of the new set", split.launched.length === 1 && next !== undefined && next.order.includes("(Part 2 of 4)") && next.worktree.endsWith("chore-ticket-7-part-2-r2"), split.launched.map((entry) => entry.worktree).join(" "))
+  T("drive: the split record keeps each part of the new set whole", JSON.stringify(JSON.parse(recordsOn(split, "replan")[0]).parts) === JSON.stringify(posted))
+  // A split whose part post fails partway ends on a later read: each part of the newest split record that the ticket lacks is posted once.
+  const failTickets = [setTicket()]
+  const failPulls = { ui: [pull(30, { headRef: partBranch2, reviews: [finding] })], api: [], landing: [] }
+  const failing = scenario({ tickets: failTickets, pulls: failPulls, routes: [mergedOne] })
+  keepWrites(failing, failTickets)
+  failing.env.github.closePull = async (key, number) => { failing.calls.push(["closePull", key, number]); failPulls.ui.splice(failPulls.ui.findIndex((entry) => entry.number === number), 1) }
+  const keptWrite = failing.env.github.comment
+  let plainWrites = 0
+  failing.env.github.comment = async (key, number, body) => {
+    if (key === "tickets" && !body.startsWith("<!--") && (plainWrites += 1) === 3) throw new Error("HTTP 502 from the comment write")
+    return keptWrite(key, number, body)
+  }
+  leftBehind(failing, { kind: "replan", branch: "chore/ticket-7-replan", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-replan" }, resultLine("Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: second a\n## Part 3 of 4: second b\n## Part 4 of 4: second c"), "chore-ticket-7-replan")
+  await failing.run()
+  await failing.run()
+  const setHeads = () => failTickets[0].comments.filter((entry) => entry.kind === null && /of 4/.test(entry.body.split("\n")[0])).map((entry) => entry.body.split("\n")[0])
+  same("drive: a split whose third part post fails posts the missing parts before admission, each once", setHeads(), ["Part 1 of 4: part 1", "## Part 2 of 4: second a", "## Part 3 of 4: second b", "## Part 4 of 4: second c"])
+  // A part that a later comment superseded counts as posted, so the resume never brings it back.
+  const supersededTickets = [ticket(7, { comments: [partComment(1, 2, "Paths: a/"), comment("replan", JSON.stringify({ plan: "split", branch: partBranch2, pr: 30, part: 2, count: 1, at: iso(-60 * MINUTE), parts: ["## Part 1 of 3: one", "## Part 2 of 3: two", "## Part 3 of 3: three"] }), -60 * MINUTE), comment(null, "## Part 1 of 3: one", -59 * MINUTE), comment(null, "Superseded: ## Part 2 of 3: two", -58 * MINUTE), comment(null, "## Part 3 of 3: three", -57 * MINUTE)] })]
+  const superseded = scenario({ tickets: supersededTickets })
+  keepWrites(superseded, supersededTickets)
+  await superseded.run()
+  same("drive: the resume of a split never posts a part that a comment superseded", plainOn(superseded).length, 0)
   // A part whose pull request is open keeps its number in a split, as a merged part does: its pull request stands for that number.
   const threeParts = () => ticket(7, { comments: [partComment(1, 3, "Paths: a/"), partComment(2, 3, "Paths: b/"), partComment(3, 3, "Paths: c/"), ...ladder(partBranch2, "fix", 2)] })
   const openThree = () => pull(31, { headRef: "chore/ticket-7-part-3", checksComplete: false, reviews: [] })

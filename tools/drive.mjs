@@ -1201,6 +1201,9 @@ const isWaiting = (env, pull, tickets) => {
   return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !pull.labels.includes(PARKED) && !ticket?.labels.includes(PARKED) && !heldByReport(env, pull, ticket)
 }
 
+/** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
+const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
+
 /** The pull requests of a repository that the plan reads: tracked or not, in number order. */
 const planOrder = (state) => [...state.pulls].sort((left, right) => left.number - right.number)
 
@@ -1219,7 +1222,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
     const item = `${repoKey}#${pull.number}`
     try {
       // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
-      const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const ownerAtPlan = pull.tracks !== null && holdsTicket(ticketMap.get(pull.tracks))
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey)), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
@@ -1255,7 +1258,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       if (limit.found) await applyPullfrogLimit(env, mem, tickets, ctx.repoKey, limit.found)
       // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
       // The first plan marked the threads resolved in memory, so its resolve step stays.
-      const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const labelled = !ownerAtPlan && pull.tracks !== null && holdsTicket(ctx.ticketMap.get(pull.tracks))
       const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
       const mergeHeld = plan.some((action) => action.held)
       if (mergeHeld) log(env, item, "merge held", `release train ${ctx.hold.id} ships mobile at ${ctx.hold.sha}`)
@@ -1600,7 +1603,8 @@ const closeStuck = async (env, { repoKey, ticketNumber, number, branch, plan, co
 /**
  * Applies the answer of a re-plan run. The `replan` record comes first: it names the branch that the plan left and it counts toward
  * `MAX_REPLANS`, so a step that fails later never lets a re-plan run twice for free. Then the pull request closes, then the
- * new part set or the note of the `fresh` plan is posted. A split that is no usable part set counts as `fresh`.
+ * new part set or the note of the `fresh` plan is posted. A split that is no usable part set counts as `fresh`. The record keeps
+ * each part of a split and the note of a `fresh` plan whole, so `resumeReplans` posts what a failed post left out.
  */
 const applyReplan = async (env, mem, states, exit, ticket, text) => {
   const { repoKey, stuck } = exit
@@ -1617,8 +1621,18 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
       note = `The re-plan run asked for a split that the driver could not read: ${problem}.`
     }
   }
+  // The new set is complete before the record, so the record holds every part that the posts below write.
+  let bodies = []
+  if (plan === "split") {
+    const merged = new Set((await mergedHistory(env, mem, ticket, { fresh: true })).map((entry) => entry.headRefName))
+    const flying = new Set(openPartNumbers(ticket, parts, states.find((entry) => entry.repositoryKey === repoKey)?.pulls ?? [], runningWorkers(env, mem).workers, stuck.branch))
+    bodies = answer.parts.map((body, index) => {
+      const kept = parts.find((entry) => entry.number === index + 1 && (partIsDone(ticket, entry, merged) || flying.has(entry.number)))
+      return kept === undefined ? body : withTotal(kept.comment.body.trim(), answer.parts.length)
+    })
+  }
   const count = replansSincePark(ticket).length + 1
-  const record = { plan, branch: stuck.branch, pr: stuck.pr, part: stuck.partNumber, count, at: new Date(env.now()).toISOString(), answer: text.slice(0, ANSWER_KEPT_CHARS) }
+  const record = { plan, branch: stuck.branch, pr: stuck.pr, part: stuck.partNumber, count, at: new Date(env.now()).toISOString(), answer: text.slice(0, ANSWER_KEPT_CHARS), ...(plan === "split" ? { parts: bodies } : note !== "" ? { note } : {}) }
   log(env, item, `replan ${plan}`, `re-plan ${count} of ${MAX_REPLANS}, after ${stuck.branch}`)
   await env.github.comment("tickets", ticket.number, marked("replan", JSON.stringify(record)))
   const open = findPullByBranch(states, stuck.branch)
@@ -1627,12 +1641,35 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
     if (note !== "") await env.github.comment("tickets", ticket.number, marked("replan-note", note))
     return
   }
-  const merged = new Set((await mergedHistory(env, mem, ticket, { fresh: true })).map((entry) => entry.headRefName))
-  const flying = new Set(openPartNumbers(ticket, parts, states.find((entry) => entry.repositoryKey === repoKey)?.pulls ?? [], runningWorkers(env, mem).workers, stuck.branch))
-  const total = answer.parts.length
-  for (const [index, body] of answer.parts.entries()) {
-    const kept = parts.find((entry) => entry.number === index + 1 && (partIsDone(ticket, entry, merged) || flying.has(entry.number)))
-    await env.github.comment("tickets", ticket.number, kept === undefined ? body : withTotal(kept.comment.body.trim(), total))
+  for (const body of bodies) await env.github.comment("tickets", ticket.number, body)
+}
+
+/**
+ * Posts what the newest `replan` record holds and the ticket lacks, before any plan reads the ticket: the note of a `fresh` plan,
+ * or each part of a split. A post can fail after the record, and the launch record is gone by then, so this read is the retry.
+ * A part counts as posted when a plain comment announces its number with the new total, or holds its first line (a comment that superseded it).
+ */
+const resumeReplans = async (env, tickets) => {
+  for (const ticket of tickets) {
+    const record = replansOf(ticket).at(-1)
+    if (typeof record?.note === "string" && !ticket.comments.some((entry) => entry.kind === "replan-note" && bodyAfterMarker(entry).trim() === record.note.trim())) {
+      log(env, `ticket#${ticket.number}`, "replan note-resumed", `re-plan ${record.count}`)
+      const body = marked("replan-note", record.note)
+      await env.github.comment("tickets", ticket.number, body)
+      ticket.comments.push({ kind: "replan-note", body, createdAt: new Date(env.now()).toISOString() })
+    }
+    if (!Array.isArray(record?.parts)) continue
+    const total = record.parts.length
+    for (const body of record.parts) {
+      const part = partOf({ body })
+      if (part === null) continue
+      const first = body.split("\n", 1)[0]
+      const posted = ticket.comments.some((entry) => entry.kind === null && ((partOf(entry)?.number === part.number && partOf(entry)?.total === total) || entry.body.includes(first)))
+      if (posted) continue
+      log(env, `ticket#${ticket.number}`, "replan split-resumed", `Part ${part.number} of ${total}`)
+      await env.github.comment("tickets", ticket.number, body)
+      ticket.comments.push({ kind: null, body, createdAt: new Date(env.now()).toISOString() })
+    }
   }
 }
 
@@ -1964,9 +2001,10 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
     if (launches.length >= MAX_ORDER_LAUNCHES) {
       if (launches.some(ranOpus)) {
         // The Opus launch ran too: the ladder ends. One re-plan run, or the park after the re-plans.
-        const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, part: order.part ?? null, branch: order.branch, running, launches, pulls: states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? [] })
+        const pulls = states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? []
+        const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, part: order.part ?? null, branch: order.branch, running, launches, pulls })
         if (end.type === "park") {
-          await parkTicket(env, tickets, [], end)
+          await parkTicket(env, tickets, pulls.filter((entry) => entry.tracks === ticket.number), end)
           decisions.set(ticket.number, `parked: ${end.reason}`)
           continue
         }
@@ -2225,6 +2263,8 @@ export const tick = async (env, mem) => {
     return { retried: true }
   }
   const { tickets, states } = world
+  // Before any plan reads the ticket: a re-plan that a failed post left short gets its missing note or parts.
+  if (!env.dryRun) await resumeReplans(env, tickets).catch((error) => log(env, "replan", "resume-error", error.message))
   const account = await trackAccount(env, mem, tickets, status)
   const paused = pauseIssue(tickets)
   if (account.ok) readRunningReadings(env, mem, running)
@@ -2263,6 +2303,8 @@ export const tick = async (env, mem) => {
       if (early && limitSeen.found) return LIMIT_STOP
       const name = free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
+      // A park in this tick (the act step or admission) comes after the plan of a sibling pull request, so its order stops here.
+      if (order.ticket.labels.includes(PARKED)) { log(env, `ticket#${order.ticket.number}`, "skip", `${order.kind} on ${order.pull?.headRef ?? order.branch}: the ticket is parked`); continue }
       reached.add(order.ticket.number)
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
       if (reason === null) { mem.acted = true; free[name] -= 1 }
