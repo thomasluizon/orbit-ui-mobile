@@ -15,13 +15,14 @@ import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
+import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "./lib/driver-health.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -365,7 +366,10 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+/** What one tick tells `health.json`: its good read, the pull requests at the bar, a merge, each blind part, its first error, a hold and the rate limit reset. */
+const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null, held: false, resetAt: null })
+
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1377,6 +1381,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "merge":
       await mergePull(env, mem, repoKey, pull)
       mem.acted = true
+      mem.health.merged = true
       mem.merged.delete(pull.tracks)
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
       // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
@@ -1443,9 +1448,12 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
   for (const [index, { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain }] of planned.entries()) {
     if (error) {
       log(env, item, "error", error.message)
+      mem.health.failure ??= error
       keepLogged(mem, item)
       continue
     }
+    // False until the final plan of the pull request exists. An error before that leaves the pull request unchecked against the bar.
+    let checked = false
     try {
       for (const id of limit.read) mem.checkedRuns.add(id)
       if (limit.found) await applyPullfrogLimit(env, mem, tickets, ctx.repoKey, limit.found)
@@ -1455,6 +1463,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
       const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      checked = true
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
       if (waits.length > 0 && !env.dryRun) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "wait", reason: waits.join("; ") })
@@ -1468,6 +1477,8 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
           }
         }
       } finally {
+        // A merge action means that the pull request meets the bar. It stays unmerged when no merge of this tick took it.
+        if (plan.some((action) => action.type === "merge") && !ctx.mergedPulls.has(pull)) mem.health.green.push({ key: item, approvedAt: approvalTime(pull) })
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
         // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it.
         const waitsForReplan = plan.some((action) => action.reason === WAITS_FOR_REPLAN)
@@ -1475,6 +1486,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       }
     } catch (failure) {
       log(env, item, "error", failure.message)
+      if (!checked) mem.health.failure ??= failure
       keepLogged(mem, item)
     }
     if (ctx.merged) {
@@ -2450,21 +2462,27 @@ const intake = async (env, mem) => {
   }
 }
 
-/** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
 const noteReadError = (mem, error) => { mem.readErrors.push(error) }
 
 /**
  * The tickets and the state of each repository. A repository that cannot be read after its half-size retry is `unknown` for this
  * tick, and the other repositories go on. The read fails when the tickets cannot be read or when no repository can.
+ * Each failed read is a blind part of `health.json`, and it makes the tick no good tick.
  */
 const readWorld = async (env, mem) => {
+  // The reap and the tick both read, so one part can fail twice in a tick. It is one blind part, and the first error stays the failure.
+  const blind = (key, error) => {
+    mem.health.failure ??= error
+    if (!mem.health.blind.some((part) => part.key === key)) mem.health.blind.push({ key, detail: detailOf(error) })
+  }
   let tickets
-  try { tickets = await env.github.readTickets() } catch (error) { noteReadError(mem, error); throw error }
+  try { tickets = await env.github.readTickets() } catch (error) { noteReadError(mem, error); blind("tickets", error); throw error }
   const reads = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).then((state) => ({ state }), (error) => ({ key, error }))))
   const states = reads.flatMap((read) => (read.state ? [read.state] : []))
   const unknown = []
   for (const { key, error } of reads.filter((read) => read.error)) {
     noteReadError(mem, error)
+    blind(key, error)
     log(env, key, "repository-unknown", error.message)
     unknown.push(key)
   }
@@ -2473,16 +2491,13 @@ const readWorld = async (env, mem) => {
   return { tickets, states, unknown }
 }
 
-/** The epoch milliseconds at which a rate limit resets: the latest reset of the exhausted core and GraphQL limits of `gh api rate_limit`, or 0 when neither is exhausted. */
-const rateLimitReset = async (env) => {
-  try {
-    const { resources } = JSON.parse(await env.gh(["api", "rate_limit"]))
-    const exhausted = ["core", "graphql"].map((name) => resources[name]).filter((limit) => limit?.remaining === 0)
-    return exhausted.length === 0 ? 0 : Math.max(...exhausted.map((limit) => limit.reset)) * 1000
-  } catch (error) {
-    log(env, "tick", "rate-limit-unread", error.message)
-    return 0
-  }
+/**
+ * The epoch milliseconds at which a rate limit resets: the latest reset of the exhausted core and GraphQL limits of `gh api rate_limit`,
+ * or 0 when neither is exhausted or the read fails. A tick reads it once: `mem.health.resetAt` keeps it for `health.json`.
+ */
+const rateLimitReset = async (env, mem) => {
+  mem.health.resetAt ??= (await rateLimitResetOf(env.gh, (error) => log(env, "tick", "rate-limit-unread", error.message))) ?? 0
+  return mem.health.resetAt
 }
 
 /**
@@ -2493,7 +2508,7 @@ const settleReads = async (env, mem, { failed }) => {
   const errors = mem.readErrors
   mem.readErrors = []
   mem.failedTicks = failed ? mem.failedTicks + 1 : 0
-  let until = errors.some(isRateLimited) ? await rateLimitReset(env) : 0
+  let until = errors.some(isRateLimited) ? await rateLimitReset(env, mem) : 0
   if (mem.failedTicks >= FAILED_TICKS_BEFORE_BACKOFF) until = Math.max(until, env.now() + BACKOFF_MS)
   mem.holdUntil = until
   if (until > env.now()) log(env, "tick", "hold", `GitHub reads wait until ${new Date(until).toISOString()}`)
@@ -2639,7 +2654,43 @@ const startHarnessReview = async (env, mem, { tickets, states, blocked }) => {
   await startRunOf(env, mem, HARNESS_REVIEW_RUN, env.worker.harnessReviewInvocation)
 }
 
+/**
+ * Writes `health.json` at the end of a tick, so a check outside the driver sees a blind or stuck driver. A held tick reads nothing
+ * from GitHub, so it keeps the last record and moves only `writtenAt`. A dry run writes nothing. A failed write never fails the tick.
+ */
+const writeTickHealth = async (env, mem) => {
+  if (env.dryRun) return
+  const { read, green, merged, blind, failure, held } = mem.health
+  try {
+    const previous = readHealth(env.stateDir)
+    if (held && previous !== null) return writeHealth(env.stateDir, { ...previous, writtenAt: new Date(env.now()).toISOString() })
+    const errorClass = failure === null ? null : errorClassOf(failure)
+    const resetAt = errorClass === "rate-limit" ? await rateLimitReset(env, mem) : 0
+    writeHealth(env.stateDir, healthRecord({
+      previous, now: env.now(), merged, blind,
+      read: read === null ? null : { ...read, green },
+      failure: failure === null ? null : { errorClass, detail: detailOf(failure), rateLimitedUntil: resetAt === 0 ? null : new Date(resetAt).toISOString() },
+    }))
+  } catch (error) {
+    log(env, "health", "error", error.message)
+  }
+}
+
+/** Runs one tick and writes `health.json`, whether the tick ends or throws. */
 export const tick = async (env, mem) => {
+  mem.health = newHealth()
+  try {
+    return await runTick(env, mem)
+  } catch (error) {
+    mem.health.failure ??= error
+    throw error
+  } finally {
+    await writeTickHealth(env, mem)
+  }
+}
+
+/** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
+const runTick = async (env, mem) => {
   const startedAt = env.clock()
   env.lines = []
   env.reads = new Map()
@@ -2651,6 +2702,7 @@ export const tick = async (env, mem) => {
   for (const run of COORDINATOR_RUNS) enforceRunCeiling(env, mem, run)
   if (env.now() < mem.holdUntil) {
     logChange(env, mem, { scope: "tick held", signature: mem.holdUntil, item: "tick", action: "held", reason: `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}` })
+    mem.health.held = true
     return { retried: true, held: true }
   }
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
@@ -2666,6 +2718,8 @@ export const tick = async (env, mem) => {
     world.states = world.states.filter((state) => !unseen.includes(state.repositoryKey))
   } catch (error) {
     log(env, "tick", "retry", error.message)
+    // A read that failed already holds the failure. Its gh error names the cause, and the wrapped error of `readWorld` does not replace it.
+    mem.health.failure ??= error
     // A failed read that the read itself did not note (a failure of the reap) still counts as a failed tick.
     if (mem.readErrors.length === 0) noteReadError(mem, error)
     await settleReads(env, mem, { failed: true })
@@ -2741,6 +2795,8 @@ export const tick = async (env, mem) => {
     await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
+  // A good read is the read of this tick with each open pull request checked against the bar. The read of a reap alone does not count.
+  if (mem.health.failure === null) mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
   await settleReads(env, mem, { failed: false })
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK

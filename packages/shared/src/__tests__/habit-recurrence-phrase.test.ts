@@ -30,6 +30,14 @@ describe('When recurrence parsing', () => {
     expect(readHabitRecurrencePhrase(phrase)).toMatchObject({ schedule: { days: ['Monday'] }, startPhrase: 'next week' })
   })
 
+  it.each([
+    ['…every Monday…', null],
+    ['every Monday… starting next week', 'next week'],
+    ['every Monday starting next week…', 'next week'],
+  ])('reads past the one-character ellipsis in %s', (phrase, startPhrase) => {
+    expect(readHabitRecurrencePhrase(phrase)).toMatchObject({ schedule: { days: ['Monday'] }, startPhrase })
+  })
+
   it('retains weekday intervals', () => {
     expect(readHabitRecurrencePhrase('toda segunda a cada 2 semanas')).toMatchObject({ schedule: { days: ['Monday'], intervalWeeks: 2 } })
   })

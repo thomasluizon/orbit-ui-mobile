@@ -141,7 +141,7 @@ const PLURAL_WEEKDAY: Readonly<Record<SupportedLocale, RegExp>> = { 'pt-BR': /s$
 const PLAIN_ACCENTS = /\p{M}/gu
 
 function plainWords(text: string): string[] {
-  return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?]+/u).filter((word) => word.length > 0)
+  return text.toLowerCase().normalize('NFD').replace(PLAIN_ACCENTS, '').split(/[\s,;.!?…]+/u).filter((word) => word.length > 0)
 }
 
 const DATE_QUALIFIER_WORDS = new Set([...WEEKDAY_QUALIFIERS, 'que', 'vem', 'feira', 'ate', 'manha', 'tarde', 'noite', 'morning', 'afternoon', 'evening', 'night', 'da', 'pela', 'ao', 'hora', 'horas', 'meio-dia', 'in', 'the', 'at', 'noon'])
@@ -245,7 +245,7 @@ export interface HabitPhraseDate {
 }
 
 const DATE_WORDS_MAX = 5
-const WORD = /[^\s,;.!?()]+(?:[,.][^\s,;.!?()]+)*/gu
+const WORD = /[^\s,;.!?…()]+(?:[,.][^\s,;.!?…()]+)*/gu
 const SHORT_WEEKDAYS_THAT_ARE_WORDS = new Set(['sun', 'mon', 'tue', 'tues', 'wed', 'thu', 'thur', 'thurs', 'fri', 'sat', 'dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab', 'sáb'])
 const FRACTION_OR_ORDINAL = /^(?:\d{1,2}[/.-]\d{1,2}|the \d{1,2}(?:st|nd|rd|th)?)$/iu
 
