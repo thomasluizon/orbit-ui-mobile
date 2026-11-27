@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -19,6 +19,7 @@ const ACCOUNT = accountFrom(AUTH)
 const WORKER_AUTH = { ...AUTH, email: "worker.account@example.test", orgId: "00000000-0000-4000-8000-000000000003" }
 const WORKER_ACCOUNT = accountFrom(WORKER_AUTH)
 const WORKER_DIRECTORY = "/home/x/.claude-orbit-workers"
+const CODEX_DIRECTORY = "/home/x/.codex-orbit-workers"
 const NOW = Date.parse("2026-11-19T12:00:00Z")
 const RESETS_AT = Math.floor((NOW + 3.5 * 24 * 3600 * 1000) / 1000)
 const REPOSITORY = "thomasluizon/orbit-tickets"
@@ -61,6 +62,8 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   const record = (name) => async (...args) => { calls.push([name, ...args]); return undefined }
   const states = Object.fromEntries(["ui", "api", "landing"].map((key) => [key, { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: (pulls[key] ?? []).map((entry) => entry.number), pulls: pulls[key] ?? [] }]))
   const launched = []
+  const probed = []
+  const authRunners = []
   const fetched = new Set()
   const stateDir = stateDirectory ?? join(root, `drive-tick-state-${++scenarios}`)
   const watched = { fingerprint: "a", logBytes: 0 }
@@ -100,13 +103,16 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       progressWatch: (options) => progressWatch({ ...options, fingerprint: async () => watched.fingerprint, logSize: () => watched.logBytes }),
       killWorkerTree: (pid, signal) => { calls.push(["kill", pid, signal]) },
       probe: async ({ invocation } = {}) => {
-        const onWorker = invocation?.environment?.CLAUDE_CONFIG_DIR === WORKER_DIRECTORY
+        const onWorker = invocation?.environment?.CLAUDE_CONFIG_DIR === WORKER_DIRECTORY || invocation?.environment?.CODEX_HOME === CODEX_DIRECTORY
+        probed.push(invocation)
         calls.push(["probe", onWorker ? "worker" : "main"])
         const chosen = onWorker ? workerProbeReading : probeReading
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main", own = null, model = undefined) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
+    invocation: async (token, name = "main", own = null, model = undefined, runner = "claude") => (name === "worker" && runner === "codex"
+      ? { command: { executable: "codex", args: [] }, environment: { CODEX_HOME: CODEX_DIRECTORY, ...(token ? { GH_TOKEN: token } : {}) }, own, model: undefined, codex: { home: CODEX_DIRECTORY } }
+      : { command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
     git: async (cwd, args) => {
       calls.push(["git", ...args])
       // The driver reads the changed paths and the commit messages of a pull request from git, so the fake answers with the fields of the pull request that has the range.
@@ -131,7 +137,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
     fetchJson: async () => ({ body: [], link: null }),
     snapshot: () => null,
     // With no `workerAuth` the second login is the main login, which the driver counts once.
-    authStatus: async (name = "main") => structuredClone(name === "worker" ? workerAuth ?? auth : auth),
+    authStatus: async (name = "main", runner = "claude") => { authRunners.push([name, runner]); return structuredClone(name === "worker" ? workerAuth ?? auth : auth) },
     processAlive: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch { return false } },
   }
@@ -143,7 +149,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
   if (allowance !== null) writeFileSync(join(stateDir, "over-limit.json"), `${JSON.stringify(allowance)}\n`)
   if (sleeping) writeFileSync(join(stateDir, "sleep.json"), `${JSON.stringify({ on: true, since: iso(-60 * MINUTE) })}\n`)
   mem.lastIntakeAt = NOW
-  return { env, mem, calls, messages, launched, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
+  return { env, mem, calls, messages, launched, probed, authRunners, watched, run: async () => { const result = await tick(env, mem); await Promise.all(mem.running.values()); if (process.env.DEBUG_DRIVE_TICK) console.error(messages.splice(0).join("\n")); return result } }
 }
 
 const BASH = JSON.parse(readFileSync(new URL("../__fixtures__/drive-worker.json", import.meta.url), "utf8")).bashToolRecords
@@ -1260,6 +1266,56 @@ const updateCases = async () => {
   const parentMerges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1" }), pull(30, { baseRef: "chore/ticket-7-part-1", comments: [comment("ticket", "T")] })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await parentMerges.run()
   same("drive: a child whose base pull request merged in the same tick is retargeted and updated, and it is not merged", [only(parentMerges.calls, "merge").map((entry) => entry[2]), only(parentMerges.calls, "retarget"), only(parentMerges.calls, "updateBranch")], [[29], [["retarget", "ui", 30, "main"]], [["updateBranch", "ui", 30]]])
+  await staleBaseCases()
+}
+
+/** The fake git answers `git log --since` with the commits of main (an offset from NOW and the paths that the commit changed) that the given time does not pass. */
+const mainLog = (commits) => ["log --since=", (args) => {
+  const since = Date.parse(args.find((text) => text.startsWith("--since=")).slice("--since=".length))
+  return commits.filter((commit) => NOW + commit.at >= since).map((commit) => commit.files.map((path) => `${path}\0`).join("")).join("")
+}]
+
+/** A merge candidate whose base moved after the CI of its head started. The CI of the fixture head started 60 minutes before NOW. */
+const staleBaseCases = async () => {
+  const drive = "tools/drive.mjs"
+  const staleScene = (commits, files, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files, checks: [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()], ...extra })] }, gitRoutes: [mainLog(commits)], routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const outcome = (scene) => [only(scene.calls, "updateBranch"), only(scene.calls, "merge").map((entry) => entry[2])]
+  const shared = staleScene([{ at: -30 * MINUTE, files: [drive] }], [drive])
+  await shared.run()
+  same("drive: a code path that main gained after the CI started and the pull request changes gets one update and no merge", outcome(shared), [[["updateBranch", "ui", 30]], []])
+  same("drive: the update for a shared path logs the paths and records the new head", [shared.messages.some((line) => line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), commentsOf(shared.calls, 30).includes(marked("record", `driver update-branch -> ${NEXT_HEAD}`))], [true, true])
+  const read = only(shared.calls, "git").find((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))
+  same("drive: the read of main starts 5 minutes before the first CI start, skips the commits that the head holds, and lists names with no rename", [read.find((text) => text.startsWith("--since=")), read.slice(-2), read.includes("--no-renames")], [`--since=${new Date(NOW - 65 * MINUTE).toISOString()}`, ["origin/main", `^${HEAD}`], true])
+  const lead = staleScene([{ at: -62 * MINUTE, files: [drive] }], [drive])
+  await lead.run()
+  same("drive: a commit of main inside the 5 minutes before the first CI start counts as unseen", outcome(lead), [[["updateBranch", "ui", 30]], []])
+  const other = staleScene([{ at: -30 * MINUTE, files: ["apps/web/a.ts"] }], [drive])
+  await other.run()
+  same("drive: a commit of main after the CI started with no shared path lets the pull request merge with no update", outcome(other), [[], [30]])
+  const before = staleScene([{ at: -120 * MINUTE, files: [drive] }], [drive])
+  await before.run()
+  same("drive: a commit of main before the CI started lets the pull request merge with no update", outcome(before), [[], [30]])
+  const markdown = staleScene([{ at: -30 * MINUTE, files: ["docs/x.md"] }], ["docs/x.md"])
+  await markdown.run()
+  same("drive: a Markdown file that both sides changed is no shared code path, so the pull request merges", outcome(markdown), [[], [30]])
+  const stacked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", labels: [OWNER_LABEL] }), pull(30, { baseRef: "chore/ticket-7-part-1", files: [drive] })] }, gitRoutes: [mainLog([{ at: -30 * MINUTE, files: [drive] }])] })
+  await stacked.run()
+  // Every plan of a repository ends before the first merge runs, so a merge of this tick is a commit that no plan read.
+  // The fake git answers the file list by head, so the two heads differ.
+  const SECOND_HEAD = "e".repeat(40)
+  const pair = (second, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: [drive], checks: lintChecks }), pull(31, { files: second, checks: lintChecks, headSha: SECOND_HEAD, commits: [{ sha: SECOND_HEAD, parents: 1 }], reviews: [review("APPROVED", SECOND_HEAD)], ...extra })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const lintChecks = [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()]
+  const twice = pair([drive])
+  await twice.run()
+  same("drive: two pull requests of one tick that change one code path merge the first and update the second", [only(twice.calls, "merge").map((entry) => entry[2]), only(twice.calls, "updateBranch")], [[30], [["updateBranch", "ui", 31]]])
+  same("drive: the update that follows a merge of the same tick logs the shared paths", twice.messages.some((line) => line.includes("ui#31") && line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), true)
+  const apart = pair(["apps/web/a.ts"])
+  await apart.run()
+  same("drive: two pull requests of one tick with no shared code path both merge", [only(apart.calls, "merge").map((entry) => entry[2]), only(apart.calls, "updateBranch")], [[30, 31], []])
+  const docs = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: ["docs/x.md"] }), pull(31, { files: ["docs/x.md"] })] } })
+  await docs.run()
+  same("drive: two pull requests of one tick that change one Markdown file both merge", [only(docs.calls, "merge").map((entry) => entry[2]), only(docs.calls, "updateBranch")], [[30, 31], []])
+  same("drive: a stacked pull request reads no unseen path of main and gets no update", [only(stacked.calls, "updateBranch"), only(stacked.calls, "git").some((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))], [[], false])
 }
 
 const ciCases = async () => {
@@ -1338,7 +1394,30 @@ const closeCases = async () => {
     same(`drive: ${label}`, [scene.launched.length, only(scene.calls, "editLabels").map((entry) => entry[3]), needsOwnerComments(scene.calls, 7).length, needsOwnerComments(scene.calls, 7).every((entry) => entry.includes(text))], [0, [{ add: [OWNER_LABEL] }], 1, true])
   }
   const listing = "Remaining: the App Store card needs the live listing URL, and the pt-BR copy needs /second-opinion."
-  await heldFor("two merged pull requests with the same Remaining line launch no build and set needs:owner once", [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }], listing)
+  const lineOf = (line, ...more) => [merged(147, `Tracks ${REPOSITORY}#7\n\n${line}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${line}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }, ...more]
+  const recordsOf = (scene, kind) => commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked(kind, "")))
+  const writesNothingForOwner = (scene) => [only(scene.calls, "notify").length, needsOwnerComments(scene.calls, 7).length, only(scene.calls, "editLabels").filter((entry) => entry[3].add?.includes(OWNER_LABEL)).length]
+  const repeated = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(lineOf(listing)) })
+  await repeated.run()
+  same("drive: two merged pull requests with the same Remaining line start one re-plan run and write no owner step", [repeated.launched.length, repeated.launched[0]?.invocation.model, JSON.parse(recordsOf(repeated, "launch")[0].split("\n").slice(1).join("\n")).kind, writesNothingForOwner(repeated)], [1, "claude-opus-5-5", "replan", [0, 0, 0]])
+  T("drive: the re-plan order of a repeat stop holds the repeated Remaining line and does not say that the plan still fails", orderText(repeated).includes(listing) && orderText(repeated).includes("left the same Remaining line") && !orderText(repeated).includes("still fails"), orderText(repeated).slice(0, 600))
+  const replanLaunch = (offset) => comment("launch", JSON.stringify({ kind: "replan", part: null, branch: "chore/ticket-7-replan", model: "claude-opus-5-5" }), offset)
+  const replanned = scenario({ tickets: [ticket(7, { comments: [launchRecord, replanLaunch(-1500 * 1000), comment("replan", JSON.stringify({ plan: "fresh", branch: "chore/ticket-7-r2", pr: null, part: null, count: 1, at: iso(-900 * 1000) }), -900 * 1000)] })], routes: listed(lineOf(listing)) })
+  await replanned.run()
+  same("drive: a replan record after the last merge lifts the repeat stop, so the next tick builds", [replanned.launched.length, JSON.parse(recordsOf(replanned, "launch")[0].split("\n").slice(1).join("\n")).kind], [1, "build"])
+  const bound = scenario({ tickets: [ticket(7, { comments: [launchRecord, replanLaunch(-2400 * 1000), replanLaunch(-2300 * 1000)] })], routes: listed(lineOf(listing)) })
+  await bound.run()
+  same("drive: a repeat stop after the re-plans parks the ticket with one parked comment and no owner step", [bound.launched.length, recordsOf(bound, "parked").length, only(bound.calls, "editLabels").filter((entry) => entry[3].add?.includes("parked")).length, writesNothingForOwner(bound)], [0, 1, 1, [0, 0, 0]])
+  const blocked = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9; blocked by #8`, "chore/ticket-7")]
+  const waiting = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(blocked) })
+  await waiting.run()
+  same("drive: a Remaining line of blocked by items only parks the ticket with one parked comment and no owner step", [waiting.launched.length, recordsOf(waiting, "parked").length, only(waiting.calls, "editLabels").filter((entry) => entry[3].add?.includes("parked")).length, writesNothingForOwner(waiting)], [0, 1, 1, [0, 0, 0]])
+  const takenBack = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -900 * 1000)] })], routes: listed(blocked) })
+  await takenBack.run()
+  same("drive: a blocked park that the review took back builds on the next tick and writes no new park", [takenBack.launched.length, recordsOf(takenBack, "parked").length], [1, 0])
+  const parkedAgain = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -7200 * 1000)] })], routes: listed(blocked) })
+  await parkedAgain.run()
+  same("drive: a second blocked park after a newer merge writes a new parked comment", [parkedAgain.launched.length, recordsOf(parkedAgain, "parked").length], [0, 1])
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
   const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
@@ -1624,6 +1703,8 @@ const healthReadCases = async () => {
   leftBehind(reapThrows)
   reapThrows.mem.account = ACCOUNT
   writeFileSync(join(reapThrows.env.stateDir, "chore-ticket-7.pid"), JSON.stringify({ pid: 4242 }))
+  // The fake pid 4242 must not reach the real process table: a runner process with that pid would keep the worker alive and skip the reap.
+  reapThrows.env.processAlive = () => false
   reapThrows.env.pidHeld = () => false
   reapThrows.env.worker.killWorkerTree = () => { throw new Error("kill EPERM") }
   same("drive: a tick whose reap throws with no failed read names the error as error:tick", [(await reapThrows.run()).retried, ...keptHealth(reapThrows)], [true, null, null, null, "other", ["error:tick"]])
@@ -3403,6 +3484,33 @@ const twoAccountCases = async () => {
   T("drive: the stopped account shows in the pace line with its stop and its end", hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`worker ${WORKER_ACCOUNT.key}:`) && hit.messages.filter((entry) => entry.includes(" pace ")).at(-1).includes(`stop yes (usage limit until ${new Date(RESETS_AT * 1000).toISOString()})`))
   same("drive: a restart keeps the stop of the worker account", JSON.parse(readFileSync(join(hit.env.stateDir, "pace.json"), "utf8")).worker.stoppedUntil, RESETS_AT * 1000)
 
+  // A worker that ran on a login which no account holds now (the runner switched, or the worker login changed or signed out) stops no account.
+  const staleWorker = async (afterFirstTick) => {
+    const tickets = [ticket(7, { comments: [launchComment("build", "chore/ticket-7")] })]
+    const scene = scenario({ tickets, reading: below, workerAuth: WORKER_AUTH, workerReading: below, workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
+    keepWrites(scene, tickets)
+    scene.env.worker.launch = (options) => { scene.launched.push(options); return Promise.resolve({ ...clean, ...(accountOfLaunch(options) === null ? {} : limited), utilization: 0.35, resetsAt: RESETS_AT }) }
+    await scene.run()
+    afterFirstTick(scene)
+    await scene.run()
+    return { scene, tickets }
+  }
+  const otherLogin = { ...WORKER_AUTH, email: "other.worker@example.test", orgId: "00000000-0000-4000-8000-000000000004" }
+  const staleChecks = (label, { scene, tickets }) => {
+    same(`drive: ${label} stops no account and gives no notice`, [scene.mem.stoppedUntil, scene.mem.worker.stoppedUntil, scene.messages.some((entry) => entry.includes("-stopped")), scene.messages.some((entry) => entry.includes("stop-skipped"))], [null, null, false, true])
+    same(`drive: ${label} opens no pause issue and keeps the launch off the cap`, [only(scene.calls, "createTicket").length, launchesOf(tickets[0]).length], [0, 2])
+  }
+  const switched = await staleWorker((scene) => {
+    writeFileSync(join(scene.env.stateDir, "runner-setting.json"), `${JSON.stringify({ runner: "codex" })}\n`)
+    const claude = scene.env.authStatus
+    scene.env.authStatus = (name, runner) => (name === "worker" && runner === "codex" ? Promise.resolve(structuredClone(otherLogin)) : claude(name, runner))
+  })
+  staleChecks("a Claude worker that ends on a usage limit after the runner switched to Codex", switched)
+  const changed = await staleWorker((scene) => { scene.env.authStatus = (name) => Promise.resolve(structuredClone(name === "worker" ? otherLogin : AUTH)) })
+  staleChecks("a worker that ends on a usage limit after the worker login changed", changed)
+  const signedOut = await staleWorker((scene) => { scene.env.authStatus = (name) => Promise.resolve(structuredClone(name === "worker" ? { ...WORKER_AUTH, loggedIn: false } : AUTH)) })
+  staleChecks("a worker that ends on a usage limit after the worker login signed out", signedOut)
+
   const ciFix = (head = null, offset = -3600 * 1000) => comment("launch", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30", ...(head ? { baseMerge: head } : {}) }), offset)
   const ciRefund = () => comment("launch-refund", JSON.stringify({ kind: "ci-fix", part: null, branch: "chore/ticket-7-30" }))
   same("drive: a refund takes back the launch before it, not the free launch that follows", launchesOf(ticket(7, { comments: [ciFix(), ciRefund(), ciFix("H3")] })).map((entry) => entry.baseMerge ?? null), ["H3"])
@@ -4150,7 +4258,7 @@ const replanCases = async () => {
   T("drive: the re-plan order names the highest total of any part set, not only the set in force", largerReplan !== undefined && largerReplan.order.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerReplan.order.includes("make m higher than 4."))
 }
 
-/** The merge bar failures that the git diff settles: each reads the diff from git, and each that no worker order clears goes to the owner. */
+/** The merge bar failures that the git diff settles: each reads the diff from git, and each that no worker order clears parks the ticket. */
 const diffBarCases = async () => {
   const LINT = (conclusion) => check("Checks", conclusion, { databaseId: 31 })
   const scene = (extra, gitRoutes = [], repoKey = "ui") => scenario({ tickets: [ticket(7, { labels: [`repo:${repoKey}`, "Improvement"], repoKey })], gitRoutes, pulls: { ui: [], api: [], landing: [], [repoKey]: [pull(30, { checks: [check("Unit Tests"), approvalCheck(), ...(extra.lint ? [LINT(extra.lint)] : [])], ...extra.pull })] } })
@@ -4159,20 +4267,22 @@ const diffBarCases = async () => {
     await entry.run()
     return entry
   }
-  const owned = (entry) => only(entry.calls, "comment").filter((call) => call[1] === "tickets").map((call) => call[3]).filter((text) => text.startsWith("<!-- orbit-drive:needs-owner -->"))
+  // A bar failure is a technical stop, so it parks the ticket and writes no needs-owner report.
+  const owned = (entry) => only(entry.calls, "comment").filter((call) => call[1] === "tickets").map((call) => call[3]).filter((text) => text.startsWith(marked("parked", "")))
+  const reports = (entry) => only(entry.calls, "comment").filter((call) => call[3].startsWith(marked("needs-owner", ""))).length
 
   const clean = await settled({ lint: "SUCCESS", pull: { files: ["apps/web/a.ts"] } })
   same("drive: a lintable path with a green Lint merges", [only(clean.calls, "merge").length, owned(clean).length], [1, 0])
 
   const skipped = await settled({ lint: "SKIPPED", pull: { files: ["apps/web/a.ts"] } })
-  same("drive: a SKIPPED Lint with a lintable path goes to the owner and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").length], [0, 1, 1])
-  T("drive: the owner report names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
+  same("drive: a SKIPPED Lint with a lintable path parks the ticket and the pull request, writes no needs-owner report and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").map((call) => call[3].add[0]), reports(skipped)], [0, 1, ["parked", "parked"], 0])
+  T("drive: the parked comment names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
 
   // GitHub creates the `Checks` run only after `Plan` ends, so a head has no lint check for its first minutes.
   const planning = await settled({ pull: { files: ["apps/web/a.ts"], checks: [check("Plan", null, { status: "IN_PROGRESS" }), approvalCheck()] } })
   same("drive: a lintable path with no lint check yet while Plan runs waits with no needs:owner", [only(planning.calls, "merge").length, owned(planning).length, only(planning.calls, "editLabels").length], [0, 0, 0])
   const absent = await settled({ pull: { files: ["apps/web/a.ts"] } })
-  same("drive: a lint check that is absent after every other check ended goes to the owner", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
+  same("drive: a lint check that is absent after every other check ended parks the ticket", [only(absent.calls, "merge").length, owned(absent).length], [0, 1])
   const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", draft: true }), pull(30, { baseRef: "chore/ticket-7-part-1", files: ["apps/web/a.ts"] })] } })
   await child.run()
   same("drive: a child of an open pull request gets no lint check before its retarget, so it waits", [only(child.calls, "merge").length, owned(child).length, only(child.calls, "editLabels").length], [0, 0, 0])
@@ -4185,17 +4295,17 @@ const diffBarCases = async () => {
 
   const files = Array.from({ length: 120 }, (_, index) => (index === 109 ? "apps/web/late.tsx" : `docs/page${index}.md`))
   const late = await settled({ lint: "SKIPPED", pull: { files, changedFiles: 120, reviews: [review("APPROVED"), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -30 * MINUTE)] } })
-  same("drive: a lintable path at file 110 of 120 is seen and goes to the owner", [only(late.calls, "merge").length, owned(late).length], [0, 1])
+  same("drive: a lintable path at file 110 of 120 is seen and parks the ticket", [only(late.calls, "merge").length, owned(late).length], [0, 1])
 
   const closing = await settled({ lint: "SUCCESS", pull: { files: ["tools/README.md"], commitMessages: ["feat: a change", "Closes: thomasluizon/orbit-tickets#1"] } })
-  same("drive: a commit message that closes a ticket goes to the owner and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
-  T("drive: the owner report names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
+  same("drive: a commit message that closes a ticket parks the ticket and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
+  T("drive: the parked comment names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
   const bodied = await settled({ pull: { body: "Closes thomasluizon/orbit-tickets#7\n\nRemaining: none", files: ["tools/README.md"] } })
-  same("drive: a body that closes a ticket does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
+  same("drive: a body that closes a ticket parks the ticket and does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
   const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
   same("drive: fixed context and a Tracks line merges", only(tracking.calls, "merge").length, 1)
 
-  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")))
+  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")) && !call.some((text) => text.startsWith("--since=")))
   same("drive: the changed paths come from git diff between the base and the head, with no rename detection", read(clean).filter((call) => call.includes("--name-only")), [["git", "diff", "--name-only", "--no-renames", "-z", `${"c".repeat(40)}...${HEAD}`]])
   same("drive: the commit messages come from git log between the base and the head", read(clean).filter((call) => call.includes("--format=%B%x00")), [["git", "log", "--format=%B%x00", `${"c".repeat(40)}..${HEAD}`]])
 
@@ -4335,6 +4445,189 @@ const requiredChecksMergeCases = async () => {
   same("drive: a pull request into another branch never moves the protection of main", [headReads, protectionSteps(stacked).filter((step) => step !== "merge")], [0, []])
 }
 
+/** The Codex runner on the worker slots: the setting, the slot choice, the launch record, the reap of a Codex log and the pace line. */
+const codexRunnerCases = async () => {
+  const THREAD = "01a21e2d-cd1e-7340-91e8-220da2e54801"
+  const jsonl = (...records) => `${records.map((record) => JSON.stringify(record)).join("\n")}\n`
+  const started = { type: "thread.started", thread_id: THREAD }
+  const LIMIT = "You've hit your usage limit. Upgrade to Pro or try again at 3:14 PM."
+  const below = { utilization: 0.35, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const stopped = { utilization: 0.95, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const homeOf = (options) => options.invocation.environment.CODEX_HOME ?? null
+  const setRunner = (scene, runner = "codex") => writeFileSync(join(scene.env.stateDir, "runner-setting.json"), `${JSON.stringify({ runner })}\n`)
+  const codexScene = (options = {}) => {
+    const scene = scenario({ reading: below, workerAuth: WORKER_AUTH, workerReading: below, ...options })
+    setRunner(scene)
+    return scene
+  }
+  const lineOf = (scene) => scene.messages.filter((entry) => entry.includes(" pace ")).at(-1)
+
+  const alone = scenario({})
+  same("drive: with no setting file the runner is claude", readRunner(alone.env.stateDir), "claude")
+  setRunner(alone)
+  same("drive: the setting file gives codex", readRunner(alone.env.stateDir), "codex")
+  setRunner(alone, "gpt")
+  same("drive: an unknown word in the setting file gives claude", readRunner(alone.env.stateDir), "claude")
+  writeFileSync(join(alone.env.stateDir, "runner-setting.json"), "{not json")
+  same("drive: an unreadable setting file gives claude", readRunner(alone.env.stateDir), "claude")
+
+  const none = scenario({ tickets: [ticket(7), ticket(8)], workerAuth: WORKER_AUTH, workerReading: below })
+  await none.run()
+  same("drive: with no setting file the worker slot runs claude on its own config directory", [none.launched.map((options) => options.invocation.environment.CLAUDE_CONFIG_DIR ?? null), none.launched.map(homeOf), none.authRunners.filter(([name]) => name === "worker").map(([, runner]) => runner)], [[WORKER_DIRECTORY, WORKER_DIRECTORY], [null, null], ["claude"]])
+
+  const scene = codexScene({ tickets: [ticket(7), ticket(8), ticket(9)] })
+  await scene.run()
+  same("drive: with runner codex the worker slots run on the Codex home and the main account takes the rest", scene.launched.map(homeOf), [CODEX_DIRECTORY, CODEX_DIRECTORY, null])
+  same("drive: the login of the worker slot is read from the chosen runner", scene.authRunners.filter(([name]) => name === "worker").map(([, runner]) => runner), ["codex"])
+  const record = JSON.parse(readFileSync(join(scene.env.stateDir, "chore-ticket-7.launch.json"), "utf8"))
+  same("drive: the launch record of a Codex worker names the Codex account key and the runner", [record.account, record.runner], [WORKER_ACCOUNT.key, "codex"])
+  const mainRecord = JSON.parse(readFileSync(join(scene.env.stateDir, "chore-ticket-9.launch.json"), "utf8"))
+  same("drive: the launch record of a worker on the main account names no runner", [mainRecord.account, mainRecord.runner ?? null], [ACCOUNT.key, null])
+  const launchOf = (number) => JSON.parse(commentsOf(scene.calls, number).find((text) => text.startsWith(marked("launch", ""))).split("\n")[1])
+  same("drive: the launch comment of a Codex worker names the Codex model and the runner", [launchOf(7).model, launchOf(7).runner, launchOf(9).model, launchOf(9).runner ?? null], ["gpt-6.2-sol", "codex", "claude-sonnet-5-5", null])
+  T("drive: the log line of a Codex launch names the Codex model", scene.messages.some((line) => line.includes("launch build model gpt-6.2-sol")))
+  const brief = scene.launched[0].order
+  same("drive: the order of a Codex worker holds the Codex brief", [brief.includes("/second-opinion"), brief.includes("Grep tool"), brief.includes("Claude Code"), brief.includes("~/.claude/skills/humanizer/SKILL.md")], [false, false, false, true])
+  T("drive: the order of a worker on the main account holds the Claude brief", scene.launched[2].order.includes("/second-opinion"))
+  T("drive: the pace line shows the Codex weekly reading of the worker account", lineOf(scene).includes(`worker codex ${WORKER_ACCOUNT.key}: utilization 0.350, line 0.450, slots 2, running 0, free 2`), lineOf(scene))
+
+  const third = [ticket(7, { comments: [launchComment("build", "chore/ticket-7"), launchComment("build", "chore/ticket-7")] })]
+  const control = scenario({ tickets: third, reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await control.run()
+  same("drive: with runner claude an order on the coordinator model takes the worker account", [control.launched[0]?.invocation.model, accountOfLaunch(control.launched[0])], ["claude-opus-5-5", WORKER_DIRECTORY])
+  const coordinator = codexScene({ tickets: third })
+  await coordinator.run()
+  same("drive: with runner codex an order on the coordinator model takes the main account", [coordinator.launched[0]?.invocation.model, homeOf(coordinator.launched[0]), accountOfLaunch(coordinator.launched[0])], ["claude-opus-5-5", null, null])
+  const waiting = codexScene({ tickets: third, reading: stopped })
+  await waiting.run()
+  same("drive: with runner codex and the main account stopped an order on the coordinator model starts nothing", [waiting.launched.length, waiting.messages.filter((line) => line.includes(" error ")).length], [0, 0])
+
+  // A coordinator order has no Codex slot, so it holds no room of the Codex slots: the capped tickets wait and the fresh ticket launches.
+  const buildCapped = (number) => ticket(number, { comments: [launchComment("build", `chore/ticket-${number}`), launchComment("build", `chore/ticket-${number}`)] })
+  const crowded = codexScene({ tickets: [buildCapped(7), buildCapped(8), ticket(9)], reading: stopped })
+  await crowded.run()
+  same("drive: with the main account stopped two coordinator orders leave the Codex slots to the fresh ticket", [crowded.launched.map(homeOf), existsSync(join(crowded.env.stateDir, "chore-ticket-9.launch.json")), crowded.launched.map((options) => options.invocation.model)], [[CODEX_DIRECTORY], true, [undefined]])
+  same("drive: a coordinator order with no main slot waits for the main account", [7, 8].map((number) => crowded.messages.some((line) => line.includes(`ticket#${number} wait (an order on the coordinator model waits for the main account)`))), [true, true])
+  const cappedFix = (number, pullNumber) => ticket(number, { comments: [launchComment("fix", `chore/ticket-${number}-${pullNumber}`), launchComment("ci-fix", `chore/ticket-${number}-${pullNumber}`)] })
+  const fixReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const fixPull = (number, tracks) => pull(number, { tracks, headRef: `chore/ticket-${tracks}-${number}`, reviews: [fixReview] })
+  const crowdedFix = codexScene({ tickets: [cappedFix(7, 30), cappedFix(8, 31), ticket(9)], pulls: { ui: [fixPull(30, 7), fixPull(31, 8), fixPull(32, 9)] }, reading: stopped })
+  await crowdedFix.run()
+  same("drive: capped fix orders with low pull numbers do not crowd a fix order of the Codex slots out of the room", [crowdedFix.launched.map(homeOf), existsSync(join(crowdedFix.env.stateDir, "chore-ticket-9-32.launch.json"))], [[CODEX_DIRECTORY], true])
+  const mixed = codexScene({ tickets: [buildCapped(7), ticket(8)], reading: { ...below, at: NOW - MINUTE } })
+  await mixed.run()
+  same("drive: with a free main slot a coordinator order takes it and the next ticket takes a Codex slot", [mixed.launched.map(homeOf), mixed.launched.map((options) => options.invocation.model)], [[null, CODEX_DIRECTORY], ["claude-opus-5-5", undefined]])
+
+  const restart = (ticketNumber = 7) => [ticket(ticketNumber)]
+  const ended = codexScene({ tickets: restart(), workerProbeReading: { utilization: 0.35, resetsAt: RESETS_AT, status: "rejected" } })
+  keepWrites(ended, restart())
+  leftBehind(ended, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started, { type: "error", message: LIMIT }, { type: "turn.failed", error: { message: LIMIT } }))
+  await ended.run()
+  same("drive: a Codex worker that ended on a usage limit while the driver was away stops the worker slot until its reset", [ended.mem.worker.stoppedUntil, ended.mem.stoppedUntil], [RESETS_AT * 1000, null])
+  same("drive: its order starts again on the main account with a refund and no pause issue", [only(ended.calls, "createTicket").length, commentsOf(ended.calls, 7).filter((text) => text.startsWith(marked("launch-refund", ""))).length, ended.launched.map(homeOf), ended.launched.map(accountOfLaunch)], [0, 1, [null], [null]])
+  T("drive: the pace line names the usage-limit stop of the Codex worker slot", lineOf(ended).includes(`worker codex ${WORKER_ACCOUNT.key}:`) && lineOf(ended).includes("stop yes (usage limit until"))
+
+  const asked = codexScene({ tickets: restart() })
+  keepWrites(asked, restart())
+  leftBehind(asked, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started, { type: "item.completed", item: { id: "i0", type: "agent_message", text: "Stuck.\nNEEDS_DECISION: Pay for a second seat?" } }, { type: "turn.completed", usage: {} }))
+  await asked.run()
+  T("drive: the NEEDS_DECISION line of a Codex log reaches the ticket as a needs-owner report", commentsOf(asked.calls, 7).some((text) => text.startsWith(marked("needs-owner", "")) && text.includes("NEEDS_DECISION: Pay for a second seat?")))
+
+  const claudeLog = codexScene({ tickets: restart() })
+  keepWrites(claudeLog, restart())
+  leftBehind(claudeLog, { account: WORKER_ACCOUNT.key }, jsonl({ type: "result", result: "done" }))
+  await claudeLog.run()
+  same("drive: a record with no runner is read as a Claude log", [claudeLog.mem.worker.stoppedUntil, commentsOf(claudeLog.calls, 7).filter((text) => text.startsWith(marked("launch-refund", ""))).length], [null, 0])
+
+  const live = codexScene({ tickets: [] })
+  live.env.home = join(root, `codex-home-${scenarios}`)
+  const day = join(live.env.home, ".codex-orbit-workers", "sessions", "2026", "11", "19")
+  mkdirSync(day, { recursive: true })
+  writeFileSync(join(day, `rollout-2026-11-19T11-00-00-${THREAD}.jsonl`), jsonl({ type: "event_msg", payload: { type: "token_count", rate_limits: { primary: { used_percent: 60, window_minutes: 10080, resets_at: RESETS_AT }, secondary: null, rate_limit_reached_type: null } } }))
+  leftBehind(live, { account: WORKER_ACCOUNT.key, runner: "codex" }, jsonl(started))
+  live.env.processAlive = () => true
+  writeFileSync(join(live.env.stateDir, "chore-ticket-7.pid"), `${JSON.stringify({ pid: process.pid, worktree: "/r/orbit-worktrees/ui/chore-ticket-7", startedAt: iso(-MINUTE) })}\n`)
+  await live.run()
+  T("drive: a running Codex worker gives the weekly reading of its session file to the worker account", lineOf(live).includes(`worker codex ${WORKER_ACCOUNT.key}: utilization 0.600`), lineOf(live))
+
+  const switching = scenario({ tickets: [], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  await switching.run()
+  setRunner(switching)
+  await switching.run()
+  same("drive: a switch of the runner drops the worker readings and probes the Codex login", [switching.messages.some((line) => line.includes("worker-runner")), switching.probed.at(-1)?.environment.CODEX_HOME ?? null, switching.mem.worker.runner], [true, CODEX_DIRECTORY, "codex"])
+
+  const branch = "chore/ticket-7-30"
+  const blocking = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const session = comment("launch-session", JSON.stringify({ kind: "build", part: null, branch, pr: 30, session: "sess-1", account: WORKER_ACCOUNT.key, tokens: 90000 }))
+  const fix = codexScene({ tickets: [ticket(7, { comments: [session] })], pulls: { ui: [pull(30, { headRef: branch, reviews: [blocking] })] } })
+  await fix.run()
+  same("drive: a Codex fix order starts cold and never reads a transcript", [fix.launched.map(homeOf), fix.launched[0]?.invocation.command.args, only(fix.calls, "sessionExists").length, fix.messages.some((line) => line.includes("fix cold start (fix, a Codex order starts cold"))], [[CODEX_DIRECTORY], [], 0, true])
+}
+
+/** The switch `--runner claude|codex` and the live check `--runner-check`. */
+const runnerSwitchCases = async () => {
+  const VERSION = "codex-cli 0.172.0"
+  const PASS = { passed: true, reason: null }
+  const reading = { utilization: 0.2, resetsAt: RESETS_AT, status: "allowed" }
+  const checkScene = ({ version = VERSION, probeReading = reading, hook = PASS, auth = { loggedIn: true } } = {}) => {
+    const scene = scenario({})
+    const steps = []
+    Object.assign(scene.env, {
+      codexVersion: async () => { if (version instanceof Error) throw version; return version },
+      authStatus: async (name, runner) => { steps.push(["auth", name, runner]); return auth },
+    })
+    scene.env.worker.probe = async ({ invocation }) => { steps.push(["probe", invocation.command.executable]); return probeReading }
+    scene.env.worker.codexHookCheck = async (options) => { steps.push(["hook", options.repository, options.home]); return hook }
+    return { ...scene, steps }
+  }
+  const run = async (fn, scene, ...rest) => {
+    const lines = []
+    const errors = []
+    const code = await fn(scene.env, ...rest, { out: (line) => lines.push(line), err: (line) => errors.push(line) })
+    return { code, lines, errors }
+  }
+  const checkFile = (scene) => readRunnerCheck(scene.env.stateDir)
+
+  same("drive: --runner takes claude or codex and nothing else", [parseArguments(["--runner", "codex"]), parseArguments(["--runner", "claude"]).word, parseArguments(["--runner"]).error !== undefined, parseArguments(["--runner", "gpt"]).error !== undefined, parseArguments(["--runner", "codex", "--once"]).error !== undefined], [{ help: false, mode: "runner", word: "codex" }, "claude", true, true, true])
+  same("drive: --runner-check is a mode of its own", [parseArguments(["--runner-check"]), parseArguments(["--runner-check", "--once"]).error !== undefined], [{ help: false, mode: "runner-check" }, true])
+  const usage = await usageText()
+  same("drive: the usage states the runner switch and the live check", [/--runner claude\|codex/.test(usage), /--runner-check/.test(usage), /exit codes: 0 done, 1 failed runner check, 2 /.test(usage)], [true, true, true])
+
+  const refused = checkScene()
+  const noCheck = await run(setRunner, refused, "codex")
+  same("drive: --runner codex with no passed check exits 2, names the reason and keeps the setting", [noCheck.code, noCheck.errors[0].includes("the live check has not passed on codex-cli 0.172.0"), noCheck.errors[0].includes("--runner-check"), readRunner(refused.env.stateDir), existsSync(join(refused.env.stateDir, "runner-setting.json"))], [2, true, true, "claude", false])
+  writeFileSync(join(refused.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: "codex-cli 0.171.0", passedAt: iso(0) })}\n`)
+  const older = await run(setRunner, refused, "codex")
+  same("drive: a pass on another codex version is no pass", [older.code, older.errors[0].includes("it passed on codex-cli 0.171.0"), readRunner(refused.env.stateDir)], [2, true, "claude"])
+  const noBinary = checkScene({ version: new Error("spawn codex ENOENT") })
+  const missing = await run(setRunner, noBinary, "codex")
+  same("drive: --runner codex with no readable codex version exits 2 and keeps the setting", [missing.code, missing.errors[0].includes("codex --version failed"), readRunner(noBinary.env.stateDir)], [2, true, "claude"])
+
+  const passed = checkScene()
+  writeFileSync(join(passed.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const toCodex = await run(setRunner, passed, "codex")
+  const toClaude = await run(setRunner, passed, "claude")
+  const bare = await run(setRunner, noBinary, "claude")
+  same("drive: --runner codex with a pass on the same version writes the setting, and claude needs no check", [toCodex.code, toCodex.lines, toClaude.code, readRunner(passed.env.stateDir), bare.code], [0, ["The worker slots run on codex from the next tick."], 0, "claude", 0])
+
+  const good = checkScene()
+  const pass = await run(runnerCheck, good)
+  same("drive: the live check runs the probe, then the hook step, and a pass writes the version", [pass.code, good.steps, pass.lines.at(-1).startsWith("The live check passed on codex-cli 0.172.0"), checkFile(good)?.version, Number.isNaN(Date.parse(checkFile(good)?.passedAt))], [0, [["auth", "worker", "codex"], ["probe", "codex"], ["hook", REPOSITORY, "/home/x"]], true, VERSION, false])
+
+  const signedOut = checkScene({ auth: { loggedIn: false } })
+  const out = await run(runnerCheck, signedOut)
+  same("drive: the live check with no Codex login exits 3 and runs no probe", [out.code, out.errors[0].includes("codex login"), signedOut.steps.filter(([step]) => step === "probe").length, checkFile(signedOut)], [3, true, 0, null])
+
+  const blind = checkScene({ probeReading: null })
+  writeFileSync(join(blind.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const noReading = await run(runnerCheck, blind)
+  same("drive: a probe with no weekly reading fails the check, runs no hook step and removes an older pass", [noReading.code, noReading.errors[0].includes("no weekly reading"), blind.steps.filter(([step]) => step === "hook").length, checkFile(blind)], [1, true, 0, null])
+
+  const open = checkScene({ hook: { passed: false, reason: "`gh pr merge` ran, so the hook did not block it" } })
+  const merged = await run(runnerCheck, open)
+  same("drive: a hook that blocks nothing fails the check with its reason and writes no pass", [merged.code, merged.errors[0], checkFile(open)], [1, "The live check failed on codex-cli 0.172.0: `gh pr merge` ran, so the hook did not block it", null])
+}
+
 export const driverUnit = async () => {
   await diffBarCases()
   await requiredChecksDriftCases()
@@ -4397,4 +4690,6 @@ export const driverUnit = async () => {
   await orphanClockCases()
   await paceRestartCases()
   await twoAccountCases()
+  await codexRunnerCases()
+  await runnerSwitchCases()
 }

@@ -7,7 +7,7 @@ import { delimiter, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { runBounded } from "./bounded-process.mjs"
-import { agentSkillFolders, blockLogFile, codexCommand, codexEnvironment, codexEvent, codexFinalResult, codexHomeDirectory, codexLogEvent, codexLogFinalResult, plainPrefixes, writeCodexHome } from "./codex-runner.mjs"
+import { agentSkillFolders, blockLogFile, codexAccountOf, codexCommand, codexEnvironment, codexEvent, codexFinalResult, codexHomeDirectory, codexLogEvent, codexLogFinalResult, plainPrefixes, writeCodexHome } from "./codex-runner.mjs"
 import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 
@@ -238,6 +238,22 @@ export const codexInvocation = ({ home, parentEnvironment, token, own = null, cw
     environment: codexEnvironment(workerEnvironmentFor(parentEnvironment, token), codexHome, own),
     codex: { home: codexHome, skillsRoot: join(home, ".agents", "skills") },
   }
+}
+
+/**
+ * The login of the Codex worker home, in the shape of `claude auth status --json`. `codex login status` exits 0 when logged in and 1
+ * when not. A missing home is a signed-out login, and the check never creates it. The account comes from `auth.json`.
+ */
+export const codexLoginStatus = async ({ home, parentEnvironment, run = runBounded, read = readFileSync, exists = existsSync }) => {
+  const codexHome = codexHomeDirectory(home)
+  if (!exists(codexHome)) return { loggedIn: false }
+  const result = await run("codex", ["login", "status"], { timeoutMs: 30 * 1000, env: codexEnvironment(workerEnvironment(parentEnvironment), codexHome) })
+  if (result.status === 1) return { loggedIn: false }
+  if (result.status !== 0) throw new Error(`codex login status gave exit ${result.status ?? "none"}${result.error ? `: ${result.error.message}` : ""}`)
+  let account = null
+  try { account = codexAccountOf(read(join(codexHome, "auth.json"), "utf8")) } catch { /* an unreadable file is no account */ }
+  if (account === null) throw new Error("the Codex login has no readable account in auth.json")
+  return { loggedIn: true, ...account }
 }
 
 /** Writes the files of the Codex worker home, which a launch and a probe do first. */
