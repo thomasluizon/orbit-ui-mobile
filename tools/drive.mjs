@@ -20,7 +20,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, OWNER_BAR_FAILURES, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -896,6 +896,22 @@ const cleanMergesOf = async (env, repoPath, pull) => {
   return clean
 }
 
+/**
+ * Sets the changed paths and the commit messages of a pull request from git: `git diff --name-only --no-renames` between the base and the head
+ * lists a rename with its old and its new path and has no cap of 100 files, as the GitHub query has. A read that git cannot answer throws,
+ * so the plan reports the error and no merge goes out on a diff that the driver did not see.
+ */
+const readPullDiff = async (env, repoPath, pull) => {
+  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  const range = [pull.baseSha, pull.headSha]
+  const names = await env.git(repoPath, ["diff", "--name-only", "--no-renames", "-z", `${range[0]}...${range[1]}`])
+  if (names.status !== 0) throw new Error(`git diff of ${pull.number} failed: ${names.stderr.trim()}`)
+  const messages = await env.git(repoPath, ["log", "--format=%B%x00", `${range[0]}..${range[1]}`])
+  if (messages.status !== 0) throw new Error(`git log of ${pull.number} failed: ${messages.stderr.trim()}`)
+  pull.files = names.stdout.split("\0").filter(Boolean)
+  pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
+}
+
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
 const ownDiff = async (env, repoPath, base, sha) => {
   const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "--binary", `origin/${base}...${sha}`])
@@ -1229,6 +1245,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
+  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure))
+  if (ownerFailures.length > 0) return owner(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}, which only the owner clears.`, `bar-${ownerFailures.join("-")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request })]
@@ -1339,6 +1357,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       const ownerAtPlan = pull.tracks !== null && holdsTicket(ticketMap.get(pull.tracks))
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft) await readPullDiff(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planAgain = async () => {
         const planned = await planPull(env, mem, { ...ctx, runs }, pull)

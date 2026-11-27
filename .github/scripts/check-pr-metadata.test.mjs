@@ -83,6 +83,22 @@ test("body checks reject attribution lines, including on body-only edits", () =>
   check(`Work.\n\n${trailer}`, [], [], 1, { checkDashes: "false" })
 })
 
+test("body checks accept one Remaining line and refuse a Remaining section or a second line", () => {
+  check("Tracks thomasluizon/orbit-tickets#1\n\nRemaining: none", [], [], 0)
+  check("Tracks thomasluizon/orbit-tickets#1\n\nRemaining: Part 4 of 12; owner: the label", [], [], 0)
+  check("The Remaining: text inside a sentence is no line.", [], [], 0)
+  check("## Remaining\n\n- [ ] criterion (d)", [], [], 1)
+  check("# Remaining\n\nnone", [], [], 1)
+  check("### remaining\n\nnone", [], [], 1)
+  check("Remaining: none\n\nRemaining: Part 4", [], [], 1)
+  check("Remaining: none\nRemaining: none", [], [], 1)
+  check("## Remaining\n\nRemaining: none", [], [], 1)
+  check("## Remaining items\n\nnone", [], [], 0)
+  const { stderr } = check("## Remaining\n\nx\n\nRemaining: a\nRemaining: b", [], [], 1)
+  assert.match(stderr, /no Remaining section/)
+  assert.match(stderr, /one `Remaining:` line/)
+})
+
 test("parity checks reject removed exemptions and require a specific justification", () => {
   const web = ["apps/web/components/control.tsx"]
   check("", [], web, 1)
