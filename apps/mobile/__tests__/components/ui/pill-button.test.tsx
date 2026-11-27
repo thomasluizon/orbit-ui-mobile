@@ -72,6 +72,17 @@ describe('PillButton (mobile)', () => {
     }
   })
 
+  it.each([[40, 4], [44, 2], [48, undefined]])('draws an icon-only pill at its minimum height %i and extends the hit target to 48 with a slop of %s', (minimumHeight, slop) => {
+    const tree = renderPill(<PillButton variant="ghost" iconOnly minimumHeight={minimumHeight} label="Close"><span /></PillButton>)
+    try {
+      const button = tree.root.findByType('Pressable')
+      expect(pressableStyle(button, false)).toMatchObject({ height: minimumHeight, width: minimumHeight })
+      expect(button.props.hitSlop).toBe(slop)
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+    }
+  })
+
   it.each(['dark', 'light'] as const)('replaces the ghost resting stroke only while focused in %s', (mode) => {
     theme.mode = mode
     const tokens = createTokensV2('purple', mode)

@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Report what changed in product terms: what merged and what is built but not merged, since the previous report. Pass --remaining to report the open tickets of the board and every needs:owner item instead. Use when the owner asks for progress or says /progress.
+description: Report what changed in product terms: what merged and what is built but not merged, since the previous report. Pass --remaining to report the open tickets of the board and every held decision instead. Use when the owner asks for progress or says /progress.
 argument-hint: "[--remaining]"
 effort: medium
 ---
@@ -60,7 +60,7 @@ Rules for each part:
 
 ## --remaining
 
-Report the open tickets of the board and every `needs:owner` item. Use the same rules, and list no `parked` item.
+Report the open tickets of the board and every held ticket and pull request that `/questions` step 1 lists. Use the same rules, and list no `parked` item.
 
 ## Estimates
 

@@ -28,6 +28,8 @@ interface LocalePatterns {
   weeklySuffix: RegExp
   monthDays: RegExp[]
   times: RegExp[]
+  noon: RegExp
+  isNoonOffset: (before: string, after: string) => boolean
   numberWords: Readonly<Record<string, number>>
 }
 
@@ -39,15 +41,34 @@ const ENGLISH_NUMBERS: Readonly<Record<string, number>> = {
   one: 1, once: 1, two: 2, twice: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
   eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20,
 }
-const PT_NUMBER = '(?:\\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)'
-const EN_NUMBER = '(?:\\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)'
+const PT_NUMBER = String.raw`(?:\d{1,3}|um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)`
+const EN_NUMBER = String.raw`(?:\d{1,3}|one|once|two|twice|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)`
 
-const PT_MONTH_DAY = '\\d{1,2}(?![\\d:h])'
-const PT_MONTH_DAY_LIST = `${PT_MONTH_DAY}(?:(?:\\s*,\\s*(?:e\\s+)?|\\s+e\\s+)(?:(?:o\\s+)?dia\\s+)?${PT_MONTH_DAY})*`
-const PT_MONTH_SUFFIX = '\\s+(?:de cada|de todo|do|todo|a cada|cada)\\s+mes'
-const MONTH_DAY_LIST_END = '(?=\\s*(?:[,.;!?]|$|a partir\\b|comecando\\b|from\\b|starting\\b))'
-const EN_MONTH_DAY = '\\d{1,2}(?:st|nd|rd|th)'
-const EN_MONTH_DAY_LIST = `${EN_MONTH_DAY}(?:(?:\\s*,\\s*(?:and\\s+)?|\\s+and\\s+)(?:the\\s+)?${EN_MONTH_DAY})*`
+const PT_MONTH_DAY = String.raw`\d{1,2}(?![\d:h])`
+const PT_MONTH_DAY_LIST = String.raw`${PT_MONTH_DAY}(?:(?:\s*,\s*(?:e\s+)?|\s+e\s+)(?:(?:o\s+)?dia\s+)?${PT_MONTH_DAY})*`
+const PT_MONTH_SUFFIX = String.raw`\s+(?:de cada|de todo|do|todo|a cada|cada)\s+mes`
+const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|from\b|starting\b))`
+const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
+const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
+
+const PT_DAY_PART = String.raw`(?:(?:\s+(?:horas?|hrs?|hs|h))?\s+(?:d[ae]|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const EN_MERIDIEM = String.raw`(?:\s*(am|pm)|(?:\s+o['\u2019]?clock)?\s+(in the (?:morning|afternoon|evening)|at night))?`
+type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
+const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
+  manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
+  morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
+}
+const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+feiras?)?(?:\s+(?:a|ao|as|ate(?:\s+(?:a|o|ao))?|to|through(?:\s+to)?|thru|until|['\u2019]?till?)\s+|\s*[-\u2013\u2014]\s*)$/u
+const PT_NOON = String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
+const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
+
+const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
+const PT_OFFSET_CONNECTORS = new Set(['para', 'pra', 'pro', 'antes', 'depois'])
+const PT_OFFSET_ARTICLES = new Set(['o', 'do'])
+const EN_OFFSET_WORDS = new Set([
+  'half', 'quarter', 'five', 'ten', 'fifteen', 'twenty', 'min', 'mins', 'minute', 'minutes', 'hour', 'hours',
+])
+const EN_OFFSET_CONNECTORS = new Set(['past', 'after', 'to', 'before', 'till', 'til', 'until'])
 
 const WEEKDAY_NEGATIONS = new Set([
   'menos', 'exceto', 'sem', 'nao', 'nunca', 'salvo', 'tirando',
@@ -75,22 +96,32 @@ const UNMODELED_WEEKDAY_QUALIFIERS = new Set([
 const WEEKDAY_PREFIX_GLUE = new Set(['o', 'a', 'the', 'de', 'do', 'da'])
 const WEEKDAY_PERIOD_WORDS = new Set(['month', 'months', 'year', 'years', 'mes', 'meses', 'ano', 'anos'])
 
-const WEEK_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+feiras?)?(?:\s+(?:a|ao|as|ate(?:\s+(?:a|o|ao))?|to|through(?:\s+to)?|thru|until|['\u2019]?till?)\s+|\s*[-\u2013\u2014]\s*)$/u
-
-type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
-const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
-  manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
-  morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
-}
-const PT_PERIOD = '(?:(?:\\s+(?:horas?|hrs?|hs|h))?\\s+(?:da|de|pela|a)\\s+(manha|tarde|noite|madrugada)\\b)?'
-const EN_PERIOD = "(?:(?:\\s+o['’]?clock)?\\s+(?:in the|at|of the)\\s+(morning|afternoon|evening|night)\\b)?"
-
 interface WeekdayAlternation {
   start: number
   end: number
   weekdayIndexes: number[]
   scope: 'weekday' | 'following' | 'list'
+}
+
+function isPortugueseNoonOffset(before: string, after: string): boolean {
+  const words = before.endsWith(' ') ? before.trimEnd().split(' ') : []
+  if (PT_OFFSET_ARTICLES.has(words.at(-1) ?? '')) words.pop()
+  const connector = words.pop() ?? ''
+  const offset = words.pop() ?? ''
+  if (PT_OFFSET_CONNECTORS.has(connector) && (PT_OFFSET_WORDS.has(offset) || /^\d{1,2}$/u.test(offset))) return true
+  const next = /^ (?:e|menos) (\d{1,2}(?![\w:])|[a-z]+)(?: ([a-z]+))?/u.exec(after)
+  if (!next) return false
+  const [, first = '', second] = next
+  if (first === 'um') return second === 'quarto'
+  if (first === 'meia') return second === 'hora'
+  return PT_OFFSET_WORDS.has(first) || /^\d/u.test(first)
+}
+
+function isEnglishNoonOffset(before: string): boolean {
+  const words = before.endsWith(' ') ? before.trimEnd().split(/[\s-]+/u) : []
+  const connector = words.pop() ?? ''
+  const offset = words.pop() ?? ''
+  return EN_OFFSET_CONNECTORS.has(connector) && (EN_OFFSET_WORDS.has(offset) || /^\d{1,2}$/u.test(offset))
 }
 
 const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
@@ -105,20 +136,22 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       { day: 'Saturday', pattern: /\bsab(?:ado)?s?\b/gu },
     ],
     daily: /(?<![a-z])(todo dia|todos os dias|diariamente|toda manha|toda noite)(?![a-z])/gu,
-    count: new RegExp(`\\b(${PT_NUMBER})\\s*(?:vez|vezes|x)\\s*(?:(?:por|na|a|em)\\s*)?semana\\b`, 'gu'),
-    interval: new RegExp(`\\ba\\s+cada\\s+(${PT_NUMBER})\\s+semanas?\\b`, 'gu'),
+    count: new RegExp(String.raw`\b(${PT_NUMBER})\s*(?:vez|vezes|x)\s*(?:(?:por|na|a|em)\s*)?semana\b`, 'gu'),
+    interval: new RegExp(String.raw`\ba\s+cada\s+(${PT_NUMBER})\s+semanas?\b`, 'gu'),
     weeklySuffix: /^\s+((?:a cada|de cada|cada|toda|por) semana|todas as semanas)\b/u,
     monthDays: [
-      new RegExp(`\\b(?:todo|todos os|em todo|cada|a cada)\\s+dias?\\s+${PT_MONTH_DAY_LIST}(?:${PT_MONTH_SUFFIX}(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
-      new RegExp(`\\b(?:(?:no|nos|em|todo)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}${PT_MONTH_SUFFIX}(?![\\w:])`, 'gu'),
-      new RegExp(`\\b(?:todo|cada|a cada)\\s+mes,?\\s+(?:(?:no|nos|em)\\s+)?dias?\\s+${PT_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
+      new RegExp(String.raw`\b(?:todo|todos os|em todo|cada|a cada)\s+dias?\s+${PT_MONTH_DAY_LIST}(?:${PT_MONTH_SUFFIX}(?![\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+      new RegExp(String.raw`\b(?:(?:no|nos|em|todo)\s+)?dias?\s+${PT_MONTH_DAY_LIST}${PT_MONTH_SUFFIX}(?![\w:])`, 'gu'),
+      new RegExp(String.raw`\b(?:todo|cada|a cada)\s+mes,?\s+(?:(?:no|nos|em)\s+)?dias?\s+${PT_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
     ],
     times: [
-      new RegExp(`\\b(?:as|a)\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?\\b${PT_PERIOD}(?![:\\dh]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)\\b${PT_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${PT_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
+      new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+da\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,
     ],
+    noon: new RegExp(PT_NOON, 'gu'),
+    isNoonOffset: isPortugueseNoonOffset,
     numberWords: PORTUGUESE_NUMBERS,
   },
   en: {
@@ -132,20 +165,22 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       { day: 'Saturday', pattern: /\b(?:sat|saturday)s?\b/gu },
     ],
     daily: /\b(every day|daily|each day|every morning|every evening)\b/gu,
-    count: new RegExp(`\\b(?:(once|twice)|(${EN_NUMBER})\\s*(?:time|times|x))\\s*(?:(?:a|per|each)\\s*)?week\\b`, 'gu'),
-    interval: new RegExp(`\\bevery\\s+(${EN_NUMBER})\\s+weeks?\\b`, 'gu'),
+    count: new RegExp(String.raw`\b(?:(once|twice)|(${EN_NUMBER})\s*(?:time|times|x))\s*(?:(?:a|per|each)\s*)?week\b`, 'gu'),
+    interval: new RegExp(String.raw`\bevery\s+(${EN_NUMBER})\s+weeks?\b`, 'gu'),
     weeklySuffix: /^\s+((?:every|each|per|a) week)\b/u,
     monthDays: [
-      new RegExp(`\\b(?:on\\s+)?(?:the\\s+)?${EN_MONTH_DAY_LIST}\\s+(?:(?:of\\s+)?(?:every|each)\\s+month|monthly)\\b`, 'gu'),
-      new RegExp(`\\b(?:(?:every|each)\\s+month|monthly),?\\s+on\\s+(?:the\\s+)?${EN_MONTH_DAY_LIST}(?![\\w:])`, 'gu'),
-      new RegExp(`\\bevery\\s+${EN_MONTH_DAY_LIST}(?:\\s+of\\s+the\\s+month(?![\\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
+      new RegExp(String.raw`\b(?:on\s+)?(?:the\s+)?${EN_MONTH_DAY_LIST}\s+(?:(?:of\s+)?(?:every|each)\s+month|monthly)\b`, 'gu'),
+      new RegExp(String.raw`\b(?:(?:every|each)\s+month|monthly),?\s+on\s+(?:the\s+)?${EN_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
+      new RegExp(String.raw`\bevery\s+${EN_MONTH_DAY_LIST}(?:\s+of\s+the\s+month(?![\w:])|${MONTH_DAY_LIST_END})`, 'gu'),
     ],
     times: [
-      new RegExp(`\\bat\\s+([01]?\\d|2[0-3])(?::([0-5]\\d)|h([0-5]\\d)?)?(?:\\s*(am|pm))?\\b${EN_PERIOD}(?![:\\dh]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3]):([0-5]\\d)(?:\\s*(am|pm))?\\b${EN_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
-      new RegExp(`(?<![\\w:])(?<!\\d[.,])([01]?\\d|2[0-3])h([0-5]\\d)?\\b${EN_PERIOD}(?![:\\d]|[.,]\\d)`, 'gu'),
+      new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}\b(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}\b(?![:\d]|[.,]\d)`, 'gu'),
+      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
     ],
+    noon: new RegExp(EN_NOON, 'gu'),
+    isNoonOffset: isEnglishNoonOffset,
     numberWords: ENGLISH_NUMBERS,
   },
 }
@@ -198,6 +233,15 @@ function firstMatch(patterns: readonly RegExp[], text: string): RegExpExecArray 
   return matches.sort((left, right) => left.index - right.index || right[0].length - left[0].length)[0] ?? null
 }
 
+function firstNoonMatch(text: string, patterns: LocalePatterns): RegExpExecArray | null {
+  patterns.noon.lastIndex = 0
+  const matches = Array.from(text.matchAll(patterns.noon))
+  return matches.find((match) => {
+    const before = text.slice(0, match.index)
+    return !patterns.isNoonOffset(before, text.slice(match.index + match[0].length))
+  }) ?? null
+}
+
 function parseNumber(value: string, words: Readonly<Record<string, number>>): number {
   return words[value] ?? Number.parseInt(value, 10)
 }
@@ -210,26 +254,33 @@ const HOUR_IN_PERIOD: Readonly<Record<DayPeriod, (hour: number) => number | null
   dawn: (hour) => (hour === 12 ? 0 : hour <= 6 ? hour : null),
 }
 
-function readSpokenHour(hour: number, suffixes: string[]): number | null {
-  const meridiem = suffixes.find((value) => value === 'am' || value === 'pm')
-  if (meridiem) return hour < 1 || hour > 12 ? null : hour % 12 + (meridiem === 'pm' ? 12 : 0)
-  const period = suffixes.find((value) => value in DAY_PERIODS)
-  if (!period) return hour
-  const inPeriod = HOUR_IN_PERIOD[DAY_PERIODS[period]!]
-  if (hour >= 1 && hour <= 12) return inPeriod(hour)
-  return inPeriod(hour === 0 ? 12 : hour - 12) === hour ? hour : null
+function readPeriod(dayPart: string): DayPeriod | undefined {
+  if (dayPart === 'at night') return 'night'
+  return DAY_PERIODS[dayPart.replace(/^in the /u, '')]
+}
+
+function readDayPartHour(hour: number, dayPart: string): number | null {
+  if (dayPart === 'am' || dayPart === 'pm') return hour < 1 || hour > 12 ? null : hour % 12 + (dayPart === 'pm' ? 12 : 0)
+  const period = readPeriod(dayPart)
+  if (!period) return null
+  if (hour === 0) return period === 'morning' || period === 'dawn' || period === 'night' ? 0 : null
+  if (hour <= 12) return HOUR_IN_PERIOD[period](hour)
+  return HOUR_IN_PERIOD[period](hour - 12) === hour ? hour : null
 }
 
 function parseTime(match: RegExpExecArray): string | null {
+  if (match[1] === undefined) return /\se\s+mei[ao]$/u.test(match[0]) ? '12:30' : '12:00'
+  const clockHour = Number.parseInt(match[1], 10)
   const suffixes = match.slice(2)
-  const hour = readSpokenHour(Number.parseInt(match[1]!, 10), suffixes)
-  if (hour === null) return null
   const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
+  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at night)/u.test(value))
+  const hour = dayPart ? readDayPartHour(clockHour, dayPart) : clockHour
+  if (hour === null) return null
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
 }
 
 function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
-  const match = firstMatch(patterns.times, remaining)
+  const match = firstMatch(patterns.times, remaining) ?? firstNoonMatch(remaining, patterns)
   const dueTime = match ? parseTime(match) : null
   if (!match || !dueTime) return { dueTime: null, token: null, remaining }
   return {
@@ -483,42 +534,48 @@ function buildWeekdayExclusionRead(
   }
 }
 
-function readWeekdayGroups(
-  remaining: string,
-  phrase: NormalizedPhrase,
-  patterns: LocalePatterns,
-  weekdayMatches: ReturnType<typeof matchWeekdays>,
-): { days: string[]; consumed: HabitPhraseToken[] } {
+const WEEK_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+function isWeekdayRangeLink(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
+  const left = weekdays[index]?.match
+  const right = weekdays[index + 1]?.match
+  if (!left || !right) return false
+  return WEEKDAY_RANGE_GLUE.test(text.slice(left.index + left[0].length, right.index))
+}
+
+function startsIsolatedWeekdayRange(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
+  return isWeekdayRangeLink(text, weekdays, index)
+    && !isWeekdayRangeLink(text, weekdays, index - 1)
+    && !isWeekdayRangeLink(text, weekdays, index + 1)
+}
+
+function expandWeekdayRanges(text: string, weekdays: ReturnType<typeof matchWeekdays>): string[] {
   const days: string[] = []
-  const consumed: HabitPhraseToken[] = []
-  const joined = weekdayMatches.map(({ match }, index) => {
-    const after = weekdayMatches[index + 1]
-    return after !== undefined && WEEKDAY_RANGE_GLUE.test(remaining.slice(match.index + match[0].length, after.match.index))
-  })
-  for (let index = 0; index < weekdayMatches.length; index += 1) {
-    const first = weekdayMatches[index]!
-    const next = weekdayMatches[index + 1]
-    const isRange = next !== undefined && joined[index]! && !joined[index - 1] && !joined[index + 1]
-    const last = isRange ? next : first
-    const lastEnd = last.match.index + last.match[0].length
-    if (isRange) {
-      const from = WEEK_ORDER.indexOf(first.day)
-      const span = (WEEK_ORDER.indexOf(next.day) - from + 7) % 7
-      const length = span === 0 ? 7 : span + 1
-      for (let offset = 0; offset < length; offset += 1) days.push(WEEK_ORDER[(from + offset) % 7]!)
-      consumed.push({ start: phrase.originalStarts[first.match.index]!, end: phrase.originalEnds[lastEnd - 1]!, kind: 'weekday' })
-      index += 1
-    } else {
-      days.push(first.day)
-      consumed.push(toToken(phrase, first.match, 'weekday'))
-    }
-    const suffix = patterns.weeklySuffix.exec(remaining.slice(lastEnd))
-    if (suffix) {
-      const end = lastEnd + suffix[0].length
-      consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
-    }
+  for (const [index, { day }] of weekdays.entries()) {
+    if (startsIsolatedWeekdayRange(text, weekdays, index - 1)) continue
+    days.push(day)
+    if (!startsIsolatedWeekdayRange(text, weekdays, index)) continue
+    const from = WEEK_ORDER.indexOf(day)
+    const span = (WEEK_ORDER.indexOf(weekdays[index + 1]!.day) - from + 7) % 7
+    const length = span === 0 ? 6 : span
+    for (let step = 1; step <= length; step += 1) days.push(WEEK_ORDER[(from + step) % 7]!)
   }
-  return { days: [...new Set(days)], consumed }
+  return days
+}
+
+function readFixedWeekdays(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns, weekdayMatches: ReturnType<typeof matchWeekdays>) {
+  const consumed: HabitPhraseToken[] = []
+  for (const [index, { match }] of weekdayMatches.entries()) {
+    if (startsIsolatedWeekdayRange(remaining, weekdayMatches, index - 1)) continue
+    const closing = startsIsolatedWeekdayRange(remaining, weekdayMatches, index) ? weekdayMatches[index + 1]!.match : match
+    consumed.push({ ...toToken(phrase, match, 'weekday'), end: toToken(phrase, closing, 'weekday').end })
+    const weekdayEnd = closing.index + closing[0].length
+    const suffix = patterns.weeklySuffix.exec(remaining.slice(weekdayEnd))
+    if (!suffix) continue
+    const end = weekdayEnd + suffix[0].length
+    consumed.push({ start: phrase.originalStarts[end - suffix[1]!.length]!, end: phrase.originalEnds[end - 1]!, kind: 'interval' })
+  }
+  return { days: [...new Set(expandWeekdayRanges(remaining, weekdayMatches))], consumed }
 }
 
 function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: LocalePatterns) {
@@ -530,9 +587,9 @@ function extractCadence(remaining: string, phrase: NormalizedPhrase, patterns: L
   let frequencyQuantity: number | null = null
   if (weekdayMatches.length > 0) {
     cadence = 'fixed'
-    const read = readWeekdayGroups(remaining, phrase, patterns, weekdayMatches)
-    days = read.days
-    consumed.push(...read.consumed)
+    const fixed = readFixedWeekdays(remaining, phrase, patterns, weekdayMatches)
+    days = fixed.days
+    consumed.push(...fixed.consumed)
   } else {
     const count = extractCount(remaining, patterns)
     if (count) {

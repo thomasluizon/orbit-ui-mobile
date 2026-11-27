@@ -2,8 +2,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@orbit/shared/i18n/en.json'
+import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { mapCompletionSeries } from '@orbit/shared/utils'
 import { BarChart } from '@/components/ui/bar-chart'
+import { progressChartDays, progressChartZeroDayReadout } from '@/test-support/progress-chart-days'
 
 const points = mapCompletionSeries({ granularity: 'day', points: Array.from({ length: 7 }, (_, index) => ({
   startDate: `2026-09-0${index + 1}`, endDate: `2026-09-0${index + 1}`,
@@ -27,7 +29,7 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('BarChart on web', () => {
-  it('makes each full column a radio, opens on today and names its date, rate and count', () => {
+  it('makes each full column a radio, opens on today and names its date and count', () => {
     const { container } = render(chart())
     expect(screen.queryByRole('slider')).not.toBeInTheDocument()
     expect(screen.getByRole('radiogroup', { name: 'Last 7 days' })).toBeInTheDocument()
@@ -38,8 +40,8 @@ describe('BarChart on web', () => {
     expect(screen.getAllByRole('row')).toHaveLength(8)
     expect(radios[3]).toHaveAttribute('aria-checked', 'true')
     expect(radios.filter((radio) => radio.tabIndex === 0)).toEqual([radios[3]])
-    expect(radios[3]).toHaveAccessibleName(/Fri.*Sep.*4.*50%.*1 of 2/)
-    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(/Fri.*50%.*1 of 2/)
+    expect(radios[3]).toHaveAccessibleName(/Fri.*Sep.*4.*1 of 2/)
+    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(/Fri.*1 of 2/)
     expect(container.querySelectorAll('[data-state="selected"]')).toHaveLength(1)
   })
 
@@ -53,8 +55,8 @@ describe('BarChart on web', () => {
     const firstLeft = (readout as HTMLElement).style.left
     fireEvent.keyDown(radios[0]!, { key: 'ArrowRight' })
     expect(radios[1]).toHaveFocus()
-    expect(radios[1]).toHaveAccessibleName(/Wed.*0%.*0 of 2/)
-    expect(readout).toHaveTextContent('0% · 0 of 2')
+    expect(radios[1]).toHaveAccessibleName(/Wed.*0 of 2/)
+    expect(readout).toHaveTextContent('0 of 2')
     fireEvent.keyDown(radios[1]!, { key: 'End' })
     expect(radios[6]).toHaveFocus()
     expect(radios[6]).toHaveAttribute('aria-checked', 'true')
@@ -91,6 +93,18 @@ describe('BarChart on web', () => {
       expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(selected.getAttribute('aria-label')!)
       expect(screen.getAllByRole('radio')[start]).toBe(target)
     }
+  })
+
+  it.each([
+    { locale: 'en', messages: en },
+    { locale: 'pt-BR', messages: ptBR },
+  ] as const)('shows the text that the Progress layout spec expects on a day with no completion in $locale', ({ locale, messages }) => {
+    const series = mapCompletionSeries({ granularity: 'day', points: progressChartDays }, locale)
+    const { container } = render(<NextIntlClientProvider locale={locale} messages={messages}><BarChart points={series} label="Period" /></NextIntlClientProvider>)
+    const first = screen.getAllByRole('radio')[0]!
+    fireEvent.click(first)
+    fireEvent.keyDown(first, { key: 'ArrowRight' })
+    expect(container.querySelector('[data-slot="bar-chart-readout"]')).toHaveTextContent(progressChartZeroDayReadout[locale])
   })
 
   it('keeps selection in range when the series shrinks, and renders no control for an empty series', () => {
