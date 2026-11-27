@@ -171,7 +171,8 @@ jobs:
           key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             npm-${{ runner.os }}-${{ runner.arch }}-
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - name: Report Windows PowerShell version
         if: runner.os == 'Windows'
         shell: powershell
@@ -411,7 +412,7 @@ jobs:
           key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             npm-${{ runner.os }}-${{ runner.arch }}-
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
           name: desktop-macos-signed-${{ matrix.target }}
@@ -546,7 +547,7 @@ jobs:
           key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             npm-${{ runner.os }}-${{ runner.arch }}-
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - uses: actions/download-artifact@v8
         with:
           pattern: desktop-release-*
