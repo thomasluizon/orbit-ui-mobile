@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path"
 
 import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
-import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
+import { changesDriver, endRun, lastLine, markSwitch, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
 import { T, root, same, stageRepo } from "./_harness.mjs"
@@ -1882,6 +1882,52 @@ const robustnessCases = async () => {
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-60 * MINUTE)]))
   same("drive: a start long after the last one gives no alarm", await recordStart(starts.env, []), false)
   same("drive: the start log keeps the new start", JSON.parse(readFileSync(join(dir, "starts.json"), "utf8")).length, 2)
+  await plannedStartCases()
+}
+
+// A run ends with a driver switch (exit 0) or without one (a crash, a kill). The next guardStart reads that from the run record.
+const plannedStartCases = async () => {
+  const fresh = (name) => {
+    const scene = scenario({})
+    scene.env.stateDir = join(root, name)
+    mkdirSync(scene.env.stateDir, { recursive: true })
+    return scene
+  }
+  const startAfter = async (scene, { switched }) => {
+    const result = await guardStart(scene.env)
+    const planned = JSON.parse(readFileSync(join(scene.env.stateDir, "run.json"), "utf8")).plannedStart
+    const tripped = await recordStart(scene.env, scene.tickets ?? [])
+    if (switched) markSwitch(scene.env.stateDir)
+    endRun(scene.env.stateDir, { exitCode: switched ? 0 : 1, error: null, now: scene.env.now() })
+    return { result, planned, tripped }
+  }
+  const real = driverScene()
+  await guardStart(real.env)
+  await recordStart(real.env, [])
+  const realSteps = []
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    real.state.head = OLD_PIN
+    const tick = await real.run()
+    endRun(real.env.stateDir, { exitCode: 0, error: null, now: real.env.now() })
+    await guardStart(real.env)
+    realSteps.push([tick.switched, await recordStart(real.env, [])])
+  }
+  same("drive: three starts after three real driver switches in ten minutes give no alarm, no notice, no ticket and one logged start", [realSteps, only(real.calls, "notify").length, only(real.calls, "createTicket").length, JSON.parse(readFileSync(join(real.env.stateDir, "starts.json"), "utf8")).length], [[[true, false], [true, false], [true, false]], 0, 0, 1])
+  const planned = fresh("drive-starts-planned")
+  const plannedSteps = []
+  for (let start = 0; start < 4; start += 1) plannedSteps.push(await startAfter(planned, { switched: true }))
+  same("drive: three starts in ten minutes after a driver switch give no alarm, no notice and no ticket", [plannedSteps.map((step) => step.tripped), only(planned.calls, "notify").length, only(planned.calls, "createTicket").length], [[false, false, false, false], 0, 0])
+  same("drive: a start after a driver switch is marked planned and the start log keeps no planned start", [plannedSteps.map((step) => step.planned), JSON.parse(readFileSync(join(planned.env.stateDir, "starts.json"), "utf8")).length], [[false, true, true, true], 1])
+
+  const unplanned = fresh("drive-starts-unplanned")
+  const unplannedSteps = []
+  for (let start = 0; start < 3; start += 1) unplannedSteps.push(await startAfter(unplanned, { switched: false }))
+  same("drive: three starts in ten minutes with no driver switch open one ticket and send one notice", [unplannedSteps.map((step) => step.tripped), only(unplanned.calls, "notify").length, only(unplanned.calls, "createTicket").length], [[false, false, true], 1, 1])
+
+  const mixed = fresh("drive-starts-mixed")
+  const mixedSteps = []
+  for (const switched of [true, true, false, false]) mixedSteps.push(await startAfter(mixed, { switched }))
+  same("drive: two planned starts and one unplanned start in ten minutes give no ticket", [mixedSteps.map((step) => step.tripped), only(mixed.calls, "createTicket").length], [[false, false, false, false], 0])
 }
 
 const cliCases = async () => {
