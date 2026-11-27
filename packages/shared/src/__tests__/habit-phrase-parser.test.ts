@@ -813,7 +813,8 @@ describe('weekday ranges', () => {
     const input = 'academia segunda a sexta'
     const read = readHabitPhrase(input, 'pt-BR')
     expect(read.consumed).toEqual([{ start: 9, end: input.length, kind: 'weekday' }])
-    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toBe('academia')
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toMatch(/^academia(?: |$)/u)
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).not.toMatch(DAY_OR_TIME_WORD)
   })
 
   it.each([
@@ -865,6 +866,30 @@ describe('weekday ranges', () => {
     ['en', 'gym monday through to friday', workWeek],
   ] as const)('reads a range with feira, às, til or through to in %s "%s"', (locale, input, days) => {
     expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days })
+  })
+
+  const DAY_OR_TIME_WORD = /segunda|terça|quarta|quinta|sexta|sábado|domingo|19/iu
+  it.each([
+    ['academia às terças às quintas', ['Tuesday', 'Thursday'], null, 'academia'],
+    ['inglês às terças às quintas às 19h', ['Tuesday', 'Thursday'], '19:00', 'inglês'],
+    ['academia às segundas às quartas e às sextas', ['Monday', 'Wednesday', 'Friday'], null, 'academia'],
+    ['academia às segundas às sextas', ['Monday', 'Friday'], null, 'academia'],
+    ['academia aos domingos aos sábados', ['Sunday', 'Saturday'], null, 'academia'],
+  ] as const)('reads a list that repeats the article as only the named days in "%s"', (input, days, dueTime, title) => {
+    expect(readHabitPhrase(input, 'pt-BR')).toMatchObject({ cadence: 'fixed', days, dueTime })
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toMatch(new RegExp('^' + title + '(?: |$)', 'u'))
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).not.toMatch(DAY_OR_TIME_WORD)
+  })
+
+  it.each([
+    ['academia das segundas até as sextas', workWeek],
+    ['academia de segunda até às sextas', workWeek],
+    ['academia das segundas aos sábados', WEEK.slice(0, 6)],
+    ['academia de segunda aos sábados', WEEK.slice(0, 6)],
+  ] as const)('reads a range with até as, até às or aos in "%s" as every day of the range', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR')).toMatchObject({ cadence: 'fixed', days })
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).toMatch(/^academia(?: |$)/u)
+    expect(getHabitPhraseTitle(input, 'pt-BR', { cadence: true, dueTime: true })).not.toMatch(DAY_OR_TIME_WORD)
   })
 
   it('keeps a weekly suffix after a range', () => {

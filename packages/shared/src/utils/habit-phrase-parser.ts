@@ -59,7 +59,9 @@ const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
   manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
   morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
 }
-const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+feiras?)?(?:\s+(?:a|ao|as|ate(?:\s+(?:a|o|ao))?|to|through(?:\s+to)?|thru|until|['\u2019]?till?)\s+|\s*[-\u2013\u2014]\s*)$/u
+const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
+const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
+const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+feiras?)?(?:\s+(?:a|ao|aos|as|ate(?:\s+(?:a|o|ao|aos|as))?|to|through(?:\s+to)?|thru|until|['\u2019]?till?)\s+|\s*[-\u2013\u2014]\s*)$/u
 const PT_NOON = String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
 const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
 
@@ -540,7 +542,9 @@ function isWeekdayRangeLink(text: string, weekdays: ReturnType<typeof matchWeekd
   const left = weekdays[index]?.match
   const right = weekdays[index + 1]?.match
   if (!left || !right) return false
-  return WEEKDAY_RANGE_GLUE.test(text.slice(left.index + left[0].length, right.index))
+  const glue = text.slice(left.index + left[0].length, right.index)
+  if (!WEEKDAY_RANGE_GLUE.test(glue)) return false
+  return !ARTICLE_GLUE.test(glue) || RANGE_OPENER.test(text.slice(0, left.index))
 }
 
 function startsIsolatedWeekdayRange(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
