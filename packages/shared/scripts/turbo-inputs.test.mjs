@@ -10,9 +10,10 @@ const turbo = resolve(repository, 'node_modules/turbo/bin/turbo')
 const configuration = readFileSync(resolve(repository, 'turbo.json'), 'utf8')
 const { packageManager } = JSON.parse(readFileSync(resolve(repository, 'package.json'), 'utf8'))
 const tokenDirectory = 'design/canvas/_ds/orbit-design-system-918bd5d7-839c-4dd0-811b-4a8781f60507/tokens'
+// The web coverage measures these two files, so the web key holds them too.
+const desktopFilesTheWebCoverageMeasures = ['apps/desktop/src-tauri/src/launch.js', 'apps/desktop/src-tauri/src/palette.js']
 const desktopFilesTheWebTestsRead = [
-  'apps/desktop/locales/en.json', 'apps/desktop/locales/pt-BR.json',
-  'apps/desktop/src-tauri/src/launch.js', 'apps/desktop/src-tauri/src/palette.js',
+  'apps/desktop/locales/en.json', 'apps/desktop/locales/pt-BR.json', ...desktopFilesTheWebCoverageMeasures,
 ]
 const consumers = [
   { workspace: 'packages/shared', name: '@orbit/shared', inputs: [
@@ -46,6 +47,7 @@ const consumers = [
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
     'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
     'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json', 'tsconfig.json',
+    ...desktopFilesTheWebCoverageMeasures,
   ] },
   { workspace: 'eslint-rules', name: '@orbit/eslint-rules', inputs: [
     'apps/web/eslint.config.mjs', 'apps/mobile/eslint.config.js', 'apps/web/tsconfig.json',
@@ -54,7 +56,7 @@ const consumers = [
     `${tokenDirectory}/spacing.css`, 'packages/shared/src/i18n/en.json', 'packages/shared/src/i18n/pt-BR.json',
     'tsconfig.json',
   ] },
-  // The web tests that read apps/mobile or apps/desktop. Their key holds those apps, and the web key holds none of them.
+  // The web tests that read apps/mobile or apps/desktop. Their key holds those apps, and the web key holds only the two desktop files its coverage measures.
   { workspace: 'apps/web', name: '@orbit/web', task: 'test:cross-app', inputs: [
     'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
     'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json',
@@ -126,7 +128,7 @@ afterEach(() => {
   for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-it('moves the @orbit/web#test:cross-app hash, and not the @orbit/web#test hash, when a desktop file the web tests read changes', () => {
+it('moves the @orbit/web#test:cross-app hash, and the @orbit/web#test hash only for a desktop file its coverage measures', () => {
   const consumer = consumers.find(({ name, task }) => name === '@orbit/web' && task === 'test:cross-app')
   const root = fixture(consumer)
   write(root, 'apps/desktop/src-tauri/src/main.rs', 'fn main() {}')
@@ -137,7 +139,11 @@ it('moves the @orbit/web#test:cross-app hash, and not the @orbit/web#test hash, 
   for (const input of desktopFilesTheWebTestsRead) {
     write(root, input, 'changed')
     expect(taskHash(root, consumer.name, consumer.task), input).not.toBe(baseline)
-    expect(taskHash(root, consumer.name), `${input} must leave the web key equal`).toBe(webBaseline)
+    if (desktopFilesTheWebCoverageMeasures.includes(input)) {
+      expect(taskHash(root, consumer.name), `${input} must move the web key`).not.toBe(webBaseline)
+    } else {
+      expect(taskHash(root, consumer.name), `${input} must leave the web key equal`).toBe(webBaseline)
+    }
     write(root, input, 'valid')
   }
   expect(taskHash(root, consumer.name, consumer.task)).toBe(baseline)
@@ -500,6 +506,26 @@ describe('workspace test tasks hash every outside file their tests read', () => 
   // The web tests split by the cross-app project of apps/web/vitest/project-tests.mjs: each task reads only its own files.
   const isWebTest = (path) => /^apps\/web\/__tests__\/.*\.test\.tsx?$/.test(path)
   const skipsOf = (name, crossAppTests) => name === 'test' ? (path) => crossAppTests.has(path) : (path) => isWebTest(path) && !crossAppTests.has(path)
+
+  /** The files outside its workspace that the coverage include of a workspace names, as repository paths with globs. */
+  const coverageGlobsOutside = (directory) => {
+    const source = readFileSync(resolve(repository, directory, 'vitest.config.ts'), 'utf8')
+    const coverage = source.slice(source.indexOf('coverage:')).match(/include:\s*\[([^\]]*)\]/)?.[1] ?? ''
+    return [...coverage.matchAll(/'(\.\.\/[^']+)'/g)].map(([, glob]) => posix.normalize(posix.join(directory, glob)))
+  }
+  const globPattern = (glob) => new RegExp(`^${glob.replace(/[.+^$()|[\]\\]/g, '\\$&')
+    .replace(/\{([^}]*)\}/g, (_, options) => `(?:${options.split(',').join('|')})`)
+    .replace(/\*\*\//g, '(?:.*/)?').replace(/\*/g, '[^/]*')}$`)
+
+  it.each([['apps/desktop'], ['eslint-rules'], ['apps/mobile'], ['packages/shared'], ['apps/web']])('%s test task hashes each file outside its workspace that its coverage include measures', (directory) => {
+    const { taskId } = testTasks().find((task) => task.directory === directory && task.task === 'test')
+    const hashed = hashedFiles(taskId)
+    for (const glob of coverageGlobsOutside(directory)) {
+      const matches = [...hashableFiles().files].filter((path) => globPattern(glob).test(path))
+      expect(matches.length, `${glob} matches no file`).toBeGreaterThan(0)
+      expect(matches.filter((path) => !hashed.has(path)), `add a turbo.json input glob to ${taskId} for the coverage include ${glob}`).toEqual([])
+    }
+  }, 60_000)
 
   // The names are workspace directories, so the `-t @orbit/desktop` run in the shared guard test above skips them.
   it.each([['apps/desktop', 'test'], ['eslint-rules', 'test'], ['apps/mobile', 'test'], ['packages/shared', 'test'],

@@ -790,11 +790,11 @@ test("each web test that reads apps/mobile or apps/desktop runs in the cross-app
   }
 })
 
-test("the web test key holds no file of apps/mobile or apps/desktop and the cross-app key holds both", () => {
+test("the web test key holds only the desktop files its coverage measures and the cross-app key holds both apps", () => {
   const { tasks } = JSON.parse(readFileSync(join(root, "turbo.json"), "utf8"))
   const own = tasks["@orbit/web#test"].inputs
   const cross = tasks["@orbit/web#test:cross-app"].inputs
-  assert.deepEqual(own.filter((input) => /apps\/(mobile|desktop|\{)/.test(input)), [])
+  assert.deepEqual(own.filter((input) => /apps\/(mobile|desktop|\{)/.test(input)), ["$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js"])
   for (const input of own.filter((entry) => entry !== "$TURBO_DEFAULT$")) assert.ok(cross.includes(input), `${input}: a change of the web key must change the cross-app key, so the cross-app tests run whenever the web shards run`)
   for (const app of ["mobile", "desktop"]) assert.ok(cross.some((input) => input.includes(`apps/${app}/`)), `the cross-app key holds apps/${app}`)
   assert.equal(JSON.parse(readFileSync(join(root, "apps/web/package.json"), "utf8")).scripts["test:cross-app"], "vitest run --project=cross-app")

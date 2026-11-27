@@ -103,6 +103,7 @@
         "$TURBO_ROOT$/DESIGN.md",
         "$TURBO_ROOT$/design/brand/png/orbit-platform-icon-512.png",
         "$TURBO_ROOT$/tools/lib/escape-regex.mjs",
+        "$TURBO_ROOT$/apps/desktop/src-tauri/src/*.js",
         "$TURBO_ROOT$/packages/shared/src/**"
       ]
     },
