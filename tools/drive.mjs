@@ -2025,7 +2025,9 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
   const logFile = join(env.stateDir, "logs", `${logName}.log`)
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
-  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model, runner)
+  // A `find` or `replan` run writes no code, so it gets no gate hook. Every other run gates its stop on the head it started from.
+  const gate = kind === "find" || kind === "replan" ? null : { run: logName, head: headBefore }
+  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model, runner, gate)
   const account = stateOf(mem, accountName).account?.key ?? null
   const launchRecord = { kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, model: ranModel, ...(runner === "codex" ? { runner } : {}), log: logName }
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })))
@@ -3406,10 +3408,11 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
-    invocation: async (token, name = MAIN, own = null, model = undefined, runner = "claude") => {
+    // A run with no `own` (a probe) writes no code, so it gets no gate hook. A Codex run has no `Stop` hook, so it takes none.
+    invocation: async (token, name = MAIN, own = null, model = undefined, runner = "claude", gate = own === null ? null : undefined) => {
       const workerToken = token ?? (await workerApi.readWorkerToken()) ?? "probe-only"
       if (name === WORKER && runner === "codex") return workerApi.codexInvocation({ home, parentEnvironment: process.env, token: workerToken, own })
-      return workerApi.workerInvocation({ home, parentEnvironment: process.env, token: workerToken, configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model })
+      return workerApi.workerInvocation({ home, parentEnvironment: process.env, token: workerToken, configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model, gate })
     },
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
