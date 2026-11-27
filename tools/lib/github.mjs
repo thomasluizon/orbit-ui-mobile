@@ -576,6 +576,18 @@ export const comment = async (repositoryKey, number, body, seams = {}) => {
   await api.run(["api", `repos/${api.slugOf(repositoryKey)}/issues/${number}/comments`, "--method", "POST", "--input", "-"], { input: JSON.stringify({ body: nonEmpty(body, "comment body") }) })
 }
 
+const EDIT_COMMENT_MUTATION = `mutation DriveEditComment($id: ID!, $body: String!) {
+  updateIssueComment(input: { id: $id, body: $body }) { issueComment { id } }
+}`
+
+/** Replaces the body of one issue comment, by its node id. The body goes on stdin, because a comment can be long. */
+export const editComment = async (id, body, seams = {}) => {
+  const api = bind(seams)
+  const input = JSON.stringify({ query: EDIT_COMMENT_MUTATION, variables: { id: nonEmpty(id, "comment id"), body: nonEmpty(body, "comment body") } })
+  const response = parseJson("gh api graphql", await api.run(["api", "graphql", "--input", "-"], { input }))
+  if (response?.errors || response?.data?.updateIssueComment?.issueComment?.id !== id) throw new Error(`updateIssueComment failed: ${JSON.stringify(response?.errors ?? response).slice(0, 500)}`)
+}
+
 const listLabels = async (api, repositoryKey) => {
   const labels = parseJson("gh label list", await api.run(["label", "list", "--repo", api.slugOf(repositoryKey), "--limit", "1000", "--json", "name"]))
   return labels.map((label) => label.name)
