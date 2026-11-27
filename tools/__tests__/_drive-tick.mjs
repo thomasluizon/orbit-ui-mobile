@@ -753,6 +753,43 @@ const stallCases = async () => {
   same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
 }
 
+/** A saved release train with the mobile steps in the given states, as `release-train.json` keeps it. */
+const trainFile = (states, { status = "running", mobile = { appVersion: "1.3.161", sha: "6c925e9c4".padEnd(40, "0"), stagingCode: 1, productionCode: 2 } } = {}) => ({
+  train: { id: "2026-11-26T08:07:24.444Z", status, mobile, steps: [["android", "staging"], ["ios", "staging"], ["android", "production"], ["ios", "production"]].map(([kind, environment], index) => ({ id: `${kind}-${environment}`, kind, service: kind, environment, state: states[index] })) },
+  lastEndedAt: null, lastPlanAt: null, requested: false,
+})
+
+const mobileHoldCases = async () => {
+  const held = async (label, file, { repo = "ui", expectMerges }) => {
+    const pulls = { ui: [], api: [], landing: [] }
+    pulls[repo] = [pull(30)]
+    const scene = scenario({ tickets: [ticket(7, { labels: [`repo:${repo}`, "Improvement"], repoKey: repo })], pulls })
+    if (file !== null) writeFileSync(join(scene.env.stateDir, "release-train.json"), `${JSON.stringify(file)}\n`)
+    await scene.run()
+    const merges = only(scene.calls, "merge").length
+    const lines = scene.messages.filter((line) => line.includes("merge held"))
+    same(`drive: ${label}`, [merges, lines.length], [expectMerges, expectMerges === 1 ? 0 : 1])
+    return lines
+  }
+  const lines = await held("a ui merge is held while the train has mobile steps that are not dispatched", trainFile(["verified", "verified", "dispatched", "pending"]), { expectMerges: 0 })
+  same("drive: the held ui merge logs the pull request, the train id and the sha", lines[0].slice(lines[0].indexOf("ui#30")), "ui#30 merge held (release train 2026-11-26T08:07:24.444Z ships mobile at 6c925e9c40000000000000000000000000000000)")
+  const stalledHold = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30)] }, stateDirectory: join(root, `drive-stall-hold-${++scenarios}`) })
+  writeFileSync(join(stalledHold.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  writeFileSync(join(stalledHold.env.stateDir, "release-train.json"), `${JSON.stringify(trainFile(["verified", "verified", "dispatched", "pending"]))}\n`)
+  await stalledHold.run()
+  same("drive: a held ui merge with a 61 minute clock opens no stall issue and sends no notification", [only(stalledHold.calls, "merge").length, only(stalledHold.calls, "createTicket").filter(([, input]) => input.title === STALL).length, only(stalledHold.calls, "notify").length], [0, 0, 0])
+  await held("a ui merge is held while the first mobile step is still pending", trainFile(["pending", "pending", "pending", "pending"]), { expectMerges: 0 })
+  await held("a ui merge is held while a mobile step is dispatching", trainFile(["verified", "verified", "verified", "dispatching"]), { expectMerges: 0 })
+  await held("a ui merge runs when the last mobile production step is dispatched", trainFile(["verified", "verified", "verified", "dispatched"]), { expectMerges: 1 })
+  await held("a ui merge runs when the mobile steps are skipped", trainFile(["skipped", "skipped", "skipped", "skipped"]), { expectMerges: 1 })
+  await held("a ui merge runs when the iOS steps are held for credentials", trainFile(["verified", "held", "verified", "held"]), { expectMerges: 1 })
+  await held("a ui merge runs when the train stopped", trainFile(["verified", "failed", "pending", "pending"], { status: "stopped" }), { expectMerges: 1 })
+  await held("a ui merge runs when the train has no mobile plan yet", trainFile(["pending", "pending", "pending", "pending"], { mobile: null }), { expectMerges: 1 })
+  await held("a ui merge runs when no train state exists", null, { expectMerges: 1 })
+  await held("an api merge runs while the ui hold is on", trainFile(["verified", "verified", "dispatched", "pending"]), { repo: "api", expectMerges: 1 })
+  await held("a landing merge runs while the ui hold is on", trainFile(["verified", "verified", "dispatched", "pending"]), { repo: "landing", expectMerges: 1 })
+}
+
 const mergeCases = async () => {
   const bar = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] } })
   await bar.run()
@@ -2485,6 +2522,7 @@ export const driverUnit = async () => {
   await reviewCases()
   await ownerAndBodyCases()
   await mergeCases()
+  await mobileHoldCases()
   await updateCases()
   await ciCases()
   await closeCases()
