@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { DiscardChangesSheet } from '@/components/ui/discard-changes-sheet'
 import { FlowScreen } from '@/components/ui/flow-screen'
 import { OfflineRefusal } from '@/components/ui/offline-refusal'
+import { InlineLoadError } from '@/components/ui/inline-load-error'
 import { GuidedHabitFlow, type GuidedHabitCompletion, type GuidedHabitFields } from '@/components/habits/guided/guided-habit-flow'
 import { HabitResultDialog } from '@/components/habits/guided/habit-result-dialog'
 import { useFlag } from '@/hooks/use-flag'
@@ -51,7 +52,7 @@ import {
   hasHabitFormProposal,
   rebaseSelectedIds,
   describeEditDetailsError,
-  resolveGuidedEditDetails,
+  resolveEditDetails,
 } from '@orbit/shared/utils'
 import type { HabitDetail, NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
@@ -196,9 +197,8 @@ function EditHabitDraft({
     retry: retryDetail,
   } = useHabitDetail(open && habit ? habit.id : null)
   const sessionHabitId = open && habit ? habit.id : null
-  const detailFieldsPending = open && !!habit && detailPending
-  const guidedDetails = resolveGuidedEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
-  const guidedDetailsError = describeEditDetailsError(guidedDetails.summaryFailed, guidedDetails.summaryError, translate, () => { void retryDetail() })
+  const details = resolveEditDetails({ guided, habitId: sessionHabitId, hasDetail: !!habitDetail, pending: detailPending, fetching: detailFetching, error: detailError })
+  const detailsFailure = describeEditDetailsError(details.failureShown, details.shownError, translate, () => { void retryDetail() })
   const parent = useEditorParent(habit, habitDetail, formHelpers.isGeneral, lockedGeneral, translate)
 
   const { sheetRef, closeSheet } = useSheetHost()
@@ -214,7 +214,7 @@ function EditHabitDraft({
     formHelpers.form.setValue('slipAlertEnabled', nextEnabled, { shouldDirty: true })
   }, [formHelpers.form])
 
-  const detailToastError = guidedDetails.toastError
+  const detailToastError = details.toastError
   useEffect(() => {
     if (detailToastError) {
       showError(
@@ -410,7 +410,7 @@ function EditHabitDraft({
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!habit || !isOnline) return
+    if (!habit || !isOnline || details.blocked) return
     void runSubmission(submitSave)
   }
 
@@ -525,7 +525,7 @@ function EditHabitDraft({
     emojiSuggestionLimitReached: emojiFailure?.habitId === sessionHabitId && emojiFailure.title === watchedTitle && emojiFailure.atLimit,
     isSuggesting: suggestion.isPending,
     lockedGeneral: parent.lockedGeneral,
-    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || detailFieldsPending} guided={guided} onRetryDetail={() => void retryDetail()} />,
+    parentField: <EditorParentField parent={{ ...parent, select: (id) => { if (!isSubmitting()) parent.select(id) } }} disabled={saving || details.blocked} guided={guided} onRetryDetail={() => void retryDetail()} />,
     defaultExpanded: true,
     startDate: habit && getHabitDisplayStartDate(habit),
   }
@@ -541,12 +541,12 @@ function EditHabitDraft({
           lockedGeneral={parent.lockedGeneral}
           fromConversation={Boolean(initialSuggestion)}
           pending={saving}
-          detailsLoading={guidedDetails.loading}
-          detailsError={guidedDetailsError}
+          detailsLoading={details.loading}
+          detailsError={detailsFailure}
           saveError={saveError}
           notice={isOnline ? null : <div role="status"><OfflineRefusal icon="create" title={t('offline.create.title')} reason={t('offline.create.reason')} /></div>}
           createLabel={t('common.save')}
-          onSubmit={(completion) => { if (habit && isOnline && !guidedDetails.blocked) void runSubmission((startRequest) => submitSave(startRequest, completion)) }}
+          onSubmit={(completion) => { if (habit && isOnline && !details.blocked) void runSubmission((startRequest) => submitSave(startRequest, completion)) }}
           onClose={() => { if (!isSubmitting()) dismissGuard.requestDismiss() }}
         />
       </FlowScreen>
@@ -569,7 +569,7 @@ function EditHabitDraft({
             <PillButton
               size="sm"
               formId={formId}
-              disabled={detailFieldsPending || saving || !isOnline}
+              disabled={details.blocked || saving || !isOnline}
               loading={saving}
             >
               {t('common.save')}
@@ -580,14 +580,16 @@ function EditHabitDraft({
         <form id={formId} onSubmit={handleSubmit}>
         <div role="status" aria-live="polite">{saveError ? <p className="text-sm text-[var(--status-bad-text)]">{saveError}</p> : null}</div>
 
+          {detailsFailure ? <InlineLoadError message={detailsFailure.message} onRetry={detailsFailure.onRetry} /> : null}
+
           <fieldset
-            disabled={detailFieldsPending || saving}
-            aria-busy={detailFieldsPending || saving || undefined}
+            disabled={details.blocked || saving}
+            aria-busy={details.loading || saving || undefined}
             className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
-              detailFieldsPending ? 'pointer-events-none opacity-60' : ''
+              details.blocked ? 'pointer-events-none opacity-60' : ''
             }`}
           >
-            <HabitFormFields disabled={detailFieldsPending || saving} formHelpers={formHelpers} titleInputRef={titleInputRef} {...fieldProps} />
+            <HabitFormFields disabled={details.blocked || saving} formHelpers={formHelpers} titleInputRef={titleInputRef} {...fieldProps} />
           </fieldset>
         </form>
       </Sheet>

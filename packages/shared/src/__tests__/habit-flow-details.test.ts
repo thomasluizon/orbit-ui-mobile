@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { readHabitPhrase } from '../utils/habit-phrase-parser'
-import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, resolveGuidedEditDetails, summaryValueStep } from '../utils/habit-flow-details'
+import { describeEditDetailsError, guardHabitReadPatch, habitFlowFieldStep, habitFlowNamesAnswer, habitFlowOptionalQuestions, habitFlowSelectionAnswer, readHabitPhraseDate, readHabitPhraseValues, readHabitWhenWords, resolveEditDetails, summaryValueStep } from '../utils/habit-flow-details'
 
 const base = { mode: 'create' as const, isGeneral: false, canSplit: true, hasParent: false, canEnd: true }
 const context = { referenceDate: '2026-11-13', locale: 'pt-BR', timeZone: 'UTC', language: 'pt-BR' as const, allowPast: false }
@@ -48,40 +48,57 @@ describe('the answers of the optional list', () => {
   })
 })
 
-describe('resolveGuidedEditDetails', () => {
+describe('resolveEditDetails', () => {
   const read = { guided: true, habitId: 'habit-1', hasDetail: false, pending: false, fetching: false, error: null as Error | null }
   const failure = new Error('offline')
 
   it('waits with the save off while the first read runs', () => {
-    expect(resolveGuidedEditDetails({ ...read, pending: true, fetching: true })).toEqual({ loading: true, summaryFailed: false, summaryError: null, toastError: null, blocked: true })
+    expect(resolveEditDetails({ ...read, pending: true, fetching: true })).toEqual({ loading: true, failureShown: false, shownError: null, toastError: null, blocked: true })
   })
 
   it('never waits on a read that is not in flight and holds no value, a disabled or a paused read', () => {
-    const stalled = resolveGuidedEditDetails({ ...read, habitId: 'h1', pending: true, fetching: false })
-    expect(stalled).toEqual({ loading: false, summaryFailed: true, summaryError: null, toastError: null, blocked: true })
+    const stalled = resolveEditDetails({ ...read, habitId: 'h1', pending: true, fetching: false })
+    expect(stalled).toEqual({ loading: false, failureShown: true, shownError: null, toastError: null, blocked: true })
   })
 
   it('states a failed read on the summary, not in a toast, and keeps the save off', () => {
-    expect(resolveGuidedEditDetails({ ...read, error: failure })).toEqual({ loading: false, summaryFailed: true, summaryError: failure, toastError: null, blocked: true })
+    expect(resolveEditDetails({ ...read, error: failure })).toEqual({ loading: false, failureShown: true, shownError: failure, toastError: null, blocked: true })
   })
 
   it('waits again while the retry of a failed read runs', () => {
-    expect(resolveGuidedEditDetails({ ...read, error: failure, fetching: true })).toEqual({ loading: true, summaryFailed: false, summaryError: null, toastError: null, blocked: true })
+    expect(resolveEditDetails({ ...read, error: failure, fetching: true })).toEqual({ loading: true, failureShown: false, shownError: null, toastError: null, blocked: true })
   })
 
   it('is ready once the details load, and leaves a later refetch error to the toast', () => {
-    expect(resolveGuidedEditDetails({ ...read, hasDetail: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
-    expect(resolveGuidedEditDetails({ ...read, hasDetail: true, error: failure })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: failure, blocked: false })
+    expect(resolveEditDetails({ ...read, hasDetail: true })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: null, blocked: false })
+    expect(resolveEditDetails({ ...read, hasDetail: true, error: failure })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: failure, blocked: false })
   })
 
   it('never blocks a habit created offline, whose list record is the whole record', () => {
-    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: failure, blocked: false })
-    expect(resolveGuidedEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
+    expect(resolveEditDetails({ ...read, habitId: 'offline-habit-7', error: failure })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: failure, blocked: false })
+    expect(resolveEditDetails({ ...read, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: null, blocked: false })
   })
 
-  it('leaves the full form and a closed edit as they are', () => {
-    expect(resolveGuidedEditDetails({ ...read, guided: false, pending: true, error: failure })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: failure, blocked: false })
-    expect(resolveGuidedEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, summaryFailed: false, summaryError: null, toastError: null, blocked: false })
+  it('holds the full form while its first read runs', () => {
+    expect(resolveEditDetails({ ...read, guided: false, pending: true, fetching: true })).toEqual({ loading: true, failureShown: false, shownError: null, toastError: null, blocked: true })
+  })
+
+  it('states a read that cannot run on the full form, and keeps its fields and its save off', () => {
+    expect(resolveEditDetails({ ...read, guided: false, pending: true })).toEqual({ loading: false, failureShown: true, shownError: null, toastError: null, blocked: true })
+  })
+
+  it('opens the full form after a failed read and leaves the error to the toast', () => {
+    const opened = { loading: false, failureShown: false, shownError: null, toastError: failure, blocked: false }
+    expect(resolveEditDetails({ ...read, guided: false, error: failure })).toEqual(opened)
+    expect(resolveEditDetails({ ...read, guided: false, error: failure, fetching: true })).toEqual(opened)
+  })
+
+  it('never blocks the full form of a habit created offline', () => {
+    expect(resolveEditDetails({ ...read, guided: false, habitId: 'offline-habit-7', pending: true })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: null, blocked: false })
+  })
+
+  it('leaves a closed edit as it is', () => {
+    expect(resolveEditDetails({ ...read, habitId: null, pending: true })).toEqual({ loading: false, failureShown: false, shownError: null, toastError: null, blocked: false })
   })
 })
 

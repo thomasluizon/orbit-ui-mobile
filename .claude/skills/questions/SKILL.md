@@ -42,9 +42,10 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 ## 4. Record each answer and decision
 
 1. Write the answer or the decision into the body of the ticket: the answer or the decision, the reason, and the exact next step for the worker. Put it under an `## Owner decisions` section, and add one line there for each new answer. Read the body with `gh issue view <number> --repo thomasluizon/orbit-tickets --json body`. Write it back with `gh issue edit <number> --repo thomasluizon/orbit-tickets --body-file <file>`. Every order carries the ticket body, so the next launch of every kind reads the answer. A comment alone reaches no worker.
-2. Remove `needs:owner` from the ticket and from its open pull request.
-3. A pull request with no open ticket has no ticket body. Comment the answer or the decision on the pull request in place of step 1. When the decision lets the driver merge it at the bar, start the comment with `<!-- orbit-drive:owner-answer -->`. That marker ends the hold. When the decision keeps the pull request on hold, write no marker.
-4. A decision that outlives the ticket also goes to the brain with `/brain`.
+2. Comment `<!-- orbit-drive:owner-answer -->` and one line that names the decision on the ticket. Write it after the body edit. The driver counts the build and find launches of the ticket only after this comment, so a spent order gets new launches.
+3. Remove `needs:owner` from the ticket and from its open pull request.
+4. A pull request with no open ticket has no ticket body. Comment the answer or the decision on the pull request in place of steps 1 and 2. When the decision lets the driver merge it at the bar, start the comment with `<!-- orbit-drive:owner-answer -->`. That marker ends the hold. When the decision keeps the pull request on hold, write no marker.
+5. A decision that outlives the ticket also goes to the brain with `/brain`.
 
 ## 5. What survives
 
