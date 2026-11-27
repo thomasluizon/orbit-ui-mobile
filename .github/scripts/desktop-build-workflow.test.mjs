@@ -69,7 +69,7 @@ test('a pull request compiles the Apple Silicon target alone, and only for a cha
   assert.deepEqual(run(write('apps/desktop/src-tauri/src/main.rs')), { run: 'true', matrix: native })
   assert.deepEqual(run(write('apps/desktop/src-tauri/native/windows/downloads.json')), { run: 'true', matrix: native })
   assert.deepEqual(run(write('.github/workflows/desktop-build.yml')), { run: 'true', matrix: native })
-  assert.equal(run(write('apps/desktop/README.md')).run, 'false', 'a Markdown file in the shell changes no build')
+  assert.equal(run(write('apps/desktop/docs/notes.md')).run, 'false', 'a Markdown file in the shell changes no build')
   assert.equal(run(write('package-lock.json')).run, 'false', 'the root manifests start no desktop build of a pull request')
   assert.equal(run(write('package.json')).run, 'false')
   assert.equal(run(write('tools/desktop-bench/acceptance.mjs')).run, 'false')
@@ -149,7 +149,7 @@ test('the Windows job runs for a change to a file that it reads, and not for Mar
     'tools/desktop-bench/__fixtures__/stream.json', 'package.json', 'package-lock.json', '.github/actions/desktop-acceptance-setup/action.yml',
     '.github/actions/desktop-nsis-tools/action.yml', '.github/workflows/desktop-acceptance.yml',
   ]) assert.equal(run(write(path)), 'true', path)
-  for (const path of ['apps/desktop/README.md', 'tools/desktop-bench/README.md', 'apps/web/app/page.tsx', 'tools/check-dashes.mjs', '.github/workflows/test.yml']) {
+  for (const path of ['apps/desktop/docs/notes.md', 'tools/desktop-bench/README.md', 'apps/web/app/page.tsx', 'tools/check-dashes.mjs', '.github/workflows/test.yml']) {
     assert.equal(run(write(path)), 'false', path)
   }
   assert.equal(run(write('apps/desktop/src-tauri/src/main.rs'), { hit: 'true' }), 'false')
