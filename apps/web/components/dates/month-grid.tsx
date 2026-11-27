@@ -20,7 +20,7 @@ export function MonthGrid({
   const gridStyle = columns > 0 ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } : undefined
 
   return (
-    <MovingDaySelection.Provider value={selectionIndex === undefined || reduced ? null : selectionId}><div role="group" aria-label={label} data-columns={columns} style={{ display: 'grid', gap: 8 }}>
+    <MovingDaySelection.Provider value={selectionIndex === undefined || reduced ? null : selectionId}><fieldset className="min-w-0" aria-label={label} data-columns={columns} style={{ display: 'grid', gap: 8 }}>
       {columns > 0 ? (
         <div className="grid justify-items-center" style={{ ...gridStyle, gap, opacity: loadingLabel ? 0 : undefined }} aria-hidden={loadingLabel ? true : undefined} data-testid="month-grid-header">
           {weekdayLabels.map((weekday, index) => (
@@ -53,6 +53,6 @@ export function MonthGrid({
       >
         {Children.map(children, (child, index) => <DayColumnPosition.Provider value={columns > 1 ? (index % columns) / (columns - 1) : 0.5}>{child}</DayColumnPosition.Provider>)}
       </div>
-    </div></MovingDaySelection.Provider>
+    </fieldset></MovingDaySelection.Provider>
   )
 }

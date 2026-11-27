@@ -78,14 +78,15 @@ export const writeHealth = (stateDir, record) => writeFileSync(join(stateDir, HE
 /**
  * The time that the exhausted limits of GitHub refill, in epoch milliseconds, or null when the read fails or no limit is empty.
  * `gh api rate_limit` costs no quota. Its `resources.<name>` hold `limit`, `remaining`, `reset` (epoch seconds) and `used`.
- * The driver reads through `core` and `graphql`, so only these two count.
+ * The driver reads through `core` and `graphql`, so only these two count. `onError` gets the error of a read that fails.
  */
-export const rateLimitResetOf = async (gh) => {
+export const rateLimitResetOf = async (gh, onError = () => {}) => {
   try {
     const { resources } = JSON.parse(await gh(["api", "rate_limit"]))
     const resets = ["core", "graphql"].map((name) => resources[name]).filter((entry) => entry.remaining === 0).map((entry) => entry.reset * 1000)
     return resets.length === 0 ? null : Math.max(...resets)
-  } catch {
+  } catch (error) {
+    onError(error)
     return null
   }
 }

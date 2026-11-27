@@ -64,15 +64,17 @@ Every tick, good or failed, writes `health.json` in the state directory (`$S` of
 - All times are ISO strings.
 - `since` is the time that the problem started. It stays the same while the problem lasts.
 - A tick whose read fails, or whose plan of a pull request fails, keeps `openPulls`, `oldestGreenApprovedAt` and each `unmerged:` problem of the last good read.
+- When one repository read fails, the tick goes on with the other repositories. That tick is still no good tick, and it lists the failed read as `blind:<repo>`.
+- A tick that a rate limit or the backoff holds reads nothing from GitHub. It keeps the last record and changes only `writtenAt`.
 - A merge that the release train holds, and a merge that fails, both stay in `problems` as `unmerged:`.
 
 ## What the owner session does
 
 - Writes tickets with `/ticket`.
-- Runs `/questions` for the held decisions. A pull request that used its 2 fix launches gets one more launch for each owner comment that follows the cap report. Each cap report states the launch count, so a granted launch that ends at the same head gets a new report. The order carries the comment.
+- Runs `/questions` for the held decisions.
 - Runs `/sleep` and `/over-limit`.
 - Sets an account's weekly pace when the owner says so: `node tools/drive.mjs --pace worker off` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` runs that account at 3 workers with no line and no 90% stop, until its usage limit. `--pace worker on` restores the pace. The next tick reads it, with no restart.
-- The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A job that fails at its setup, at its checkout or at a gateway timeout gets the rerun and no ticket. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches.
+- The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A job that fails at its setup, at its checkout or at a gateway timeout gets the rerun and no ticket. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 2 fix launches. After 2 launches of a pull request or an order, the driver starts 1 launch on `claude-opus-5-5`. Its order holds the section `## Earlier launches`, which lists the facts of each earlier launch. That cap writes no label, no comment and no notice.
 - Starts a release at once with `/release`. The driver itself runs the release train every 4 hours.
 - Runs each `owner-work` ticket.
 

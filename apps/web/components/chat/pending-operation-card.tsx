@@ -70,7 +70,7 @@ function ListFieldEditor({ field, value, labels, busy, error, onChange }: Readon
   const rows = pendingOperationListRows(value)
   const limit = field === 'checklist_items' ? MAX_CHECKLIST_ITEMS : field === 'scheduled_reminders' ? MAX_SCHEDULED_REMINDERS : undefined
   const atLimit = limit !== undefined && rows.length >= limit
-  return <fieldset aria-describedby={error ? errorId : undefined} className="flex flex-col gap-3">
+  return <fieldset aria-describedby={error ? errorId : undefined} className="flex min-w-0 flex-col gap-3">
     <legend className="text-sm font-medium">{fieldLabel}</legend>
     {error ? <p id={errorId} role="alert" className="text-sm text-[var(--status-bad-text)]">{labels.invalid}</p> : null}
     {rows.map((entry, index) => {

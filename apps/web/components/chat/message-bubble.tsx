@@ -107,7 +107,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
         })}
 
         {!isUser && relatedSurfaces.length > 0 && (
-          <div className="w-full" role="group" aria-label={t('chat.related.title')}>
+          <fieldset className="w-full min-w-0" aria-label={t('chat.related.title')}>
             <div className="flex flex-wrap gap-2">
               {relatedSurfaces.map((surface) => (
                 <button
@@ -121,7 +121,7 @@ export function MessageBubble(props: Readonly<MessageBubbleProps & { senderLabel
                 </button>
               ))}
             </div>
-          </div>
+          </fieldset>
         )}
 
         {message.parts == null ? operationContent : null}

@@ -555,6 +555,7 @@ describe.each(['pt-BR', 'en'] as const)('the detail questions in %s', (locale) =
     await toSummary()
     await openOptional(messages().optional.endDate)
     await act(async () => { helpers().form.setValue('endDate', '2026-12-31', { shouldDirty: true }) })
+    expect(screen.getByRole('button', { name: messages().optional.removeEndDate }).closest('[data-end-date-row]')).toHaveClass('gap-3')
     await press(messages().optional.removeEndDate)
     expect(helpers().form.getValues('endDate')).toBe('')
     await press(messages().optional.none)

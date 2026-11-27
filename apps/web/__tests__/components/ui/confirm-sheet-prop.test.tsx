@@ -21,6 +21,11 @@ describe('ConfirmSheet controlled close', () => {
     expect(cancel).toHaveStyle({ paddingInlineStart: `${BUTTON_SIZES.sm.paddingX}px`, paddingInlineEnd: `${BUTTON_SIZES.sm.paddingX}px`, height: '40px' })
     expect(screen.getByRole('button', { name: 'Delete habit' })).toHaveStyle({ height: '40px' })
   })
+  it.each([[undefined, 'common.notNow'], ['Agora não', 'Agora não']])('puts the dismiss answer first and the confirm answer last in the question form with cancelLabel=%s', (cancelLabel, first) => {
+    render(<ConfirmSheet open quickOptions title="Log habit" message="" cancelLabel={cancelLabel} confirmLabel="Log habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
+    expect(sheetSlotButtons('sheet-actions')).toEqual([first, 'Log habit'])
+    expectSmallSheetActions()
+  })
   it('draws no Orbit inside a destructive confirmation', () => {
     render(<ConfirmSheet open title="Delete habit" message="Permanent action" confirmLabel="Delete habit" onCancel={vi.fn()} onConfirm={vi.fn()} />)
     expect(screen.getByTestId('sheet').querySelector('[data-asset="orbit-mascot"]')).toBeNull()

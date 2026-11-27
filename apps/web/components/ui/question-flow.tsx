@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { motion } from 'motion/react'
+import type { OrbitLookTarget } from '@orbit/shared/contracts/brand'
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
 import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
@@ -10,6 +11,7 @@ import { ArrowLeft, X } from '@/components/ui/icons'
 import { OrbitMascot } from '@/components/ui/orbit-mascot'
 import { PagerSegments } from '@/components/ui/pager'
 import { PillButton } from '@/components/ui/pill-button'
+import { OptionGroup } from '@/components/ui/option-card'
 import { PrimaryActionSlot } from '@/components/ui/primary-action-slot'
 import { useOrbitLook } from '@/hooks/use-orbit-look'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
@@ -29,24 +31,33 @@ function HeaderButton({ label, onPress, compact, children }: Readonly<{ label: s
 function FlowHeader({ props, compact }: Readonly<{ props: QuestionFlowProps; compact: boolean }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props
   return (
-    <header className="mx-auto flex min-h-14 w-full max-w-[592px] items-center gap-2 px-4">
-      <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
-        {onBack ? <HeaderButton label={backLabel} onPress={onBack} compact={compact}><ArrowLeft aria-hidden="true" size={24} /></HeaderButton> : null}
-      </span>
-      <div className="min-w-0 flex-1"><PagerSegments count={total} index={position - 1} label={progressLabel} /></div>
-      <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
-        {onClose && closeLabel ? <HeaderButton label={closeLabel} onPress={onClose} compact={compact}><X aria-hidden="true" size={24} /></HeaderButton> : null}
-      </span>
+    <header className="flex min-h-14 w-full justify-center px-4">
+      <div data-flow-column="" className="flex w-full max-w-[592px] items-center gap-2">
+        <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
+          {onBack ? <HeaderButton label={backLabel} onPress={onBack} compact={compact}><ArrowLeft aria-hidden="true" size={24} /></HeaderButton> : null}
+        </span>
+        <div className="min-w-0 flex-1"><PagerSegments count={total} index={position - 1} label={progressLabel} /></div>
+        <span className="flex size-12 shrink-0 items-center justify-center lg:size-10">
+          {onClose && closeLabel ? <HeaderButton label={closeLabel} onPress={onClose} compact={compact}><X aria-hidden="true" size={24} /></HeaderButton> : null}
+        </span>
+      </div>
     </header>
   )
 }
 
-function FlowPrimaryAction({ primary }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']> }>) {
+function FlowPrimaryAction({ primary, secondary }: Readonly<{ primary: NonNullable<QuestionFlowProps['primary']>; secondary: QuestionFlowProps['secondary'] }>) {
+  const action = (
+    <PrimaryActionSlot>
+      <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
+    </PrimaryActionSlot>
+  )
+  if (!secondary) return <div data-flow-primary="" className="w-full">{action}</div>
   return (
     <div data-flow-primary="" className="w-full">
-      <PrimaryActionSlot>
-        <PillButton variant={primary.variant} loading={primary.loading} disabled={primary.disabled} focusableWhenLoading hint={primary.hint} onClick={primary.onPress}>{primary.label}</PillButton>
-      </PrimaryActionSlot>
+      <div data-flow-action-row="" className="flex w-full items-center gap-3 lg:justify-center">
+        <PillButton variant="ghost" onClick={secondary.onPress}>{secondary.label}</PillButton>
+        <div className="min-w-0 flex-1 lg:flex-none">{action}</div>
+      </div>
     </div>
   )
 }
@@ -82,6 +93,19 @@ function FlowLine({ id, line, lineKey, reducedMotion }: Readonly<{ id: string; l
   )
 }
 
+interface OrbitGroupProps { props: QuestionFlowProps; lineId: string; wide: boolean; reducedMotion: boolean; mascotRef: React.Ref<HTMLSpanElement>; lookAt: OrbitLookTarget | null }
+
+function FlowOrbitGroup({ props, lineId, wide, reducedMotion, mascotRef, lookAt }: Readonly<OrbitGroupProps>) {
+  const { line, lineKey, stepKey, orbitState = 'parado', showOrbit = true } = props
+  if (!showOrbit && !line) return null
+  return (
+    <div data-flow-orbit-group="" className="flex w-full flex-col items-center gap-3">
+      {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt)} turnKey={stepKey} /></span> : null}
+      {line ? <FlowLine id={lineId} line={line} lineKey={lineKey} reducedMotion={reducedMotion} /> : null}
+    </div>
+  )
+}
+
 function stepTravel(direction: 1 | -1, shift: number | undefined) {
   if (shift === undefined) return { x: `${direction * 100}%`, opacity: 1 }
   return { x: direction * shift, opacity: 0 }
@@ -89,7 +113,7 @@ function stepTravel(direction: 1 | -1, shift: number | undefined) {
 
 /** The one-question flow frame. It holds no habit-specific code: a second consumer mounts it with its own content. Its host owns the landmark: the shell or the sign-in frame holds `main`, and `FlowScreen` holds the region or the dialog. */
 export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
-  const { flow, question, line, lineKey, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, footer } = props
+  const { flow, question, line, stepKey, direction, orbitState = 'parado', showOrbit = true, statusText, options, children, primary, secondary, footer } = props
   const wide = useViewportMatch('(min-width: 1024px)')
   const sm = useViewportMatch('(min-width: 640px)')
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
@@ -101,7 +125,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   useGuidedFlowTracking(flow, stepKey, props.total)
 
   const hoveredOption = (target: EventTarget) => wide && hoverCapable && target instanceof HTMLElement ? target.closest('[data-option-card]') : null
-  const primaryAction = primary ? <FlowPrimaryAction primary={primary} /> : null
+  const primaryAction = primary ? <FlowPrimaryAction primary={primary} secondary={secondary} /> : null
   const visibleOrbitState = showOrbit ? orbitState : undefined
 
   return (
@@ -121,17 +145,16 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
           onPointerLeave={lookAway}
           className="my-auto flex w-full max-w-[592px] flex-col items-center gap-6 py-4 text-center"
         >
-          {showOrbit ? <span ref={mascotRef} aria-hidden="true"><OrbitMascot size={wide ? 128 : 96} state={orbitState} lookAt={mascotLook(orbitState, lookAt)} turnKey={stepKey} /></span> : null}
-          {line ? <FlowLine id={lineId} line={line} lineKey={lineKey} reducedMotion={reducedMotion} /> : null}
+          <FlowOrbitGroup props={props} lineId={lineId} wide={wide} reducedMotion={reducedMotion} mascotRef={mascotRef} lookAt={lookAt} />
           <h1 ref={headingRef} tabIndex={-1} aria-describedby={line ? lineId : undefined} className="orbit-flow-question text-balance font-display text-[28px] leading-[1.18] text-[var(--fg-1)]">{question}</h1>
-          {options ? <div role="group" aria-label={question} data-option-group="" className="grid w-full grid-cols-2 gap-3">{options}</div> : null}
+          {options ? <OptionGroup label={question}>{options}</OptionGroup> : null}
           {children ? <div className="flex w-full flex-col gap-3 text-start">{children}</div> : null}
           {wide ? primaryAction : null}
           {footer}
         </motion.div>
       </div>
       <span role="status" aria-live="polite" className="sr-only">{announcement || statusText}</span>
-      {wide || !primaryAction ? null : <div className="mx-auto w-full max-w-[592px] px-4 pb-4 pt-2">{primaryAction}</div>}
+      {wide || !primaryAction ? null : <div className="flex w-full justify-center px-4 pb-4 pt-2"><div className="w-full max-w-[592px]">{primaryAction}</div></div>}
     </div>
   )
 }

@@ -48,13 +48,13 @@ export function McpCodeClient({ endpoint }: Readonly<{ endpoint: string }>) {
   return (
     <div className="flex min-w-0 flex-col rounded-[12px] bg-[var(--bg-well)]" style={{ gap: 24, padding: SPACING.s16 }}>
       <p className="font-sans text-[14px] font-medium text-[var(--fg-1)]">{t('profile.apiKeys.mcpTitle')}</p>
-      <div role="group" aria-label={t('orbitMcp.connectionInstructions')} className="flex flex-wrap" style={{ gap: 12 }}>
+      <fieldset aria-label={t('orbitMcp.connectionInstructions')} className="flex flex-wrap min-w-0" style={{ gap: 12 }}>
         {MCP_CONFIG_TABS.map((tab) => (
           <Chip key={tab} active={activeTab === tab} onClick={() => setActiveTab(tab)}>
             <span translate="no">{tab === 'web' ? t('orbitMcp.claudeWeb') : t('orbitMcp.claudeCode')}</span>
           </Chip>
         ))}
-      </div>
+      </fieldset>
       {activeTab === 'web' ? (
         <div className="flex min-w-0 flex-col" style={{ gap: 12 }}>
           <p translate="no" className="break-all font-mono text-[12px] text-[var(--fg-2)]">{endpoint}</p>

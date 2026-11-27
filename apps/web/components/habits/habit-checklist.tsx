@@ -43,6 +43,7 @@ interface HabitChecklistProps {
   items: ChecklistItem[]
   interactive?: boolean
   editable?: boolean
+  flow?: boolean
   proposedItemCount?: number
   onItemsChange?: (items: ChecklistItem[]) => void
   onToggle?: (index: number) => void
@@ -53,6 +54,7 @@ export function HabitChecklist({
   items,
   interactive = false,
   editable = false,
+  flow = false,
   proposedItemCount = 0,
   onItemsChange,
   onPendingItemChange,
@@ -201,6 +203,7 @@ export function HabitChecklist({
                     onDuplicate={duplicateItem}
                     onRemove={removeItem}
                     duplicateDisabled={atItemLimit}
+                    flow={flow}
                   />
                 </Proposed></ListMotionItem>
               ))}</ListPresence>
@@ -233,7 +236,7 @@ export function HabitChecklist({
         )
       )}
 
-      {editable && items.length > 0 && (
+      {editable && !flow && items.length > 0 && (
         <div className="flex justify-end">
           <IconButton label={t('habits.form.clearChecklist')} onClick={clearAll}><Trash2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton>
         </div>
@@ -246,6 +249,8 @@ export function HabitChecklist({
             onChangeText={changeNewItemText}
             onAdd={addItem}
             disabled={atItemLimit}
+            flow={flow}
+            onClear={items.length > 0 ? clearAll : undefined}
           />
           {atItemLimit ? (
             <output className="text-xs text-[var(--fg-3)]">
@@ -266,6 +271,7 @@ function SortableChecklistItem({
   onDuplicate,
   onRemove,
   duplicateDisabled,
+  flow,
 }: Readonly<{
   id: string
   item: ChecklistItem
@@ -274,6 +280,7 @@ function SortableChecklistItem({
   onDuplicate: (index: number) => void
   onRemove: (index: number) => void
   duplicateDisabled: boolean
+  flow: boolean
 }>) {
   const t = useTranslations()
   const {
@@ -296,7 +303,7 @@ function SortableChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-1 group py-1"
+      className={`flex items-center gap-1 group ${flow ? '' : 'py-1'}`}
     >
       <button
         type="button"
@@ -389,13 +396,18 @@ function ChecklistAddRow({
   onChangeText,
   onAdd,
   disabled,
+  flow,
+  onClear,
 }: Readonly<{
   value: string
   onChangeText: (text: string) => void
   onAdd: () => void
   disabled: boolean
+  flow: boolean
+  onClear?: () => void
 }>) {
   const t = useTranslations()
+  if (flow) return <FlowAddRow value={value} onChangeText={onChangeText} onAdd={onAdd} disabled={disabled} onClear={onClear} />
   return (
     <div className="flex items-center gap-2" style={{ minHeight: TOUCH_TARGET_MIN }}>
       <div className="min-w-0 flex-1">
@@ -421,6 +433,34 @@ function ChecklistAddRow({
       >
         <Plus size={20} strokeWidth={2} aria-hidden="true" focusable="false" />
       </PillButton>
+    </div>
+  )
+}
+
+const SQUARE_BUTTON = 'press-hit-layer flex size-14 shrink-0 items-center justify-center rounded-[16px] text-[var(--fg-1)] outline-0 shadow-[inset_0_0_0_1px_var(--border-control)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] focus-visible:shadow-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:opacity-40 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)]'
+
+function FlowAddRow({ value, onChangeText, onAdd, disabled, onClear }: Readonly<{ value: string; onChangeText: (text: string) => void; onAdd: () => void; disabled: boolean; onClear?: () => void }>) {
+  const t = useTranslations()
+  return (
+    <div data-checklist-add-row="" className="flex items-center gap-3">
+      <div className="min-w-0 flex-1">
+        <Input
+          label={t('habits.form.checklistPlaceholder')}
+          hideLabel
+          radius={16}
+          name="checklistItem"
+          autoComplete="off"
+          value={value}
+          disabled={disabled}
+          placeholder={t('habits.form.checklistPlaceholder')}
+          onChange={onChangeText}
+          onSubmit={onAdd}
+        />
+      </div>
+      <button type="button" data-checklist-add-button="" aria-label={t('common.add')} className={SQUARE_BUTTON} disabled={disabled || !value.trim()} onClick={onAdd}>
+        <Plus size={24} strokeWidth={2} aria-hidden="true" focusable="false" />
+      </button>
+      {onClear ? <IconButton label={t('habits.form.clearChecklist')} onClick={onClear}><Trash2 size={20} strokeWidth={1.5} aria-hidden="true" /></IconButton> : null}
     </div>
   )
 }

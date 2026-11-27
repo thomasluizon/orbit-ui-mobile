@@ -185,7 +185,7 @@ function useEndDateView({ flow, formHelpers }: Readonly<DetailInput>): FlowStepV
     question: t('habits.flow.optional.endDate'),
     line: null,
     options: <OptionCard label={t('habits.flow.optional.none')} selected={endDate === ''} onSelect={() => { setEnd(''); flow.advance() }} />,
-    free: <View style={styles.endDate}>
+    free: <View testID="end-date-row" style={styles.endDate}>
       <View style={styles.endDateField}><DateField label={t('habits.form.endDateQuestion')} value={endDate} placeholder={t('habits.form.endDatePlaceholder')} onChange={setEnd} /></View>
       {endDate ? <PillButton variant="ghost" iconOnly label={t('habits.flow.optional.removeEndDate')} onClick={() => setEnd('')}><X size={20} color={tokens.fg1} /></PillButton> : null}
     </View>,
@@ -237,6 +237,6 @@ export function useDetailViews(input: DetailInput): Partial<Record<HabitFlowStep
 
 const styles = StyleSheet.create({
   list: { gap: 12 },
-  endDate: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  endDate: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
   endDateField: { flex: 1, minWidth: 0 },
 })
