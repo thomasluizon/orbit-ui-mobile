@@ -22,7 +22,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { CODEX_MODEL, codexHomeDirectory, codexLogEvent, codexResultText } from "./lib/codex-runner.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
@@ -163,6 +163,8 @@ const RESTART_TITLE = "Driver restarted three times in ten minutes"
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
+/** The labels of a driver problem that needs no owner step. The harness works the ticket like any other Bug. */
+const HARNESS_BUG_LABELS = ["repo:ui", "Bug", "harness"]
 const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const CHECK_REQUEST_RECORD = "driver check request"
@@ -562,6 +564,21 @@ const openProblem = async (env, { title, body, notice }) => {
   }
 }
 
+/**
+ * Opens a Bug ticket for a driver problem that needs no owner step, then sends its notice with the link. It carries no
+ * `needs:owner` label and no sleep item, so the driver builds it like every other ticket. `notice` is optional.
+ */
+const openBug = async (env, { title, body, notice = null }) => {
+  let link = null
+  try {
+    const created = await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS })
+    link = issueLink(env, created.number)
+    return created
+  } finally {
+    if (notice !== null) await say(env, { ...notice, link })
+  }
+}
+
 /** The one message of the items held during a sleep. The reasons shrink to fit the message limit, and every listed link stays whole. */
 const sleepSummary = (items) => {
   const head = `Orbit: sleep ended. ${items.length} ${items.length === 1 ? "item needs" : "items need"} you.`
@@ -913,11 +930,21 @@ const unansweredRequests = (pull, runs) => requestsOf(pull).filter((request) => 
 /** The whole-diff requests for the head that a review pass answered. */
 const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && requestCommit(pull, runs, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
 
+/**
+ * Brings the commits of a pull request into the repository checkout: its head and the base branch that its `baseRefOid` names.
+ * A read of the head or the base before this fails with exit 128, because the checkout holds only what an earlier fetch brought.
+ * Every git read of a pull request waits on this one fetch, which runs once for each pull request, head and base in a tick.
+ */
+const fetchPull = (env, repoPath, pull, base = pull.baseRef) => {
+  if (env.dryRun) return Promise.resolve()
+  return readOnce(env, `fetch ${repoPath} ${pull.number} ${pull.headSha} ${base}`, () => env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`]))
+}
+
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
   const merges = pull.commits.filter((commit) => commit.parents === 2)
   if (merges.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const clean = []
   for (const merge of merges) {
     // A commit that git cannot show is never a clean merge.
@@ -925,6 +952,22 @@ const cleanMergesOf = async (env, repoPath, pull) => {
     if (shown.status === 0 && shown.stdout.trim() === "") clean.push(merge.sha)
   }
   return clean
+}
+
+/**
+ * Sets the changed paths and the commit messages of a pull request from git: `git diff --name-only --no-renames` between the base and the head
+ * lists a rename with its old and its new path and has no cap of 100 files, as the GitHub query has. A read that git cannot answer throws,
+ * so the plan reports the error and no merge goes out on a diff that the driver did not see.
+ */
+const readPullDiff = async (env, repoPath, pull) => {
+  await fetchPull(env, repoPath, pull)
+  const range = [pull.baseSha, pull.headSha]
+  const names = await env.git(repoPath, ["diff", "--name-only", "--no-renames", "-z", `${range[0]}...${range[1]}`])
+  if (names.status !== 0) throw new Error(`git diff of ${pull.number} failed: ${names.stderr.trim()}`)
+  const messages = await env.git(repoPath, ["log", "--format=%B%x00", `${range[0]}..${range[1]}`])
+  if (messages.status !== 0) throw new Error(`git log of ${pull.number} failed: ${messages.stderr.trim()}`)
+  pull.files = names.stdout.split("\0").filter(Boolean)
+  pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
 }
 
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
@@ -938,7 +981,7 @@ const ownDiff = async (env, repoPath, base, sha) => {
 const sameDiffOf = async (env, repoPath, pull, base) => {
   const approved = [...new Set(pull.reviews.filter((review) => isReviewPass(review) && review.state === "APPROVED" && review.commit !== pull.headSha).map((review) => review.commit))].filter((sha) => pull.commits.some((commit) => commit.sha === sha))
   if (approved.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull, base)
   const head = await ownDiff(env, repoPath, base, pull.headSha)
   if (head === "") return []
   const same = []
@@ -1255,13 +1298,16 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
+  // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
+  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
+  if (ownerFailures.length > 0) return owner(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}, which only the owner clears.`, `bar-${ownerFailures.join("-")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request, park: parked })]
@@ -1381,15 +1427,14 @@ const syncRequiredChecks = (env, mem) => Promise.all(REPOSITORY_KEYS.map((repoKe
 /**
  * The change that a pull request into the protected branch makes to the required checks file: `{ base, head }`, the file at
  * its merge base (null when there is none) and at its head (null when its shape is wrong). Null when it makes no change or
- * its head holds no file. GitHub lists at most 100 files of a pull request, so a longer one also reads the file.
+ * its head holds no file. `pull.files` comes from git and holds every changed path. A draft has none, so its check comes first.
  */
 const requiredChecksChangeOf = async (env, repoKey, pull) => {
-  const mayChange = pull.files.includes(REQUIRED_CHECKS_FILE) || pull.changedFiles > pull.files.length
-  if (pull.draft || pull.baseRef !== PROTECTED_BRANCH || !mayChange) return null
+  if (pull.draft || pull.baseRef !== PROTECTED_BRANCH || !pull.files.includes(REQUIRED_CHECKS_FILE)) return null
   const head = await env.github.readRequiredChecksFile(repoKey, pull.headSha)
   if (head === null) return null
   const repoPath = env.config.repos[repoKey]
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", PROTECTED_BRANCH, `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const mergeBase = await gitText(env, repoPath, ["merge-base", `origin/${PROTECTED_BRANCH}`, pull.headSha])
   const base = (await env.github.readRequiredChecksFile(repoKey, mergeBase))?.required ?? null
   const unchanged = base !== null && head.required !== null && sameRequiredChecks(base, head.required)
@@ -1547,6 +1592,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       const ownerAtPlan = pull.tracks !== null && holdsTicket(ticketMap.get(pull.tracks))
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft) await readPullDiff(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       pull.requiredChecksChange = await requiredChecksChangeOf(env, repoKey, pull).catch((error) => { noteReadError(mem, error); throw error })
       const planAgain = async () => {
@@ -2973,21 +3019,19 @@ const runTick = async (env, mem) => {
 
 const shortSha = (sha) => sha.slice(0, 9)
 
-/** The ticket writes of the release train: a held step gets one `needs:owner` ticket and one comment, a stopped train one Bug ticket. */
+/** The ticket writes of the release train: a held step and a stopped train each get one harness Bug ticket. */
 const releaseTickets = (env) => ({
   bug: async ({ title, body, repoKey }) => {
     const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
     await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release stopped.", cut(title, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
-  hold: async ({ title, reason, repoKey }) => {
-    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", OWNER, "--json", "number,title", "--limit", "100"]))
+  hold: async ({ title, reason }) => {
+    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", "harness", "--json", "number,title", "--limit", "100"]))
     const known = open.find((ticket) => ticket.title === title)
     if (known) return known.number
-    const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
-    await env.github.comment("tickets", created.number, marked("needs-owner", reason))
-    holdItem(env, { link: issueLink(env, created.number), reason })
-    await say(env, { key: `issue ${created.number}`, lines: ["Orbit needs you: a release is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
+    const created = await openBug(env, { title, body: reason })
+    await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release step is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
 })
@@ -3029,7 +3073,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
   log(env, "driver", "rollback", `from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
   const title = `Driver rolled back to ${shortSha(previousSha)}`
   try {
-    await openProblem(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
+    await openBug(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
   } catch (reportError) {
     log(env, "driver", "rollback-report-failed", reportError.message)
   }
@@ -3089,7 +3133,7 @@ export const recordStart = async (env, tickets = []) => {
     forget(env, "restart")
     return false
   }
-  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openProblem(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
+  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openBug(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
   return true
 }
 
