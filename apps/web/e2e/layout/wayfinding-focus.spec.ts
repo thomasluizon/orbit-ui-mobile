@@ -11,6 +11,7 @@ import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/pr
 import { LAYOUT_ORIGIN } from '../support/env'
 import { readFieldIndicators, inspectFocusedControlRings as inspectFocusedRing, settleFocusAnimations } from './focus-indicators'
 import { inspectDestinationHeading } from './destination-heading'
+import { HABIT_LIST_FOCUS_OWNER } from './habit-list-focus-owner'
 import { getShellConversationEntry } from './shell-conversation-entry'
 import { setLayoutProfileSession, setLayoutFixtureSession } from './profile-session'
 import { test } from './upgrade-fixtures'
@@ -128,7 +129,7 @@ async function inspectDestinations(page: Page) {
         const row = page.getByTestId('habit-row').first()
         await expect(row).toBeVisible()
         await expectWayfindingFocus(page, row)
-        await expectWayfindingFocus(page, row.locator('xpath=ancestor::div[@tabindex="-1"]').first())
+        await expectWayfindingFocus(page, row.locator(`xpath=${HABIT_LIST_FOCUS_OWNER}`))
       }
       if (path === '/progress') {
         await page.locator('a[href="/progress/goals"]').click()

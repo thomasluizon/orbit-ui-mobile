@@ -37,10 +37,10 @@ function AnswerOptions({ view, controller }: Pick<AnswerContentProps, 'view' | '
 }
 
 function AnswerQuickOptions({ view, controller }: Pick<AnswerContentProps, 'view' | 'controller'>) {
-  return <div role="group" aria-label={view.title} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
+  return <fieldset aria-label={view.title} data-option-group="" className="grid min-w-0 grid-cols-2 gap-3">
     {view.options.map(option => <OptionCard key={option.id} label={option.label} selected={option.selected} disabled={view.disabled}
       onSelect={() => view.single ? controller.select(option.id) : controller.check(option.id, !option.selected)} />)}
-  </div>
+  </fieldset>
 }
 
 function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
@@ -48,7 +48,7 @@ function AnswerBody({ view, state, controller, submit }: AnswerContentProps) {
   return <div className="flex min-w-0 flex-col gap-4">
     {quickOptions ? <AnswerQuickOptions view={view} controller={controller} /> : view.single ? <RadioGroup aria-label={view.title} onKeyDown={event => {
       if (event.key === 'Enter' && state.selectedIds.length) { event.preventDefault(); void submit() }
-    }}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <div role="group" aria-label={view.title}><AnswerOptions view={view} controller={controller} /></div>}
+    }}><AnswerOptions view={view} controller={controller} /></RadioGroup> : <fieldset className="min-w-0" aria-label={view.title}><AnswerOptions view={view} controller={controller} /></fieldset>}
     {view.freeTextLabel ? <Input label={view.freeTextLabel} value={state.freeText} onChange={controller.setFreeText} maxLength={500} disabled={view.disabled} onSubmit={() => void submit()} /> : null}
   </div>
 }

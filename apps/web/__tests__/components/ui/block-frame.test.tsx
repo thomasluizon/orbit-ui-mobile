@@ -163,7 +163,7 @@ describe('BlockFrame on web', () => {
       />,
     )
     expect(screen.getByRole('group', { name: 'Proposed by Orbit' })).toHaveAttribute('data-proposed')
-    expect(container.querySelectorAll('[role="group"]')).toHaveLength(1)
+    expect(container.querySelectorAll('fieldset[data-proposed]')).toHaveLength(1)
   })
 
   it('shows confirmation once based on reversibility, never item count', () => {

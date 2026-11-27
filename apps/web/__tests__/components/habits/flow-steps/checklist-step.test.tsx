@@ -236,7 +236,7 @@ const BARE_NOUNS = ['tags', 'tag', 'metas', 'modelos', 'checklist', 'templates',
 
 function visibleLabels(container: HTMLElement): string[] {
   const headings = screen.getAllByRole('heading').map((element) => element.textContent)
-  const labels = [...container.querySelectorAll('label, legend, [role="group"]')].map((element) => element.getAttribute('aria-label') ?? element.textContent)
+  const labels = [...container.querySelectorAll('label, legend, fieldset')].map((element) => element.getAttribute('aria-label') ?? element.textContent)
   const controls = screen.getAllByRole('button').map((element) => element.textContent)
   return [...headings, ...labels, ...controls].map((text) => text.trim().toLocaleLowerCase())
 }

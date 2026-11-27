@@ -55,9 +55,9 @@ export function PromptLibrary(props: Readonly<PromptLibraryProps>) {
     <div className="flex shrink-0 flex-col gap-3 px-4">
       {props.disabledReason ? <CapacityNotice message={props.disabledReason} mascotState={props.mascotState === 'descansando' ? 'descansando' : undefined} /> : null}
       <Input kind="search" name="prompt-search" autoComplete="off" hideLabel label={t('chat.templates.searchQuestion')} placeholder={t('chat.templates.search')} value={query} onChange={value => dispatch({ type: 'query', query: value })} />
-      <div role="group" aria-label={t('chat.templates.title')} data-prompt-categories="" className="flex min-w-0 flex-nowrap gap-3 overflow-x-scroll pb-2">
+      <fieldset aria-label={t('chat.templates.title')} data-prompt-categories="" className="flex min-w-0 flex-nowrap gap-3 overflow-x-scroll pb-2">
         {categories.map(item => <div key={item} className="shrink-0"><Chip active={item === activeCategory && !query.trim()} onClick={() => { dispatch({ type: 'category', category: item }) }}>{t(`chat.templates.categories.${item}`)}</Chip></div>)}
-      </div>
+      </fieldset>
     </div>
     <div data-prompt-results="" className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto overscroll-contain py-4">
       {props.suggestions.length > 0 && !query.trim() ? <section aria-label={t('chat.templates.forYou')}>

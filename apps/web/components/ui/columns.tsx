@@ -15,7 +15,7 @@ export function Columns({
   const allZero = measuredMax === 0
 
   return (
-    <div className="flex w-full items-end gap-4" style={{ height }} role="group" aria-label={label}>
+    <fieldset className="flex w-full items-end gap-4 min-w-0" style={{ height }} aria-label={label}>
       {columns.map((column) => {
         const ratio = column.value !== null && scaleMax > 0 ? Math.min(1, Math.max(0, column.value / scaleMax)) : 0
         const isCurrent = column.id === currentId
@@ -50,6 +50,6 @@ export function Columns({
           </div>
         )
       })}
-    </div>
+    </fieldset>
   )
 }

@@ -66,10 +66,10 @@ function DoseTimeEditor({ habitId, log, onClose }: Readonly<{ habitId: string; l
   </ActionRow>}>
     <div className="flex min-w-0 flex-col gap-3">
       {error ? <p role="alert" className="text-sm text-[var(--status-bad-text)]">{error}</p> : null}
-      {guided && log.reminderAtUtc ? <div role="group" aria-label={t('habits.takenAtQuestion')} data-option-group="" className="grid w-full pb-3">
+      {guided && log.reminderAtUtc ? <fieldset aria-label={t('habits.takenAtQuestion')} data-option-group="" className="grid w-full pb-3 min-w-0">
         <OptionCard label={t('habits.useReminderTime')} disabled={mutation.isPending} loading={mutation.isPending && answering} onSelect={() => void save(new Date(log.reminderAtUtc!).toISOString())} />
-      </div> : null}
-      <fieldset disabled={mutation.isPending}><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
+      </fieldset> : null}
+      <fieldset disabled={mutation.isPending} className="min-w-0"><DateField label={t('habits.doseDate')} value={date} onChange={(value) => { setExactInstant(null); setDate(value) }} /></fieldset>
       <TimeField label={t('habits.doseTime')} value={toTime24(clock)} onChange={(value) => { setExactInstant(null); setClock(value) }} disabled={mutation.isPending} />
       {log.reminderAtUtc && !guided ? <IconButton label={t('habits.useReminderTime')} disabled={mutation.isPending} onClick={() => {
         setExactInstant(new Date(log.reminderAtUtc!).toISOString())
