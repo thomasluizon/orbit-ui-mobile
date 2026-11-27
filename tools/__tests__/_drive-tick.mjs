@@ -3405,6 +3405,33 @@ const watchdogCases = async () => {
   await unread.run()
   same("watchdog: a queue read that failed keeps the queued check alert open and sends no line", [alertsOf(unread.calls), Object.keys(savedOf(unread.env.stateDir).active)], [[], ["queue-old"]])
 
+  // A repository that this tick could not read is no repository with no pull request: every problem of it stays open and the merge clock keeps its time.
+  const lastMergeAt = NOW - 3 * 60 * MINUTE
+  const openProblems = { "no-merge": { since: NOW - MINUTE, text: "no merge for 2 hours with 1 pull request open", repairs: [] }, "open-24h ui#30": { since: NOW - MINUTE, text: "ui#30 is open for 25 hours", repairs: [] }, "fix-cap ui#45": { since: NOW - MINUTE, text: "ui#45 is at its fix cap", repairs: [] } }
+  const unreadDir = directory("unread-repository", { lastMergeAt, active: openProblems })
+  const unreadRepository = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: busy(), stateDirectory: unreadDir })
+  failRepository(unreadRepository, "ui")
+  await unreadRepository.run()
+  same("watchdog: a repository whose read failed keeps the merge, age and fix cap alerts open, sends no line and keeps the merge clock", [alertsOf(unreadRepository.calls), Object.keys(savedOf(unreadDir).active), savedOf(unreadDir).lastMergeAt], [[], Object.keys(openProblems), lastMergeAt])
+  const unreadMerged = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck()] }, runs: busy(), stateDirectory: directory("unread-merged", { lastMergeAt, active: {} }) })
+  failRepository(unreadMerged, "api")
+  unreadMerged.mem.mergedAt = NOW - MINUTE
+  await unreadMerged.run()
+  same("watchdog: a merge resets the merge clock even while another repository is unread", savedOf(unreadMerged.env.stateDir).lastMergeAt, NOW - MINUTE)
+  const unreadAgain = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: busy(), stateDirectory: unreadDir })
+  await unreadAgain.run()
+  same("watchdog: the tick that reads the repository again ends only the fix cap alert of the gone pull request", [alertsOf(unreadAgain.calls).length, Object.keys(savedOf(unreadDir).active).sort()], [1, ["no-merge", "open-24h ui#30"]])
+
+  // The reap read fails for ui and the tick read passes: the tick drops ui from its states, so the watchdog judges nothing of ui.
+  const reapDir = directory("unseen-repository", { lastMergeAt, active: openProblems })
+  const reapUnseen = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: busy(), stateDirectory: reapDir })
+  leftBehind(reapUnseen, {}, "", "chore-ticket-7")
+  const reapRead = reapUnseen.env.github.readRepositoryState
+  let reapReads = 0
+  reapUnseen.env.github.readRepositoryState = async (name, options) => { if (name === "ui" && (reapReads += 1) === 1) throw new Error("gh api graphql failed: HTTP 504"); return reapRead(name, options) }
+  await reapUnseen.run()
+  same("watchdog: a repository that only the reap could not read keeps every alert open, sends no line and keeps the merge clock", [alertsOf(reapUnseen.calls), Object.keys(savedOf(reapDir).active), savedOf(reapDir).lastMergeAt], [[], Object.keys(openProblems), lastMergeAt])
+
   // The lines follow sleep mode: nothing pings while the owner sleeps.
   const asleep = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: busy(), stateDirectory: directory("asleep"), sleeping: true })
   await asleep.run()

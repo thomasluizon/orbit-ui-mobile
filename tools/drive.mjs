@@ -2296,15 +2296,16 @@ const durationText = (ms) => {
  * active problems and the time of the last merge live in `watchdog.json`, so a restart sends no line twice. The clock of the
  * merge alarm resets at each merge, while no pull request is open and while the driver is held on purpose. A problem ends only on a tick
  * that could judge it: a failed queue read and a pull request that this tick did not plan keep their problems open. A pull request
- * that waits on the owner is not open for the merge alert and the age alert.
+ * that waits on the owner is not open for the merge alert and the age alert. A repository that this tick could not read (`missing`) has no
+ * state, not no pull request: its problems and the merge alert stay open, and the merge clock moves only at a merge.
  */
-const watchHealth = async (env, mem, { states, tickets, queue, held }) => {
+const watchHealth = async (env, mem, { states, tickets, queue, held, missing = [] }) => {
   const path = join(env.stateDir, WATCHDOG_FILE)
   let saved = { lastMergeAt: null, active: {} }
   try { saved = { ...saved, ...JSON.parse(readFileSync(path, "utf8")) } } catch { /* a first start has no file */ }
   const now = env.now()
   const open = states.flatMap((state) => state.pulls.filter((pull) => !pull.draft && !waitsOnOwner(env, pull, tickets)).map((pull) => ({ item: `${state.repositoryKey}#${pull.number}`, pull })))
-  if (mem.mergedAt !== null || open.length === 0 || held || !Number.isFinite(saved.lastMergeAt)) saved.lastMergeAt = mem.mergedAt ?? now
+  if (mem.mergedAt !== null || !Number.isFinite(saved.lastMergeAt) || (missing.length === 0 && (open.length === 0 || held))) saved.lastMergeAt = mem.mergedAt ?? now
   mem.mergedAt = null
   const current = new Map()
   if (open.length > 0 && now - saved.lastMergeAt >= NO_MERGE_MS) current.set("no-merge", `no merge for 2 hours with ${open.length} pull ${open.length === 1 ? "request" : "requests"} open`)
@@ -2328,7 +2329,13 @@ const watchHealth = async (env, mem, { states, tickets, queue, held }) => {
   }
   // A tick that could not judge a problem keeps it open: the pull request pass stops after a merge and skips a plan that threw, and a failed queue read gives no queue.
   const openItems = new Set(states.flatMap((state) => state.pulls.map((pull) => `${state.repositoryKey}#${pull.number}`)))
-  const unjudged = (key) => (key === "queue-old" ? queue === null : key.startsWith("fix-cap ") && openItems.has(key.slice("fix-cap ".length)) && !mem.planned.has(key.slice("fix-cap ".length)))
+  const unjudged = (key) => {
+    if (key === "queue-old") return queue === null
+    if (key === "no-merge") return missing.length > 0
+    const item = key.slice(key.indexOf(" ") + 1)
+    if (missing.includes(item.split("#")[0])) return true
+    return key.startsWith("fix-cap ") && openItems.has(item) && !mem.planned.has(item)
+  }
   for (const [key, entry] of Object.entries(saved.active)) {
     if (current.has(key) || unjudged(key)) continue
     log(env, "watchdog", "end", `${key}: ${entry.text}`)
@@ -2527,7 +2534,7 @@ export const tick = async (env, mem) => {
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
     await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
-    await watchHealth(env, mem, { states, tickets, queue, held: holdReason !== null || stoppedAll }).catch((error) => log(env, "watchdog", "error", error.message))
+    await watchHealth(env, mem, { states, tickets, queue, held: holdReason !== null || stoppedAll, missing: REPOSITORY_KEYS.filter((key) => !states.some((state) => state.repositoryKey === key)) }).catch((error) => log(env, "watchdog", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()
