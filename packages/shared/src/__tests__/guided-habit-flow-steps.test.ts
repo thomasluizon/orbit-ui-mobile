@@ -18,9 +18,11 @@ interface Setup {
   online?: boolean
   values?: Partial<Values>
   readPhrase?: GuidedHabitFlowOptions['readPhrase']
+  interpretDate?: GuidedHabitFlowOptions['interpretDate']
+  atOrbitLimit?: boolean
 }
 
-function mountFlow({ mode = 'create', lockedGeneral = null, online = true, values: initial = {}, readPhrase = vi.fn(async () => NO_READ) }: Setup = {}) {
+function mountFlow({ mode = 'create', lockedGeneral = null, online = true, values: initial = {}, readPhrase = vi.fn(async () => NO_READ), interpretDate = vi.fn(async () => { throw new Error('The Orbit date read is not under test.') }), atOrbitLimit = false }: Setup = {}) {
   const values: Values = { title: '', dueDate: '', dueTime: '', frequencyUnit: undefined, isFlexible: false, isGeneral: false, itemType: 'task', emoji: '', ...initial }
   const backend: { request: number; field: 'title' | 'description' | undefined } = { request: 0, field: undefined }
   const reminder = vi.fn<(enabled: boolean) => void>()
@@ -55,7 +57,7 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
     render = () => setVersion((version) => version + 1)
     flow = useGuidedHabitFlow({
       mode, lockedGeneral, locale: 'en', timeZone: 'UTC', isOnline: online, helpers: { ...helpers, isGeneral: helpers.isGeneral, backendFocusRequest: backend.request, backendFocusField: backend.field },
-      form, readPhrase, applySchedule, onReminderEnabledChange: reminder, onPhraseOwnershipChange: ownership,
+      form, readPhrase, interpretDate, atOrbitLimit, applySchedule, onReminderEnabledChange: reminder, onPhraseOwnershipChange: ownership,
       watched: { title: values.title, itemType: values.itemType, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
     })
     return null
@@ -63,7 +65,7 @@ function mountFlow({ mode = 'create', lockedGeneral = null, online = true, value
   let tree!: ReturnType<typeof create>
   void act(() => { tree = create(createElement(FlowProbe)) })
   return {
-    values, reminder, ownership, readPhrase,
+    values, reminder, ownership, readPhrase, interpretDate,
     get flow() { return flow },
     chooseTypeOnTheTypeStep: (itemType: 'task' | 'habit') => { void act(() => { flow.markTypeDeliberate(itemType); helpers.chooseItemType(itemType) }) },
     clearTime: () => { void act(() => write({ dueTime: '' })) },
@@ -173,6 +175,99 @@ describe('the steps of the shared guided habit flow', () => {
     expect(mounted.flow.answers.when).toBe(true)
     expect(mounted.flow.current.step).toBe('time')
     mounted.unmount()
+  })
+
+  describe('the Orbit date read of the date question', () => {
+    const WORDS = 'the day after the big meeting'
+    const answered = (date: string | null, referenceDate = TODAY) => vi.fn(async () => ({ date, referenceDate }))
+    const ask = async (mounted: Mounted, words: string) => {
+      let outcome!: Awaited<ReturnType<Mounted['flow']['interpretWhenWords']>>
+      await act(async () => { outcome = await mounted.flow.interpretWhenWords(words) })
+      return outcome
+    }
+
+    it('refuses the words on the device and asks Orbit for the date', async () => {
+      const interpretDate = answered('2026-11-20')
+      const mounted = mountFlow({ interpretDate })
+      await leavePhraseWith(mounted, 'call John')
+      let refusal: ReturnType<Mounted['flow']['readWhenWords']> = null
+      run(() => { refusal = mounted.flow.readWhenWords(WORDS) })
+      expect(refusal).toBe('unresolved')
+      expect(interpretDate).not.toHaveBeenCalled()
+      expect(await ask(mounted, WORDS)).toEqual({ kind: 'resolved' })
+      expect(interpretDate).toHaveBeenCalledExactlyOnceWith({ phrase: WORDS, language: 'en' })
+      expect(mounted.values).toMatchObject({ itemType: 'task', dueDate: '2026-11-20', datePhrase: '', dateIssue: '' })
+      expect(mounted.flow.answers.when).toBe(true)
+      expect(mounted.flow.current.step).toBe('time')
+      expect(mounted.flow.interpretingDate).toBe(false)
+      mounted.unmount()
+    })
+
+    it('stays on the step when Orbit finds no date, a date out of the calendar or the answer of another day', async () => {
+      for (const reply of [answered(null), answered('2026-02-31'), answered('2026-11-20', '2026-11-12')]) {
+        const mounted = mountFlow({ interpretDate: reply })
+        await leavePhraseWith(mounted, 'call John')
+        expect(await ask(mounted, WORDS)).toEqual({ kind: 'unresolved' })
+        expect(mounted.flow.current.step).toBe('when')
+        expect(mounted.flow.answers.when).toBe(false)
+        mounted.unmount()
+      }
+    })
+
+    it('refuses a past day that Orbit found for a new task and accepts it in an edit', async () => {
+      const created = mountFlow({ interpretDate: answered('2026-11-01') })
+      await leavePhraseWith(created, 'call John')
+      expect(await ask(created, WORDS)).toEqual({ kind: 'past' })
+      expect(created.flow.current.step).toBe('when')
+      created.unmount()
+      const edited = mountFlow({ mode: 'edit', interpretDate: answered('2026-11-01'), values: { title: 'call John', dueDate: TODAY } })
+      expect(await ask(edited, WORDS)).toEqual({ kind: 'resolved' })
+      expect(edited.values).toMatchObject({ dueDate: '2026-11-01' })
+      edited.unmount()
+    })
+
+    it('asks nothing while offline, at the limit of the allowance or for empty words', async () => {
+      for (const setup of [{ online: false }, { atOrbitLimit: true }] as const) {
+        const interpretDate = answered('2026-11-20')
+        const mounted = mountFlow({ ...setup, interpretDate })
+        expect(await ask(mounted, WORDS)).toEqual({ kind: 'unresolved' })
+        expect(interpretDate).not.toHaveBeenCalled()
+        mounted.unmount()
+      }
+      const interpretDate = answered('2026-11-20')
+      const mounted = mountFlow({ interpretDate })
+      expect(await ask(mounted, '   ')).toEqual({ kind: 'unresolved' })
+      expect(interpretDate).not.toHaveBeenCalled()
+      mounted.unmount()
+    })
+
+    it('hands a refused request to the step, keeping the error', async () => {
+      const error = new Error('AI_DAILY_BUDGET_EXCEEDED')
+      const mounted = mountFlow({ interpretDate: vi.fn(async () => { throw error }) })
+      await leavePhraseWith(mounted, 'call John')
+      expect(await ask(mounted, WORDS)).toEqual({ kind: 'failed', error })
+      expect(mounted.flow.interpretingDate).toBe(false)
+      expect(mounted.flow.current.step).toBe('when')
+      mounted.unmount()
+    })
+
+    it('drops the answer of a request that the person outran by typing or by choosing a date', async () => {
+      let arrive!: (reply: { date: string | null; referenceDate: string }) => void
+      const interpretDate = vi.fn(() => new Promise<{ date: string | null; referenceDate: string }>((resolve) => { arrive = resolve }))
+      for (const outrun of [(mounted: Mounted) => mounted.flow.previewWhenWords('the day after'), (mounted: Mounted) => mounted.flow.chooseDate('2026-11-25')]) {
+        const mounted = mountFlow({ interpretDate })
+        await leavePhraseWith(mounted, 'call John')
+        let pending!: ReturnType<Mounted['flow']['interpretWhenWords']>
+        run(() => { pending = mounted.flow.interpretWhenWords(WORDS) })
+        expect(mounted.flow.interpretingDate).toBe(true)
+        run(() => { outrun(mounted) })
+        expect(mounted.flow.interpretingDate).toBe(false)
+        await act(async () => { arrive({ date: '2026-11-20', referenceDate: TODAY }) })
+        expect(await pending).toEqual({ kind: 'stale' })
+        expect(mounted.values.dueDate).not.toBe('2026-11-20')
+        mounted.unmount()
+      }
+    })
   })
 
   it('gives the repeat of the date question its start day', async () => {
