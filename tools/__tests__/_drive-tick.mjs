@@ -192,6 +192,8 @@ const parkWrites = (scene, number = 7) => {
 }
 const PARKED_ONCE = [["parked"], 1, 0, 0]
 const commentsOf = (calls, number) => only(calls, "comment").filter((entry) => entry[2] === number).map((entry) => entry[3])
+/** The comments of one number that are not the `parked` comment of a park, which also closes the pull request. */
+const requestsOf = (calls, number) => commentsOf(calls, number).filter((text) => !text.startsWith(marked("parked", "")))
 const orderText = (scene) => scene.launched[0]?.order ?? ""
 
 const admissionCases = async () => {
@@ -873,10 +875,10 @@ const reviewCases = async () => {
   const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
-  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and parks the ticket", [commentsOf(first.calls, 30).length, parkWrites(first)], [0, PARKED_ONCE])
+  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and parks the ticket", [requestsOf(first.calls, 30).length, parkWrites(first)], [0, PARKED_ONCE])
   const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review(CHANGES_REQUESTED, HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
   await second.run()
-  same("drive: a second review with no BLOCKING parks the ticket", [commentsOf(second.calls, 30).length, parkWrites(second)], [0, PARKED_ONCE])
+  same("drive: a second review with no BLOCKING parks the ticket", [requestsOf(second.calls, 30).length, parkWrites(second)], [0, PARKED_ONCE])
 
   // Pullfrog edits the body of a review after it submits it, so a review whose run is not settled waits.
   const unsettledPull = (run) => scenario({ tickets: [ticket(7)], runs: [run], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)], comments: [comment("ticket", "T")] })] } })
@@ -888,7 +890,7 @@ const reviewCases = async () => {
   same("drive: a CHANGES_REQUESTED review with no finding whose run completed less than the settle time ago waits and gives no needs:owner", [commentsOf(justDone.calls, 30).length, only(justDone.calls, "editLabels").length, justDone.launched.length], [0, 0, 0])
   const settled = unsettledPull(pullfrogRun(5, -16 * MINUTE, -12 * MINUTE))
   await settled.run()
-  same("drive: a CHANGES_REQUESTED review with no finding whose run settled parks the ticket", [commentsOf(settled.calls, 30).length, parkWrites(settled)], [0, PARKED_ONCE])
+  same("drive: a CHANGES_REQUESTED review with no finding whose run settled parks the ticket", [requestsOf(settled.calls, 30).length, parkWrites(settled)], [0, PARKED_ONCE])
   const edited = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(5, -16 * MINUTE, -12 * MINUTE)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1)] })], comments: [comment("ticket", "T")] })] } })
   await edited.run()
   T("drive: a review that gets its BLOCKING line by an edit in its run gives a fix order and no needs:owner", edited.launched.length === 1 && only(edited.calls, "editLabels").length === 0)
@@ -927,7 +929,7 @@ const reviewCases = async () => {
   same("drive: a run that ended 5 minutes ago still waits", await waitingCommentCount(waiting(-40 * MINUTE, [endedRun(5)])), 0)
   const secondMiss = waiting(-80 * MINUTE, [], 2)
   await secondMiss.run()
-  same("drive: a second miss parks the ticket", [commentsOf(secondMiss.calls, 30).length, parkWrites(secondMiss)], [0, PARKED_ONCE])
+  same("drive: a second miss parks the ticket", [requestsOf(secondMiss.calls, 30).length, parkWrites(secondMiss)], [0, PARKED_ONCE])
 
   const threads = [{ id: "PRRT_x1", resolved: false, author: "pullfrog" }, { id: "PRRT_x2", resolved: false, author: "pullfrog" }, { id: "PRRT_y", resolved: false, author: "someone" }]
   const approved = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { threads })] } })
@@ -1001,7 +1003,7 @@ const reviewOnceCases = async () => {
 
   const sameHead = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], comments: [comment("ticket", "T")] })] } })
   await sameHead.run()
-  same("drive: a head that has a review gets no plain request and the driver logs the skip", [commentsOf(sameHead.calls, 30).length, skipLines(sameHead).map((line) => line.slice(line.indexOf("ui#30")).replace(/ \(Pullfrog.*$/, ""))], [0, ["ui#30 review skip (same head)"]])
+  same("drive: a head that has a review gets no plain request and the driver logs the skip", [requestsOf(sameHead.calls, 30).length, skipLines(sameHead).map((line) => line.slice(line.indexOf("ui#30")).replace(/ \(Pullfrog.*$/, ""))], [0, ["ui#30 review skip (same head)"]])
 
   const repeatHead = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], comments: [comment("ticket", "T")] })] } })
   for (let index = 0; index < 3; index += 1) await repeatHead.run()
@@ -2063,7 +2065,7 @@ const blockingClassCases = async () => {
   const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
   const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
   await commented.run()
-  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, parks the ticket and gets no ci-fix order", [commentsOf(commented.calls, 30).length, parkWrites(commented), commented.launched.length], [0, PARKED_ONCE, 0])
+  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, parks the ticket and gets no ci-fix order", [requestsOf(commented.calls, 30).length, parkWrites(commented), commented.launched.length], [0, PARKED_ONCE, 0])
 
   const merged = { number: 31, body: `Tracks ${REPOSITORY}#8\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-8" }
   const routes = [["--state merged", (args) => (args.join(" ").includes("#8\"") ? JSON.stringify([merged]) : "[]")]]
@@ -2154,11 +2156,11 @@ const laneAndReviewPassCases = async () => {
   same("drive: one whole-diff request answered with no whole-diff review gets one re-request", [commentsOf(oneAnswer.calls, 30).map((text) => text.split("\n")[1]), only(oneAnswer.calls, "editLabels").length], [[`${PLAIN} whole diff`], 0])
   const twoAnswers = answered(2)
   await twoAnswers.run()
-  same("drive: two whole-diff requests answered with no whole-diff review park the ticket and send no third request", [commentsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, parkWrites(twoAnswers)], [0, PARKED_ONCE])
+  same("drive: two whole-diff requests answered with no whole-diff review park the ticket and send no third request", [requestsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, parkWrites(twoAnswers)], [0, PARKED_ONCE])
 
   const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await repliesBeforeChanges.run()
-  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [commentsOf(repliesBeforeChanges.calls, 30).length, parkWrites(repliesBeforeChanges)], [0, PARKED_ONCE])
+  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [requestsOf(repliesBeforeChanges.calls, 30).length, parkWrites(repliesBeforeChanges)], [0, PARKED_ONCE])
 
   const replyAfterApproval = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -10 * MINUTE), reviewReply(-5 * MINUTE)] })] } })
   await replyAfterApproval.run()
@@ -2175,7 +2177,7 @@ const laneAndReviewPassCases = async () => {
   same("drive: a recorded CHANGES_REQUESTED Pullfrog review with BLOCKING comments gives one fix order and no request", [recordedBlocking.length > 0, recordedChanges.launched.length, commentsOf(recordedChanges.calls, 30).length], [true, 1, 0])
   const unusableChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -9 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await unusableChanges.run()
-  same("drive: two CHANGES_REQUESTED reviews with no BLOCKING comment at one head park the ticket and send no third request", [commentsOf(unusableChanges.calls, 30).filter((text) => text.includes("review")).length, parkWrites(unusableChanges)], [0, PARKED_ONCE])
+  same("drive: two CHANGES_REQUESTED reviews with no BLOCKING comment at one head park the ticket and send no third request", [requestsOf(unusableChanges.calls, 30).filter((text) => text.includes("review")).length, parkWrites(unusableChanges)], [0, PARKED_ONCE])
 
   const refusedLabel = (comments) => {
     const scene = scenario({ tickets: [], pulls: { landing: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", comments, checks: [check("Unit Tests", "FAILURE")] })] } })
@@ -4053,7 +4055,9 @@ const replanCases = async () => {
   const parked = scenario({ tickets: [ticket(7, { comments: spent })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await parked.run()
   const parkedComments = recordsOn(parked, "parked")
-  same("drive: the second failed ladder parks the ticket and its pull request, with no launch, no notice and no needs:owner", [parked.launched.length, only(parked.calls, "editLabels").map((entry) => entry.slice(1)), parkedComments.length, noNotice(parked), commentsOf(parked.calls, 30).length], [0, [["tickets", 7, { add: ["parked"] }], ["ui", 30, { add: ["parked"] }]], 1, [0, 0, 0, 0], 0])
+  same("drive: the second failed ladder parks the ticket and closes its pull request with no label, no launch, no notice and no needs:owner", [parked.launched.length, only(parked.calls, "editLabels").map((entry) => entry.slice(1)), parkedComments.length, noNotice(parked), only(parked.calls, "closePull").map((entry) => entry.slice(1))], [0, [["tickets", 7, { add: ["parked"] }]], 1, [0, 0, 0, 0], [["ui", 30]]])
+  same("drive: a park deletes no branch and writes one parked comment on the pull request that names its branch", [only(parked.calls, "deleteBranch").length, commentsOf(parked.calls, 30).filter((text) => text.startsWith(marked("parked", "")) && text.includes("`" + branch + "`")).length, requestsOf(parked.calls, 30).length], [0, 1, 0])
+  T("drive: the parked comment of the ticket lists each closed pull request with its branch", parkedComments[0].includes("Closed pull requests, with their branches kept:") && parkedComments[0].includes("- ui#30: branch `" + branch + "`"), parkedComments[0])
   same("drive: parking creates the label in the ticket repository and the three code repositories", only(parked.calls, "ensureLabel").map((entry) => [entry[1], entry[2].name]), [["tickets", "parked"], ["ui", "parked"], ["api", "parked"], ["landing", "parked"]])
   T("drive: the parked comment names the reason, each plan with its launches and each re-plan", parkedComments[0].includes("used its launches after 1 re-plans") && parkedComments[0].includes("\`" + branch + "\`: fix on claude-sonnet-5-5, fix on claude-sonnet-5-5, fix on claude-opus-5-5") && parkedComments[0].includes("Re-plan 1 after") && !parkedComments[0].includes("Re-plan 2 after"))
   T("drive: a park is logged once", parked.messages.filter((line) => line.includes("ticket#7 parked (")).length === 1 && parked.messages.some((line) => line.includes("1 parked today")))
@@ -4106,12 +4110,16 @@ const replanCases = async () => {
   for (const sibling of [31, 29]) {
     const siblingScene = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(sibling, { headRef: "chore/ticket-7-part-2", reviews: [finding] })] } })
     await siblingScene.run()
-    same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and labels it`, [siblingScene.launched.length, only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)).sort(), recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["tickets", 7], ["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], 1, [0, 0, 0, 0]])
+    same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and closes both pull requests with their branches kept`, [siblingScene.launched.length, only(siblingScene.calls, "closePull").map((entry) => entry.slice(1, 3)).sort(), only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)), only(siblingScene.calls, "deleteBranch").length, recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], [["tickets", 7]], 0, 1, [0, 0, 0, 0]])
   }
+  // A pull request that left OPEN earlier in the tick stays in the list of the repository. A park never closes it, comments on it or lists it.
+  const mergedSibling = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(29, { headRef: "chore/ticket-7-part-2" })] } })
+  await mergedSibling.run()
+  same("drive: a park after a sibling merged in the same tick closes only the open pull request and lists only it", [only(mergedSibling.calls, "merge").map((entry) => entry[2]), only(mergedSibling.calls, "closePull").map((entry) => entry.slice(1)), commentsOf(mergedSibling.calls, 29).filter((text) => text.startsWith(marked("parked", ""))).length, recordsOn(mergedSibling, "parked").map((text) => [text.includes("- ui#30: branch"), text.includes("ui#29")])], [[29], [["ui", 30]], 0, [[true, false]]])
   const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
   const admitPark = scenario({ tickets: [buildSpent], pulls: { ui: [pull(31, { headRef: "chore/ticket-7-part-1", reviews: [finding] })] } })
   await admitPark.run()
-  same("drive: a park in admission starts no order that the act step planned for the ticket, and labels its open pull request", [admitPark.launched.length, only(admitPark.calls, "editLabels").map((entry) => entry.slice(1, 3)), recordsOn(admitPark, "parked").length, noNotice(admitPark)], [0, [["tickets", 7], ["ui", 31]], 1, [0, 0, 0, 0]])
+  same("drive: a park in admission starts no order that the act step planned for the ticket, and closes its open pull request", [admitPark.launched.length, only(admitPark.calls, "closePull").map((entry) => entry.slice(1, 3)), only(admitPark.calls, "editLabels").map((entry) => entry.slice(1, 3)), recordsOn(admitPark, "parked").length, noNotice(admitPark)], [0, [["ui", 31]], [["tickets", 7]], 1, [0, 0, 0, 0]])
 
   // A parked item gets no order and no notice.
   const skipTicket = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: ladder(branch) })], pulls: { ui: [pull(30, { reviews: [finding] })] }, sleeping: true })
@@ -4255,7 +4263,7 @@ const diffBarCases = async () => {
   same("drive: a lintable path with a green Lint merges", [only(clean.calls, "merge").length, owned(clean).length], [1, 0])
 
   const skipped = await settled({ lint: "SKIPPED", pull: { files: ["apps/web/a.ts"] } })
-  same("drive: a SKIPPED Lint with a lintable path parks the ticket and the pull request, writes no needs-owner report and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").map((call) => call[3].add[0]), reports(skipped)], [0, 1, ["parked", "parked"], 0])
+  same("drive: a SKIPPED Lint with a lintable path parks the ticket, closes the pull request, writes no needs-owner report and does not merge", [only(skipped.calls, "merge").length, owned(skipped).length, only(skipped.calls, "editLabels").map((call) => call[3].add[0]), only(skipped.calls, "closePull").length, reports(skipped)], [0, 1, ["parked"], 1, 0])
   T("drive: the parked comment names lint-missing", owned(skipped)[0]?.includes("lint-missing") === true, owned(skipped).join(" | "))
 
   // GitHub creates the `Checks` run only after `Plan` ends, so a head has no lint check for its first minutes.

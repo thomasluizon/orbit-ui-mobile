@@ -61,7 +61,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   conflict it goes to the re-plan run.
   While an open ticket or pull request carries parked, the driver starts one headless harness review by itself, at most once
   in 24 hours: /ticket --auto --parked on claude-opus-5-5, on the main account, with no worker slot. The review re-plans each
-  parked item and removes parked. A branch that launched before a park counts as used, so the new plan takes a new branch.
+  parked item and removes parked. A park closes the open pull requests of the ticket and keeps their branches. A branch that launched before a park counts as used, so the new plan takes a new branch.
 
   A notification goes to the owner's phone through the Telegram Bot API, with the Keychain items telegram-bot-token and
   telegram-chat-id. With one of them missing it is a macOS notification. When Telegram refuses one, it shows on the Mac
@@ -1656,12 +1656,17 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
-    case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
+    case "close-stuck":
+      await closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
+      pull.state = "CLOSED"
+      return undefined
     // Two triggers update a branch: a retargeted child still holds its parent's commits, so main is merged in before the first pass reads its diff,
     // and a merge candidate whose changed code path main gained after the CI started needs a new CI on the new base.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
+      // The list of the repository keeps the pull request for this tick, so its state says that it left OPEN.
+      pull.state = "MERGED"
       mem.health.merged = true
       await recordMergeSamples(env, mem, { repoKey, pull, ticket })
       mem.merged.delete(pull.tracks)
@@ -2288,8 +2293,10 @@ const resumeReplans = async (env, tickets) => {
 }
 
 /**
- * Parks a ticket whose plans used their launches and re-plans: the label `parked` on the ticket and on each open pull request, and
- * one marked `parked` comment with the reason and each plan with its launches. It sends no notice and writes no sleep item.
+ * Parks a ticket whose plans used their launches and re-plans: the label `parked` on the ticket, and one marked `parked` comment with
+ * the reason, each plan with its launches and each pull request that the park closes. Each open pull request of the ticket gets one
+ * marked `parked` comment that names its branch, then closes. Every remote branch stays, and a closed pull request gets no label.
+ * It sends no notice and writes no sleep item.
  */
 const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   if (ticket.labels.includes(PARKED) || env.dryRun) return
@@ -2298,13 +2305,22 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   const branches = [...new Set(launches.map((entry) => entry.branch))]
   const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
   const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
+  // A pull request that merged or closed earlier in this tick is still in the list, and a park leaves it alone.
+  const closing = pulls.filter((pull) => pull.state === "OPEN" && pull.headRef)
+  const closed = closing.map((pull) => `- ${repoKey}#${pull.number}: branch \`${pull.headRef}\``)
   // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
   await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
   ticket.labels.push(PARKED)
   // Each park writes its own comment: a stop reads the newest park, and a ticket that the review took back parks again.
-  const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
+  const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}\n\nClosed pull requests, with their branches kept:\n${closed.length > 0 ? closed.join("\n") : "- none"}`
   await env.github.comment("tickets", ticket.number, marked(PARKED, text))
-  for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
+  for (const pull of closing) {
+    try {
+      await env.github.comment(repoKey, pull.number, marked(PARKED, `Closed by the driver: ${issueLink(env, ticket.number)} is parked. The branch \`${pull.headRef}\` stays. The daily harness review re-plans the ticket.`))
+      await env.github.closePull(repoKey, pull.number)
+      pull.state = "CLOSED"
+    } catch (error) { log(env, `${repoKey}#${pull.number}`, "park-close-failed", error.message) }
+  }
   const today = new Date(env.now()).toISOString().slice(0, 10)
   const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length
   log(env, `ticket#${ticket.number}`, "parked", `${reason}; ${count} parked today`)
