@@ -7,6 +7,7 @@ import { buildRetrospectiveRequestUrl } from '@orbit/shared/utils/retrospective'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { profileFixture } from '../../test-support/hermetic/mock-api/fixtures/profile'
+import { progressChartDays, progressChartZeroDayReadout } from '../../test-support/progress-chart-days'
 import { test } from './layout-test'
 import { LAYOUT_ORIGIN } from '../support/env'
 import { setLayoutFixtureSession, setLayoutProfileSession } from './profile-session'
@@ -24,11 +25,7 @@ for (const width of [320, 412, 1352]) {
         const retrospective = retrospectiveResponseSchema.parse({
           period: 'month', fromCache: false,
           narrative: { highlights: '', missed: '', trends: '', suggestion: '' },
-          metrics: createMockRetrospectiveMetrics({ completionSeries: { granularity: 'day', points: Array.from({ length: 30 }, (_, index) => ({
-            startDate: `2026-09-${String(index + 1).padStart(2, '0')}`, endDate: `2026-09-${String(index + 1).padStart(2, '0')}`,
-            scheduled: index === 0 ? 0 : 4, completed: index < 2 ? 0 : 2,
-            completionRate: index === 0 ? null : index === 1 ? 0 : 50,
-          })) } }),
+          metrics: createMockRetrospectiveMetrics({ completionSeries: { granularity: 'day', points: progressChartDays } }),
         })
         await context.route(`${LAYOUT_ORIGIN}${buildRetrospectiveRequestUrl('month', locale)}`, (route) => route.fulfill({ json: retrospective }))
         await page.goto('/progress')
@@ -67,7 +64,7 @@ for (const width of [320, 412, 1352]) {
         await expect(radios.first()).toBeFocused()
         await page.keyboard.press('ArrowRight')
         await expect(radios.nth(1)).toHaveAttribute('aria-checked', 'true')
-        await expect(readout).toContainText('0%')
+        await expect(readout).toContainText(progressChartZeroDayReadout[locale])
         expect(await chart.locator('path[data-empty]').evaluateAll((paths) => paths.map((path) => (path as SVGGraphicsElement).getBBox().height))).toEqual([4, 4])
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
       })
