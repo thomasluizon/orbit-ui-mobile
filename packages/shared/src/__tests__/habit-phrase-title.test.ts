@@ -225,3 +225,24 @@ describe('a title beside a bare das hour range', () => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
   })
 })
+
+describe('a title beside a das hour range with a day part, e meia or an hour unit', () => {
+  it.each([
+    'das 2 às 4 da tarde',
+    'das 11 às 2 da tarde',
+    'das 11 às 12 da tarde',
+    'das 8 às 12 da noite',
+    'das 11 às 2 da madrugada',
+    'das 10 às 2 da manhã',
+    'das 12 às 2 da madrugada',
+    'das 22 às 2 da madrugada',
+    'das 10 da manhã às 2 da tarde',
+    'das 9 e meia às 11',
+    'das 9 às 11 e meia',
+    'das 9 horas às 11 horas',
+    'das 9 às 11 horas',
+  ] as const)('keeps only the verb of Estudar %s', (range) => {
+    expect(getHabitPhraseTitle(`Estudar ${range}`, 'pt-BR')).toBe('Estudar')
+    expect(getHabitPhraseTitle(`Estudar ${range} toda segunda`, 'pt-BR')).toBe('Estudar')
+  })
+})
