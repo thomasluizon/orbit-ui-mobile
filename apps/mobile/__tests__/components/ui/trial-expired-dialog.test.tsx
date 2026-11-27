@@ -123,3 +123,38 @@ describe('the Android trial expired dialog', () => {
     expect(byTestId('trial-expired-savings')).toBeUndefined()
   })
 })
+
+describe('the Android trial expired dialog follows the open prompts and the account', () => {
+  const ACCOUNT_B_KEY = buildAccountScopedStorageKey('orbit_trial_expired_seen', 'user-2')
+  const holdAccount = (userId: string) => useAuthStore.setState({ isAuthenticated: true, user: { userId, name: 'Ada', email: `${userId}@example.com` } })
+
+  it('waits for an open sheet before it presents the notice', async () => {
+    useUIStore.getState().registerOpenOverlay('existing-sheet')
+    await renderDialog()
+    expect(byTestId('trial-expired-dialog')).toBeUndefined()
+    await act(async () => { useUIStore.getState().unregisterOpenOverlay('existing-sheet'); await Promise.resolve() })
+    expect(byTestId('trial-expired-dialog')).toBeDefined()
+  })
+
+  it('shows the notice to the next account after the previous one dismissed it', async () => {
+    await renderDialog()
+    await pressAction(action('Stay free'))
+    expect(byTestId('trial-expired-dialog')).toBeUndefined()
+    await act(async () => { holdAccount('user-2'); await Promise.resolve() })
+    expect(byTestId('trial-expired-dialog')).toBeDefined()
+    expect(ACCOUNT_B_KEY).not.toBe(SEEN_KEY)
+  })
+
+  it('waits for the seen flag of the next account before it shows the notice', async () => {
+    let finishRead!: (value: [string, string | null][]) => void
+    vi.spyOn(AsyncStorage, 'multiGet').mockImplementation((keys) => keys[0] === ACCOUNT_B_KEY
+      ? new Promise((resolve) => { finishRead = resolve })
+      : Promise.resolve(keys.map((key): [string, string | null] => [key, null])))
+    await renderDialog()
+    expect(byTestId('trial-expired-dialog')).toBeDefined()
+    await act(async () => { holdAccount('user-2'); await Promise.resolve() })
+    expect(byTestId('trial-expired-dialog')).toBeUndefined()
+    await act(async () => { finishRead([[ACCOUNT_B_KEY, '1'], ['orbit_trial_expired_seen', null]]); await Promise.resolve() })
+    expect(byTestId('trial-expired-dialog')).toBeUndefined()
+  })
+})

@@ -104,3 +104,56 @@ it('leaves supplied question text unclamped for large Android text', async () =>
     expect(style.overflow).not.toBe('hidden')
   }
 })
+
+const scaleOnly = () => questionBlockSchema.parse({ ...block, questions: [block.questions.find(question => question.type === 'scale')!] })
+const sliderOnly = () => questionBlockSchema.parse({ ...block, questions: [block.questions.find(question => question.type === 'slider')!] })
+it('uses primitive accessibility adjustments, native keyboard input and touch dragging on decimal steps', async () => {
+  await mount({ block: sliderOnly() })
+  await renderer.act(() => roles('slider')[0]!.props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }))
+  expect(roles('slider')[0]!.props.accessibilityValue).toMatchObject({ now: -0.2, text: '-0.2 hours' })
+  await renderer.act(() => roles('slider')[0]!.props.onKeyDown({ nativeEvent: { key: 'ArrowLeft' } }))
+  expect(roles('slider')[0]!.props.accessibilityValue.now).toBeCloseTo(-0.3)
+  await renderer.act(() => roles('slider')[0]!.props.onLayout({ nativeEvent: { layout: { width: 248 } } }))
+  await renderer.act(() => roles('slider')[0]!.props.onResponderMove({ nativeEvent: { locationX: 224 } }))
+  expect(roles('slider')[0]!.props.accessibilityValue.now).toBeCloseTo(0.3)
+})
+it.each(['pressed', 'focused', 'selected'] as const)('insets the Android scale paint inside its transparent target while %s', async state => {
+  await mount({ block: scaleOnly() })
+  const scale = roles('radio').find(node => node.props.accessibilityLabel === '3')!
+  if (state === 'selected') await press(scale)
+  else if (state === 'pressed') await renderer.act(() => (scale.props.onPressIn as () => void)())
+  else await renderer.act(() => (scale.props.onFocus as (event: { target: number; currentTarget: number }) => void)({ target: 1, currentTarget: 1 }))
+  const parts = measureInteractionFills(tree.toJSON() as Parameters<typeof measureProfileRow>[0], 380, false)
+  const target = parts.find(part => part.host.type === 'Pressable' && part.host.props.accessibilityLabel === '3')!
+  const fill = parts.find(part => part.host.props['data-slot'] === 'question-scale-fill' && part.ancestors.includes(target.slot))!
+  expect(target.style.backgroundColor).toBeUndefined()
+  expect(target.style.outlineWidth).toBeUndefined()
+  expect(target.style.borderWidth ?? 0).toBe(0)
+  expect(fill.style).toMatchObject({ borderRadius: 12, overflow: 'hidden' })
+  expect(fill.style.backgroundColor).not.toBe('transparent')
+  if (state === 'selected') expect(StyleSheet.flatten(selectionRingOf(roles('radio').find(node => node.props.accessibilityLabel === '3')!).props.style)).toMatchObject({ borderWidth: 2, top: 0 })
+  if (state === 'focused') {
+    const ring = parts.find(part => part.ancestors.includes(target.slot) && part.style.outlineWidth === 2)!
+    expect(ring.left).toBe(fill.left)
+    expect(ring.right).toBe(fill.right)
+    expect(ring.top).toBe(fill.top)
+    expect(ring.bottom).toBe(fill.bottom)
+    expect(ring.style.outlineOffset).toBe(-2)
+  }
+})
+it.each([false, true])('draws the Android scale focus ring in the foreground colour, selected %s', async selected => {
+  const { scheme, themeMode } = getRuntimeTheme()
+  const tokens = createTokensV2(scheme, themeMode)
+  await mount({ block: scaleOnly() })
+  const scale = () => roles('radio').find(node => node.props.accessibilityLabel === '3')!
+  if (selected) await press(scale())
+  expect(scale().props.accessibilityState.checked).toBe(selected)
+  await renderer.act(() => (scale().props.onFocus as (event: { target: number; currentTarget: number }) => void)({ target: 1, currentTarget: 1 }))
+  const rings = scale().findAll(node => typeof node.type === 'string' && (StyleSheet.flatten(node.props.style as StyleProp<ViewStyle>) as ViewStyle | undefined)?.outlineWidth === 2)
+  expect(rings, 'the focused option draws one focus ring').toHaveLength(1)
+  expect(StyleSheet.flatten(rings[0]!.props.style)).toMatchObject({ outlineColor: tokens.fg1, outlineOffset: -2 })
+  const selectionRing = StyleSheet.flatten(selectionRingOf(scale()).props.style as StyleProp<ViewStyle>)
+  if (scale().props.accessibilityState.checked) expect(selectionRing, 'a focused selected option keeps its selection ring directly inside the focus ring').toMatchObject({ borderColor: tokens.primary, borderWidth: 2, top: 2 })
+  else expect(selectionRing.borderColor).toBe('transparent')
+  expect(tokens.fg1).not.toBe(tokens.primary)
+})

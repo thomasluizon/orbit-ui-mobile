@@ -1492,6 +1492,38 @@ describe('ProfileScreen', () => {
     ).toHaveLength(1)
   })
 
+  it.each(['simple', 'scoped'])('requires a fresh verified grant before creating a second key (%s)', async (mode) => {
+    mockProfileState.current = {
+      profile: createMockProfile({ plan: 'pro', hasProAccess: true }),
+      isLoading: false,
+      error: null,
+    }
+    mockStepUpVerified.current = true
+    mockApiClient.mockImplementation((endpoint: string) =>
+      Promise.resolve(endpoint === API.apiKeys.create ? { id: 'key-1', key: 'orb_first' } : undefined))
+    const tree = await renderProfileSubscreen('orbit')
+    const press = (label: string) => TestRenderer.act(async () => { findButtonByName(tree, label).props.onPress(); await Promise.resolve(); await Promise.resolve() })
+
+    await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
+    TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'orbitMcp.keyName' }).props.onChangeText('Personal key'))
+    await press('common.continue')
+    await press('orbitMcp.permReadOnly')
+    if (mode === 'scoped') {
+      TestRenderer.act(() => tree.root.findByProps({ accessibilityLabel: 'profile.apiKeys.scopeLabel' }).props.onChangeText('read_habits'))
+      await press('common.continue')
+    }
+    await press('common.never')
+    expect(mockApiClient.mock.calls.filter(([endpoint]) => endpoint === API.apiKeys.create)).toHaveLength(1)
+    expect(nodeText(tree.root)).toContain('orb_first')
+    await press('orbitMcp.done')
+
+    await chooseApiKeyCreation(tree, mode === 'simple' ? 'profile.apiKeys.create' : 'profile.apiKeys.createScoped')
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/step-up?operation=keys')
+    expect(mockApiClient.mock.calls.filter(([endpoint]) => endpoint === API.apiKeys.create)).toHaveLength(1)
+    tree.unmount()
+  })
+
   it.each(['success', 'failure'])('drops a late API key challenge %s after replacement', async (outcome) => {
     mockProfileState.current = {
       profile: createMockProfile({ plan: 'pro', hasProAccess: true }),

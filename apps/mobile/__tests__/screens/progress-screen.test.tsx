@@ -20,6 +20,7 @@ import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
 import ProgressScreen from '@/app/(tabs)/progress'
 import StreakPage from '@/app/progress/streak'
+import { CreateGoalSheet } from '@/components/goals/create-goal-sheet'
 import GoalsPage from '@/app/progress/goals'
 import AchievementsPage from '@/app/progress/achievements'
 import { ListRow } from '@/components/ui/list-row'
@@ -78,7 +79,7 @@ const mocks = vi.hoisted(() => ({
   gamificationEnabled: vi.fn(),
   useRealRepair: false,
   repairRequest: vi.fn(),
-  repair: { mutate: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
+  repair: { mutate: vi.fn(), reset: vi.fn(), isPending: false, isError: false, error: null as { status: number } | null },
   reorder: { mutate: vi.fn(), isPending: false, isError: false },
   drag: vi.fn(),
   dragActive: false,
@@ -1079,6 +1080,27 @@ describe('mobile ProgressContent', () => {
     const text = tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
 
     expect(text).toContain('progressScreen.streak.covered:{"date":"Tuesday, Sep 15","count":2}')
+  })
+
+  it('names the freeze that covered a day by itself', async () => {
+    mocks.freeze.streakInfo.lastFreezeCoveredDate = '2026-09-15'
+    mocks.freeze.streakInfo.freezeBankRemaining = 2
+    Object.assign(mocks.freeze.streakInfo, { lastFreezeCoveredOrigin: 'automatic' })
+    const tree = await renderProgress(undefined, 'streak')
+    const messages = () => tree.root.findAll((node) => typeof node.props.children === 'string').map((node) => node.props.children)
+    expect(messages()).toContain('progressScreen.streak.automaticCovered:{"date":"Tuesday, Sep 15","count":2}')
+  })
+
+  it('resets the Metas filter and shows a created goal', async () => {
+    mocks.goals.data.allGoals = [createMockGoal()]
+    const tree = await renderProgress(undefined, 'goals')
+    await selectGoalFilter(tree, 'completed')
+    expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created')).toHaveLength(0)
+    await TestRenderer.act(() => { (findPill(tree.root, 'goals.create').props.onPress as () => void)() })
+    mocks.goals.data.allGoals = [...mocks.goals.data.allGoals, createMockGoal({ id: 'goal-created', title: 'Walk 100 km' })]
+    const sheet = tree.root.findAll((node) => node.type === CreateGoalSheet)[0]!
+    await TestRenderer.act(() => { (sheet.props.onCreated as (goalId: string) => void)('goal-created') })
+    expect(tree.root.findAll((node) => node.props.testID === 'goal-card-goal-created').length).toBeGreaterThan(0)
   })
 
   it('makes no automatic claim when a manual repair returns the same lastFreezeCoveredDate', async () => {

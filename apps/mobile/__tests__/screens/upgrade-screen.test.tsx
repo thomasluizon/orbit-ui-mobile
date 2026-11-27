@@ -655,6 +655,50 @@ describe('UpgradeScreen', () => {
     expect(JSON.stringify(tree.toJSON())).not.toContain(testI18n.t('upgrade.plans.error'))
   })
 
+  it.each(['recovery', 'restore'] as const)('blocks checkout during delayed Apple %s and becomes usable afterward', async (operation) => {
+    Platform.OS = 'ios'
+    setAccountId('account-1')
+    useAuthStore.setState({ user: { userId: 'account-1', name: 'Person', email: 'person@example.test' } })
+    await configureSubscription({ width: 412, locale: 'en', mode: 'dark', state: 'free' })
+    mocks.realPlayBilling = true
+    mocks.connected = true
+    let release!: (purchases: []) => void
+    const pending = new Promise<[]>((resolve) => { release = resolve })
+    if (operation === 'recovery') mocks.getPendingTransactionsIOS.mockReturnValueOnce(pending)
+    else mocks.getAvailablePurchases.mockReturnValueOnce(pending)
+    const tree = await renderScreen()
+    const section = () => tree.root.findAll((node) => typeof node.props.onCheckout === 'function' && typeof node.props.onRestore === 'function')[0]!
+    try {
+      if (operation === 'restore') await TestRenderer.act(async () => { (section().props.onRestore as () => void)(); await Promise.resolve() })
+      expect(section().props.isRestoring).toBe(true)
+      expect(section().props.checkoutDisabled).toBe(true)
+      await TestRenderer.act(async () => { (section().props.onCheckout as (interval: string) => void)('yearly'); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).not.toHaveBeenCalled()
+      await TestRenderer.act(async () => { release([]); await new Promise((resolve) => setTimeout(resolve, 0)) })
+      expect(section().props.isRestoring).toBe(false)
+      expect(section().props.checkoutLoading).toBeNull()
+      expect(section().props.checkoutDisabled).toBe(false)
+      await TestRenderer.act(async () => { (section().props.onCheckout as (interval: string) => void)('yearly'); await Promise.resolve() })
+      expect(mocks.playBilling.purchase).toHaveBeenCalledExactlyOnceWith({ type: 'subs', request: { apple: { sku: 'orbit.yearly', appAccountToken: 'account-1' } } })
+    } finally {
+      TestRenderer.act(() => tree.unmount())
+      useAuthStore.setState({ user: null })
+      setAccountId(null)
+    }
+  })
+
+  it('restores purchases and retries plan loading from the pitch', async () => {
+    const tree = await renderScreen()
+    const section = tree.root.findAll((node) => typeof node.props.onRestore === 'function' && typeof node.props.onRetryPlans === 'function')[0]!
+    await TestRenderer.act(async () => {
+      ;(section.props.onRestore as () => void)()
+      ;(section.props.onRetryPlans as () => void)()
+      await Promise.resolve()
+    })
+    expect(mocks.playBilling.restorePurchases).toHaveBeenCalledTimes(1)
+    expect(mocks.refetchPlans).toHaveBeenCalledTimes(1)
+  })
+
   it('opens the Stripe portal for a paying stripe user', async () => {
     mocks.hasProAccess = true
     mocks.apiClient.mockResolvedValue({ url: 'https://portal.stripe.test' })
