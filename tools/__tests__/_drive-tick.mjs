@@ -110,9 +110,9 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main", own = null, model = undefined, runner = "claude") => (name === "worker" && runner === "codex"
+    invocation: async (token, name = "main", own = null, model = undefined, runner = "claude", gate = undefined) => (name === "worker" && runner === "codex"
       ? { command: { executable: "codex", args: [] }, environment: { CODEX_HOME: CODEX_DIRECTORY, ...(token ? { GH_TOKEN: token } : {}) }, own, model: undefined, codex: { home: CODEX_DIRECTORY } }
-      : { command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
+      : { command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model, gate }),
     git: async (cwd, args) => {
       calls.push(["git", ...args])
       // The driver reads the changed paths and the commit messages of a pull request from git, so the fake answers with the fields of the pull request that has the range.
@@ -2612,6 +2612,7 @@ const reapOutcomeCases = async () => {
   factsClock += MINUTE
   const [, secondLog] = logNames()
   const { exitCode, killReason, headAfter } = factsOf(firstLog)
+  same("drive: a launch gets the gate hook for its own run and head", factsScene.launched[0].invocation.gate, { run: firstLog, head: HEAD })
   same("drive: a launch writes its facts file with the order's findings, and the reap adds its exit code, kill reason and head", [atLaunch.kind, atLaunch.model, atLaunch.headBefore, atLaunch.blocking.map((entry) => entry.body), atLaunch.exitCode, exitCode, killReason, headAfter], ["fix", "claude-sonnet-5-5", HEAD, ["BLOCKING: REAL-FINDING"], undefined, 1, "passed its hard ceiling", NEXT_HEAD])
   await factsScene.run()
   const opusOrder = factsScene.launched[2]?.order ?? ""
@@ -4244,6 +4245,7 @@ const replanCases = async () => {
   const openScene = scenario({ tickets: [threeParts()], pulls: { ui: [pull(30, { headRef: partBranch2, reviews: [finding] }), openThree()] }, routes: [mergedOne] })
   await openScene.run()
   const openOrder = openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.order ?? ""
+  same("drive: a re-plan launch gets no gate hook", openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.invocation.gate, null)
   T("drive: the re-plan order names the part with an open pull request as a part to keep", openOrder.includes("Merged parts: 1.") && openOrder.includes("Open parts: 3."), openOrder.slice(0, 400))
   // A record that GitHub would refuse counts a split as fresh with a note, so the write always lands.
   const hugeParts = Array.from({ length: 20 }, (_, index) => `## Part ${index + 1} of 20: big ${index + 1}\n${"x".repeat(4000)}`).join("\n")
