@@ -274,11 +274,12 @@ describe('HabitRow canonical content', () => {
   it.each([undefined, 1, 2])('indents the child card with uniform inner padding at depth %s', (depth) => {
     render(<HabitRow habit={createMockHabit({ title: 'Child' })} child depth={depth} />)
     const row = screen.getByTestId('habit-row')
-    expect(row.firstElementChild).toHaveAttribute('data-habit-row-body')
+    const body = row.querySelector(':scope > fieldset')!.firstElementChild
+    expect(body).toHaveAttribute('data-habit-row-body')
     expect(row.style.paddingInlineStart).toBe('')
     expect(row).toHaveStyle({ marginInlineStart: `${16 * (depth ?? 1)}px` })
     expect(row.parentElement!.style.paddingInlineStart).toBe('')
-    expect(row.firstElementChild).toHaveStyle({ paddingInlineStart: '8px' })
+    expect(body).toHaveStyle({ paddingInlineStart: '8px' })
   })
 
   it('keeps selection, disclosure, and a neutral checkbox on a parent row', () => {

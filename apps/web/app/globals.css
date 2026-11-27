@@ -1911,8 +1911,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: color var(--dur-hover) var(--ease-standard);
 }
 
-.habit-row > [data-personal-text-action],
-.habit-row > [data-habit-row-controls] {
+.habit-row > fieldset > [data-personal-text-action],
+.habit-row > fieldset > [data-habit-row-controls] {
   transition-property: none;
 }
 
