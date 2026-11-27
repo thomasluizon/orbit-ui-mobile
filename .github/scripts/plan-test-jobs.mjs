@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url'
 const usage = `usage: plan-test-jobs.mjs --event <name> --turbo-dry <file> --workflow <file> [--changed-files <file>]
 
   Prints the PR Tests plan as GITHUB_OUTPUT lines. Each test group gets a result cache key built from its
-  Turbo task hashes (turbo run test test:cross-app --dry=json) and the workflow file. A pull request also gets one flag per
+  Turbo task hashes (turbo run test test:cross-app build --dry=json) and the workflow file. The layout pass key follows the
+  @orbit/web#build hash, the layout shard timings, the shard planner, the hermetic build check and the workflow file, so a
+  layout shard that passed for the same app code needs no second run. A pull request also gets one flag per
   path scope (web, type-check, lint, tools), true when a changed path is an input of that scope. The tools scope
   holds every path except the unread documents that tool-tests-skip-paths.json lists, so a pull request that
   changes only those documents skips the tool tests.
@@ -28,6 +30,10 @@ const testGroups = {
   'mobile-unit': ['@orbit/mobile#test'],
   'workspace-unit': ['@orbit/desktop#test', '@orbit/shared#test', '@orbit/eslint-rules#test'],
 }
+
+// A layout shard reads these files besides the app code that the @orbit/web#build hash covers.
+const layoutTask = '@orbit/web#build'
+const layoutInputs = ['../layout-shard-timings.json', 'plan-layout-shards.mjs', '../../tools/check-hermetic-web-build.mjs']
 
 function digest(text) {
   return createHash('sha256').update(text).digest('hex').slice(0, 24)
@@ -66,6 +72,9 @@ try {
     if (missing.length) throw new Error(`the Turbo dry run has no ${missing.join(', ')}`)
     return `${group}-key=${group}-${digest(tasks.map((task) => `${task}=${hashes.get(task)}`).join('\n'))}-${workflowDigest}`
   })
+  if (!hashes.has(layoutTask)) throw new Error(`the Turbo dry run has no ${layoutTask}`)
+  const layoutFiles = layoutInputs.map((path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8'))
+  lines.push(`layout-key=layout-pass-${digest([`${layoutTask}=${hashes.get(layoutTask)}`, ...layoutFiles].join('\n'))}-${workflowDigest}`)
   const changed = options.event === 'pull_request'
     ? readFileSync(options['changed-files'], 'utf8').split('\n').filter(Boolean)
     : undefined

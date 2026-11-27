@@ -22,6 +22,8 @@ permissions:
 # job for that group. The web cross-app group holds the web tests that read apps/mobile or apps/desktop. Its key holds
 # those apps, so the web shards keep their cached result after a mobile-only or desktop-only change. It runs as a step of
 # Unit Tests, and a pass marker is its result.
+# A layout shard that passed saves a pass marker under the layout key of its pull request run. The layout key follows the
+# @orbit/web#build hash, so a later push that leaves the app code equal starts no shard that already passed.
 env:
   WEB_UNIT_RESULTS: apps/web/coverage/lcov.info
   WEB_CROSS_APP_UNIT_RESULTS: apps/web/.artifacts/web-cross-app-passed
@@ -52,6 +54,8 @@ jobs:
       web-cross-app-unit-key: ${{ steps.plan.outputs.web-cross-app-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
       workspace-unit-key: ${{ steps.plan.outputs.workspace-unit-key }}
+      layout-key: ${{ steps.plan.outputs.layout-key }}
+      layout-pending: ${{ steps.layout.outputs.pending }}
       web-unit-hit: ${{ steps.web-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-unit-hit == 'true' }}
       web-cross-app-unit-hit: ${{ steps.web-cross-app-unit.outputs.cache-hit == 'true' || steps.merged.outputs.web-cross-app-unit-hit == 'true' }}
       mobile-unit-hit: ${{ steps.mobile-unit.outputs.cache-hit == 'true' || steps.merged.outputs.mobile-unit-hit == 'true' }}
@@ -88,7 +92,7 @@ jobs:
           set -euo pipefail
           node .github/scripts/write-locked-package.mjs turbo "$RUNNER_TEMP/turbo"
           npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline || npm ci --prefix "$RUNNER_TEMP/turbo" --ignore-scripts --no-audit --no-fund --prefer-offline
-          "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test test:cross-app --dry=json > "$RUNNER_TEMP/turbo-test.json"
+          "$RUNNER_TEMP/turbo/node_modules/.bin/turbo" run test test:cross-app build --dry=json > "$RUNNER_TEMP/turbo-test.json"
           if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
             --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
@@ -153,6 +157,58 @@ jobs:
           web-cross-app-hit: ${{ steps.web-cross-app-unit.outputs.cache-hit }}
           mobile-hit: ${{ steps.mobile-unit.outputs.cache-hit }}
           workspace-hit: ${{ steps.workspace-unit.outputs.cache-hit }}
+
+      - id: layout-1
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-1", lookup-only: true }
+
+      - id: layout-2
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-2", lookup-only: true }
+
+      - id: layout-3
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-3", lookup-only: true }
+
+      - id: layout-4
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-4", lookup-only: true }
+
+      - id: layout-5
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-5", lookup-only: true }
+
+      - id: layout-6
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-6", lookup-only: true }
+
+      - id: layout-7
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-7", lookup-only: true }
+
+      - id: layout-8
+        uses: actions/cache/restore@v6
+        with: { path: .ci-pass/layout, key: "${{ steps.plan.outputs.layout-key }}-8", lookup-only: true }
+
+      # A shard with a pass marker for these app inputs needs no run. The matrix of the layout shards holds the other shards.
+      - name: List the layout shards without a pass
+        id: layout
+        env:
+          HIT_1: ${{ steps.layout-1.outputs.cache-hit }}
+          HIT_2: ${{ steps.layout-2.outputs.cache-hit }}
+          HIT_3: ${{ steps.layout-3.outputs.cache-hit }}
+          HIT_4: ${{ steps.layout-4.outputs.cache-hit }}
+          HIT_5: ${{ steps.layout-5.outputs.cache-hit }}
+          HIT_6: ${{ steps.layout-6.outputs.cache-hit }}
+          HIT_7: ${{ steps.layout-7.outputs.cache-hit }}
+          HIT_8: ${{ steps.layout-8.outputs.cache-hit }}
+        run: |
+          pending=""
+          for shard in 1 2 3 4 5 6 7 8; do
+            hit="HIT_${shard}"
+            if [ "${!hit:-}" != true ]; then pending="${pending:+${pending},}${shard}"; fi
+          done
+          echo "pending=[${pending}]" >> "$GITHUB_OUTPUT"
 
   # One hermetic web build serves the required Build check, the layout shards and the Lighthouse budget.
   build:
@@ -795,19 +851,23 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
 
+  # A shard job starts only for a shard that has no pass marker. A marker is saved after every step of its shard passed, and
+  # shard 1 also runs the Authed Today Lighthouse budget, so the marker of shard 1 holds the budget result.
+  # Each shard stops after 3 failures, so the 8 shards report about 24 failures at most and a broken page does not run
+  # every test to its timeout.
   layout-shards:
     name: Layout shard ${{ matrix.shard }}
     needs: [plan, build]
-    if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
+    if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true' && needs.plan.outputs.layout-pending != '[]'
     runs-on: ubuntu-24.04
     # Each shard runs one test list that plan-layout-shards.mjs balances from .github/layout-shard-timings.json.
     # Run 44216168902 summed 7032 s of layout tests, so each shard holds about 879 s on 2 workers (440 s).
-    # The limit is about 1.5 times that projection plus the 120 s setup the shards share.
-    timeout-minutes: 15
+    # The limit is about 1.5 times that projection plus the 120 s setup the shards share. Shard 1 adds the Lighthouse step limit.
+    timeout-minutes: ${{ matrix.shard == 1 && 25 || 15 }}
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: ${{ fromJSON(needs.plan.outputs.layout-pending || '[]') }}
     env:
       API_BASE: http://127.0.0.1:5099
       NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
@@ -853,7 +913,7 @@ jobs:
             --timings .github/layout-shard-timings.json --shards 8 --out-dir "$RUNNER_TEMP/layout-shards"
 
       - name: Check upgrade layout
-        run: npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt"
+        run: npm run test:layout -w apps/web -- --test-list "$RUNNER_TEMP/layout-shards/shard-${{ matrix.shard }}.txt" --max-failures=3
 
       - name: Upload layout test timings
         if: ${{ !cancelled() }}
@@ -874,49 +934,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-  layout:
-    name: Upgrade layout geometry
-    needs: [plan, build, layout-shards]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.plan.outputs.web == 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 2
-    steps:
-      - name: Require the build and every shard
-        env:
-          BUILD_RESULT: ${{ needs.build.result }}
-          SHARD_RESULT: ${{ needs.layout-shards.result }}
-        run: test "$BUILD_RESULT" = success && test "$SHARD_RESULT" = success
-
-  lighthouse:
-    name: Authed Today Lighthouse budget
-    needs: [plan, build]
-    if: github.event_name == 'pull_request' && needs.plan.outputs.web == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      API_BASE: http://127.0.0.1:5099
-      NEXT_PUBLIC_EVENT_API_BASE: http://127.0.0.1:5099
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          package-manager-cache: false
-
-      - uses: ./.github/actions/restore-npm-cache
-
-      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: web-hermetic-build
-          path: ${{ runner.temp }}
-
-      - name: Restore hermetic build
-        run: tar -C apps/web -xzf "$RUNNER_TEMP/web-hermetic-build.tgz"
-
       - name: Start mock orbit-api and wait for health
+        id: lighthouse-mock
+        if: ${{ !cancelled() && matrix.shard == 1 }}
         run: |
           set -euo pipefail
           ./node_modules/.bin/tsx apps/web/test-support/hermetic/mock-api/server.ts &
@@ -932,19 +952,20 @@ jobs:
           exit 1
 
       - name: Run median TBT and script budget gates
+        if: ${{ !cancelled() && matrix.shard == 1 }}
         timeout-minutes: 8
         run: node apps/web/perf/run-lighthouse.mjs
 
       - name: Report authed Today LCP
-        if: always()
+        if: ${{ always() && matrix.shard == 1 }}
         run: node apps/web/perf/report-lcp.mjs
 
       - name: Stop mock orbit-api
-        if: always()
+        if: ${{ always() && matrix.shard == 1 }}
         run: kill "${MOCK_PID}" 2>/dev/null || true
 
       - name: Upload Lighthouse reports
-        if: always()
+        if: ${{ always() && matrix.shard == 1 }}
         uses: actions/upload-artifact@v7
         with:
           name: lighthouse-reports
@@ -952,3 +973,12 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
+
+      - name: Record the pass for these app inputs
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/layout
+
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/layout
+          key: ${{ needs.plan.outputs.layout-key }}-${{ matrix.shard }}
