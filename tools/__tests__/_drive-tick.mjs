@@ -3590,6 +3590,25 @@ const watchdogCases = async () => {
   await gone.run()
   same("watchdog: a pull request that left the cap ends it with one line", alertsOf(gone.calls), ["Orbit driver alert ended after 1 minute: ui#30 is at its fix cap. Repair: launched a fix worker on ui#30."])
 
+  // After the Opus order, the plans of the capped pull request reach no cap branch, and the alert stays open with no line.
+  const opusTicket = () => [ticket(7, { comments: [launch(), launch(), launch("claude-opus-5-5")] })]
+  const capActive = { lastMergeAt: NOW, active: { "fix-cap ui#30": { since: NOW - MINUTE, text: "ui#30 is at its fix cap", repairs: [] } } }
+  const NEW_HEAD = "e".repeat(40)
+  const afterOpus = [
+    ["a worker runs on the branch", { pulls: { ui: [pull(30, { reviews: [finding] })] } }, (scene) => {
+      leftBehind(scene, { kind: "fix", branch, prNumber: 30, worktree: "/r/orbit-worktrees/ui/chore-ticket-7-30" }, "", "chore-ticket-7-30")
+      scene.mem.running.set("chore-ticket-7-30", new Promise(() => {}))
+    }],
+    ["request @pullfrog review", { pulls: { ui: [pull(30, { headSha: NEW_HEAD, commits: [{ sha: HEAD, parents: 1 }, { sha: NEW_HEAD, parents: 1 }], reviews: [finding] })] } }],
+    ["a Pullfrog run is in progress", { pulls: { ui: [pull(30, { headSha: NEW_HEAD, commits: [{ sha: HEAD, parents: 1 }, { sha: NEW_HEAD, parents: 1 }], reviews: [finding] })] }, runs: busy() }],
+  ]
+  for (const [plan, options, prepare] of afterOpus) {
+    const scene = scenario({ tickets: opusTicket(), ...options, stateDirectory: directory("after-opus", capActive) })
+    prepare?.(scene)
+    await tick(scene.env, scene.mem)
+    same(`watchdog: a capped pull request whose plan is "${plan}" after the Opus order keeps its fix cap alert open and sends no line`, [scene.env.lines.some((line) => line.startsWith("pull ui#30: ") && line.includes(plan)), alertsOf(scene.calls), Object.keys(savedOf(scene.env.stateDir).active)], [true, [], ["fix-cap ui#30"]])
+  }
+
   // A tick that cannot judge a problem keeps it open: it ends only on a tick that saw the problem gone.
   const heldCap = { lastMergeAt: NOW, active: { "fix-cap ui#45": { since: NOW - MINUTE, text: "ui#45 is at its fix cap", repairs: [] } } }
   const cappedBranch = "chore/ticket-9-45"
