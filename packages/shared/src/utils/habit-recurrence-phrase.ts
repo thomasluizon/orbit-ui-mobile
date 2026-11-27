@@ -35,7 +35,7 @@ function readParsedSchedule(phrase: string, locale: SupportedLocale, schedule: H
   const unread = read.cadence === 'fixed'
     ? remainder.replace(/\b(?:every|each|on|and|toda|todo|todas|todos|as|os|e)\b/gu, '')
     : remainder
-  if (unread.replace(/[\s,.!?:;]+/gu, '')) return null
+  if (unread.replace(/[\s,.!?…:;]+/gu, '')) return null
   if (read.cadence === 'monthly') return { ...schedule, unit: 'Month', monthDays: read.monthDays }
   if (!read.cadence) return { ...schedule, quantity: read.intervalWeeks ?? 1 }
   return { ...schedule, unit: read.cadence === 'flexible' ? 'Week' : 'Day', quantity: read.frequencyQuantity ?? 1,
@@ -43,7 +43,7 @@ function readParsedSchedule(phrase: string, locale: SupportedLocale, schedule: H
 }
 
 export function readHabitRecurrencePhrase(input: string): HabitRecurrencePhrase | null {
-  const phrase = input.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/gu, ' ').replace(/^[.!?,;:]+\s*|\s*[.!?,;:]+$/gu, '')
+  const phrase = input.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/gu, ' ').replace(/^[.!?…,;:]+\s*|\s*[.!?…,;:]+$/gu, '')
   const parts = /^(.*?)\s+(?:from|starting(?: on)?|a partir de|a partir da|comecando(?: em)?)\s+(.+)$/u.exec(phrase)
   const schedule = readSchedule(parts?.[1] ?? phrase)
   return schedule ? { schedule, startPhrase: parts?.[2] ?? null } : null

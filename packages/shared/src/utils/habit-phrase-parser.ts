@@ -47,7 +47,7 @@ const EN_NUMBER = String.raw`(?:\d{1,3}|one|once|two|twice|three|four|five|six|s
 const PT_MONTH_DAY = String.raw`\d{1,2}(?![\d:h])`
 const PT_MONTH_DAY_LIST = String.raw`${PT_MONTH_DAY}(?:(?:\s*,\s*(?:e\s+)?|\s+e\s+)(?:(?:o\s+)?dia\s+)?${PT_MONTH_DAY})*`
 const PT_MONTH_SUFFIX = String.raw`\s+(?:de cada|de todo|do|todo|a cada|cada)\s+mes`
-const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|from\b|starting\b))`
+const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?…]|$|a partir\b|comecando\b|from\b|starting\b))`
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
@@ -420,7 +420,7 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
 
 function hasUnmodeledWeekdayPrefix(text: string): boolean {
   for (const value of text.trim().split(/\s+/u).reverse().slice(0, 2)) {
-    const word = value.replace(/[,.!?;:]+$/u, '')
+    const word = value.replace(/[,.!?…;:]+$/u, '')
     if (UNMODELED_WEEKDAY_QUALIFIERS.has(word) || /^\d+(?:st|nd|rd|th|º|ª)$/u.test(word)) return true
     if (!WEEKDAY_PREFIX_GLUE.has(word)) return false
   }
@@ -436,7 +436,7 @@ function startsWithMonthScope(text: string): boolean {
 }
 
 function hasUnmodeledWeekdaySuffix(text: string): boolean {
-  const word = /^\s+(\S+)/u.exec(text)?.[1]?.replace(/[,.!?;:]+$/u, '')
+  const word = /^\s+(\S+)/u.exec(text)?.[1]?.replace(/[,.!?…;:]+$/u, '')
   if (word && UNMODELED_WEEKDAY_QUALIFIERS.has(word) && !WEEKDAY_PERIOD_WORDS.has(word)) return true
   return startsWithMonthScope(text)
     || /^\s+(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+(?:mes(?:es)?|anos?)\b/u.test(text)
@@ -563,7 +563,7 @@ function readWeekdayExclusion(
     if (match.index < cursor || !allowed) return 'unresolved'
     cursor = match.index + match[0].length
   }
-  if (remaining.slice(cursor).replace(/[\s,.!?;:]+/gu, '')) return 'unresolved'
+  if (remaining.slice(cursor).replace(/[\s,.!?…;:]+/gu, '')) return 'unresolved'
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
     .filter((day) => !weekdays.some((weekday) => weekday.day === day))
   if (days.length === 0) return 'unresolved'
@@ -773,5 +773,5 @@ export function readTypedHabitPhrase(title: string, locale: SupportedLocale, typ
 
 export function isWeeklyRecurrencePhrase(text: string): boolean {
   const normalized = text.trim().toLowerCase().replace(/\s+/gu, ' ')
-  return /^[.!?,;:]*\s*(?:toda semana|todas as semanas|semanalmente|every week|weekly)\s*[.!?,;:]*$/u.test(normalized)
+  return /^[.!?…,;:]*\s*(?:toda semana|todas as semanas|semanalmente|every week|weekly)\s*[.!?…,;:]*$/u.test(normalized)
 }

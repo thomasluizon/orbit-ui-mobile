@@ -8,6 +8,7 @@ describe('summary sentence', () => {
     ['Você quer retomar? Vamos começar.', 'Você quer retomar?'],
     ['You finished 2.5 km. Keep going.', 'You finished 2.5 km.'],
     ['  One line without punctuation  ', 'One line without punctuation'],
+    ['A walk is done… Reading is next.', 'A walk is done…'],
     ['“Vamos retomar.” Depois, leia.', '“Vamos retomar.”'],
   ])('extracts the preview from %s', (summary, expected) => {
     expect(getSummaryFirstSentence(summary)).toBe(expected)
