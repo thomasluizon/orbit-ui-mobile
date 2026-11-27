@@ -20,7 +20,8 @@ import {
   carriedApproval,
   mergeBar,
   needsWholeDiff,
-  pullfrogRunsFor,
+  pullfrogRuns,
+  runsNaming,
   readDependabotUpdateTypes,
   readFailedSteps,
   readRepositoryState,
@@ -410,7 +411,7 @@ const mergeBarCases = (approved) => {
 const pullfrogAndDeploymentCases = async (seams) => {
   const runsFor = async (responseRuns, number) => {
     const { run, calls } = scripted([["--workflow pullfrog.yml", () => json(responseRuns)]])
-    return { runs: await pullfrogRunsFor("ui", number, seams(run)), calls }
+    return { runs: runsNaming(await pullfrogRuns("ui", seams(run)), number), calls }
   }
   const named = { ...FIXTURE.pullfrogRuns.response[0], databaseId: 1, displayTitle: `Respond to mention on #${7 * 10} [zzzzz]` }
   const { runs, calls } = await runsFor([...FIXTURE.pullfrogRuns.response, named], 7)
@@ -1058,7 +1059,7 @@ const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, partComm
 const orderCases = async () => {
   same("lib/order.mjs: the order kinds are the six of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
   same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
-  same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "part 1 of 3", " Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
+  same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "Part 5 is complete", "See Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
   same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
 
   for (const kind of ORDER_KINDS) {

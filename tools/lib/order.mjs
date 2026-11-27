@@ -4,13 +4,37 @@ import { parityExemptTerms } from "./parity-scope.mjs"
 
 export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
 
-/** The first line of an owner's part comment: any number of `#` marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
-const PART_HEADING = /^(?:#+ +)?(?:#\d+ +)?Part (\d+) of (\d+)\b/
+/** The first line of an owner's part comment: heading marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
+const PART_HEADING = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Part\s+(\d+)\s+of\s+(\d+)/i
+
+/** A first line that starts like a part heading and goes on with a total, a separator or nothing. "Part 5 is complete" goes on with prose, so it is a status note and not a broken heading. */
+const PART_LIKE = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Parte?\s+\d+\s*(?:$|[/:.,;\u2013\u2014-]|of\b|de\b)/i
 
 const BRIEF_LIMIT_BYTES = 6000
 const LOG_LINES_PER_CHECK = 60
 
 const firstLineOf = (text) => text.split("\n", 1)[0]
+
+/** The first line of every comment that looks like a part heading but does not read as one, with its comment. */
+export const brokenPartHeadings = (comments) =>
+  comments.filter((comment) => partOf(comment) === null && PART_LIKE.test(firstLineOf(comment.body))).map((comment) => ({ comment, line: firstLineOf(comment.body) }))
+
+/** The part comments in force that share one part number, as one entry for each such number. */
+export const duplicateParts = (comments) => {
+  const live = ownerParts(comments)
+  return [...new Set(live.map((comment) => partOf(comment).number))]
+    .map((number) => ({ number, comments: live.filter((comment) => partOf(comment).number === number) }))
+    .filter((entry) => entry.comments.length > 1)
+}
+
+/** The reason that a ticket holds for the owner: a broken part heading or two live comments of one part. Null when the part comments are sound. */
+export const partProblem = (comments) => {
+  const [broken] = brokenPartHeadings(comments)
+  if (broken !== undefined) return `The comment ${broken.comment.url} starts with "${broken.line}", which is not a part heading. Write it as "Part <n> of <m>: <title>" or remove the part number.`
+  const [duplicate] = duplicateParts(comments)
+  if (duplicate !== undefined) return `Part ${duplicate.number} has two live comments: ${duplicate.comments.map((comment) => comment.url).join(" and ")}. Start the old one with "Superseded: ".`
+  return null
+}
 
 /** The part numbers and total that a comment announces, or null when the comment is not a part comment. */
 export const partOf = (comment) => {

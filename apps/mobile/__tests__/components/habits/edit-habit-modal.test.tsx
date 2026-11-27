@@ -51,7 +51,9 @@ const mockPush = vi.hoisted(() => vi.fn())
 let mockHabitDetailResult: {
   data: unknown
   isPending: boolean
+  isFetching?: boolean
   error: unknown
+  retry?: () => void
 } = { data: null, isPending: false, error: null }
 
 vi.mock('expo-router', () => ({
@@ -209,6 +211,12 @@ function findFieldsWrapper(tree: {
   )[0]
 }
 
+function findAlerts(tree: {
+  root: { findAll: (predicate: (node: any) => boolean) => any[] }
+}) {
+  return tree.root.findAll((node: any) => typeof node.type === 'string' && node.props.accessibilityRole === 'alert')
+}
+
 async function renderModal(relationshipFieldsLoaded = true, onClose = vi.fn()) {
   const habit = createMockHabit({ id: 'h-1', title: 'Exercise' })
   let tree: any
@@ -299,12 +307,42 @@ describe('EditHabitModal (mobile)', () => {
   })
 
   it('blocks the fields and disables save while the habit detail is loading', async () => {
-    mockHabitDetailResult = { data: null, isPending: true, error: null }
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: true, error: null }
     const tree = await renderModal()
 
     const wrapper = findFieldsWrapper(tree)
     expect(wrapper.props.pointerEvents).toBe('none')
     expect(findSaveButton(tree)?.props.disabled).toBe(true)
+    expect(findAlerts(tree)).toHaveLength(0)
+  })
+
+  it('states a detail read that cannot run with a retry, never a wait that does not end', async () => {
+    const retry = vi.fn()
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: false, error: null, retry }
+    const tree = await renderModal()
+
+    expect(findAlerts(tree).map((node: any) => node.props.children)).toEqual(['errors.fetchHabitDetails'])
+    expect(findFieldsWrapper(tree).props.pointerEvents).toBe('none')
+    expect(findSaveButton(tree)?.props.disabled).toBe(true)
+    await TestRenderer.act(async () => { await findSaveButton(tree)?.props.onClick() })
+    expect(mockUpdateMutateAsync).not.toHaveBeenCalled()
+    const retryButton = tree.root
+      .findAll((node: any) => node.type === 'PillButton')
+      .find((node: any) => node.props.label === 'common.retry')
+    await TestRenderer.act(() => { retryButton.props.onClick?.(); retryButton.props.onPress?.() })
+    expect(retry).toHaveBeenCalledTimes(1)
+  })
+
+  it('never holds the fields of a habit created offline', async () => {
+    mockHabitDetailResult = { data: null, isPending: true, isFetching: false, error: null }
+    let tree: any
+    await TestRenderer.act(() => {
+      tree = mountEditor(<TestEditor open onClose={vi.fn()} habit={createMockHabit({ id: 'offline-habit-7' })} />)
+    })
+
+    expect(findAlerts(tree)).toHaveLength(0)
+    expect(findFieldsWrapper(tree).props.pointerEvents).toBe('auto')
+    expect(findSaveButton(tree)?.props.disabled).toBe(false)
   })
 
   it('enables the fields and save once the habit detail has loaded', async () => {
