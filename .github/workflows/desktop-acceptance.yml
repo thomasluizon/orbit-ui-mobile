@@ -4,6 +4,9 @@ on:
   workflow_dispatch:
   pull_request:
     branches: [main]
+  # A main run is the only run of the macOS Developer ID job. The Windows job of a main run reads the pass marker of its pull request.
+  push:
+    branches: [main]
     # The installed shell and the harness files it imports; docs, unit tests and the benchmark CLI cannot change its result.
     paths:
       - 'apps/desktop/**'
@@ -22,14 +25,68 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-acceptance-${{ github.ref }}
+  group: desktop-acceptance-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  # A pull request runs the Windows job when a file that the job reads changed and no pass exists for those inputs.
+  # The inputs are the shell, the harness and its producer tests, the root manifests and the two local actions.
+  plan:
+    name: Plan desktop acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      run: ${{ steps.select.outputs.run }}
+      pass-key: ${{ steps.key.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Hash the Windows inputs
+        id: key
+        run: echo "value=desktop-windows-pass-v1-${{ hashFiles('apps/desktop/**', '!apps/desktop/**/*.md', 'tools/desktop-bench/**', '!tools/desktop-bench/README.md', 'package.json', 'package-lock.json', '.github/actions/desktop-acceptance-setup/**', '.github/actions/desktop-nsis-tools/**', '.github/workflows/desktop-acceptance.yml') }}" >> "$GITHUB_OUTPUT"
+      - name: Look up a pass for these Windows inputs
+        id: pass
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/cache/restore@v6
+        with:
+          path: .ci-pass/desktop-windows
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
+      - name: Select the Windows job
+        id: select
+        env:
+          PASS_HIT: ${{ steps.pass.outputs.cache-hit }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${PASS_HIT:-}" = true ]; then
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/desktop-paths.txt"
+          if grep -E '^apps/desktop/|^tools/desktop-bench/|^package(-lock)?\.json$|^\.github/actions/desktop-(acceptance-setup|nsis-tools)/|^\.github/workflows/desktop-acceptance\.yml$' "$RUNNER_TEMP/desktop-paths.txt" | grep -Ev '^(apps/desktop|tools/desktop-bench)/.*\.md$' > /dev/null; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'run=false' >> "$GITHUB_OUTPUT"
+          fi
+
   installed:
     name: installed (windows-latest)
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
     runs-on: windows-latest
-    timeout-minutes: 30
+    # The job holds the Windows x86 build of Desktop Build (443 to 650 s in runs 46020227178 and 46024472433) and the acceptance run (874 s in run 45955041496).
+    # Their sum is 1317 to 1524 s, and the limit is 40 minutes, which is 1.6 times the larger sum.
+    timeout-minutes: 40
     defaults:
       run:
         shell: bash
@@ -38,6 +95,20 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/desktop-acceptance-setup
+      - name: Run the platform-gated producer tests
+        run: |
+          node --import tsx tools/desktop-bench/test-acceptance.ts
+          node --import tsx tools/desktop-bench/test-acceptance-push.ts
+          node --import tsx tools/desktop-bench/test-acceptance-readers.ts
+          node --import tsx tools/desktop-bench/test-acceptance-launch.ts
+      - name: Point the Windows App SDK download cache
+        run: echo "ORBIT_WINDOWS_DOWNLOAD_CACHE=$RUNNER_TEMP/windows-app-sdk-downloads" >> "$GITHUB_ENV"
+      # About 200 MB: Desktop Build saves it on main, and this job only reads it.
+      - name: Cache Windows App SDK downloads
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.ORBIT_WINDOWS_DOWNLOAD_CACHE }}
+          key: ${{ runner.os }}-windows-app-sdk-x86_64-pc-windows-msvc-${{ hashFiles('apps/desktop/src-tauri/native/windows/downloads.json') }}
       - name: Restore the Rust compile cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
@@ -48,6 +119,15 @@ jobs:
           save-if: "false"
       - name: Provide the NSIS bundler tools
         uses: ./.github/actions/desktop-nsis-tools
+      # Checks and the web jsdom shards of Unit Tests prove the desktop types and the web bridge on every pull request.
+      - name: Test the desktop shell
+        run: npm run test -w @orbit/desktop
+      - name: Test native context on the runner host
+        working-directory: apps/desktop/src-tauri
+        run: cargo test --locked
+      # The package step compiles the target in full, so no separate cargo check runs.
+      - name: Package unsigned staging shell
+        run: npm run build:staging -w @orbit/desktop -- --target x86_64-pc-windows-msvc --no-sign -- --locked
       - name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance
@@ -77,8 +157,8 @@ jobs:
 
   installed-signed:
     name: installed (macos-latest, Developer ID)
-    # GitHub passes no secrets to a fork pull request, so only this repository's runs take the signing environment.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    # A pull request never runs this job, so no fork run takes the signing environment.
+    if: github.event_name != 'pull_request'
     runs-on: macos-latest
     timeout-minutes: 30
     environment:
@@ -125,3 +205,18 @@ jobs:
           # A step that fails before acceptance leaves no files; that step stays the job's only red step.
           if-no-files-found: warn
           retention-days: 14
+
+  # The marker is saved from Linux, where the plan job reads it.
+  record:
+    name: Record the desktop Windows pass
+    needs: [plan, installed]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Record the pass for these Windows inputs
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/desktop-windows
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/desktop-windows
+          key: ${{ needs.plan.outputs.pass-key }}

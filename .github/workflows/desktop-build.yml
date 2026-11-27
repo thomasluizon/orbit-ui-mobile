@@ -3,13 +3,6 @@ name: Desktop Build
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "apps/desktop/**"
-      - "!apps/desktop/**/*.md"
-      - "package.json"
-      - "package-lock.json"
-      - ".github/workflows/desktop-build.yml"
-      - ".github/actions/desktop-nsis-tools/**"
   # A main run compiles all four targets and saves the Rust compile caches that pull requests read.
   push:
     branches: [main]
@@ -30,44 +23,63 @@ permissions:
   contents: read
 
 jobs:
-  # The two cross targets read their own native inputs, so a pull request that changes the shell compiles all four.
-  # A pull request that changes only the root manifests compiles the two native targets.
-  targets:
+  # A pull request compiles the Apple Silicon target alone, and only when the shell or this workflow changed.
+  # The Windows x86 build of a pull request runs in installed (windows-latest) of desktop-acceptance.yml.
+  # A pass recorded for the same inputs skips the compile. A push to main and a dispatch compile all four targets.
+  plan:
     name: Select desktop targets
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    # `Select native boot proof` in android-startup.yml has the same two steps (a checkout of two commits and one diff).
-    # It took 52 s at worst in 59 pull request runs, and the limit is 2.3 times that.
-    timeout-minutes: 2
+    timeout-minutes: 3
     outputs:
+      run: ${{ steps.select.outputs.run }}
       matrix: ${{ steps.select.outputs.matrix }}
+      pass-key: ${{ steps.key.outputs.value }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
           persist-credentials: false
-      - name: Select the targets that the pull request can break
+      - name: Hash the shell inputs
+        id: key
+        run: echo "value=desktop-build-pass-v1-${{ hashFiles('apps/desktop/**', '!apps/desktop/**/*.md', '.github/workflows/desktop-build.yml') }}" >> "$GITHUB_OUTPUT"
+      - name: Look up a pass for these shell inputs
+        id: pass
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: .ci-pass/desktop-macos
+          key: ${{ steps.key.outputs.value }}
+          lookup-only: true
+      - name: Select the targets to compile
         id: select
+        env:
+          PASS_HIT: ${{ steps.pass.outputs.cache-hit }}
         run: |
           set -euo pipefail
+          all='["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]'
+          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
+            echo "matrix=$all" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo 'matrix=["aarch64-apple-darwin"]' >> "$GITHUB_OUTPUT"
           git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/desktop-paths.txt"
-          if grep -Eq '^apps/desktop/|^\.github/workflows/desktop-build\.yml$|^\.github/actions/desktop-nsis-tools/' "$RUNNER_TEMP/desktop-paths.txt"; then
-            echo 'matrix=["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]' >> "$GITHUB_OUTPUT"
+          if grep -E '^apps/desktop/|^\.github/workflows/desktop-build\.yml$' "$RUNNER_TEMP/desktop-paths.txt" | grep -Evq '\.md$' && [ "${PASS_HIT:-}" != true ]; then
+            echo 'run=true' >> "$GITHUB_OUTPUT"
           else
-            echo 'matrix=["aarch64-apple-darwin", "x86_64-pc-windows-msvc"]' >> "$GITHUB_OUTPUT"
+            echo 'run=false' >> "$GITHUB_OUTPUT"
           fi
 
   build:
     name: Desktop ${{ matrix.target }}
-    needs: targets
-    # A push to main and a dispatch compile all four targets. A failed selection compiles all four instead of skipping.
-    if: ${{ !cancelled() }}
+    needs: plan
+    if: needs.plan.outputs.run == 'true'
     runs-on: ${{ endsWith(matrix.target, '-apple-darwin') && 'macos-15' || 'windows-2025' }}
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(needs.targets.outputs.matrix || '["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"]') }}
+        target: ${{ fromJSON(needs.plan.outputs.matrix) }}
     defaults:
       run:
         shell: bash
@@ -160,3 +172,19 @@ jobs:
           path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 14
+
+  # The marker is saved from Linux, where the plan job reads it. The job needs every target, so a push to main saves it
+  # after all four compiled.
+  record:
+    name: Record the desktop compile pass
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Record the pass for these shell inputs
+        run: mkdir -p .ci-pass && echo "$GITHUB_SHA" > .ci-pass/desktop-macos
+      - name: Save the pass marker
+        uses: actions/cache/save@v6
+        with:
+          path: .ci-pass/desktop-macos
+          key: ${{ needs.plan.outputs.pass-key }}
