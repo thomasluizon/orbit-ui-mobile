@@ -1,4 +1,4 @@
 import { registerChromeLaunchHook } from '@/__tests__/support/chromium'
 import { interactionSurfaceSweep } from '@/__tests__/support/interaction-surface-sweep'
 
-interactionSurfaceSweep('/calendar', 'en', registerChromeLaunchHook)
+interactionSurfaceSweep('/calendar', 'en', registerChromeLaunchHook, [320, 480, 840])
