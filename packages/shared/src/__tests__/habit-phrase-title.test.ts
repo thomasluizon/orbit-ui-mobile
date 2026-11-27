@@ -299,6 +299,11 @@ describe('a title beside a das range and a quantity with its own unit', () => {
     ['Estudar das 9 às 11 e quinze às segundas', 'Estudar'],
     ['Estudar das 9 às 11 e 15 toda segunda', 'Estudar'],
     ['Estudar das 9 às 11 e quinze da noite', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de segunda a sexta', 'Estudar'],
+    ['Estudar das 9 às 11 e 15 de segunda a sexta', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de seg a sex', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de segunda', 'Estudar'],
+    ['Tomar remédio das 8 às 20 e 2 de xarope', 'Tomar remédio e 2 de xarope'],
   ] as const)('keeps the words of %s', (phrase, title) => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
   })
