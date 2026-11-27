@@ -703,6 +703,20 @@ describe('weekday ranges', () => {
     expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days })
   })
 
+  it.each([
+    ['pt-BR', 'segunda feira a sexta feira', workWeek],
+    ['pt-BR', 'de segunda feira à sexta feira', workWeek],
+    ['pt-BR', 'segunda feira até sexta feira', workWeek],
+    ['pt-BR', 'terça feira a quinta feira', WEEK.slice(1, 4)],
+    ['pt-BR', 'academia das segundas às sextas', workWeek],
+    ['pt-BR', 'academia de segunda às sexta', workWeek],
+    ['en', 'gym monday til friday', workWeek],
+    ['en', "gym monday 'til friday", workWeek],
+    ['en', 'gym monday through to friday', workWeek],
+  ] as const)('reads a range with feira, às, til or through to in %s "%s"', (locale, input, days) => {
+    expect(readHabitPhrase(input, locale)).toMatchObject({ cadence: 'fixed', days })
+  })
+
   it('keeps a weekly suffix after a range', () => {
     const read = readHabitPhrase('monday to friday every 2 weeks', 'en')
     expect(read).toMatchObject({ days: workWeek, intervalWeeks: 2 })

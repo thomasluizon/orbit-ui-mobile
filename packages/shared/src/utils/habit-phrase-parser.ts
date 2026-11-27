@@ -76,7 +76,7 @@ const WEEKDAY_PREFIX_GLUE = new Set(['o', 'a', 'the', 'de', 'do', 'da'])
 const WEEKDAY_PERIOD_WORDS = new Set(['month', 'months', 'year', 'years', 'mes', 'meses', 'ano', 'anos'])
 
 const WEEK_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+(?:a|ao|ate(?:\s+(?:a|o|ao))?|to|through|thru|until|till)\s+|\s*[-\u2013\u2014]\s*)$/u
+const WEEKDAY_RANGE_GLUE = /^\.?(?:\s+feiras?)?(?:\s+(?:a|ao|as|ate(?:\s+(?:a|o|ao))?|to|through(?:\s+to)?|thru|until|['\u2019]?till?)\s+|\s*[-\u2013\u2014]\s*)$/u
 
 type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
 const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
