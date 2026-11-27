@@ -1073,6 +1073,24 @@ const factsFileOf = (logFile) => logFile.replace(/\.log$/, ".facts.json")
 const ranOpus = (entry) => entry.model === workerApi.COORDINATOR_MODEL
 
 /**
+ * The owner comments on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
+ * and holds `stopText`: the conflict report of one head. Each owner comment after it grants one more launch, and a later stop
+ * report asks for the next one.
+ */
+const stopGrants = (ticket, stopText) => {
+  const grants = []
+  let capped = false
+  for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
+    if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(stopText)
+    else if (entry.kind === null && capped && partOf(entry) === null) {
+      grants.push(entry)
+      capped = false
+    }
+  }
+  return grants
+}
+
+/**
  * The launch facts of one plan, newest first. A launch writes its facts file when it starts and adds its exit when it ends, so
  * every field comes from the driver and none from a worker's own summary. A launch with no facts file shows only its record.
  */
@@ -1083,9 +1101,8 @@ export const failureHistory = (env, launches) => [...launches].reverse().map((en
   return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : resultText(tailOf(logFile)) }
 })
 
-
 /** The ordered actions for one pull request. The plan writes nothing. */
-const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, running }, pull) => {
+const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, running, mergedPulls }, pull) => {
   const dependabot = pull.author === "dependabot"
   const item = `${repoKey}#${pull.number}`
   if (pull.draft) return [{ type: "none", reason: "draft" }]
@@ -1099,12 +1116,12 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A second run on one head costs a full review and answers nothing new, so no request goes out while a run for the pull request is queued or in progress.
   const runBusy = runs.some((run) => run.status !== "completed")
   const request = (text) => (runBusy ? { type: "none", reason: "a Pullfrog run is in progress" } : { type: "request", text, ticketComment: !dependabot && ticket !== null && !hasTicketComment })
-  if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef)) {
+  if (pull.baseRef !== state.defaultBranch && !state.pulls.some((other) => other.headRef === pull.baseRef && !mergedPulls.has(other))) {
     return [{ type: "retarget", base: state.defaultBranch }, { type: "update" }, request(PLAIN_REQUEST)]
   }
   const launches = launchesOf(ticket).filter((entry) => entry.branch === pull.headRef && FIX_KINDS.includes(entry.kind))
-  // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
-  const counted = launches.filter((entry) => !entry.baseMerge)
+  // A ci-fix launch for a base merge and a merge-forward launch are no fault of the change, so the cap does not count them. A base-merge mark holds the head it ran at.
+  const counted = launches.filter((entry) => !entry.baseMerge && entry.kind !== "merge-forward")
   const actions = flakeActions(pull)
   const owner = (reason, cause = reason) => [...actions, { type: "needs-owner", reason, cause }]
   const orderOrWait = (order) => {
@@ -1112,6 +1129,18 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it.`, `no-ticket-${order.kind}`)
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+    // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
+    // An owner comment after the conflict report of this head grants one more merge-forward launch at it.
+    if (order.kind === "merge-forward") {
+      // The launches and the grants before the newest owner decision are answered, so a decided conflict gets its first launch again.
+      const since = ownerDecisionAt(env, ticket)
+      const atHead = launchesOf(ticket, since).filter((entry) => entry.branch === pull.headRef && entry.kind === "merge-forward" && entry.baseMerge === pull.headSha)
+      const stopText = `${item} at ${pull.headSha}: ${item} still conflicts with the base branch after a merge-forward launch at this head.`
+      const forwardGrants = stopGrants({ ...ticket, comments: ticket.comments.filter((entry) => Date.parse(entry.createdAt) > since) }, stopText)
+      if (atHead.length === 0) return [...actions, { ...order, baseMergeHead: pull.headSha }]
+      if (atHead.length <= forwardGrants.length) return [...actions, { ...order, baseMergeHead: pull.headSha, ownerNote: forwardGrants[atHead.length - 1].body }]
+      return [...actions, { type: "needs-owner", reason: `${item} still conflicts with the base branch after a merge-forward launch at this head. Launches: ${atHead.length}. Open: merge conflict with the base branch`, relabel: true }]
+    }
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
     // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
     if (!counted.some(ranOpus)) return [...actions, { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }]
@@ -1214,8 +1243,10 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
       mem.acted = true
-      ctx.merged = true
       mem.merged.delete(pull.tracks)
+      // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
+      // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
+      ctx.mergedPulls.add(pull)
       await outsideTicket(env, repoKey, pull)
       return undefined
     default: return undefined
@@ -1242,7 +1273,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
   // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
   const hold = repoKey === "ui" ? mobileMergeHold(readTrainState(env.stateDir)) : null
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running, hold }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running, hold }
   const repoPath = env.config.repos[repoKey]
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
@@ -1271,7 +1302,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
   return { ctx, planned: Promise.all(planOrder(state).map((pull) => gate(() => planOne(pull)))) }
 }
 
-/** Runs the plans of one repository in number order. Returns the order candidates. The first merge ends the repository's turn. */
+/** Runs the plans of one repository in number order. Returns the order candidates. Every pull request that meets the bar merges in the same tick. */
 const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
   const orders = []
   for (const [index, { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain }] of planned.entries()) {
@@ -1286,7 +1317,9 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
       // The first plan marked the threads resolved in memory, so its resolve step stays.
       const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
-      const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
+      const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
+      const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
       const mergeHeld = plan.some((action) => action.held)
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
@@ -1301,7 +1334,6 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
             if (action.type !== "needs-owner") log(env, item, describe(action))
             if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
           }
-          if (ctx.merged) break
         }
       } finally {
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
@@ -1527,8 +1559,8 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree }) : null
   const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
   const text = session === null
-    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: part?.number ?? null })
-    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure })
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
+    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
