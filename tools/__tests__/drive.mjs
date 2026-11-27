@@ -20,7 +20,9 @@ import {
   carriedApproval,
   mergeBar,
   needsWholeDiff,
-  pullfrogRunsFor,
+  pullfrogRuns,
+  pullfrogRunsOf,
+  isRateLimited,
   readDependabotUpdateTypes,
   readFailedSteps,
   readRepositoryState,
@@ -121,7 +123,7 @@ const stateResponse = (numbers) => {
 }
 
 /** A gh runner that lists `open` and answers each pull request that a state query names. `requested` keeps the numbers of each query. */
-const batchedState = (open, { failAt = null } = {}) => {
+const batchedState = (open, { failOn = [], message = "HTTP 502" } = {}) => {
   const requested = []
   let active = 0
   let mostActive = 0
@@ -132,7 +134,7 @@ const batchedState = (open, { failAt = null } = {}) => {
     mostActive = Math.max(mostActive, ++active)
     await new Promise((resolve) => setImmediate(resolve))
     active -= 1
-    if (call === failAt) throw new Error("gh api graphql failed: HTTP 502")
+    if (failOn.includes(call)) throw new Error(`gh api graphql failed: ${message}`)
     const response = stateResponse(open)
     const sample = response.data.repository.pr2509
     delete response.data.repository.pr2509
@@ -257,9 +259,25 @@ const githubUnit = async () => {
   same("lib/github.mjs: known and new numbers make one merged state", mixedState.pulls.map((pull) => pull.number), current)
   same("lib/github.mjs: no number is read twice, and each open number is read", [read.length, new Set(read).size, current.every((number) => read.includes(number))], [15, 15, true])
 
-  const failing = batchedState(many, { failAt: 3 })
+  const failing = batchedState(many, { failOn: [3, 4] })
   const failure = await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(failing.run) }))
-  same("lib/github.mjs: a failed third batch fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.length], [true, 3])
+  same("lib/github.mjs: a batch that fails again at half size fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.map((numbers) => numbers.length)], [true, [8, 8, 8, 4]])
+  const half = batchedState(many, { failOn: [3] })
+  const halved = await readRepositoryState("ui", { knownNumbers: many, ...seams(half.run) })
+  same("lib/github.mjs: a failed batch reads again as two halves and the read goes on with the later batches", half.requested.map((numbers) => numbers.length), [8, 8, 8, 4, 4, 8, 3])
+  same("lib/github.mjs: the halves of a failed batch fill the state in the order of the open list", halved.pulls.map((pull) => pull.number), many)
+  const lone = batchedState(many.slice(0, 9), { failOn: [3] })
+  await readRepositoryState("ui", { knownNumbers: [], ...seams(lone.run) })
+  same("lib/github.mjs: a failed batch of one pull request reads that one again", lone.requested.map((numbers) => numbers.length), [0, 8, 1, 1])
+  const firstFail = batchedState(many, { failOn: [1] })
+  const recovered = await readRepositoryState("ui", { knownNumbers: many, ...seams(firstFail.run) })
+  const firstRead = firstFail.requested.slice(1).flat()
+  same("lib/github.mjs: a failed first read goes on with half of the known numbers and the rest read in later batches", [firstFail.requested[1].length, recovered.pulls.length, firstRead.length, new Set(firstRead).size], [4, 35, 35, 35])
+  const limited = batchedState(many, { failOn: [3], message: "HTTP 403: API rate limit exceeded" })
+  same("lib/github.mjs: a rate limit on a batch fails at once with no read at half size", [/rate limit/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(limited.run) }))), limited.requested.length], [true, 3])
+  const limitedFirst = batchedState(many, { failOn: [1], message: "HTTP 403" })
+  same("lib/github.mjs: a rate limit on the first read fails at once", [/HTTP 403/.test(await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(limitedFirst.run) }))), limitedFirst.requested.length], [true, 1])
+  same("lib/github.mjs: HTTP 403 and a rate limit message are rate limits and HTTP 502 is not", ["gh api graphql failed: HTTP 403: Forbidden", "You have exceeded a secondary rate limit", "gh api graphql failed: HTTP 502"].map((message) => isRateLimited(new Error(message))), [true, true, false])
 
   T("lib/github.mjs: more than 100 open pull requests is refused", /more than 100 open/.test(await thrown(() => {
     const response = stateResponse([2509])
@@ -274,6 +292,20 @@ const githubUnit = async () => {
   const ticketRun = ticketRoute(FIXTURE.tickets.response)
   const tickets = await readTickets(seams(ticketRun.run))
   same("lib/github.mjs: every open ticket comes back in one read", [ticketRun.calls.length, tickets.map((ticket) => ticket.number)], [1, [2183, 2186, 2187, 2191, 2125]])
+  T("lib/github.mjs: the ticket page reads 20 blockers of each ticket", ticketRun.calls[0].text.includes("blockedBy(first: 20)") && !ticketRun.calls[0].text.includes("blockedBy(first: 100)"))
+  const blockerNode = (number) => ({ number, state: number % 2 === 0 ? "OPEN" : "CLOSED", labels: { nodes: [{ name: "repo:ui" }] } })
+  const crowded = structuredClone(FIXTURE.tickets.response)
+  crowded.data.repository.issues.nodes[0].blockedBy.nodes = Array.from({ length: 20 }, (_, index) => blockerNode(index + 1))
+  crowded.data.repository.issues.nodes[1].blockedBy.nodes = Array.from({ length: 19 }, (_, index) => blockerNode(index + 1))
+  const crowdedRun = scripted([
+    ["DriveBlockers", () => json({ data: { repository: { issue: { blockedBy: { nodes: Array.from({ length: 34 }, (_, index) => blockerNode(index + 1)) } } } } })],
+    ["DriveTickets", () => json(crowded)],
+  ])
+  const crowdedTickets = await readTickets(seams(crowdedRun.run))
+  const blockerReads = crowdedRun.calls.filter((call) => call.text.includes("DriveBlockers"))
+  same("lib/github.mjs: a ticket with a full page of 20 blockers reads all of its blockers in one more query", [blockerReads.length, blockerReads[0].text.includes("number=2183"), blockerReads[0].text.includes("blockedBy(first: 100)"), crowdedTickets[0].blockedBy.length], [1, true, true, 34])
+  same("lib/github.mjs: a ticket with 19 blockers reads no more", crowdedTickets[1].blockedBy.length, 19)
+  same("lib/github.mjs: the blockers of the second read keep their state and repository", crowdedTickets[0].blockedBy.slice(0, 2).map((blocker) => [blocker.number, blocker.open, blocker.repoKey]), [[1, false, "ui"], [2, true, "ui"]])
   const byNumber = Object.fromEntries(tickets.map((ticket) => [ticket.number, ticket]))
   same("lib/github.mjs: a ticket keeps its labels and its one repo: label", [byNumber[2186].labels, byNumber[2186].repoKey], [["repo:ui", "Improvement", "parity:no", "harness"], "ui"])
   same("lib/github.mjs: a blocker keeps its state, labels and repository", byNumber[2191].blockedBy.map((blocker) => [blocker.number, blocker.open, blocker.repoKey]), [[2187, true, "ui"], [2190, true, "api"]])
@@ -403,12 +435,11 @@ const mergeBarCases = (approved) => {
 }
 
 const pullfrogAndDeploymentCases = async (seams) => {
-  const runsFor = async (responseRuns, number) => {
-    const { run, calls } = scripted([["--workflow pullfrog.yml", () => json(responseRuns)]])
-    return { runs: await pullfrogRunsFor("ui", number, seams(run)), calls }
-  }
   const named = { ...FIXTURE.pullfrogRuns.response[0], databaseId: 1, displayTitle: `Respond to mention on #${7 * 10} [zzzzz]` }
-  const { runs, calls } = await runsFor([...FIXTURE.pullfrogRuns.response, named], 7)
+  const { run, calls } = scripted([["--workflow pullfrog.yml", () => json([...FIXTURE.pullfrogRuns.response, named])]])
+  const all = await pullfrogRuns("ui", seams(run))
+  const runs = pullfrogRunsOf(all, 7)
+  same("lib/github.mjs: one read of the Pullfrog runs serves every pull request of the repository", [calls.length, all.length, pullfrogRunsOf(all, 70).map((entry) => entry.databaseId)], [1, FIXTURE.pullfrogRuns.response.length + 1, [1]])
   same("lib/github.mjs: the Pullfrog runs of a pull request are the runs that name it", runs.map((entry) => entry.databaseId), FIXTURE.pullfrogRuns.response.map((entry) => entry.databaseId))
   same("lib/github.mjs: the run list asks for pullfrog.yml with the recorded fields", calls[0].args.slice(0, 7), ["run", "list", "--repo", UI, "--workflow", "pullfrog.yml", "--json"])
   same("lib/github.mjs: a run keeps its status, conclusion and times", [runs[0].status, runs[0].conclusion, runs[0].createdAt, runs[0].updatedAt], ["completed", "success", "2026-11-20T08:59:18Z", "2026-11-20T09:05:30Z"])

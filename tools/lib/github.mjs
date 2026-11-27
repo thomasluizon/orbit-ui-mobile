@@ -53,6 +53,11 @@ const stateQuery = (numbers) => `query DriveState($owner: String!, $name: String
   }
 }`
 
+/** A ticket page costs one point for each 100 nested reads, and the blockers are most of them, so the page reads this many blockers of a ticket. A ticket with that many reads all of its blockers in one more query. */
+const BLOCKERS_PER_PAGE = 20
+const ALL_BLOCKERS = 100
+const BLOCKER_FIELDS = "number state labels(first: 50) { nodes { name } }"
+
 const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $after: String) {
   repository(owner: $owner, name: $name) {
     issues(states: OPEN, first: 50, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
@@ -60,7 +65,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
       nodes {
         number title body
         labels(first: 50) { nodes { name } }
-        blockedBy(first: 100) { nodes { number state labels(first: 50) { nodes { name } } } }
+        blockedBy(first: ${BLOCKERS_PER_PAGE}) { nodes { ${BLOCKER_FIELDS} } }
         comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } }
       }
     }
@@ -70,6 +75,12 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
 const MORE_COMMENTS_QUERY = `query DriveComments($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } } }
+  }
+}`
+
+const ALL_BLOCKERS_QUERY = `query DriveBlockers($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) { blockedBy(first: ${ALL_BLOCKERS}) { nodes { ${BLOCKER_FIELDS} } } }
   }
 }`
 
@@ -204,10 +215,27 @@ const normalizePull = (raw, ticketRepository) => {
   }
 }
 
+/** True for a failure that GitHub gave because a rate limit holds: HTTP 403 or a rate limit message. A read again at once fails the same way. */
+export const isRateLimited = (error) => /\bHTTP 403\b|rate limit/i.test(error?.message ?? "")
+
+/** The read of one batch of pull requests. A failed read runs again once at half size: the two halves of the batch, or the same single pull request. A rate limit fails at once. */
+const readBatch = async (numbers, read) => {
+  try {
+    return [await read(numbers)]
+  } catch (error) {
+    if (isRateLimited(error)) throw error
+    const middle = Math.ceil(numbers.length / 2)
+    const halves = numbers.length < 2 ? [numbers] : [numbers.slice(0, middle), numbers.slice(middle)]
+    const reads = []
+    for (const half of halves) reads.push(await read(half))
+    return reads
+  }
+}
+
 /**
  * Every open pull request of one repository. The first read lists the open numbers and holds the first `knownNumbers` of the last
- * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed read
- * fails the whole call, so no caller gets a partial state.
+ * tick. The other open numbers follow in batches, one after the other, so the reads add no burst on the rate limit. A failed batch
+ * reads again once at half size. A batch that fails twice fails the whole call, so no caller gets a partial state.
  */
 export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ...seams } = {}) => {
   if (!knownNumbers.every((number) => Number.isInteger(number) && number > 0)) throw new Error("knownNumbers must be positive integers")
@@ -215,13 +243,23 @@ export const readRepositoryState = async (repositoryKey, { knownNumbers = [], ..
   const slug = api.slugOf(repositoryKey)
   const { owner, name } = splitSlug(slug)
   const read = async (numbers) => (await graphql(api, stateQuery(numbers), { owner, name })).repository
-  const firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
-  const first = await read(firstNumbers)
+  let firstNumbers = knownNumbers.slice(0, PULLS_PER_STATE_QUERY)
+  let first
+  try {
+    first = await read(firstNumbers)
+  } catch (error) {
+    if (isRateLimited(error)) throw error
+    // The numbers that the smaller read leaves out count as unread below, so the next batches read them.
+    firstNumbers = firstNumbers.slice(0, Math.ceil(firstNumbers.length / 2))
+    first = await read(firstNumbers)
+  }
   if (first.open.pageInfo.hasNextPage) throw new Error(`${slug} has more than 100 open pull requests; the driver reads 100`)
   const open = first.open.nodes.map((pull) => pull.number)
   const unread = open.filter((number) => !firstNumbers.includes(number))
   const raw = { ...first }
-  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) Object.assign(raw, await read(unread.slice(start, start + PULLS_PER_STATE_QUERY)))
+  for (let start = 0; start < unread.length; start += PULLS_PER_STATE_QUERY) {
+    for (const part of await readBatch(unread.slice(start, start + PULLS_PER_STATE_QUERY), read)) Object.assign(raw, part)
+  }
   const pulls = open.map((number) => normalizePull(raw[`pr${number}`], api.config.tickets.repository))
   return { repositoryKey, slug, defaultBranch: first.defaultBranchRef.name, numbers: open, pulls }
 }
@@ -237,6 +275,11 @@ const readMoreComments = async (api, number, after) => {
   return comments
 }
 
+const readAllBlockers = async (api, number) => {
+  const { owner, name } = splitSlug(api.config.tickets.repository)
+  return nodes((await graphql(api, ALL_BLOCKERS_QUERY, { owner, name, number })).repository.issue.blockedBy)
+}
+
 /** Every open ticket with its labels, blockers and comments. */
 export const readTickets = async (seams = {}) => {
   const api = bind(seams)
@@ -247,13 +290,14 @@ export const readTickets = async (seams = {}) => {
     for (const issue of page.nodes) {
       const labels = labelNames(issue.labels)
       const more = issue.comments.pageInfo.hasNextPage ? await readMoreComments(api, issue.number, issue.comments.pageInfo.endCursor) : []
+      const blockers = nodes(issue.blockedBy).length < BLOCKERS_PER_PAGE ? nodes(issue.blockedBy) : await readAllBlockers(api, issue.number)
       tickets.push({
         number: issue.number,
         title: issue.title,
         body: issue.body ?? "",
         labels,
         repoKey: repoKeyOf(labels),
-        blockedBy: nodes(issue.blockedBy).map((blocker) => {
+        blockedBy: blockers.map((blocker) => {
           const blockerLabels = labelNames(blocker.labels)
           return { number: blocker.number, open: blocker.state === "OPEN", labels: blockerLabels, repoKey: repoKeyOf(blockerLabels) }
         }),
@@ -421,12 +465,17 @@ export const readFailedSteps = async (repositoryKey, runId, jobId, seams = {}) =
   return response.jobs.filter((job) => job.databaseId === jobId).flatMap((job) => job.steps.filter((step) => step.conclusion === "failure").map((step) => step.name))
 }
 
-/** The `pullfrog.yml` runs that name one pull request in their display title. */
-export const pullfrogRunsFor = async (repositoryKey, prNumber, seams = {}) => {
+/** The `pullfrog.yml` runs of one repository: one read for every pull request of the tick. */
+export const pullfrogRuns = async (repositoryKey, seams = {}) => {
   const api = bind(seams)
   const args = ["run", "list", "--repo", api.slugOf(repositoryKey), "--workflow", "pullfrog.yml", "--json", "databaseId,displayTitle,status,conclusion,createdAt,updatedAt", "--limit", "200"]
+  return parseJson("gh run list", await api.run(args))
+}
+
+/** The runs of a `pullfrogRuns` list that name one pull request in their display title. */
+export const pullfrogRunsOf = (runs, prNumber) => {
   const mention = new RegExp(`#${prNumber}(?!\\d)`)
-  return parseJson("gh run list", await api.run(args)).filter((run) => mention.test(run.displayTitle))
+  return runs.filter((run) => mention.test(run.displayTitle))
 }
 
 /** The newest deployment of an environment and task whose latest status is `success`, or null. */
