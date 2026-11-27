@@ -1151,6 +1151,11 @@ describe('the pt-BR abbreviation ter', () => {
     ['Na segunda e ter calma', ['Monday']],
     ['academia segunda e ter', ['Monday']],
     ['academia ter e quinta', ['Thursday']],
+    ['Parar de ter domingo ocupado', ['Sunday']],
+    ['Gostaria de ter sábado livre', ['Saturday']],
+    ['Antes de ter segunda livre', ['Monday']],
+    ['Treino de sexta e ter descanso no sábado', ['Friday', 'Saturday']],
+    ['Treino das sextas e ter calma', ['Friday']],
   ] as const)('keeps ter as a verb beside a full day name: %s', (input, days) => {
     expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
   })

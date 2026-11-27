@@ -410,7 +410,7 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
     const [first, second] = other.match.index < match.index ? [other.match, match] : [match, other.match]
     const glue = text.slice(first.index + first[0].length, second.index)
     if (first.index + first[0].length > second.index || !WEEKDAY_NEIGHBOR_GLUE.test(glue)) return false
-    return SHORT_WEEKDAY.test(other.match[0]) || RANGE_OPENER.test(text.slice(0, first.index))
+    return SHORT_WEEKDAY.test(other.match[0]) || (RANGE_OPENER.test(text.slice(0, first.index)) && isWeekdayRangeGlue(glue))
   })
   return all
     .filter((weekday) => !weekday.withNeighbor || besideDay(weekday))
