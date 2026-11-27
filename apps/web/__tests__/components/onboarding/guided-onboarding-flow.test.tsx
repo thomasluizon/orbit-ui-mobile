@@ -671,6 +671,34 @@ describe('guided onboarding requests', () => {
       expect(mocks.updateHabit).toHaveBeenCalledOnce()
     })
 
+    const doneTarget = (name: string) => [...screen.queryAllByRole('button', { name, hidden: true }), ...screen.queryAllByRole('link', { name, hidden: true })][0]!
+    const reachDone = async () => {
+      await reachReminder()
+      await act(async () => { press(remind.deny) })
+      await screen.findByRole('dialog', { name: messages.result.title })
+    }
+
+    it('finishes onboarding and opens the Done destination on a Pro plan', async () => {
+      mocks.plan = 'Pro'
+      const destination = '/calendar'
+      const name = messages.nav.calendar
+      await reachDone()
+      const target = doneTarget(name)
+      await act(async () => { fireEvent.click(target) })
+      await waitFor(() => expect(mocks.push).toHaveBeenCalledWith(destination))
+      expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the selected Done destination until the final Pro step finishes', async () => {
+      mocks.plan = 'Free'
+      await reachDone()
+      const target = doneTarget(messages.nav.calendar)
+      await act(async () => { fireEvent.click(target) })
+      expect(await screen.findByTestId('pro-step')).toBeInTheDocument()
+      expect(mocks.push).not.toHaveBeenCalled()
+      expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+    })
+
     it('ignores Allow while Not now is saving', async () => {
       let resolveUpdate!: () => void
       mocks.updateHabit.mockReturnValue(new Promise<void>((resolve) => { resolveUpdate = resolve }))

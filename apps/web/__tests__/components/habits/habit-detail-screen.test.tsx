@@ -2027,4 +2027,128 @@ describe('HabitDetailScreen', () => {
     })
   })
 
+
+  it('offers Pro and Not now on the free rescue card without asking Orbit', () => {
+    openRescueGate()
+    mocks.hasProAccess = false
+    render(<HabitDetailScreen habitId="habit-1" />)
+    const card = screen.getByText('habits.reschedule.freePrompt').parentElement!
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
+    expect(within(card).queryByTestId('orbit-mascot')).not.toBeInTheDocument()
+    expect(within(card).getByTestId('badge')).toHaveTextContent('habits.detail.proGate')
+    expect(Array.from(card.querySelectorAll<HTMLElement>('a, button')).map((button) => [button.textContent, button.dataset.variant, button.dataset.size])).toEqual([
+      ['habits.reschedule.dismiss', 'ghost', 'sm'],
+      ['habits.reschedule.upgrade', 'primary', 'sm'],
+    ])
+    expect(mocks.rescheduleOptions.length).toBeGreaterThan(0)
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+    expect(within(card).getByRole('link', { name: 'habits.reschedule.upgrade' })).toHaveAttribute('href', '/upgrade')
+
+    fireEvent.click(within(card).getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(screen.queryByText('habits.reschedule.freePrompt')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+  })
+
+  it('shows a rescue only for an older overdue habit and handles request states', () => {
+    openRescueGate()
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const wait = within(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).getByTestId('rescue-loading-skeleton')
+    expect(Array.from(wait.querySelectorAll('[data-variant]')).map((block) => [block.getAttribute('data-variant'), block.textContent])).toEqual([['habit-row', 'habits.reschedule.loading'], ['habit-row', '']])
+    expect(screen.queryByText('habits.detail.rescheduleLoading')).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+    expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
+
+    mocks.rescheduleError = createApiClientError(400, { error: 'Not overdue', errorCode: 'HABIT_NOT_OVERDUE' }, 'Failed')
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
+
+    mocks.rescheduleError = createApiClientError(500, { error: 'Unavailable' }, 'Failed')
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(within(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).getByRole('status')).toHaveTextContent('habits.detail.rescheduleError')
+    expect(screen.queryByRole('button', { name: 'habits.detail.rescheduleAccept' })).not.toBeInTheDocument()
+    const retry = screen.getByRole('button', { name: 'habits.reschedule.suggestDate' })
+    expect(retry).toHaveTextContent('habits.reschedule.suggestDate')
+    fireEvent.click(retry)
+    expect(mocks.rescheduleRefetch).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'habits.reschedule.dismiss' }))
+    expect(screen.queryByText('habits.detail.rescheduleError')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+  })
+
+  it('shows the drawn proposal and puts it away for this visit only', () => {
+    openRescueGate()
+    mocks.uses24HourClock = true
+    mocks.suggestion = { frequencyUnit: 'Day', frequencyQuantity: 1, dueDate: '2026-08-20', dueTime: '07:30:00', days: ['Tuesday', 'Thursday'], rationale: 'Walk before work.' }
+    const view = render(<HabitDetailScreen habitId="habit-1" />)
+    const proposal = screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })
+    expect(Array.from(proposal.querySelectorAll('p, button')).map((node) => node.textContent)).toEqual([
+      'Thu, Aug 20 · 07:30',
+      'dates.daysShort.tuesday, dates.daysShort.thursday',
+      'Walk before work.',
+      'habits.detail.rescheduleFinePrint',
+      'habits.reschedule.dismiss',
+      'habits.detail.rescheduleAccept',
+    ])
+    expect(within(proposal).getAllByRole('button').map((button) => [button.dataset.variant, button.dataset.size])).toEqual([['ghost', 'sm'], ['primary', 'sm']])
+    expect(screen.queryByText('habits.detail.slipping')).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+
+    const notNow = within(proposal).getByRole('button', { name: 'habits.reschedule.dismiss' })
+    notNow.focus()
+    fireEvent.click(notNow)
+    expect(screen.queryByRole('group', { name: 'habits.form.proposedByOrbit' })).not.toBeInTheDocument()
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+    expect(document.activeElement).toBe(screen.getByText('habits.detail.orbit.slippingLine').closest('section'))
+
+    mocks.detail = { ...makeDetail(), id: 'habit-2' }
+    mocks.scopedHabits = new Map([['habit-2', { ...makeScopedParent(), id: 'habit-2', isOverdue: true }]])
+    view.rerender(<HabitDetailScreen habitId="habit-2" />)
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
+
+    mocks.detail = makeDetail()
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]])
+    view.rerender(<HabitDetailScreen habitId="habit-1" />)
+    expect(screen.getByRole('group', { name: 'habits.form.proposedByOrbit' })).toBeInTheDocument()
+  })
+
+  it('asks before logging a date before the habit existed', async () => {
+    expect(en.habits.detail.logDateConfirmMessage).toBe('This logs {name} on {date}.')
+    mocks.detail = { ...makeDetail(), createdAtUtc: '2026-08-28T12:00:00Z' }
+    mocks.logs = []
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-27" />)
+    fireEvent.click(screen.getByRole('button', { name: 'log' }))
+    expect(mocks.log).not.toHaveBeenCalled()
+    expect(screen.getByTestId('confirm-habits.detail.logDateQuestion')).toHaveAttribute('data-confirm-label', 'habits.detail.logDateConfirmLog')
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateQuestion'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'habit-1', date: '2026-08-27', intent: 'log' })
+  })
+
+  it('confirms a child date when its creation time is unavailable from the schedule', async () => {
+    const schedule = makeHabitScheduleItem({ createdAtUtc: '2026-08-01T12:00:00Z' })
+    mocks.scopedHabits = normalizeHabitQueryData([schedule]).habitsById
+    render(<HabitDetailScreen habitId="habit-1" date="2026-08-28" />)
+    fireEvent.click(screen.getByTestId('child-child-1'))
+    expect(mocks.log).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('confirm-habits.detail.logDateQuestion'))
+    await act(async () => Promise.resolve())
+    expect(mocks.log).toHaveBeenCalledWith({ habitId: 'child-1', date: '2026-08-28', intent: 'log' })
+  })
+
+  it('uses the account today overdue schedule on a historical detail', () => {
+    openRescueGate()
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]]))
+    const view = render(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(mocks.scopedRequests).toContainEqual({ dateFrom: '2026-08-29', includeOverdue: true })
+    expect(screen.getByText('habits.detail.orbit.slippingLine')).toBeVisible()
+    expect(mocks.rescheduleOptions.some((options) => options.enabled)).toBe(true)
+
+    mocks.scopedHabits = new Map([['habit-1', { ...makeScopedParent(), isOverdue: false }]])
+    mocks.scopedHabitsByDate.set('2026-08-20', new Map([['habit-1', { ...makeScopedParent(), isOverdue: true }]]))
+    mocks.rescheduleOptions = []
+    view.rerender(<HabitDetailScreen habitId="habit-1" date="2026-08-20" />)
+    expect(screen.queryByText(/habits\.detail\.slippingLine/)).not.toBeInTheDocument()
+    expect(mocks.rescheduleOptions.every((options) => !options.enabled)).toBe(true)
+  })
 })
