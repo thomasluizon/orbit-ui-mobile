@@ -10,7 +10,8 @@ import { runBounded } from "./bounded-process.mjs"
 import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 
-const MODEL = "claude-sonnet-5-5"
+/** The model of every worker launch, except the launch at a cap, which runs the coordinator model. */
+export const WORKER_MODEL = "claude-sonnet-5-5"
 /** The coordinator model: the owner session and the questions run use it. */
 export const COORDINATOR_MODEL = "claude-opus-5-5"
 const EFFORT = "high"
@@ -123,7 +124,7 @@ export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_O
 })
 
 /** The worker command. The order goes in on stdin, never in argv. */
-export const workerCommand = (settingsJson, model = MODEL) => ({
+export const workerCommand = (settingsJson, model = WORKER_MODEL) => ({
   executable: "claude",
   args: [
     "-p", "--model", model, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
@@ -178,7 +179,7 @@ export const workerAccountEnvironment = (parentEnvironment, configDirectory) => 
  * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
  * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
  */
-export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => {
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = WORKER_MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => {
   const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills, codeWorker, own })
   const environment = workerEnvironmentFor(parentEnvironment, token)
   if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
