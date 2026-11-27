@@ -1547,6 +1547,21 @@ const enforceOrphanClocks = async (env, mem) => {
 }
 
 /**
+ * A questions run that this process did not start has no timer here, so each tick checks its hard ceiling from its pid file.
+ * It gets SIGTERM at the ceiling and SIGKILL on the next tick if it still lives.
+ */
+const enforceQuestionsCeiling = (env, mem) => {
+  if (env.dryRun || mem.questions !== null) return
+  const file = pidFileOf(env, QUESTIONS_STEM)
+  if (file === null) return void mem.orphans.delete(QUESTIONS_STEM)
+  if (mem.orphans.has(QUESTIONS_STEM)) return env.worker.killWorkerTree(file.pid, "SIGKILL")
+  if (env.now() - Date.parse(file.startedAt) < env.worker.WORKER_LIMITS.hardCeilingMs) return
+  mem.orphans.set(QUESTIONS_STEM, { reason: "hard-ceiling" })
+  log(env, "questions", "kill", `a run that this process did not start ${env.worker.KILL_REASONS["hard-ceiling"]}`)
+  env.worker.killWorkerTree(file.pid, "SIGTERM")
+}
+
+/**
  * Marks the account of a worker that ended on a usage limit (or a sign-in failure) as stopped, and takes the launch back so the
  * order starts again on the other account without a count toward its cap. A limit lasts until the `resetsAt` of the account;
  * a sign-in failure or an unknown reset lasts one hour.
@@ -2126,10 +2141,23 @@ const watchStall = async (env, tickets, { acted, held, waiting }) => {
   tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
 }
 
+/** The detached worktree of the questions run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
+const questionsWorktree = async (env) => {
+  const repoPath = env.config.repos.ui
+  const path = join(dirname(repoPath), "orbit-worktrees", "ui", QUESTIONS_STEM)
+  await gitText(env, repoPath, ["fetch", "origin", "main"])
+  const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])).some((entry) => resolve(entry.path) === resolve(path))
+  if (listed) await gitText(env, path, ["checkout", "--detach", "origin/main"])
+  else await gitText(env, repoPath, ["worktree", "add", "--detach", path, "origin/main"])
+  return path
+}
+
 /**
  * Starts one headless `/questions --auto` run when a held item (`heldWithNewReport`) has a `needs-owner` report newer than the
- * start of the last run, and no run is live. The run takes no worker slot. It runs in the driver worktree on the main account with the
- * coordinator model and the owner's gh login, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * start of the last run, and no run is live. The run takes no worker slot. It runs in its own worktree (`questionsWorktree`), not in the
+ * driver worktree, so a driver switch does not wait for it. It runs on the main account with the coordinator model and the owner's gh login,
+ * and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * A live pid file means a run that an earlier driver process started: the new process adopts it and starts no second one.
  * The skill reads `sleep.json` itself, so the driver passes no sleep state.
  */
 const startQuestions = async (env, mem, { tickets, states, blocked }) => {
@@ -2141,10 +2169,11 @@ const startQuestions = async (env, mem, { tickets, states, blocked }) => {
   const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
   if (token === null) return log(env, "questions", "refused", "no owner gh login: run gh auth login")
   const invocation = env.worker.questionsInvocation({ home: env.home, parentEnvironment: process.env, token })
+  const worktree = await questionsWorktree(env)
   const startedAt = env.now()
   writeFileSync(join(env.stateDir, QUESTIONS_FILE), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
   const logFile = join(env.stateDir, "logs", `${QUESTIONS_STEM}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
-  const running = env.worker.launch({ invocation, worktree: env.driverWorktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
+  const running = env.worker.launch({ invocation, worktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
   log(env, "questions", "launch")
   mem.questions = running.then((result) => {
     mem.questions = null
@@ -2163,6 +2192,7 @@ export const tick = async (env, mem) => {
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
+  enforceQuestionsCeiling(env, mem)
   if (env.now() < mem.holdUntil) {
     log(env, "tick", "held", `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}`)
     return { retried: true, held: true }
@@ -2356,12 +2386,12 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
  * At the end of a tick, moves the driver to the newer driver commit of origin/main, while workers run. A worker is a detached
  * process with its own pid file, launch record and worktree, so the restarted driver adopts it from them. The new commit must
  * start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when the driver must
- * exit with code 0, so launchd starts the new version. No switch happens in a dry run, while the questions run is live (it runs
- * in the driver worktree), while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
+ * exit with code 0, so launchd starts the new version. The questions run is detached like a worker, so the new driver adopts it from its
+ * pid file. No switch happens in a dry run, while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
  */
 const switchDriver = async (env, mem) => {
-  if (!env.selfUpdate || env.dryRun || mem.questions !== null || mem.results.size > 0) return false
-  if ([...mem.running.keys()].some((stem) => pidFileOf(env, stem) === null)) return false
+  if (!env.selfUpdate || env.dryRun || mem.results.size > 0) return false
+  if ([...mem.running.keys(), ...(mem.questions === null ? [] : [QUESTIONS_STEM])].some((stem) => pidFileOf(env, stem) === null)) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)
