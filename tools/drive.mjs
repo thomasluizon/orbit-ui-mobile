@@ -11,13 +11,14 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, dirname, join, resolve } from "node:path"
+import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "./lib/driver-health.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
+import { readGate } from "./lib/gate-commands.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
@@ -1194,7 +1195,7 @@ export const failureHistory = (env, launches) => [...launches].reverse().map((en
   const logFile = entry.log ? join(env.stateDir, "logs", `${entry.log}.log`) : null
   let facts = {}
   try { facts = JSON.parse(readFileSync(factsFileOf(logFile), "utf8")) } catch { /* a launch from before the facts files has none */ }
-  return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : resultText(tailOf(logFile)) }
+  return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, gate: facts.gate ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : resultText(tailOf(logFile)) }
 })
 
 /** The ordered actions for one pull request. The plan writes nothing. */
@@ -1863,7 +1864,9 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
   const logFile = join(env.stateDir, "logs", `${logName}.log`)
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
-  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model)
+  // A `find` or `replan` run writes no code, so it gets no gate hook. Every other run gates its stop on the head it started from.
+  const gate = kind === "find" || kind === "replan" ? null : { run: logName, head: headBefore }
+  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model, gate)
   const account = stateOf(mem, accountName).account?.key ?? null
   const launchRecord = { kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, model, log: logName }
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })))
@@ -2025,13 +2028,31 @@ const recordSession = async (env, ticket, { kind, partNumber, branch, prNumber, 
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
 const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logEvent(logFile), result: workerApi.logFinalResult(logFile) })
 
-/** Adds the exit of a launch to its facts file: the exit code, the kill reason and the head that the worktree holds now. A failed write loses only history. */
-const recordExit = async (env, { worktree, logFile }, result) => {
+/**
+ * The gate result of a launch: `gate green` or `gate red`, from the record that the `Stop` hook wrote in the git directory of the worktree.
+ * A record of another launch, a record for another head, a missing record and a worktree with an uncommitted file read as red,
+ * because a run that never passed its gate has no green result. A `find` or `replan` run has no gate, so it gives null.
+ */
+const gateResultOf = async (env, { kind, worktree, logFile }, headAfter) => {
+  if (kind === "find" || kind === "replan") return null
+  const dir = await env.git(worktree, ["rev-parse", "--absolute-git-dir"])
+  if (dir.status !== 0) return "gate red"
+  const record = readGate(dir.stdout.trim())
+  const run = basename(logFile, ".log")
+  // The record names a commit and the gate tested the files, so a green record counts only for a worktree that holds no uncommitted file.
+  const status = await env.git(worktree, CLEAN_STATUS_ARGUMENTS)
+  return record?.run === run && record.green === true && record.head === headAfter && status.status === 0 && status.stdout.trim() === "" ? "gate green" : "gate red"
+}
+
+/** Adds the exit of a launch to its facts file: the exit code, the kill reason, the head that the worktree holds now and the gate result. A failed write loses only history. */
+const recordExit = async (env, exit, result) => {
   try {
-    const file = factsFileOf(logFile)
+    const file = factsFileOf(exit.logFile)
     const facts = JSON.parse(readFileSync(file, "utf8"))
-    const head = await env.git(worktree, ["rev-parse", "HEAD"])
-    writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter: head.status === 0 ? head.stdout.trim() : null })}\n`)
+    const head = await env.git(exit.worktree, ["rev-parse", "HEAD"])
+    const headAfter = head.status === 0 ? head.stdout.trim() : null
+    const gate = await gateResultOf(env, exit, headAfter)
+    writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter, ...(gate === null ? {} : { gate }) })}\n`)
   } catch { /* no facts file means a launch from before the facts files */ }
 }
 
@@ -3197,7 +3218,8 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
-    invocation: async (token, name = MAIN, own = null, model = undefined) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model }),
+    // A run with no `own` (a probe) writes no code, so it gets no gate hook.
+    invocation: async (token, name = MAIN, own = null, model = undefined, gate = own === null ? null : undefined) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model, gate }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
 }

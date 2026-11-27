@@ -84,17 +84,23 @@ export const CODE_WORKER_DENY = Object.freeze([
 
 const GH_HOOK = fileURLToPath(new URL("./worker-gh-hook.mjs", import.meta.url))
 const SIZE_HOOK = fileURLToPath(new URL("./worker-size-hook.mjs", import.meta.url))
+const GATE_HOOK = fileURLToPath(new URL("./worker-gate-hook.mjs", import.meta.url))
+/** The time that the `Stop` hook may take, in seconds: one gate run of every touched workspace. */
+const GATE_TIMEOUT_SECONDS = 1500
 /** The tools that run a shell command in claude 2.1.332. */
 const SHELL_TOOLS = "Bash|Monitor"
 /** The tools that the size hook checks before they run. */
 const SIZE_TOOLS = "Edit|Write|Bash|Monitor"
 const shellQuoted = (text) => `'${text.replaceAll("'", "'\\''")}'`
+const gateArguments = ({ run = null, head = null }) => `${run === null ? "" : ` --run ${shellQuoted(run)}`}${head === null ? "" : ` --head ${shellQuoted(head)}`}`
 
 /**
- * The hook entries of a code worker: the GitHub hook and the size hook before a tool call, and the size hook after every tool call.
- * A hook that cannot run exits with a code that lets the call pass, so `|| exit 2` blocks it.
+ * The hook entries of a code worker: the GitHub hook and the size hook before a tool call, the size hook after every tool call,
+ * and the gate hook when the worker stops. A hook that cannot run exits with a code that lets the call pass, so `|| exit 2`
+ * blocks it. The gate hook has no `|| exit 2`: it writes its own record, and a stop that it cannot judge ends the run.
+ * `gate` is `{ run, head }` (the launch and its head) or null for a run that writes no code.
  */
-const ghHooks = (own) => {
+const ghHooks = (own, gate) => {
   const target = own === null ? "" : ` --worktree ${shellQuoted(own.worktree)} --branch ${shellQuoted(own.branch)}`
   const sizeHook = (event) => ({ type: "command", command: `node ${shellQuoted(SIZE_HOOK)} ${event} || exit 2`, timeout: 120 })
   return {
@@ -103,6 +109,7 @@ const ghHooks = (own) => {
       { matcher: SIZE_TOOLS, hooks: [sizeHook("pre")] },
     ],
     PostToolUse: [{ matcher: "*", hooks: [sizeHook("post")] }],
+    ...(gate === null ? {} : { Stop: [{ hooks: [{ type: "command", command: `node ${shellQuoted(GATE_HOOK)}${gateArguments(gate)}`, timeout: GATE_TIMEOUT_SECONDS }] }] }),
   }
 }
 
@@ -128,14 +135,15 @@ export const listSkillNames = (skillsRoot) => {
  * The `--settings` JSON. `skillOverrides` takes the values "on", "name-only", "user-invocable-only" and "off"
  * in claude 2.1.329 (its settings schema), and "off" hides a skill from the model and from its slash name.
  * A `codeWorker` gets the GitHub limits. `own` is its `{ worktree, branch }`: with null it may edit no pull request.
+ * A `codeWorker` also gets the gate hook of the `Stop` event. `gate` is `{ run, head }`, or null for a `find` or `replan` run.
  */
-export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => ({
+export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null, gate = {} }) => ({
   claudeMdExcludes: [hotPath],
   autoMemoryEnabled: false,
   outputStyle: "default",
   skillOverrides: Object.fromEntries([...new Set([...skillNames, ...WORKER_SKILLS_OFF])].filter((name) => !keepSkills.includes(name)).map((name) => [name, "off"])),
   permissions: { deny: [...WORKER_DENY, ...(codeWorker ? CODE_WORKER_DENY : [])] },
-  ...(codeWorker ? { hooks: ghHooks(own) } : {}),
+  ...(codeWorker ? { hooks: ghHooks(own, gate) } : {}),
 })
 
 /** The worker command. The order goes in on stdin, never in argv. */
@@ -220,8 +228,8 @@ export const workerAccountEnvironment = (parentEnvironment, configDirectory) => 
  * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
  * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
  */
-export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = WORKER_MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null }) => {
-  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills, codeWorker, own })
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = WORKER_MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null, gate = undefined }) => {
+  const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills, codeWorker, own, gate })
   const environment = workerEnvironmentFor(parentEnvironment, token)
   if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
   return { command: workerCommand(JSON.stringify(settings), model), environment }

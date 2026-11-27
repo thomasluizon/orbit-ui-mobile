@@ -10,6 +10,7 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path"
 import { pathToFileURL } from "node:url"
 
 import { MAX_CHANGED_FILES, MAX_CHANGED_LINES, SOFT_CHANGED_LINES, changedFiles, changedLines, gitFiles, provedPaths } from "./diff-size.mjs"
+import { CHECK_SCRIPT, GATE_PROGRAMS, GATE_SCRIPTS } from "./gate-commands.mjs"
 import { shellCommands } from "./worker-gh-hook.mjs"
 
 const BASE = "origin/main"
@@ -26,9 +27,6 @@ const GENERATED_IN_API = Object.freeze([
 const FILE_TOOLS = new Set(["Edit", "Write"])
 const SHELL_TOOLS = new Set(["Bash", "Monitor"])
 const ASSIGNMENT = /^[A-Za-z_]\w*\+?=/
-const CHECK_SCRIPT = /^(?:\.\/)?tools\/check-[^/\s]+\.mjs$/
-const GATE_SCRIPTS = new Set(["type-check", "lint"])
-const GATE_PROGRAMS = new Set(["tsc", "eslint", "vitest"])
 /** The `gh pr` verbs of a worker delivery: it opens, edits and comments on its own pull request and reads its checks. */
 const DELIVERY_VERBS = new Set(["create", "edit", "comment", "checks", "view", "diff", "list", "status"])
 
@@ -85,9 +83,9 @@ const isAllowedAtCap = (words) => {
   if (program === "gh") return first === "pr" && DELIVERY_VERBS.has(second)
   if (program === "npx") {
     const name = words.slice(1).find((word) => !word.startsWith("-"))
-    return GATE_PROGRAMS.has(name)
+    return GATE_PROGRAMS.includes(name)
   }
-  if (program === "npm") return first === "run" && GATE_SCRIPTS.has(second)
+  if (program === "npm") return first === "run" && GATE_SCRIPTS.includes(second)
   return program === "node" && CHECK_SCRIPT.test(first ?? "")
 }
 

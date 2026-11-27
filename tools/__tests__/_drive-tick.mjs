@@ -106,7 +106,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main", own = null, model = undefined) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model }),
+    invocation: async (token, name = "main", own = null, model = undefined, gate = undefined) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own, model, gate }),
     git: async (cwd, args) => {
       calls.push(["git", ...args])
       // The driver reads the changed paths and the commit messages of a pull request from git, so the fake answers with the fields of the pull request that has the range.
@@ -2505,7 +2505,11 @@ const reapOutcomeCases = async () => {
   const factsTickets = [ticket(7)]
   const factsReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: REAL-FINDING" }] })
   let afterExit = false
-  const factsScene = scenario({ tickets: factsTickets, pulls: { ui: [pull(30, { reviews: [factsReview] })] }, gitRoutes: [["rev-parse", () => `${afterExit ? NEXT_HEAD : HEAD}\n`]] })
+  let dirtyTree = false
+  // The git directory of the worktree holds the gate record that the `Stop` hook writes.
+  const gateDirectory = join(root, "drive-gate-directory")
+  mkdirSync(gateDirectory, { recursive: true })
+  const factsScene = scenario({ tickets: factsTickets, pulls: { ui: [pull(30, { reviews: [factsReview] })] }, gitRoutes: [["rev-parse", (args) => (args.includes("--absolute-git-dir") ? `${gateDirectory}\n` : `${afterExit ? NEXT_HEAD : HEAD}\n`)], ["status", () => (dirtyTree ? "?? apps/web/src/helper.ts\n" : "")]] })
   keepWrites(factsScene, factsTickets)
   // Each launch has its own start time, so each gets its own log name and facts file.
   let factsClock = NOW
@@ -2517,15 +2521,26 @@ const reapOutcomeCases = async () => {
   factsClock += MINUTE
   const [firstLog] = logNames()
   const atLaunch = factsOf(firstLog)
+  // The first launch ends with a green gate on its new head. The second launch has no record of its own.
+  writeFileSync(join(gateDirectory, "orbit-gate.json"), JSON.stringify({ run: firstLog, head: NEXT_HEAD, green: true, failures: [], blocks: 0, at: "2026-11-27T09:00:00.000Z" }))
   afterExit = true
   await factsScene.run()
   factsClock += MINUTE
   const [, secondLog] = logNames()
   const { exitCode, killReason, headAfter } = factsOf(firstLog)
   same("drive: a launch writes its facts file with the order's findings, and the reap adds its exit code, kill reason and head", [atLaunch.kind, atLaunch.model, atLaunch.headBefore, atLaunch.blocking.map((entry) => entry.body), atLaunch.exitCode, exitCode, killReason, headAfter], ["fix", "claude-sonnet-5-5", HEAD, ["BLOCKING: REAL-FINDING"], undefined, 1, "passed its hard ceiling", NEXT_HEAD])
+  same("drive: a launch gets the gate hook for its own run and head, and a reaped launch names its gate result in its facts", [factsScene.launched[0].invocation.gate, factsOf(firstLog).gate], [{ run: firstLog, head: HEAD }, "gate green"])
   await factsScene.run()
+  same("drive: a launch whose gate record belongs to another run reads as gate red", factsOf(secondLog).gate, "gate red")
   const opusOrder = factsScene.launched[2]?.order ?? ""
   T("drive: the Opus order holds the exit, heads and findings that the real facts files of the two earlier launches hold", factsScene.launched.length === 3 && secondLog !== undefined && factsScene.launched[2].invocation.model === "claude-opus-5-5" && opusOrder.includes("## Earlier launches") && opusOrder.includes("Exit: 1, killed: passed its hard ceiling.") && opusOrder.includes(`${HEAD} to ${NEXT_HEAD}`) && opusOrder.includes("tools/a.mjs:3: BLOCKING: REAL-FINDING") && !opusOrder.includes("Exit: unknown"), opusOrder.slice(opusOrder.indexOf("## Earlier launches"), opusOrder.indexOf("## Brief")))
+  // A valid green record for the third launch still reads red while the worktree holds an uncommitted file: the record names a commit, and the gate tested the files.
+  const [, , thirdLog] = logNames()
+  writeFileSync(join(gateDirectory, "orbit-gate.json"), JSON.stringify({ run: thirdLog, head: NEXT_HEAD, green: true, failures: [], blocks: 0, at: "2026-11-27T09:00:00.000Z" }))
+  dirtyTree = true
+  factsClock += MINUTE
+  await factsScene.run()
+  same("drive: a green gate record on the head of a worktree with an uncommitted file reads as gate red", factsOf(thirdLog).gate, "gate red")
 }
 
 const unreadLogCases = async () => {
@@ -4127,6 +4142,7 @@ const replanCases = async () => {
   const openScene = scenario({ tickets: [threeParts()], pulls: { ui: [pull(30, { headRef: partBranch2, reviews: [finding] }), openThree()] }, routes: [mergedOne] })
   await openScene.run()
   const openOrder = openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.order ?? ""
+  same("drive: a re-plan launch gets no gate hook", openScene.launched.find((entry) => entry.order.includes("## This order (replan)"))?.invocation.gate, null)
   T("drive: the re-plan order names the part with an open pull request as a part to keep", openOrder.includes("Merged parts: 1.") && openOrder.includes("Open parts: 3."), openOrder.slice(0, 400))
   // A record that GitHub would refuse counts a split as fresh with a note, so the write always lands.
   const hugeParts = Array.from({ length: 20 }, (_, index) => `## Part ${index + 1} of 20: big ${index + 1}\n${"x".repeat(4000)}`).join("\n")
