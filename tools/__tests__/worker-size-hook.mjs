@@ -140,9 +140,9 @@ const postCases = () => {
   T("worker-size-hook: a new file under the soft cap blocks nothing", small.status === 0 && small.stdout === "", small.stdout)
   write("a.ts", lines(150))
   T("worker-size-hook: a change to a file of the diff at 250 lines blocks nothing", post("Edit").stdout === "")
-  write("c.ts", lines(150))
+  write("c.ts", lines(60))
   const blocked = post("Bash", { command: "node make.mjs" })
-  same("worker-size-hook: a Bash call that adds a new file at 400 lines gets a block that names the file", [blocked.status, JSON.parse(blocked.stdout)], [0, blockOutput("The diff is at 400 lines and 3 files. Undo the change to c.ts. Change only files that are already in the diff.")])
+  same("worker-size-hook: a Bash call that adds a new file at 310 lines gets a block that names the file", [blocked.status, blocked.stdout === "" ? null : JSON.parse(blocked.stdout)], [0, blockOutput("The diff is at 310 lines and 3 files. Undo the change to c.ts. Change only files that are already in the diff.")])
   same("worker-size-hook: the next call blocks again until the worker undoes the file", JSON.parse(post("Read").stdout).reason.includes("c.ts"), true)
   rmSync(join(directory, "c.ts"))
   const undone = post("Bash", { command: "node rm.mjs" })
@@ -155,6 +155,24 @@ const postCases = () => {
   files.write("f29.ts", "x\n")
   const thirtieth = files.post("Bash", { command: "node make.mjs" })
   same("worker-size-hook: a new file at 30 files gets a block", JSON.parse(thirtieth.stdout).reason, "The diff is at 30 lines and 30 files. Undo the change to f29.ts. Change only files that are already in the diff.")
+}
+
+/** An EF Core migration, a model snapshot and an OpenAPI document are written by a tool in the api repository, so they count 0. */
+const generatedCases = () => {
+  const { directory, write, pre, post } = worktree("generated")
+  const migrations = "src/Orbit.Infrastructure/Migrations"
+  write("src/Orbit.Domain/Entity.cs", lines(12))
+  post("Read")
+  write(`${migrations}/20261112193505_AddX.Designer.cs`, lines(3600))
+  write(`${migrations}/20261112193505_AddX.cs`, lines(74))
+  write(`${migrations}/OrbitDbContextModelSnapshot.cs`, lines(3600))
+  write("src/Orbit.Api/openapi_v2-r2.json", lines(900))
+  const result = post("Bash", { command: "dotnet ef migrations add AddX" })
+  T("worker-size-hook: new migration, snapshot and OpenAPI files of 8,000 lines block nothing", result.status === 0 && result.stdout === "", result.stdout)
+  T("worker-size-hook: an Edit of a file in the diff is allowed beside the generated files", denied(pre("Edit", { file_path: join(directory, "src/Orbit.Domain/Entity.cs"), old_string: "a", new_string: "b" })) === null)
+  T("worker-size-hook: a new hand-written file beside the generated files is allowed under the soft cap", denied(pre("Write", { file_path: join(directory, "src/Orbit.Domain/New.cs"), content: "x" })) === null)
+  write("src/Orbit.Domain/Big.cs", lines(300))
+  same("worker-size-hook: hand-written lines beside the generated files still count", denied(pre("Write", { file_path: join(directory, "src/Orbit.Domain/New.cs"), content: "x" })), capText(386, 3))
 }
 
 const entryCases = () => {
@@ -191,6 +209,7 @@ export const cases = async () => {
   fileCapCases()
   hardCapCases()
   postCases()
+  generatedCases()
   entryCases()
   settingsCases()
 }

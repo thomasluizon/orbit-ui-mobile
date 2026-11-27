@@ -13,6 +13,16 @@ import { MAX_CHANGED_FILES, MAX_CHANGED_LINES, SOFT_CHANGED_LINES, changedFiles,
 import { shellCommands } from "./worker-gh-hook.mjs"
 
 const BASE = "origin/main"
+/**
+ * The files that a tool writes in the `api` repository, which the worker hook also guards. `GENERATED` of `diff-size.mjs` lists
+ * the files of `ui`. An EF Core migration adds a designer file of about 3,600 lines, and `dotnet ef` rewrites the model snapshot.
+ * CI checks each committed OpenAPI document against the build, so no one writes it by hand.
+ */
+const GENERATED_IN_API = Object.freeze([
+  /(?:^|\/)Migrations\/[^/]+\.Designer\.cs$/,
+  /(?:^|\/)Migrations\/[^/]+ModelSnapshot\.cs$/,
+  /^src\/Orbit\.Api\/openapi(?:_v\d+)?(?:-r\d+)?\.json$/,
+])
 const FILE_TOOLS = new Set(["Edit", "Write"])
 const SHELL_TOOLS = new Set(["Bash", "Monitor"])
 const ASSIGNMENT = /^[A-Za-z_]\w*\+?=/
@@ -32,7 +42,8 @@ const git = (cwd, args) => {
 export const measure = (cwd) => {
   const top = realpathSync(git(cwd, ["rev-parse", "--show-toplevel"]))
   const files = gitFiles({ cwd: top, base: BASE })
-  const options = { proved: provedPaths({ cwd: top, base: BASE }) }
+  const generated = files.map(({ path }) => path).filter((path) => GENERATED_IN_API.some((pattern) => pattern.test(path)))
+  const options = { proved: new Set([...provedPaths({ cwd: top, base: BASE }), ...generated]) }
   const counted = changedFiles(files, options)
   return {
     top,
