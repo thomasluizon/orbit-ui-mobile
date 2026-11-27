@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, splitProblem, withTotal } from "./lib/order.mjs"
+import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -1397,7 +1397,7 @@ const replanFacts = async (env, mem, ticket, stuck) => {
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   const parts = partsOf(ticket)
   const merged = new Set(history.map((entry) => entry.headRefName))
-  return { stuckBranch: stuck.branch, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0 }
+  return { stuckBranch: stuck.branch, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
 }
 
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
@@ -1598,10 +1598,9 @@ const applyReplan = async (env, mem, states, exit, ticket, text) => {
   if (!stuck || ticket.repoKey === undefined) return log(env, item, "replan-skipped", "the ticket is closed or the launch record names no stuck plan")
   const answer = parseReplanAnswer(text)
   const parts = partsOf(ticket)
-  const currentTotal = parts[0]?.total ?? 0
   let { plan, note } = answer
   if (plan === "split") {
-    const problem = splitProblem(answer.parts, currentTotal)
+    const problem = splitProblem(answer.parts, highestTotal(ticket.comments.filter((comment) => comment.kind === null)))
     if (problem !== null) {
       log(env, item, "replan-split-refused", problem)
       plan = "fresh"
@@ -1638,12 +1637,13 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   const plans = branches.map((branch) => `- \`${branch}\`: ${launches.filter((entry) => entry.branch === branch).map((entry) => `${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}`).join(", ")}`)
   const replans = replansOf(ticket).map((record) => `- Re-plan ${record.count} after \`${record.branch}\`: ${record.plan}`)
   const newestReplan = newestOf(ticket.comments, "replan")
+  // The label comes first: a step that fails later leaves the ticket skipped, and the `parked` comment never resets the re-plan count without it.
+  await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
+  ticket.labels.push(PARKED)
   if (!(newestOf(ticket.comments, PARKED) > newestReplan)) {
     const text = `Parked by the driver: ${reason}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
     await env.github.comment("tickets", ticket.number, marked(PARKED, text))
   }
-  await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
-  ticket.labels.push(PARKED)
   for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
   const today = new Date(env.now()).toISOString().slice(0, 10)
   const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length

@@ -3076,6 +3076,20 @@ const replanCases = async () => {
   await afterPark.run()
   same("drive: the re-plans before the newest parked comment no longer count, so a ticket that the review took back gets a re-plan run", [afterPark.launched.length, JSON.parse(recordsOn(afterPark, "launch")[0]).kind, recordsOn(afterPark, "parked").length], [1, "replan", 0])
 
+  // A park that fails after its first write leaves the ticket skipped, so the bound holds.
+  const partialTickets = [ticket(7, { comments: [...spent] })]
+  const partial = scenario({ tickets: partialTickets, pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  keepWrites(partial, partialTickets)
+  const relabeled = partial.env.github.editLabels
+  let labelWrites = 0
+  partial.env.github.editLabels = async (...args) => { labelWrites += 1; if (labelWrites === 1) throw new Error("HTTP 502 from the label write"); return relabeled(...args) }
+  await partial.run()
+  await partial.run()
+  same("drive: a label write that fails during a park starts no re-plan run and the next tick parks with one comment", [partial.launched.length, recordsOn(partial, "parked").length, recordsOn(partial, "replan").length, partialTickets[0].labels.includes("parked")], [0, 1, 0, true])
+  const labelFirst = scenario({ tickets: [ticket(7, { comments: spent })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await labelFirst.run()
+  T("drive: a park writes the ticket label before the parked comment", labelFirst.calls.findIndex((entry) => entry[0] === "editLabels" && entry[1] === "tickets") < labelFirst.calls.findIndex((entry) => entry[0] === "comment" && entry[3].startsWith(marked("parked", ""))))
+
   // A parked item gets no order and no notice.
   const skipTicket = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: ladder(branch) })], pulls: { ui: [pull(30, { reviews: [finding] })] }, sleeping: true })
   await skipTicket.run()
@@ -3130,6 +3144,14 @@ const replanCases = async () => {
   T("drive: after a split the merged part stays done and the next part builds on a new branch of the new set", split.launched.length === 1 && next !== undefined && next.order.includes("(Part 2 of 4)") && next.worktree.endsWith("chore-ticket-7-part-2-r2"), split.launched.map((entry) => entry.worktree).join(" "))
   const refused = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 2: one\n## Part 2 of 2: two", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   same("drive: a split with the total in force is no usable part set, so it counts as fresh with a note that says why", [JSON.parse(recordsOn(refused, "replan")[0]).plan, plainOn(refused).length, recordsOn(refused, "replan-note")[0]?.includes("is not higher than the total 2")], ["fresh", 0, true])
+  const olderLarger = [...[1, 2, 3, 4].map((number) => comment(null, `Part ${number} of 4: old ${number}`, -(9000 - number) * 1000)), ...[1, 2, 3].map((number) => comment(null, `Part ${number} of 3: new ${number}`, -(8000 - number) * 1000))]
+  const largerTicket = () => ticket(7, { comments: [...olderLarger, ...ladder(branch)] })
+  const bigSplit = await reaped({ tickets: [largerTicket()], answer: "Plan: split\n## Part 1 of 4: one\n## Part 2 of 4: two\n## Part 3 of 4: three\n## Part 4 of 4: four" })
+  same("drive: a split that brings back the total of an older, larger part set counts as fresh, posts no part and names the highest total", [JSON.parse(recordsOn(bigSplit, "replan")[0]).plan, plainOn(bigSplit).length, recordsOn(bigSplit, "replan-note")[0]?.includes("is not higher than the total 4"), needsOwnerComments(bigSplit.calls, 7).length], ["fresh", 0, true, 0])
+  const largerOrder = scenario({ tickets: [largerTicket()], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await largerOrder.run()
+  const largerReplan = largerOrder.launched.find((entry) => entry.order.includes("## This order (replan)"))
+  T("drive: the re-plan order names the highest total of any part set, not only the set in force", largerReplan !== undefined && largerReplan.order.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerReplan.order.includes("make m higher than 4."))
 }
 
 export const driverUnit = async () => {

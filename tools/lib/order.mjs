@@ -57,6 +57,12 @@ export const ownerParts = (comments) => {
   return newest === null ? [] : parts.filter((comment) => partOf(comment).total === partOf(newest).total)
 }
 
+/**
+ * The highest total that any part comment announces, or 0 when the ticket holds none. A set that an older comment set up and a
+ * newer set replaced still counts: a new set with its total would read as a second live set.
+ */
+export const highestTotal = (comments) => Math.max(0, ...comments.map((comment) => partOf(comment)?.total ?? 0))
+
 /** The line that starts the answer of a re-plan run. The last such line is the answer. */
 const PLAN_LINE = /^Plan:\s*(fresh|split)\s*$/i
 
@@ -80,14 +86,14 @@ export const parseReplanAnswer = (text) => {
 
 /**
  * The reason that a split answer is no usable part set, or null. The set must number its parts 1 to m with one total m, and m
- * must be higher than the total in force: an older set with the same total would read as a second live set.
+ * must be higher than the highest total of any part set on the ticket: an older set with the same total would read as a second live set.
  */
-export const splitProblem = (parts, currentTotal) => {
+export const splitProblem = (parts, highest) => {
   const heads = parts.map((body) => partOf({ body }))
   if (heads.length < 2 || heads.some((head) => head === null)) return "the answer holds fewer than 2 part headings"
   const total = heads.length
   if (heads.some((head, index) => head.number !== index + 1 || head.total !== total)) return "the parts are not numbered 1 to the total, or the totals differ"
-  if (total <= currentTotal) return `the new total ${total} is not higher than the total ${currentTotal} in force`
+  if (total <= highest) return `the new total ${total} is not higher than the total ${highest} of a part set on the ticket`
   return null
 }
 
@@ -153,7 +159,7 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, repla
       return `Read only the slice that the part names. Your final message is the area list, then the findings table with one row per finding as \`path:line | class | fix\`, and nothing after the table. Commit nothing, push nothing and open no pull request.`
     case "replan": {
       const merged = replan.mergedParts.length === 0 ? "none" : replan.mergedParts.join(", ")
-      return `The plan on the branch \`${replan.stuckBranch}\` used its launches and still fails. The earlier launches are below. Merged parts: ${merged}. Total of the part set in force: ${replan.currentTotal}.\n\nRead only. Commit nothing, push nothing and open no pull request. Choose how the work goes on. End your final message with exactly one answer and nothing after it.\n\n- \`Plan: fresh\` on its own line, then a short note for the next worker. The same scope goes on a new branch from \`origin/main\`.\n- \`Plan: split\` on its own line, then the full new part set. Each part starts with \`## Part n of m: <title>\`. Number the parts 1 to m, and make m higher than ${replan.currentTotal}. Write the merged parts with their number and title, and add the new, smaller parts after them.`
+      return `The plan on the branch \`${replan.stuckBranch}\` used its launches and still fails. The earlier launches are below. Merged parts: ${merged}. Total of the part set in force: ${replan.currentTotal}. Highest total of any part set on the ticket: ${replan.highestTotal}.\n\nRead only. Commit nothing, push nothing and open no pull request. Choose how the work goes on. End your final message with exactly one answer and nothing after it.\n\n- \`Plan: fresh\` on its own line, then a short note for the next worker. The same scope goes on a new branch from \`origin/main\`.\n- \`Plan: split\` on its own line, then the full new part set. Each part starts with \`## Part n of m: <title>\`. Number the parts 1 to m, and make m higher than ${replan.highestTotal}. Write the merged parts with their number and title, and add the new, smaller parts after them.`
     }
     default:
       throw new Error(`unknown order kind: ${kind}`)
@@ -255,7 +261,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
  */
 export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], place, partNumber = null, replan = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
-  if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part total")
+  if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
   if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
     throw new Error(`a ${kind} order needs its pull request and what it fixes`)
