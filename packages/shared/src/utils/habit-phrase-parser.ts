@@ -51,9 +51,27 @@ const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?]|$|a partir\b|comecando\b|
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = String.raw`(?:\s+d[ae]\s+(manha|tarde|noite|madrugada)\b)?`
-const EN_MERIDIEM = String.raw`(?:\s*(am|pm)|\s+(in the (?:morning|afternoon|evening)|at night))?`
-const PT_NOON = String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
+const PT_DAY_PART = String.raw`(?:(?:\s+(?:horas?|hrs?|hs|h))?\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const EN_DAY_PART = String.raw`(?:(?:\s+o['\u2019]?clock)?\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
+const EN_MERIDIEM = String.raw`(?:\s*(am|pm))?${EN_DAY_PART}`
+type DayPeriod = 'morning' | 'afternoon' | 'evening' | 'night' | 'dawn'
+const DAY_PERIODS: Readonly<Record<string, DayPeriod>> = {
+  manha: 'morning', tarde: 'afternoon', noite: 'night', madrugada: 'dawn',
+  morning: 'morning', afternoon: 'afternoon', evening: 'evening', night: 'night',
+}
+const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
+const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
+const WEEKDAY_GLUE_LEAD = /^\.?(?:\s+feiras?)?/u
+const WEEKDAY_DASH_GLUE = /^\s*[-\u2013\u2014]\s*$/u
+const WEEKDAY_WORD_GLUE = /^\s+(\S+(?:\s+\S+)?)\s+$/u
+const WEEKDAY_RANGE_WORDS = new Set([
+  'a', 'ao', 'aos', 'as', 'ate', 'ate a', 'ate o', 'ate ao', 'ate aos', 'ate as',
+  'to', 'through', 'through to', 'thru', 'until',
+  'til', 'till', "'til", "'till", '\u2019til', '\u2019till',
+])
+const MONTH_SCOPE_LEADS = new Set(['of', 'in', 'on', 'every', 'each', 'this', 'next', 'last'])
+const MONTH_SCOPE_FILLERS = new Set(['the', 'every', 'each', 'this', 'next', 'last', 'odd', 'even'])
+const PT_NOON =String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
 const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
 
 const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
@@ -142,6 +160,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
+      /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+da\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,
     ],
     noon: new RegExp(PT_NOON, 'gu'),
     isNoonOffset: isPortugueseNoonOffset,
@@ -169,7 +188,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     times: [
       new RegExp(String.raw`\bat\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?${EN_MERIDIEM}\b(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)${EN_MERIDIEM}\b(?![:\d]|[.,]\d)`, 'gu'),
-      /(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b(?![:\d]|[.,]\d)/gu,
+      new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${EN_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s*(am|pm)\b(?![:\d]|[.,]\d)/gu,
     ],
     noon: new RegExp(EN_NOON, 'gu'),
@@ -239,14 +258,40 @@ function parseNumber(value: string, words: Readonly<Record<string, number>>): nu
   return words[value] ?? Number.parseInt(value, 10)
 }
 
-function readDayPartHour(hour: number, dayPart: string): number | null {
-  const meridiem = dayPart === 'am' || dayPart === 'pm'
-  const afternoon = dayPart === 'pm' || /tarde|noite|afternoon|evening|night/u.test(dayPart)
-  const agreesAsWritten = !meridiem && (hour === 0 ? /manha|madrugada|noite|morning|night/u.test(dayPart) : hour > 12 && afternoon)
-  if (agreesAsWritten) return hour
+function nightHour(hour: number): number {
+  if (hour === 12) return 0
+  return hour < 6 ? hour : hour + 12
+}
+
+function dawnHour(hour: number): number | null {
+  if (hour === 12) return 0
+  return hour <= 6 ? hour : null
+}
+
+const HOUR_IN_PERIOD: Readonly<Record<DayPeriod, (hour: number) => number | null>> = {
+  morning: (hour) => (hour === 12 ? null : hour),
+  afternoon: (hour) => (hour === 12 ? 12 : hour + 12),
+  evening: (hour) => (hour === 12 ? null : hour + 12),
+  night: nightHour,
+  dawn: dawnHour,
+}
+
+function meridiemHour(hour: number, meridiem: 'am' | 'pm'): number | null {
   if (hour < 1 || hour > 12) return null
-  if (hour === 12 && /noite|night/u.test(dayPart)) return 0
-  return hour % 12 + (afternoon ? 12 : 0)
+  return meridiem === 'pm' ? hour % 12 + 12 : hour % 12
+}
+
+function readPeriod(dayPart: string): DayPeriod | undefined {
+  return DAY_PERIODS[dayPart.replace(/^(?:in the|at|of the) /u, '')]
+}
+
+function readDayPartHour(hour: number, dayPart: string): number | null {
+  if (dayPart === 'am' || dayPart === 'pm') return meridiemHour(hour, dayPart)
+  const period = readPeriod(dayPart)
+  if (!period) return null
+  if (hour === 0) return period === 'morning' || period === 'dawn' || period === 'night' ? 0 : null
+  if (hour <= 12) return HOUR_IN_PERIOD[period](hour)
+  return HOUR_IN_PERIOD[period](hour - 12) === hour ? hour : null
 }
 
 function parseTime(match: RegExpExecArray): string | null {
@@ -254,7 +299,7 @@ function parseTime(match: RegExpExecArray): string | null {
   const clockHour = Number.parseInt(match[1], 10)
   const suffixes = match.slice(2)
   const minute = Number.parseInt(suffixes.find((value) => value && /^\d+$/u.test(value)) ?? '0', 10)
-  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at night)/u.test(value))
+  const dayPart = suffixes.find((value) => value && /^(?:am|pm|manha|madrugada|tarde|noite|in the |at |of the )/u.test(value))
   const hour = dayPart ? readDayPartHour(clockHour, dayPart) : clockHour
   if (hour === null) return null
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
@@ -349,10 +394,18 @@ function hasUnmodeledWeekdayPrefix(text: string): boolean {
   return false
 }
 
+function startsWithMonthScope(text: string): boolean {
+  if (!/^\s/u.test(text)) return false
+  const [lead = '', ...rest] = text.trim().split(/\s+/u)
+  if (!MONTH_SCOPE_LEADS.has(lead)) return false
+  const unit = rest.find((word) => !MONTH_SCOPE_FILLERS.has(word))
+  return unit !== undefined && /^(?:months?|years?)\b/u.test(unit)
+}
+
 function hasUnmodeledWeekdaySuffix(text: string): boolean {
   const word = /^\s+(\S+)/u.exec(text)?.[1]?.replace(/[,.!?;:]+$/u, '')
   if (word && UNMODELED_WEEKDAY_QUALIFIERS.has(word) && !WEEKDAY_PERIOD_WORDS.has(word)) return true
-  return /^\s+(?:of|in|on|every|each|this|next|last)\s+(?:(?:the|every|each|this|next|last|odd|even)\s+)*(?:months?|years?)\b/u.test(text)
+  return startsWithMonthScope(text)
     || /^\s+(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+(?:mes(?:es)?|anos?)\b/u.test(text)
     || /^\s+(?:of|in|on|every|each)\s+(?:the\s+)?(?:this|next|last|odd|even|alternate|alternating)\s+weeks?\b/u.test(text)
     || /^\s+(?:(?:de cada|a cada|do|da|de|cada|em|nas|nos)\s+)?semanas?\s+(?:pares|impares|alternadas)\b/u.test(text)
@@ -517,11 +570,20 @@ function buildWeekdayExclusionRead(
 
 const WEEK_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+function isWeekdayRangeGlue(glue: string): boolean {
+  const rest = glue.replace(WEEKDAY_GLUE_LEAD, '')
+  if (WEEKDAY_DASH_GLUE.test(rest)) return true
+  const words = WEEKDAY_WORD_GLUE.exec(rest)?.[1]
+  return words !== undefined && WEEKDAY_RANGE_WORDS.has(words.split(/\s+/u).join(' '))
+}
+
 function isWeekdayRangeLink(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
   const left = weekdays[index]?.match
   const right = weekdays[index + 1]?.match
   if (!left || !right) return false
-  return /^(?:\s+(?:a|ate|to|through|thru)\s+|\s*-\s*)$/u.test(text.slice(left.index + left[0].length, right.index))
+  const glue = text.slice(left.index + left[0].length, right.index)
+  if (!isWeekdayRangeGlue(glue)) return false
+  return !ARTICLE_GLUE.test(glue) || RANGE_OPENER.test(text.slice(0, left.index))
 }
 
 function startsIsolatedWeekdayRange(text: string, weekdays: ReturnType<typeof matchWeekdays>, index: number): boolean {
@@ -537,7 +599,8 @@ function expandWeekdayRanges(text: string, weekdays: ReturnType<typeof matchWeek
     days.push(day)
     if (!startsIsolatedWeekdayRange(text, weekdays, index)) continue
     const from = WEEK_ORDER.indexOf(day)
-    const length = (WEEK_ORDER.indexOf(weekdays[index + 1]!.day) - from + 7) % 7
+    const span = (WEEK_ORDER.indexOf(weekdays[index + 1]!.day) - from + 7) % 7
+    const length = span === 0 ? 6 : span
     for (let step = 1; step <= length; step += 1) days.push(WEEK_ORDER[(from + step) % 7]!)
   }
   return days
