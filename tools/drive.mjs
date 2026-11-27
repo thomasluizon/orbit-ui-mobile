@@ -883,6 +883,13 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   }
   // The first pass of a head is one pass: a pull request that owes a whole-diff pass asks for it at once, and never for a plain pass first.
   const first = needsWholeDiff(pull, { fixLaunches }) ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST
+  // Pullfrog edits the body of a review after it submits the review, so a review is final only when its run is complete and the settle time passed.
+  const settling = (review) => {
+    const run = review === null ? null : runOfReview(runs, review)
+    if (run === null) return null
+    if (run.status !== "completed") return { wait: "a Pullfrog run is in progress" }
+    return now - Date.parse(run.updatedAt) < CHECK_SETTLE_MS ? { wait: "the Pullfrog review is not yet final" } : null
+  }
   // A head that Pullfrog already reviewed gets no second plain request: its next pass is the owner's to ask for.
   const demand = (text, why) => {
     if (sinceReview.length > 0) return waiting()
@@ -895,10 +902,14 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
     if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return carried === null ? { approved: true } : { approved: true, skip: "same diff" }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
+    const unsettled = settling(latest)
+    if (unsettled) return unsettled
     if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
   if (latest.state === CHANGES_REQUESTED && latest.blocking.length > 0) return { fix: latest }
+  const unsettled = settling(latest)
+  if (unsettled) return unsettled
   const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === CHANGES_REQUESTED && review.blocking.length === 0))
   if (unusable.length >= 2) return { owner: "Pullfrog gave a review with no BLOCKING comment twice at the same head" }
   return demand(PLAIN_REQUEST, "the last review at this head names no BLOCKING class")
