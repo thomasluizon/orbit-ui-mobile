@@ -184,6 +184,9 @@ describe('a title at the end of a sentence', () => {
     ['Read ch. every monday.', 'en', 'Read ch.'],
     ['Ler o cap. toda segunda.', 'pt-BR', 'Ler o cap.'],
     ['Ler. Todo dia.', 'pt-BR', 'Ler.'],
+    ['Ler toda segunda…', 'pt-BR', 'Ler'],
+    ['Read every monday …', 'en', 'Read'],
+    ['academia de segunda a sexta…', 'pt-BR', 'academia'],
   ] as const)('leaves no end mark after a removed span: %s', (phrase, locale, title) => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })

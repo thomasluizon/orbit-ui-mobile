@@ -83,8 +83,8 @@ function removeOrphanedGlue(sentence: string, locale: SupportedLocale, text: Tit
 function removeTrailingStop(text: TitleText): void {
   const { characters } = text
   let first = characters.length
-  while (first > 0 && !text.removed[first - 1] && /[\s,;.!?]/u.test(characters[first - 1]!)) first -= 1
-  while (first < characters.length && !/[.!?]/u.test(characters[first]!)) first += 1
+  while (first > 0 && !text.removed[first - 1] && /[\s,;.!?…]/u.test(characters[first - 1]!)) first -= 1
+  while (first < characters.length && !/[.!?…]/u.test(characters[first]!)) first += 1
   if (first === characters.length || !touchesRemoved(text, first - 1, -1)) return
   if (!isSpanOpen(text, first, characters.length)) return
   removeSpan(text, first, characters.length)
