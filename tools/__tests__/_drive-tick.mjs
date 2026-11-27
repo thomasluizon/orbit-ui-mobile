@@ -74,7 +74,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       readTickets: async () => structuredClone(tickets),
       readRepositoryState: async (key) => structuredClone(states[key]),
       readFailedSteps: async () => failedSteps,
-      pullfrogRuns: async (key) => { calls.push(["runList", key]); return runs },
+      pullfrogRuns: async (key) => { calls.push(["pullfrogRuns", key]); return runs },
       // The scenarios give one run list for every pull request, so the title filter keeps it whole.
       runsNaming: (list) => list,
       readDependabotUpdateTypes: async () => ["patch"],
@@ -1021,6 +1021,21 @@ const mergeCases = async () => {
   const met = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL] })] } })
   await met.run()
   same("drive: a needs:owner pull request whose bar is otherwise met gets no merge and no order", [only(met.calls, "merge").length, met.launched.length], [0, 0])
+
+  // The order of an open part pull request names no part to build, so two live comments of one part never reach the worker as "this order".
+  const doubledParts = [comment(null, "Part 1 of 2: first\n", -7200 * 1000), comment(null, "Part 2 of 2: second\nBODY-OF-SECOND\n", -7100 * 1000), comment(null, "Part 2 of 2: second again\nBODY-OF-AGAIN\n", -7000 * 1000)]
+  const partPull = (extra) => pull(30, { headRef: "chore/ticket-7-part-2", ...extra })
+  const orderKinds = {
+    "ci-fix": partPull({ checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] }),
+    fix: partPull({ reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] }),
+    "merge-forward": partPull({ mergeState: "DIRTY" }),
+  }
+  for (const [kind, open] of Object.entries(orderKinds)) {
+    const scene = scenario({ tickets: [ticket(7, { comments: doubledParts })], pulls: { ui: [open] }, ...(kind === "ci-fix" ? { failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] } : {}) })
+    await scene.run()
+    const order = orderText(scene)
+    same(`drive: a ${kind} order on a part pull request with two live comments of one part has no "this order" part and no part body`, [scene.launched.length, order.includes("(this order)"), order.includes("BODY-OF-SECOND") || order.includes("BODY-OF-AGAIN"), order.includes("- Part 2 of 2: second again")], [1, false, false, true])
+  }
 }
 
 const updateCases = async () => {
@@ -1251,6 +1266,118 @@ const accountCases = async () => {
   same("drive: --reviewer-token reports a failed repository, exits 3 and still never prints the token", [bad.code, bad.lines.includes("thomasluizon/orbit-api: failed, exit 1"), JSON.stringify(bad.lines).includes(TOKEN)], [3, true, false])
   same("drive: --reviewer-token with an empty stdin exits 2 and runs no gh call", [(await runTool(() => ({ status: 0 }), "  \n")).code, (await runTool(() => ({ status: 0 }), "\n")).seen.length], [2, 0])
   same("drive: --reviewer-token parses as a mode", parseArguments(["--reviewer-token"]).mode, "reviewer-token")
+}
+
+const RATE_LIMIT_RESET = Math.floor(NOW / 1000) + 600
+const rateLimitBody = (core, graphql = { remaining: 4000, reset: RATE_LIMIT_RESET }) => JSON.stringify({ resources: { core: { limit: 5000, used: 0, ...core }, graphql: { limit: 5000, used: 0, ...graphql } } })
+
+/** Makes one repository fail to read on every call. */
+const failRepository = (scene, key, message = "gh api graphql failed: HTTP 504") => {
+  const read = scene.env.github.readRepositoryState
+  scene.env.github.readRepositoryState = async (name, options) => { if (name === key) throw new Error(message); return read(name, options) }
+}
+
+const readFailureCases = async () => {
+  const wide = Array.from({ length: 36 }, (_, index) => pull(100 + index, { headRef: `chore/ticket-7-${100 + index}` }))
+  const wideScene = scenario({ tickets: [ticket(7)], pulls: { ui: wide, api: [pull(200)], landing: [] } })
+  await wideScene.run()
+  same("drive: 36 open pull requests in ui and 1 in api read the Pullfrog runs once for each repository", only(wideScene.calls, "pullfrogRuns"), [["pullfrogRuns", "ui"], ["pullfrogRuns", "api"]])
+  const drafts = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { draft: true })] } })
+  await drafts.run()
+  same("drive: a repository with only draft pull requests reads no Pullfrog runs", only(drafts.calls, "pullfrogRuns"), [])
+
+  const unreadRuns = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30), pull(31, { draft: true })] } })
+  unreadRuns.env.github.pullfrogRuns = async () => { throw new Error("gh run list failed: HTTP 502") }
+  const unreadResult = await unreadRuns.run()
+  same("drive: a failed read of the Pullfrog runs leaves the non-draft pull request unplanned, keeps the draft and does not fail the tick", [unreadResult.retried, unreadResult.lines.some((line) => line.startsWith("pull ui#30")), unreadResult.lines.some((line) => line.startsWith("pull ui#31")), unreadRuns.messages.some((line) => line.includes("ui#30 error (gh run list failed: HTTP 502)"))], [false, false, true, true])
+
+  const split = scenario({ tickets: [ticket(7), ticket(8, { labels: ["repo:api", "Improvement"], repoKey: "api" })], pulls: { ui: [pull(30)], api: [], landing: [] } })
+  split.mem.known.api = [55]
+  failRepository(split, "api")
+  const splitResult = await split.run()
+  same("drive: a repository that cannot be read is unknown for the tick and the other repositories go on", [splitResult.retried, splitResult.lines.some((line) => line.startsWith("pull ui#30"))], [false, true])
+  same("drive: a ticket of the unknown repository waits and starts no worker", [splitResult.lines.find((line) => line.includes("#8:")), split.launched.map((entry) => entry.order.includes("ticket 8"))].flat(), [`ticket ${REPOSITORY}#8: wait: the api repository could not be read this tick`])
+  same("drive: the known pull requests of the unknown repository stay for the next tick", split.mem.known.api, [55])
+  T("drive: the unknown repository is in the log", split.messages.some((line) => line.includes("api repository-unknown (gh api graphql failed: HTTP 504)")))
+  same("drive: a tick with an unknown repository counts as no failed tick", [split.mem.failedTicks, split.mem.holdUntil], [0, 0])
+
+  const all = scenario({ tickets: [ticket(7)] })
+  for (const key of ["ui", "api", "landing"]) failRepository(all, key)
+  same("drive: a tick in which no repository can be read is a failed tick", [(await all.run()).retried, all.mem.failedTicks], [true, 1])
+
+  // No open ticket, so the tick starts no worker that writes a new record under the same name.
+  const record = scenario({ tickets: [] })
+  const apiRecord = leftBehind(record, { repoKey: "api", branch: "chore/ticket-9", ticketNumber: 9 }, "", "chore-ticket-9")
+  const uiRecord = leftBehind(record, {}, "", "chore-ticket-7")
+  failRepository(record, "api")
+  await record.run()
+  same("drive: the launch record of an unknown repository waits for the next tick and the record of a read repository is reaped", [existsSync(apiRecord), existsSync(uiRecord)], [true, false])
+
+  // The reap read fails for ui and the tick read passes. The kept record must hold its ticket: no launch, record intact.
+  const kept = scenario({ tickets: [ticket(7)] })
+  const keptRecord = leftBehind(kept, {}, "", "chore-ticket-7")
+  const keptBefore = readFileSync(keptRecord, "utf8")
+  const keptRead = kept.env.github.readRepositoryState
+  let keptReads = 0
+  kept.env.github.readRepositoryState = async (name, options) => { if (name === "ui" && (keptReads += 1) === 1) throw new Error("gh api graphql failed: HTTP 504"); return keptRead(name, options) }
+  const keptResult = await kept.run()
+  same("drive: a repository that only the reap could not read stays unknown for the whole tick: no launch, the record intact", [kept.launched.length, existsSync(keptRecord) && readFileSync(keptRecord, "utf8") === keptBefore, keptResult.lines.find((line) => line.includes("#7:"))], [0, true, `ticket ${REPOSITORY}#7: wait: the ui repository could not be read this tick`])
+}
+
+const holdCases = async () => {
+  const failTickets = (scene, message) => {
+    scene.counts = { tickets: 0 }
+    scene.env.github.readTickets = async () => { scene.counts.tickets += 1; throw new Error(message) }
+  }
+  const rateLimited = scenario({ routes: [["api rate_limit", rateLimitBody({ remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  failTickets(rateLimited, "gh api graphql failed: HTTP 403: API rate limit exceeded")
+  const first = await rateLimited.run()
+  same("drive: HTTP 403 reads gh api rate_limit and holds the next tick until the reset", [first.retried, only(rateLimited.calls, "gh").filter((entry) => entry[1] === "api rate_limit").length, rateLimited.mem.holdUntil], [true, 1, RATE_LIMIT_RESET * 1000])
+  const held = await rateLimited.run()
+  same("drive: a held tick reads nothing from GitHub", [held.held, rateLimited.counts.tickets, only(rateLimited.calls, "gh").filter((entry) => entry[1] === "api rate_limit").length], [true, 1, 1])
+  rateLimited.env.now = () => RATE_LIMIT_RESET * 1000
+  await rateLimited.run()
+  same("drive: the tick after the reset reads GitHub again", rateLimited.counts.tickets, 2)
+
+  const message = scenario({ routes: [["api rate_limit", rateLimitBody({ remaining: 5000, reset: RATE_LIMIT_RESET }, { remaining: 0, reset: RATE_LIMIT_RESET + 60 })]] })
+  failTickets(message, "You have exceeded a secondary rate limit")
+  await message.run()
+  same("drive: a rate limit message waits for the latest reset of the exhausted limits", message.mem.holdUntil, (RATE_LIMIT_RESET + 60) * 1000)
+
+  const permission = scenario({ routes: [["api rate_limit", rateLimitBody({ remaining: 3000, reset: RATE_LIMIT_RESET })]] })
+  failTickets(permission, "gh api graphql failed: HTTP 403: Resource not accessible")
+  await permission.run()
+  same("drive: HTTP 403 with no exhausted limit holds no tick", permission.mem.holdUntil, 0)
+
+  const unreadLimit = scenario({ routes: [["api rate_limit", () => { throw new Error("gh api failed: HTTP 502") }]] })
+  failTickets(unreadLimit, "gh api graphql failed: HTTP 403")
+  await unreadLimit.run()
+  same("drive: a rate limit that cannot be read holds no tick", unreadLimit.mem.holdUntil, 0)
+
+  const rateInRuns = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] }, routes: [["api rate_limit", rateLimitBody({ remaining: 0, reset: RATE_LIMIT_RESET })]] })
+  rateInRuns.env.github.pullfrogRuns = async () => { throw new Error("gh run list failed: HTTP 403: API rate limit exceeded") }
+  const passed = await rateInRuns.run()
+  same("drive: a rate limit on the Pullfrog runs holds the next tick and the tick itself passes", [passed.retried, rateInRuns.mem.holdUntil, rateInRuns.mem.failedTicks], [false, RATE_LIMIT_RESET * 1000, 0])
+
+  const failing = scenario({})
+  failTickets(failing, "gh api graphql failed: HTTP 502")
+  const holds = []
+  for (let attempt = 0; attempt < 3; attempt += 1) { await failing.run(); holds.push(failing.mem.holdUntil) }
+  same("drive: the first and second failed tick hold no tick and the third holds 10 minutes", holds, [0, 0, NOW + 10 * MINUTE])
+  const during = await failing.run()
+  same("drive: a tick inside the 10 minutes reads nothing", [during.held, failing.counts.tickets, failing.mem.failedTicks], [true, 3, 3])
+  failing.env.now = () => NOW + 10 * MINUTE
+  await failing.run()
+  same("drive: a tick that fails after the 10 minutes holds 10 minutes more", [failing.counts.tickets, failing.mem.failedTicks, failing.mem.holdUntil], [4, 4, NOW + 20 * MINUTE])
+
+  const recovering = scenario({ tickets: [ticket(7)] })
+  const read = recovering.env.github.readTickets
+  failTickets(recovering, "gh api graphql failed: HTTP 504")
+  for (let attempt = 0; attempt < 3; attempt += 1) await recovering.run()
+  recovering.env.github.readTickets = read
+  recovering.env.now = () => NOW + 10 * MINUTE
+  const recovered = await recovering.run()
+  same("drive: a tick that passes ends the hold and the count of failed ticks", [recovered.retried, recovering.mem.failedTicks, recovering.mem.holdUntil], [false, 0, 0])
 }
 
 const robustnessCases = async () => {
@@ -1678,10 +1805,10 @@ const planSpeedCases = async () => {
   // One run list for each repository, however many pull requests it has, and one failed log for each workflow run.
   const many = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30), pull(31, { headRef: "chore/ticket-7-31" }), pull(32, { headRef: "chore/ticket-7-32" })], api: [pull(40, { headRef: "chore/ticket-7-40" })] } })
   await many.run()
-  same("drive: a tick reads the Pullfrog run list once for each repository with a pull request", many.calls.filter((entry) => entry[0] === "runList").map((entry) => entry[1]), ["ui", "api"])
+  same("drive: a tick reads the Pullfrog run list once for each repository with a pull request", many.calls.filter((entry) => entry[0] === "pullfrogRuns").map((entry) => entry[1]), ["ui", "api"])
   const draft = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { draft: true })] } })
   await draft.run()
-  same("drive: a repository with only draft pull requests reads no run list", only(draft.calls, "runList").length, 0)
+  same("drive: a repository with only draft pull requests reads no run list", only(draft.calls, "pullfrogRuns").length, 0)
   const twoChecks = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Unit Tests", "FAILURE"), check("Lint", "FAILURE", { databaseId: 13 }), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] }, failedSteps: ["Unit tests"], routes: [["actions/jobs/11/logs", "AssertionError: expected 1 to be 2\n"], ["actions/jobs/13/logs", "lint failed\n"]] })
   await twoChecks.run()
   const jobReads = (id) => twoChecks.calls.filter((entry) => entry[0] === "gh" && entry[1].includes(`actions/jobs/${id}/logs`)).length
@@ -3124,6 +3251,8 @@ export const driverUnit = async () => {
   await intakeCases()
   await accountCases()
   await robustnessCases()
+  await readFailureCases()
+  await holdCases()
   await cliCases()
   await blockingClassCases()
   await reportHoldCases()
