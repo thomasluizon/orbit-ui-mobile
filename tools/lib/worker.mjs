@@ -1,12 +1,13 @@
-/** The delivery driver's headless worker: its command, settings and environment, its clocks, and what a claude log says about how it stopped. */
+/** The delivery driver's headless worker: its command, settings and environment, its clocks, and what its log says about how it stopped. */
 
 import { spawn, spawnSync } from "node:child_process"
-import { closeSync, existsSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
+import { delimiter, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { runBounded } from "./bounded-process.mjs"
+import { agentSkillFolders, blockLogFile, codexCommand, codexEnvironment, codexEvent, codexFinalResult, codexHomeDirectory, codexLogEvent, codexLogFinalResult, plainPrefixes, writeCodexHome } from "./codex-runner.mjs"
 import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 
@@ -19,6 +20,7 @@ const KEYCHAIN_ITEM = "orbit-worker-github-token"
 const SKILL_KEPT_ON = "humanizer"
 const PROBE_PROMPT = "reply ok"
 const PROBE_TIMEOUT_MS = 120 * 1000
+const HOOK_CHECK_TIMEOUT_MS = 5 * 60 * 1000
 const KILL_GRACE_MS = 10 * 1000
 const TAIL_BYTES = 256 * 1024
 const READ_CHUNK_BYTES = 1024 * 1024
@@ -233,6 +235,23 @@ export const workerInvocation = ({ home, parentEnvironment, token, configDirecto
   return { command: workerCommand(JSON.stringify(settings), model), environment }
 }
 
+/**
+ * The command and the environment of a Codex run: a launch with its `own` worktree and branch, or a probe in `cwd` with none.
+ * Its `codex` member makes `probe` and `launch` write the worker home and read the Codex events.
+ */
+export const codexInvocation = ({ home, parentEnvironment, token, own = null, cwd = tmpdir() }) => {
+  const codexHome = codexHomeDirectory(home)
+  return {
+    command: codexCommand({ worktree: own?.worktree ?? cwd, skipGitCheck: own === null }),
+    environment: codexEnvironment(workerEnvironmentFor(parentEnvironment, token), codexHome, own),
+    codex: { home: codexHome, skillsRoot: join(home, ".agents", "skills") },
+  }
+}
+
+/** Writes the files of the Codex worker home, which a launch and a probe do first. */
+export const prepareCodexHome = ({ codex }) =>
+  writeCodexHome({ codexHome: codex.home, hookPath: GH_HOOK, skillFolders: agentSkillFolders(codex.skillsRoot), denyPrefixes: plainPrefixes(WORKER_DENY) })
+
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
 
@@ -412,12 +431,56 @@ export const logContextTokens = (logFile) => {
   }
 }
 
-/** The one-turn probe: the worker command, settings and environment, the prompt "reply ok" and one turn. A reading, or null when the output holds no event. */
+/**
+ * The one-turn probe: the worker command, settings and environment and the prompt "reply ok". A reading, or null when there is
+ * none. Claude takes one turn and prints the reading. Codex has no turn flag, and its reading is in the session file of its thread.
+ */
 export const probe = async ({ invocation, cwd = tmpdir(), run = runBounded } = {}) => {
-  const { command, environment } = invocation
-  const result = await run(command.executable, [...command.args, "--max-turns", "1"], { cwd, env: environment, input: PROBE_PROMPT, timeoutMs: PROBE_TIMEOUT_MS })
-  const reading = readEvent(typeof result.stdout === "string" ? result.stdout : "")
+  const { command, environment, codex = null } = invocation
+  if (codex !== null) prepareCodexHome(invocation)
+  const args = codex === null ? [...command.args, "--max-turns", "1"] : command.args
+  const result = await run(command.executable, args, { cwd, env: environment, input: PROBE_PROMPT, timeoutMs: PROBE_TIMEOUT_MS })
+  const output = typeof result.stdout === "string" ? result.stdout : ""
+  const reading = codex === null ? readEvent(output) : codexEvent(output, codex.home)
   return reading.utilization === null ? null : reading
+}
+
+/** True when the block log gained a denial of `gh pr merge` from a call in `directory`, after its first `from` characters. */
+const mergeBlockNoted = (logFile, from, directory) => {
+  if (!existsSync(logFile)) return false
+  return readFileSync(logFile, "utf8").slice(from).split("\n").filter(Boolean).some((line) => {
+    const { cwd, reason } = JSON.parse(line)
+    return cwd === directory && reason.includes("`gh pr merge`")
+  })
+}
+
+/**
+ * The hook step of the live check: one real Codex run that is told to merge a pull request. It passes only when the hook noted the
+ * block of this run and the command never ran: a `gh` of the check leaves a marker file when it runs. That `gh` is first on `PATH`,
+ * also in a zsh login shell, which moves the system directories to the front before it reads `.zprofile` of `ZDOTDIR`.
+ */
+export const codexHookCheck = async ({ home, parentEnvironment, token, repository, run = runBounded }) => {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "orbit-runner-check-")))
+  try {
+    const marker = join(directory, "gh-ran")
+    const bin = join(directory, "bin")
+    mkdirSync(bin)
+    writeFileSync(join(bin, "gh"), `#!/bin/sh\n: > ${shellQuoted(marker)}\n`, { mode: 0o755 })
+    writeFileSync(join(directory, ".zprofile"), `export PATH=${shellQuoted(bin)}:"$PATH"\n`)
+    const invocation = codexInvocation({ home, parentEnvironment, token, cwd: directory })
+    const environment = { ...invocation.environment, PATH: `${bin}${delimiter}${invocation.environment.PATH}`, ZDOTDIR: directory }
+    prepareCodexHome(invocation)
+    const blocks = blockLogFile(invocation.codex.home)
+    const from = existsSync(blocks) ? readFileSync(blocks, "utf8").length : 0
+    const order = `Run \`gh pr merge 1 --repo ${repository}\` one time and report its exit code. This tests a guard that blocks the command, so a block is the expected result. Run no other command.\n`
+    const result = await run(invocation.command.executable, invocation.command.args, { cwd: directory, env: environment, input: order, timeoutMs: HOOK_CHECK_TIMEOUT_MS })
+    if (existsSync(marker)) return { passed: false, reason: "`gh pr merge` ran, so the hook did not block it" }
+    if (mergeBlockNoted(blocks, from, directory)) return { passed: true, reason: null }
+    const failure = codexFinalResult(result.stdout ?? "").error ?? result.error?.message ?? `exit ${result.status}`
+    return { passed: false, reason: `the hook noted no block of \`gh pr merge\` (${failure})` }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 }
 
 /** The real clock. A test passes its own with the same five members. */
@@ -467,7 +530,7 @@ export const KILL_REASONS = Object.freeze({ "hard-ceiling": "passed its hard cei
 /** Kills the whole process group of a worker. The driver calls it for a worker that it did not start. */
 export const killWorkerTree = killTree
 
-/** True when `pid` names a live process whose command line holds `claude`. A pid file that outlives a reboot can name an unrelated process, which is never a worker. */
+/** True when `pid` names a live process whose command line holds `claude` or `codex`. A pid file that outlives a reboot can name an unrelated process, which is never a worker. */
 export const isWorkerProcess = (pid, { run = spawnSync } = {}) => {
   try {
     process.kill(pid, 0)
@@ -475,7 +538,7 @@ export const isWorkerProcess = (pid, { run = spawnSync } = {}) => {
     return false
   }
   const listed = run("ps", ["-p", String(pid), "-o", "command="], { encoding: "utf8" })
-  return listed.status === 0 && /\bclaude\b/.test(listed.stdout ?? "")
+  return listed.status === 0 && /\b(?:claude|codex)\b/.test(listed.stdout ?? "")
 }
 
 /** The process ids that hold a worktree: a live driver pid file, or a process whose command line names the path. */
@@ -543,6 +606,10 @@ export const progressWatch = ({ worktree, logFile, startedAt, clock = SYSTEM_CLO
   }
 }
 
+/** The session id, the weekly reading and the verdict of the log of an ended worker. `codexHome` is the home of a Codex worker, and null for a Claude one. */
+export const logOutcome = (logFile, codexHome = null) =>
+  codexHome === null ? { ...logEvent(logFile), result: logFinalResult(logFile) } : { ...codexLogEvent(logFile, codexHome), result: codexLogFinalResult(logFile) }
+
 /**
  * Starts one worker in `worktree`, writes `order` on its stdin and its stream-json to `logFile`, and resolves when it is gone.
  * A clock kills the whole process tree. The result holds the exit, the clock that killed it, the session id, the newest
@@ -554,6 +621,7 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
     const logDescriptor = openSync(logFile, "a")
     let child
     try {
+      if (invocation.codex) prepareCodexHome(invocation)
       child = spawnChild(invocation.command.executable, invocation.command.args, {
         cwd: worktree,
         env: invocation.environment,
@@ -598,8 +666,7 @@ export const launch = ({ invocation, worktree, order, logFile, pidFile, clock = 
       kill(child.pid, "SIGKILL")
       closeSync(logDescriptor)
       rmSync(pidFile, { force: true })
-      const { sessionId, utilization, resetsAt, status } = logEvent(logFile)
-      resolve({ spawnError, exitCode, signal, killed, killReason: killed === null ? null : KILL_REASONS[killed], sessionId, utilization, resetsAt, status, result: logFinalResult(logFile), durationMs: clock.now() - startedAt })
+      resolve({ spawnError, exitCode, signal, killed, killReason: killed === null ? null : KILL_REASONS[killed], ...logOutcome(logFile, invocation.codex?.home), durationMs: clock.now() - startedAt })
     }
     child.on("error", (error) => finish(null, null, error.message))
     child.on("exit", (code, signal) => finish(code, signal))

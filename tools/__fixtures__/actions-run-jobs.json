@@ -1,0 +1,62 @@
+{
+  "recordedFrom": "gh api repos/<slug>/actions/runs/<run id>/jobs?per_page=100, on 2026-11-27, kept fields and a subset of the jobs of one PR Tests run",
+  "total_count": 28,
+  "jobs": [
+    {
+      "name": "Plan",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:05:46Z",
+      "started_at": "2026-11-27T16:06:57Z",
+      "completed_at": "2026-11-27T16:07:21Z"
+    },
+    {
+      "name": "Mobile unit (2/2)",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:07:21Z",
+      "started_at": "2026-11-27T16:08:26Z",
+      "completed_at": "2026-11-27T16:18:02Z"
+    },
+    {
+      "name": "Build",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:07:21Z",
+      "started_at": "2026-11-27T16:10:28Z",
+      "completed_at": "2026-11-27T16:12:53Z"
+    },
+    {
+      "name": "Checks",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:07:21Z",
+      "started_at": "2026-11-27T16:09:31Z",
+      "completed_at": "2026-11-27T16:15:51Z"
+    },
+    {
+      "name": "Web unit (chromium 12/16)",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:07:21Z",
+      "started_at": "2026-11-27T16:12:41Z",
+      "completed_at": "2026-11-27T16:22:26Z"
+    },
+    {
+      "name": "Layout shard ${{ matrix.shard }}",
+      "status": "completed",
+      "conclusion": "skipped",
+      "created_at": "2026-11-27T16:12:54Z",
+      "started_at": "2026-11-27T16:12:54Z",
+      "completed_at": "2026-11-27T16:12:54Z"
+    },
+    {
+      "name": "Unit Tests",
+      "status": "completed",
+      "conclusion": "success",
+      "created_at": "2026-11-27T16:45:22Z",
+      "started_at": "2026-11-27T17:39:48Z",
+      "completed_at": "2026-11-27T17:48:46Z"
+    }
+  ]
+}

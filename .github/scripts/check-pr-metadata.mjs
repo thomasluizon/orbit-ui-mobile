@@ -23,6 +23,16 @@ if (attribution.length) {
   failed = true
 }
 
+// The Remaining facts live in one `Remaining:` line that lists part numbers or `none`. A section or a second line would give the driver two answers.
+if (/^#{1,6}[ \t]+Remaining[ \t]*:?[ \t]*\r?$/im.test(text)) {
+  console.error("::error::The pull request body must carry no Remaining section. Write one `Remaining:` line.")
+  failed = true
+}
+if ((text.match(/^Remaining:/gm) ?? []).length > 1) {
+  console.error("::error::The pull request body must carry one `Remaining:` line, not more.")
+  failed = true
+}
+
 const paths = readFileSync(changedPaths, "utf8").split(/\r?\n/)
 const web = paths.some((path) => parityPlatform(path) === "web")
 const mobile = paths.some((path) => parityPlatform(path) === "mobile")

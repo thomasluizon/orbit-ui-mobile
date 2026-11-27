@@ -23,14 +23,15 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail } from "./lib/stage-budgets.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -81,6 +82,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
               It starts only when a service has unreleased work. The owner session runs it for /release.
   --release-status  print the newest release train: what it released and where it stopped
+  --budgets         print the median of each stage time against its budget, then RESULT: PASS or RESULT: FAIL. It exits 0.
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
   --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
@@ -156,12 +158,11 @@ const BRANCH_TYPE = { Bug: "fix", Feature: "feature", Improvement: "chore" }
 const PAUSE_TITLE = "Driver paused: a worker stopped at a usage limit or a sign-in failure"
 const STOP_TITLE = "Driver stopped: weekly usage reached 90%"
 const RESTART_TITLE = "Driver restarted three times in ten minutes"
-const STALL_TITLE = "Driver stalled: no worker, request or merge for 60 minutes"
-const ACTIVITY_FILE = "activity.json"
-const STALL_MS = HOUR_MS
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
+/** The labels of a driver problem that needs no owner step. The harness works the ticket like any other Bug. */
+const HARNESS_BUG_LABELS = ["repo:ui", "Bug", "harness"]
 const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const CHECK_REQUEST_RECORD = "driver check request"
@@ -363,7 +364,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
 /** What one tick tells `health.json`: its good read, the pull requests at the bar, a merge, each blind part, its first error, a hold and the rate limit reset. */
 const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null, held: false, resetAt: null })
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, lastJudgeAt: 0, slow: null, stageTimesFailed: false, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -554,6 +555,21 @@ const openProblem = async (env, { title, body, notice }) => {
     return created
   } finally {
     await say(env, { ...notice, link })
+  }
+}
+
+/**
+ * Opens a Bug ticket for a driver problem that needs no owner step, then sends its notice with the link. It carries no
+ * `needs:owner` label and no sleep item, so the driver builds it like every other ticket. `notice` is optional.
+ */
+const openBug = async (env, { title, body, notice = null }) => {
+  let link = null
+  try {
+    const created = await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS })
+    link = issueLink(env, created.number)
+    return created
+  } finally {
+    if (notice !== null) await say(env, { ...notice, link })
   }
 }
 
@@ -888,11 +904,21 @@ const unansweredRequests = (pull, runs) => requestsOf(pull).filter((request) => 
 /** The whole-diff requests for the head that a review pass answered. */
 const answeredWholeDiffRequests = (pull, runs) => requestsOf(pull).filter((request) => request.whole && requestCommit(pull, runs, request) === pull.headSha && passesOf(pull).some((entry) => answers(runs, entry, request))).length
 
+/**
+ * Brings the commits of a pull request into the repository checkout: its head and the base branch that its `baseRefOid` names.
+ * A read of the head or the base before this fails with exit 128, because the checkout holds only what an earlier fetch brought.
+ * Every git read of a pull request waits on this one fetch, which runs once for each pull request, head and base in a tick.
+ */
+const fetchPull = (env, repoPath, pull, base = pull.baseRef) => {
+  if (env.dryRun) return Promise.resolve()
+  return readOnce(env, `fetch ${repoPath} ${pull.number} ${pull.headSha} ${base}`, () => env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`]))
+}
+
 /** The shas of the two-parent commits of a pull request whose remerge diff is empty. */
 const cleanMergesOf = async (env, repoPath, pull) => {
   const merges = pull.commits.filter((commit) => commit.parents === 2)
   if (merges.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const clean = []
   for (const merge of merges) {
     // A commit that git cannot show is never a clean merge.
@@ -900,6 +926,22 @@ const cleanMergesOf = async (env, repoPath, pull) => {
     if (shown.status === 0 && shown.stdout.trim() === "") clean.push(merge.sha)
   }
   return clean
+}
+
+/**
+ * Sets the changed paths and the commit messages of a pull request from git: `git diff --name-only --no-renames` between the base and the head
+ * lists a rename with its old and its new path and has no cap of 100 files, as the GitHub query has. A read that git cannot answer throws,
+ * so the plan reports the error and no merge goes out on a diff that the driver did not see.
+ */
+const readPullDiff = async (env, repoPath, pull) => {
+  await fetchPull(env, repoPath, pull)
+  const range = [pull.baseSha, pull.headSha]
+  const names = await env.git(repoPath, ["diff", "--name-only", "--no-renames", "-z", `${range[0]}...${range[1]}`])
+  if (names.status !== 0) throw new Error(`git diff of ${pull.number} failed: ${names.stderr.trim()}`)
+  const messages = await env.git(repoPath, ["log", "--format=%B%x00", `${range[0]}..${range[1]}`])
+  if (messages.status !== 0) throw new Error(`git log of ${pull.number} failed: ${messages.stderr.trim()}`)
+  pull.files = names.stdout.split("\0").filter(Boolean)
+  pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
 }
 
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
@@ -913,7 +955,7 @@ const ownDiff = async (env, repoPath, base, sha) => {
 const sameDiffOf = async (env, repoPath, pull, base) => {
   const approved = [...new Set(pull.reviews.filter((review) => isReviewPass(review) && review.state === "APPROVED" && review.commit !== pull.headSha).map((review) => review.commit))].filter((sha) => pull.commits.some((commit) => commit.sha === sha))
   if (approved.length === 0) return []
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull, base)
   const head = await ownDiff(env, repoPath, base, pull.headSha)
   if (head === "") return []
   const same = []
@@ -934,7 +976,7 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     if (lastRun && lastRun.status !== "completed") return { wait: "a Pullfrog run is in progress" }
     const missed = lastRun ? now - Date.parse(lastRun.updatedAt) >= MISSING_AFTER_RUN_MS : now - Date.parse(lastRequest.createdAt) >= MISSING_AFTER_REQUEST_MS
     if (!missed) return { wait: "waiting for the Pullfrog review" }
-    return sinceReview.length === 1 ? { request: lastRequest.whole ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST, why: "no review after the first request", lastRun } : { owner: "Pullfrog gave no review after two requests", lastRun }
+    return sinceReview.length === 1 ? { request: lastRequest.whole ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST, why: "no review after the first request", lastRun } : { park: "Pullfrog gave no review after two requests", lastRun }
   }
   // The first pass of a head is one pass: a pull request that owes a whole-diff pass asks for it at once, and never for a plain pass first.
   const first = needsWholeDiff(pull, { fixLaunches }) ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST
@@ -945,10 +987,10 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     if (run.status !== "completed") return { wait: "a Pullfrog run is in progress" }
     return now - Date.parse(run.updatedAt) < CHECK_SETTLE_MS ? { wait: "the Pullfrog review is not yet final" } : null
   }
-  // A head that Pullfrog already reviewed gets no second plain request: its next pass is the owner's to ask for.
+  // A head that Pullfrog already reviewed gets no second plain request: the pull request parks.
   const demand = (text, why) => {
     if (sinceReview.length > 0) return waiting()
-    if (text === PLAIN_REQUEST && latest !== null) return { owner: "Pullfrog reviewed this head and gave no usable review", skip: "same head" }
+    if (text === PLAIN_REQUEST && latest !== null) return { park: "Pullfrog reviewed this head and gave no usable review", skip: "same head" }
     return { request: text, why }
   }
   const carried = latest === null ? carriedApproval(pull) : null
@@ -956,10 +998,10 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   if ((latest ?? carried).state === "APPROVED") {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
     if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return carried === null ? { approved: true } : { approved: true, skip: "same diff" }
-    // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
+    // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the park.
     const unsettled = settling(latest)
     if (unsettled) return unsettled
-    if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
+    if (answeredWholeDiffRequests(pull, runs) >= 2) return { park: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
   // A fix order reads the review, so it waits until Pullfrog stops editing the body: a late edit adds findings that the inline comments lack.
@@ -967,7 +1009,7 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   if (unsettled) return unsettled
   if (latest.state === CHANGES_REQUESTED && latest.blocking.length > 0) return { fix: latest }
   const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === CHANGES_REQUESTED && review.blocking.length === 0))
-  if (unusable.length >= 2) return { owner: "Pullfrog gave a review with no BLOCKING comment twice at the same head" }
+  if (unusable.length >= 2) return { park: "Pullfrog gave a review with no BLOCKING comment twice at the same head" }
   return demand(PLAIN_REQUEST, "the last review at this head names no BLOCKING class")
 }
 
@@ -975,9 +1017,9 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
  * The plan for a head that has every other condition of the bar but the `pullfrog-approval` check run: one plain request, which
  * Pullfrog answers with the check-only pass. GitHub names the current head as the commit of an older review, so the review
  * state can look satisfied while the check is absent. A record comment names each request by head, so the bound is one
- * re-request, then the owner.
+ * re-request, then the park.
  */
-const checkOnlyPlan = ({ pull, runs, now, request }) => {
+const checkOnlyPlan = ({ pull, runs, now, request, park }) => {
   const record = `${CHECK_REQUEST_RECORD} ${pull.headSha}`
   const sent = pull.comments.filter((entry) => entry.kind === "record" && bodyAfterMarker(entry) === record).sort((left, right) => left.createdAt.localeCompare(right.createdAt))
   const newestRun = [...runs].sort((left, right) => left.createdAt.localeCompare(right.createdAt)).at(-1)
@@ -990,7 +1032,7 @@ const checkOnlyPlan = ({ pull, runs, now, request }) => {
   if (lastRun && lastRun.status !== "completed") return { type: "none", reason: "a Pullfrog run is in progress" }
   const missed = lastRun ? now - Date.parse(lastRun.updatedAt) >= MISSING_AFTER_RUN_MS : now - Date.parse(lastRequest.createdAt) >= MISSING_AFTER_REQUEST_MS
   if (!missed) return { type: "none", reason: "waiting for the Pullfrog check-only pass" }
-  return sent.length === 1 ? { ...request(PLAIN_REQUEST), record } : { type: "needs-owner", reason: "Pullfrog gave no pullfrog-approval check after two requests at this head" }
+  return sent.length === 1 ? { ...request(PLAIN_REQUEST), record } : park("Pullfrog gave no pullfrog-approval check after two requests at this head")
 }
 
 /** One read for each key in a tick: every caller of a key shares the first read. `env.reads` is new at the start of each tick. */
@@ -1019,7 +1061,7 @@ const failedLogLines = async (env, repoKey, jobId) => {
   }
 }
 
-/** The check part of a plan: a rerun, the owner, or a ci-fix order. Null when no check failed. */
+/** The check part of a plan: a rerun, a park, or a ci-fix order. Null when no check failed. */
 const checkPlan = async (env, repoKey, pull) => {
   const failed = failedChecks(pull)
   if (failed.length === 0) return null
@@ -1032,7 +1074,7 @@ const checkPlan = async (env, repoKey, pull) => {
     const cancelled = check.conclusion === "CANCELLED"
     const failedSteps = check.runId === null || cancelled ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
     const verdict = cancelled ? "rerun" : classifyCheckFailure({ name: check.name, failedSteps })
-    if (verdict === "needs-owner") return { owner: `${check.name} asks for a deployment barrier, which only the owner writes` }
+    if (verdict === "needs-owner") return { park: `${check.name} asks for a deployment barrier, which only the owner writes` }
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
     // A deterministic check gives the same result at the same head, so it never reruns: its failure goes to a fix order.
     const owesRerun = check.runId !== null && !already && !isDeterministicCheck(check.name)
@@ -1182,10 +1224,12 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A ci-fix launch for a base merge and a merge-forward launch are no fault of the change, so the cap does not count them. A base-merge mark holds the head it ran at.
   const counted = launches.filter((entry) => !entry.baseMerge && entry.kind !== "merge-forward")
   const actions = flakeActions(pull)
-  const owner = (reason, cause = reason) => [...actions, { type: "needs-owner", reason, cause }]
+  // A technical stop parks the ticket, or the pull request when no open ticket tracks it. Only a step that needs the owner's hands writes `needs:owner`.
+  const parked = (reason) => ({ type: "park", repoKey, ticket, reason })
+  const park = (reason) => [...actions, parked(reason)]
   const orderOrWait = (order) => {
-    // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
-    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it.`, `no-ticket-${order.kind}`)
+    // A worker order is recorded on a ticket, so a pull request with no open ticket parks.
+    if (ticket === null) return park(`${item} needs a ${order.kind} order and no open ticket tracks it`)
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
@@ -1217,7 +1261,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   }
   if (need.fix) return orderOrWait({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix })
   const checks = await checkPlan(env, repoKey, pull)
-  if (checks?.owner) return owner(checks.owner, "deployment-barrier")
+  if (checks?.park) return park(checks.park)
   if (checks?.wait) return [...actions, { type: "none", reason: checks.wait }]
   if (checks?.rerun) return [...actions, ...checks.rerun.map(({ runId, suspects }) => ({ type: "rerun", runId, suspects }))]
   if (checks?.checks) {
@@ -1225,19 +1269,22 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return orderOrWait({ type: "order", kind: "ci-fix", repoKey, pull, ticket, failure: { checks: checks.checks, ...(baseMerge === null ? {} : { baseMerge }) } })
   }
   if (pull.mergeState === "DIRTY") return orderOrWait({ type: "order", kind: "merge-forward", repoKey, pull, ticket, failure: {} })
-  if (need.owner) return owner(need.owner)
+  if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
-  if (dependabot && bar.includes("dependabot-major")) return owner(`Dependabot pull request ${item} is a major update`)
+  if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
+  // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
+  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
+  if (ownerFailures.length > 0) return owner(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}, which only the owner clears.`, `bar-${ownerFailures.join("-")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
-  if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request })]
+  if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request, park: parked })]
   return [...actions, { type: "none", reason: `the bar fails: ${bar.join(", ")}` }]
 }
 
@@ -1257,6 +1304,52 @@ const outsideTicket = async (env, repoKey, pull) => {
   if (sections.length === 0) return
   const slug = env.slugOf(repoKey)
   await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, labels: [`repo:${repoKey}`, "Bug"] })
+}
+
+const classBody = ({ key, repoKey, check, at, sentence, slug, number, closed }) => {
+  const earlier = closed.length === 0 ? "none" : closed.map((ticket) => `#${ticket.number} ${ticket.title}`).join("\n")
+  const said = sentence.replace(/[.!?]+$/, "")
+  return `Class: ${key}
+Filed by: driver
+Finding: class ${repoKey} ${key}
+
+## Problem and why
+
+Pullfrog named the class \`${key}\` in ${slug}#${number} at \`${at}\`: ${said}. The fix round fixed only that instance. The owner rule is to fix the class of a defect, not the instance, and a class that a tool can catch gets a deterministic check.
+
+## Permanent fix
+
+Add one ${check} that fails on every instance of this class in the repository. Fix every instance it finds in the same pull request, and keep the check on. Prefer a type or a test. A lint rule under \`eslint-rules/\` or a change of an \`eslint.config.*\` file needs the owner's \`design-system\` label. When a rule of \`CODING_STANDARDS.md\` names the class, add the name of the check to that rule.
+
+## Acceptance criteria
+
+- The check fails at the base commit on \`${at}\`, or on a copy of that instance in a fixture.
+- The check passes after the fix, and no instance is left.
+
+## Earlier tickets of this class
+
+${earlier}`
+}
+
+/** True when an open ticket of the repository holds the class key in a `Class: <key>` line. */
+const classHeld = (tickets, repoKey, key) => tickets.some((ticket) => ticket.labels.includes(`repo:${repoKey}`) && (ticket.body ?? "").split("\n").some((line) => line.trim().toLowerCase() === `class: ${key}`))
+
+/** Files one Improvement ticket for each class that the `## Class checks` sections of the reviews name, unless an open ticket of the repository holds the key. */
+const classTickets = async (env, ctx, pull) => {
+  const { repoKey } = ctx
+  for (const line of classLines(pull.reviews)) {
+    if (classHeld(ctx.tickets, repoKey, line.key) || ctx.classes.has(`${repoKey} ${line.key}`)) {
+      log(env, "class-ticket", `held ${line.key}`)
+      continue
+    }
+    ctx.classes.add(`${repoKey} ${line.key}`)
+    let closed = []
+    try { closed = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "closed", "--search", `"Class: ${line.key}" in:body`, "--json", "number,title", "--limit", "20"])) } catch (error) { log(env, "class-ticket", "closed-unread", `${line.key}: ${error.message}`) }
+    const slug = env.slugOf(repoKey)
+    const title = `A ${line.check} finds every case of: ${line.sentence}`.slice(0, 100)
+    await env.github.createTicket({ title, body: classBody({ ...line, repoKey, slug, number: pull.number, closed }), labels: [`repo:${repoKey}`, "Improvement", ...(repoKey === "ui" ? ["parity:no"] : [])] })
+    log(env, "class-ticket", `${line.key} ${repoKey}`)
+  }
 }
 
 /** Merges the base branch into a pull request and records the merge commit that this makes. */
@@ -1308,15 +1401,14 @@ const syncRequiredChecks = (env, mem) => Promise.all(REPOSITORY_KEYS.map((repoKe
 /**
  * The change that a pull request into the protected branch makes to the required checks file: `{ base, head }`, the file at
  * its merge base (null when there is none) and at its head (null when its shape is wrong). Null when it makes no change or
- * its head holds no file. GitHub lists at most 100 files of a pull request, so a longer one also reads the file.
+ * its head holds no file. `pull.files` comes from git and holds every changed path. A draft has none, so its check comes first.
  */
 const requiredChecksChangeOf = async (env, repoKey, pull) => {
-  const mayChange = pull.files.includes(REQUIRED_CHECKS_FILE) || pull.changedFiles > pull.files.length
-  if (pull.draft || pull.baseRef !== PROTECTED_BRANCH || !mayChange) return null
+  if (pull.draft || pull.baseRef !== PROTECTED_BRANCH || !pull.files.includes(REQUIRED_CHECKS_FILE)) return null
   const head = await env.github.readRequiredChecksFile(repoKey, pull.headSha)
   if (head === null) return null
   const repoPath = env.config.repos[repoKey]
-  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", PROTECTED_BRANCH, `refs/pull/${pull.number}/head`])
+  await fetchPull(env, repoPath, pull)
   const mergeBase = await gitText(env, repoPath, ["merge-base", `origin/${PROTECTED_BRANCH}`, pull.headSha])
   const base = (await env.github.readRequiredChecksFile(repoKey, mergeBase))?.required ?? null
   const unchanged = base !== null && head.required !== null && sameRequiredChecks(base, head.required)
@@ -1348,6 +1440,70 @@ const mergePull = async (env, mem, repoKey, pull) => {
   await applyRequiredChecks(env, repoKey, { before }).catch((error) => requiredChecksError(env, mem, repoKey, error))
 }
 
+const STAGE_TIMES_FILE = "stage-times.jsonl"
+
+const readStageTimes = (env) => {
+  try {
+    return readFileSync(join(env.stateDir, STAGE_TIMES_FILE), "utf8").split("\n").filter((line) => line !== "").flatMap((line) => { try { return [JSON.parse(line)] } catch { return [] } })
+  } catch (error) {
+    if (error.code === "ENOENT") return []
+    throw error
+  }
+}
+
+/** Appends samples to `stage-times.jsonl` and keeps the newest `SAMPLES_KEPT` lines. A failed read or write logs once, until a write works, and never stops the tick. */
+const appendStageTimes = (env, mem, samples) => {
+  if (env.dryRun || samples.length === 0) return
+  try {
+    const lines = [...readStageTimes(env), ...samples].slice(-SAMPLES_KEPT).map((sample) => JSON.stringify(sample))
+    writeFileSync(join(env.stateDir, STAGE_TIMES_FILE), `${lines.join("\n")}\n`)
+    mem.stageTimesFailed = false
+  } catch (error) {
+    if (!mem.stageTimesFailed) log(env, "stage-times", "error", error.message)
+    mem.stageTimesFailed = true
+  }
+}
+
+/** The workflow runs of the checks at the head of a merged pull request, each with its jobs. A failed read of a run gives no jobs for it. */
+const readRunJobs = async (env, repoKey, pull) => {
+  const jobs = []
+  for (const runId of new Set(passedChecks(pull).map((entry) => entry.runId).filter((id) => id !== null))) {
+    try { jobs.push(...(JSON.parse(await env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/runs/${runId}/jobs?per_page=100`])).jobs ?? [])) } catch (error) { log(env, "stage-times", "jobs-error", `run ${runId}: ${error.message}`) }
+  }
+  return jobs
+}
+
+/** After a merge: one sample for each stage of the merged pull request. A failure here never fails the merge. */
+export const recordMergeSamples = async (env, mem, { repoKey, pull, ticket }) => {
+  try {
+    const mergedAt = new Date(env.now()).toISOString()
+    appendStageTimes(env, mem, mergeSamples({ repoKey, item: `${repoKey}#${pull.number}`, pull, launches: launchesOf(ticket), approvedAt: approvalTime(pull), mergedAt, jobs: await readRunJobs(env, repoKey, pull) }))
+  } catch (error) {
+    log(env, "stage-times", "error", error.message)
+  }
+}
+
+/**
+ * The hourly judge of the stage budgets. A key that turns slow logs one `SLOW` line, and `mem.slow` holds each slow key for `health.json`.
+ * It changes nothing else: no hold, no failure, no order and no rank.
+ */
+export const judgeStages = (env, mem) => {
+  mem.lastJudgeAt = env.now()
+  let verdicts
+  try { verdicts = judge(readStageTimes(env)) } catch (error) { return log(env, "stage-times", "error", error.message) }
+  const slow = new Map(verdicts.filter((verdict) => verdict.judged && verdict.slow).map((verdict) => [verdict.key, { key: verdict.key, detail: slowDetail(verdict), samples: verdict.samples }]))
+  for (const [key, entry] of slow) if (!mem.slow?.has(key)) env.log(`${new Date(env.now()).toISOString()} SLOW ${key}: ${entry.detail}, ${entry.samples.length} samples`)
+  mem.slow = slow
+}
+
+/** `--budgets`: one line for each key, then the result. It always exits 0. */
+export const runBudgets = (env, { out }) => {
+  const verdicts = judge(readStageTimes(env)).sort((left, right) => left.key.localeCompare(right.key))
+  for (const verdict of verdicts) out(budgetLine(verdict))
+  out(budgetResult(verdicts))
+  return 0
+}
+
 const executeAction = async (env, mem, ctx, pull, action) => {
   const { repoKey, ticketMap } = ctx
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
@@ -1358,7 +1514,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "request":
       if (action.ticketComment) await env.github.comment(repoKey, pull.number, ticketComment({ repository: env.config.tickets.repository, ticket, part }))
       await env.github.comment(repoKey, pull.number, marked("request", action.text))
-      mem.acted = true
       if (action.record) await env.github.comment(repoKey, pull.number, marked("record", action.record))
       return undefined
     case "rerun":
@@ -1368,31 +1523,26 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
-    case "park": return parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action)
+    case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
     case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
-      mem.acted = true
       mem.health.merged = true
+      await recordMergeSamples(env, mem, { repoKey, pull, ticket })
       mem.merged.delete(pull.tracks)
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
       // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
       ctx.mergedPulls.add(pull)
       await outsideTicket(env, repoKey, pull)
+      await classTickets(env, ctx, pull)
       return undefined
     default: return undefined
   }
 }
 
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
-
-/** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
-const isWaiting = (env, pull, tickets) => {
-  const ticket = tickets.find((entry) => entry.number === pull.tracks)
-  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !pull.labels.includes(PARKED) && !ticket?.labels.includes(PARKED) && !heldByReport(env, pull, ticket)
-}
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
@@ -1407,7 +1557,7 @@ const planOrder = (state) => [...state.pulls].sort((left, right) => left.number 
  */
 const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), classes: new Set(), mergedPulls: new Set(), now: env.now(), running }
   const repoPath = env.config.repos[repoKey]
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
@@ -1416,6 +1566,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       const ownerAtPlan = pull.tracks !== null && holdsTicket(ticketMap.get(pull.tracks))
       const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft) await readPullDiff(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       pull.requiredChecksChange = await requiredChecksChangeOf(env, repoKey, pull).catch((error) => { noteReadError(mem, error); throw error })
       const planAgain = async () => {
@@ -1473,10 +1624,6 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       } finally {
         // A merge action means that the pull request meets the bar. It stays unmerged when no merge of this tick took it.
         if (plan.some((action) => action.type === "merge") && !ctx.mergedPulls.has(pull)) mem.health.green.push({ key: item, approvedAt: approvalTime(pull) })
-        // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
-        // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it.
-        const waitsForReplan = plan.some((action) => action.reason === WAITS_FOR_REPLAN)
-        if (!waitsForReplan && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
     } catch (failure) {
       log(env, item, "error", failure.message)
@@ -1663,7 +1810,7 @@ const preparationHeld = (env, mem, repoKey, branch) => (mem.unprepared.get(prepa
 const holdUnprepared = async (env, mem, { repoKey, ticket, branch }, error) => {
   const key = preparationKey(repoKey, branch)
   const reason = `the worktree of ${branch} was not prepared: ${oneLine(error.message)}`
-  mem.unprepared.set(key, { until: env.now() + PREPARE_RETRY_MS, line: `ticket#${ticket.number}: ${reason}` })
+  mem.unprepared.set(key, { until: env.now() + PREPARE_RETRY_MS })
   log(env, `ticket#${ticket.number}`, "worktree-failed", reason)
   await say(env, { key, lines: [`Orbit cannot start work: ${cut(ticket.title, TITLE_LIMIT)}`, `Git could not prepare the worktree for ${branch}. The driver tries again after ${PREPARE_RETRY_MS / 60000} minutes.`, cut(error.message, DETAIL_LIMIT)], link: issueLink(env, ticket.number) })
   return reason
@@ -2016,13 +2163,31 @@ const parkTicket = async (env, tickets, pulls, { ticket, repoKey, reason }) => {
   await env.github.editLabels("tickets", ticket.number, { add: [PARKED] })
   ticket.labels.push(PARKED)
   if (!(newestOf(ticket.comments, PARKED) > newestReplan)) {
-    const text = `Parked by the driver: ${reason}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
+    const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.\n\nPlans and launches:\n${plans.join("\n")}\n\nRe-plans:\n${replans.join("\n")}`
     await env.github.comment("tickets", ticket.number, marked(PARKED, text))
   }
   for (const pull of pulls) if (!pull.labels.includes(PARKED)) await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
   const today = new Date(env.now()).toISOString().slice(0, 10)
   const count = 1 + tickets.flatMap((entry) => entry.comments ?? []).filter((entry) => entry.kind === PARKED && entry.createdAt.startsWith(today)).length
   log(env, `ticket#${ticket.number}`, "parked", `${reason}; ${count} parked today`)
+}
+
+/**
+ * Parks a pull request that no open ticket tracks, or that a stop of the pull request holds: one marked `parked` comment with the
+ * reason, then the label `parked`. It sends no notice and writes no sleep item. The comment names its reason, so a label write
+ * that fails never makes the next tick write the same comment twice.
+ */
+const parkPull = async (env, { repoKey, pull, reason }) => {
+  if (pull.labels.includes(PARKED) || env.dryRun) return
+  await env.github.ensureLabel(repoKey, PARKED_LABEL)
+  const text = `Parked by the driver: ${reason.replace(/\.$/, "")}. The driver starts no launch for it. The daily harness review re-plans it.`
+  if (!pull.comments.some((entry) => entry.kind === PARKED && bodyAfterMarker(entry) === text)) {
+    await env.github.comment(repoKey, pull.number, marked(PARKED, text))
+    pull.comments.push({ kind: PARKED, body: marked(PARKED, text), createdAt: new Date(env.now()).toISOString() })
+  }
+  await env.github.editLabels(repoKey, pull.number, { add: [PARKED] })
+  pull.labels.push(PARKED)
+  log(env, `${repoKey}#${pull.number}`, "parked", reason)
 }
 
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
@@ -2216,11 +2381,12 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
     const unmet = await env.github.unmetDeployFirst(blocker)
     if (unmet.length > 0) return stop(`deploy-first ${unmet.map((hold) => `${hold.environment}/${hold.task}`).join(", ")} of ${blocker.number} is not deployed`)
   }
-  const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
-  if (partFault !== null) return { reason: "a part comment is broken or doubled", owner: partFault }
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   if (state === undefined) return stop(`the ${ticket.repoKey} repository could not be read this tick`)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
+  // A broken or doubled part comment parks the ticket after its open pull request merges. Until then the pull request and its worker go on.
+  const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
+  if (partFault !== null) return tracking.length > 0 || running.workers.some(({ record }) => record.ticketNumber === ticket.number) ? stop("a part comment is broken or doubled, and an open pull request or a worker holds the ticket") : { reason: "a part comment is broken or doubled", park: partFault }
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
   if (settled !== null) return stop(settled)
@@ -2229,11 +2395,11 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
-  // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line goes to the owner.
+  // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line parks the ticket.
   const usedBranches = new Set([...doneBranches, ...leftBranches(ticket)])
   const ownBranch = (part) => branchName(ticket, part, usedBranches)
   const untracked = (branch) => state.pulls.find((pull) => pull.headRef === branch && pull.tracks !== ticket.number)
-  const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, owner: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
+  const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, park: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
@@ -2316,8 +2482,9 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
     if (skip.has(ticket.number)) continue
     const verdict = await ticketVerdict(env, mem, states, tickets, ticket, { settled: chosen.length >= room ? full : null, running })
     if (verdict.reason) {
-      decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : `wait: ${verdict.reason}`)
+      decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : verdict.park ? `parked: ${verdict.reason}` : `wait: ${verdict.reason}`)
       if (verdict.owner) await needsOwner(env, mem, { ticket, reason: verdict.owner })
+      if (verdict.park) await parkTicket(env, tickets, (states.find((entry) => entry.repositoryKey === ticket.repoKey)?.pulls ?? []).filter((entry) => entry.tracks === ticket.number), { ticket, repoKey: ticket.repoKey, reason: verdict.park })
       continue
     }
     // The launches before the newest owner decision are answered, so a decided order gets its full count again.
@@ -2569,31 +2736,6 @@ const reapExits = async (env, mem) => {
   return unknown
 }
 
-/**
- * The stall alarm. The clock is the last tick in which a worker ran, a request went out or a pull request merged, kept in
- * `activity.json` so a restart keeps it. It resets while nothing waits, while the driver is held on purpose, and at each
- * action. After 60 minutes of waiting items with no action it logs `stall` with each reason and opens one `needs:owner` issue.
- */
-const watchStall = async (env, tickets, { acted, held, waiting }) => {
-  const path = join(env.stateDir, ACTIVITY_FILE)
-  let last = null
-  try { last = JSON.parse(readFileSync(path, "utf8")).at } catch { /* a first start has no file */ }
-  const now = env.now()
-  const issue = tickets.find((ticket) => ticket.title === STALL_TITLE) ?? null
-  if (acted || held || waiting.length === 0 || !Number.isFinite(last)) {
-    writeFileSync(path, `${JSON.stringify({ at: now })}\n`)
-    if (acted && issue !== null) await closeIssue(env, tickets, issue, "The driver acted again, so the stall ends.")
-    return
-  }
-  if (now - last < STALL_MS) return
-  const reasons = waiting.join("; ")
-  log(env, "driver", "stall", reasons)
-  if (issue !== null) return
-  const message = `The driver ran no worker, posted no request and merged nothing since ${new Date(last).toISOString()}. Waiting: ${reasons}`
-  const created = await openProblem(env, { title: STALL_TITLE, body: message, notice: { key: `stall ${new Date(last).toISOString()}`, lines: [`Orbit stalled: nothing was built, reviewed or merged since ${clock(last)}.`] } })
-  tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
-}
-
 /** The detached worktree of a coordinator run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
 const runWorktree = async (env, { stem }) => {
   const repoPath = env.config.repos.ui
@@ -2683,6 +2825,7 @@ const writeTickHealth = async (env, mem) => {
     writeHealth(env.stateDir, healthRecord({
       previous, now: env.now(), merged, blind,
       read: read === null ? null : { ...read, green },
+      slow: mem.slow === null ? null : [...mem.slow.values()],
       failure: failure === null ? null : { errorClass, detail: detailOf(failure), rateLimitedUntil: resetAt === 0 ? null : new Date(resetAt).toISOString() },
     }))
   } catch (error) {
@@ -2708,8 +2851,6 @@ const runTick = async (env, mem) => {
   const startedAt = env.clock()
   env.lines = []
   env.reads = new Map()
-  mem.acted = false
-  mem.waiting = []
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
@@ -2764,7 +2905,6 @@ const runTick = async (env, mem) => {
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
   const free = { main: paces.main.free, worker: paces.worker.free }
   const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
-  const unstarted = []
   // The plan of this tick can open the pause issue, so each launch reads the hold again.
   const held = () => paused || pauseIssue(tickets) || !account.ok
   // The worker account takes a launch when it has a free slot, else the main account.
@@ -2790,10 +2930,8 @@ const runTick = async (env, mem) => {
       let refused = null
       const refusal = () => (refused = limitSeen.found && name === MAIN && knownAccounts(mem).length > 1 ? LIMIT_STOP : null)
       const reason = await startWorker(env, mem, order, name, refusal).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
-      // A refused start is a chosen hold, so it stays off the stall clock.
       if (refused !== null) { reached.delete(order.ticket.number); return refused }
-      if (reason === null) { mem.acted = true; free[name] -= 1 }
-      else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
+      if (reason === null) free[name] -= 1
     }
     return null
   }
@@ -2843,17 +2981,15 @@ const runTick = async (env, mem) => {
     const runBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
     await startQuestions(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, QUESTIONS_RUN.stem, "error", error.message))
     await startHarnessReview(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, HARNESS_REVIEW_RUN.stem, "error", error.message))
-    // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock, also while its branch waits.
-    const unprepared = [...mem.unprepared.values()].filter((entry) => entry.until > env.now()).map((entry) => entry.line)
-    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...new Set([...unstarted, ...unprepared])]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
+  if (!env.dryRun && env.now() - mem.lastJudgeAt >= HOUR_MS) judgeStages(env, mem)
   if (env.releasePorts) await runReleaseTrain(env).catch((error) => log(env, "release", "error", error.message))
   logPace(env, paces, startedAt)
+  appendStageTimes(env, mem, [{ at: new Date(env.now()).toISOString(), key: "tick", ms: env.clock() - startedAt, item: "tick" }])
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
   forgetUnseen(mem)
@@ -2863,21 +2999,19 @@ const runTick = async (env, mem) => {
 
 const shortSha = (sha) => sha.slice(0, 9)
 
-/** The ticket writes of the release train: a held step gets one `needs:owner` ticket and one comment, a stopped train one Bug ticket. */
+/** The ticket writes of the release train: a held step and a stopped train each get one harness Bug ticket. */
 const releaseTickets = (env) => ({
   bug: async ({ title, body, repoKey }) => {
     const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
     await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release stopped.", cut(title, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
-  hold: async ({ title, reason, repoKey }) => {
-    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", OWNER, "--json", "number,title", "--limit", "100"]))
+  hold: async ({ title, reason }) => {
+    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", "harness", "--json", "number,title", "--limit", "100"]))
     const known = open.find((ticket) => ticket.title === title)
     if (known) return known.number
-    const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
-    await env.github.comment("tickets", created.number, marked("needs-owner", reason))
-    holdItem(env, { link: issueLink(env, created.number), reason })
-    await say(env, { key: `issue ${created.number}`, lines: ["Orbit needs you: a release is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
+    const created = await openBug(env, { title, body: reason })
+    await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release step is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
 })
@@ -2919,7 +3053,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
   log(env, "driver", "rollback", `from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
   const title = `Driver rolled back to ${shortSha(previousSha)}`
   try {
-    await openProblem(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
+    await openBug(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
   } catch (reportError) {
     log(env, "driver", "rollback-report-failed", reportError.message)
   }
@@ -2979,7 +3113,7 @@ export const recordStart = async (env, tickets = []) => {
     forget(env, "restart")
     return false
   }
-  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openProblem(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
+  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openBug(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
   return true
 }
 
@@ -3008,7 +3142,7 @@ export const parseArguments = (argv) => {
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -3117,6 +3251,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "pace") return setPace(env, parsed.account, parsed.word, { out })
+  if (parsed.mode === "budgets") return runBudgets(env, { out })
   if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
   if (parsed.mode === "release-now") {
     const running = requestTrain(env.stateDir)

@@ -29,12 +29,21 @@ const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 /** The `test.yml` steps that read the result of a needed job. A failure there comes from that job, so it is no flake. */
 const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
+const LINTABLE_PATH = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/
+/**
+ * The check that holds the lint of the pull requests of each repository: the `Checks` job of ui, whose step lints the changed files.
+ * A repository that is absent has no lint check that could turn green, so the bar asks for none there.
+ */
+const LINT_CHECK_BY_REPOSITORY = { ui: "Checks" }
+/** The name of the lint check of a repository, or null when the repository has none. */
+export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositoryKey] ?? null
+/** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
+export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
 
-const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
-  files(first: 100) { nodes { path } }
   commits(last: 100) { nodes { commit { oid parents(first: 3) { totalCount } statusCheckRollup { state } } } }
   baseRef { name
     branchProtectionRule { requiredStatusChecks { context app { databaseId } } } }
@@ -173,6 +182,15 @@ export const bodyFindings = (body) => {
   return findings.map((lines) => ({ path: null, line: null, body: lines.join("\n").trim() }))
 }
 
+/**
+ * True when the text holds GitHub's closing grammar for a ticket of the ticket repository: a close, fix or resolve word in any
+ * case, an optional colon, white space, then `<repository>#N` or the issue URL, with nothing between. `Tracks <repository>#N` is no match.
+ */
+export const closesTicket = (text, ticketRepository) => {
+  const repository = escapeRegex(ticketRepository)
+  return new RegExp(`\\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\\s+(?:${repository}#\\d+|https://github\\.com/${repository}/issues/\\d+)`, "i").test(text)
+}
+
 /** The trimmed text under the exact line `## <heading>` of each review, up to the next `## ` line. A review with no such section or an empty one adds nothing. */
 export const reviewSection = (reviews, heading) => reviews.flatMap((review) => {
   const lines = review.body.split("\n")
@@ -217,6 +235,7 @@ const normalizePull = (raw, ticketRepository) => {
     number: raw.number,
     state: raw.state,
     draft: raw.isDraft,
+    createdAt: raw.createdAt ?? null,
     author: botLogin(raw.author),
     labels: labelNames(raw.labels),
     headRef: raw.headRefName,
@@ -227,7 +246,10 @@ const normalizePull = (raw, ticketRepository) => {
     body: raw.body ?? "",
     tracks: tracksOf(raw.body ?? "", ticketRepository),
     changedFiles: raw.changedFiles,
-    files: nodes(raw.files).map((file) => file.path),
+    // The driver sets `files` and `commitMessages` from git before it plans: the query reads no file list, which GitHub cuts at 100.
+    files: null,
+    commitMessages: null,
+    ticketRepository,
     commits: nodes(raw.commits).map(({ commit }) => ({ sha: commit.oid, parents: commit.parents.totalCount, checkState: commit.statusCheckRollup?.state ?? null })),
     mergeCommit: raw.mergeCommit?.oid ?? null,
     checks: nodes(raw.statusCheckRollup?.contexts),
@@ -419,7 +441,7 @@ const inWholeDiffWindow = (body) => Buffer.from(body).subarray(0, WHOLE_DIFF_WIN
 
 /** True when the pull request needs an approval-head whole-diff pass: a fix launch, over 30 changed files, or a dependency manifest. */
 export const needsWholeDiff = (pull, { fixLaunches = 0 } = {}) =>
-  fixLaunches > 0 || pull.changedFiles > WHOLE_DIFF_FILES || pull.files.some((file) => MANIFEST_FILE.test(file))
+  fixLaunches > 0 || pull.changedFiles > WHOLE_DIFF_FILES || (pull.files ?? []).some((file) => MANIFEST_FILE.test(file))
 
 /**
  * An APPROVED whole-diff review submitted after the driver's request for its own commit. It covers the head at that
@@ -488,12 +510,49 @@ const dependabotFailures = (types) => {
   return types.includes("major") ? ["dependabot-major"] : []
 }
 
+/** The newest check of the given name, or null when none ran. */
+const newestCheckNamed = (pull, name) => newestChecks(pull.checks).filter((check) => check.name === name).reduce((first, second) => (first === null || second.at > first.at ? second : first), null)
+
+/** True while a check has no result: a check run that is not COMPLETED, or a status that is pending or expected. */
+const isUnfinished = (node) => (node.__typename === "CheckRun" ? node.status !== "COMPLETED" : node.state === "PENDING" || node.state === "EXPECTED")
+
+/**
+ * True while the head can still get its lint check: a check has no result, or a required check other than the lint check did
+ * not report. GitHub creates the check run of a job only after the jobs that it needs end. The Pullfrog check reports only on
+ * request, so its absence is no sign of a check to come.
+ */
+const awaitsChecks = (pull, lintCheck) => {
+  const newest = newestChecks(pull.checks)
+  return newest.some((check) => isUnfinished(check.node)) ||
+    requiredOf(pull).some((need) => need.context !== lintCheck && need.context !== PULLFROG_APPROVAL.context && !reportsCheck(newest, need))
+}
+
+/**
+ * The failures that the git diff of the pull request settles: a diff the driver did not read, a lintable path with no green Lint,
+ * and a closing line for a ticket in the body or a commit message. Only the driver closes a ticket. `lint-missing` is a final
+ * result: a Lint that runs or can still come, and a check list that ends early, already fail the bar, so they add none.
+ */
+const diffFailures = (pull, context) => {
+  if (!Array.isArray(pull.files) || !Array.isArray(pull.commitMessages)) return ["diff-unknown"]
+  const failed = []
+  if (context.lintCheck && pull.checksComplete && pull.files.some((file) => LINTABLE_PATH.test(file))) {
+    const lint = newestCheckNamed(pull, context.lintCheck)
+    const running = lint === null ? awaitsChecks(pull, context.lintCheck) : isUnfinished(lint.node)
+    const green = lint !== null && (lint.node.__typename === "CheckRun" ? lint.node.status === "COMPLETED" && lint.node.conclusion === "SUCCESS" : lint.node.state === "SUCCESS")
+    if (!green && !running) failed.push("lint-missing")
+  }
+  if ([pull.body, ...pull.commitMessages].some((text) => closesTicket(text, pull.ticketRepository))) failed.push("closing-keyword")
+  return failed
+}
+
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
- * (true while a `needs-owner` report holds a pull request with no open ticket) and, for a Dependabot pull request,
- * `updateTypes`.
+ * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
+ * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none) and, for a Dependabot pull request,
+ * `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
+ * between base and head, both read by the driver.
  */
 export const mergeBar = (pull, context = {}) => {
   const failed = []
@@ -504,6 +563,7 @@ export const mergeBar = (pull, context = {}) => {
   if (!SHA.test(pull.headSha)) failed.push("head-unknown")
   if (pull.requiredChecksChange?.head === null) failed.push("required-checks-invalid")
   failed.push(...checkFailures(pull))
+  failed.push(...diffFailures(pull, context))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")

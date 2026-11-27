@@ -54,13 +54,16 @@ const iso = (milliseconds) => new Date(milliseconds).toISOString()
  *   the bar at the end of the tick: `{ key, approvedAt }`. A merged one is not in it.
  * - `blind`: `[{ key, detail }]`, one for each read that failed, for example key `ui` or `tickets`.
  * - `failure`: `{ errorClass, detail, rateLimitedUntil }` when the tick met an error, else null.
+ * - `slow`: `[{ key, detail, samples }]`, one for each stage key that the last judge found over its budget (`lib/stage-budgets.mjs`), or null
+ *   before the first judge: the record then keeps the `slow:` problems of the last one. A `slow:` problem warns and holds nothing.
  * A failed read keeps `openPulls`, `oldestGreenApprovedAt` and each `unmerged:` problem of the last good read.
  */
-export const healthRecord = ({ previous, now, read, merged, blind, failure }) => {
+export const healthRecord = ({ previous, now, read, merged, blind, failure, slow = null }) => {
   const since = (key, fallback) => previous?.problems?.find((problem) => problem.key === key)?.since ?? fallback
   const problems = [
     ...blind.map(({ key, detail }) => ({ key: `blind:${key}`, since: since(`blind:${key}`, iso(now)), detail })),
     ...(read === null ? (previous?.problems ?? []).filter((problem) => problem.key.startsWith("unmerged:")) : read.green.map(({ key, approvedAt }) => ({ key: `unmerged:${key}`, since: approvedAt, detail: "approved, meets the bar, not merged" }))),
+    ...(slow === null ? (previous?.problems ?? []).filter((problem) => problem.key.startsWith("slow:")) : slow.map(({ key, detail, samples }) => ({ key: `slow:${key}`, since: since(`slow:${key}`, iso(now)), detail, samples }))),
     ...(failure !== null && blind.length === 0 ? [{ key: "error:tick", since: since("error:tick", iso(now)), detail: failure.detail }] : []),
   ]
   const oldest = read === null ? previous?.oldestGreenApprovedAt ?? null : read.green.map(({ approvedAt }) => approvedAt).sort().at(0) ?? null

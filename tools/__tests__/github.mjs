@@ -18,7 +18,7 @@ const green = (name, appId = ACTIONS, conclusion = "SUCCESS") => ({ __typename: 
 
 /** A pull request that holds the bar apart from its checks: protection requires `Checks`, and only `PR Tests` reports. */
 const pull = (extra = {}) => ({
-  number: 30, state: "OPEN", draft: false, author: "thomasluizon", labels: [], headSha: HEAD, tracks: 7, mergeState: "BLOCKED", changedFiles: 1, files: [REQUIRED_CHECKS_FILE], commits: [{ sha: HEAD, parents: 1 }],
+  number: 30, state: "OPEN", draft: false, author: "thomasluizon", labels: [], headSha: HEAD, tracks: 7, body: "Tracks thomasluizon/orbit-tickets#7", ticketRepository: "thomasluizon/orbit-tickets", mergeState: "BLOCKED", changedFiles: 1, files: [REQUIRED_CHECKS_FILE], commitMessages: ["ci: rename a required check"], commits: [{ sha: HEAD, parents: 1 }],
   checks: [green("PR Tests"), green("pullfrog-approval", PULLFROG)], checksComplete: true, requiredChecks: protectionOf("Checks"),
   reviews: [{ state: "APPROVED", commit: HEAD, submittedAt: "2026-11-20T10:00:00Z", body: "", author: "pullfrog", blocking: [] }], threads: [], threadsComplete: true,
   requiredChecksChange: { base: required("Checks"), head: required("PR Tests") }, ...extra,

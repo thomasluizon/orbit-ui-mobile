@@ -1,7 +1,9 @@
 import { spawnSync } from "node:child_process"
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { delimiter, join } from "node:path"
+import { fileURLToPath } from "node:url"
 
+import { writeCodexHome } from "../lib/codex-runner.mjs"
 import { workerSettings } from "../lib/worker.mjs"
 import { ghDenial, shellCommands } from "../lib/worker-gh-hook.mjs"
 import { T, root, same } from "./_harness.mjs"
@@ -182,7 +184,30 @@ const renderedSettingsCases = () => {
   same("lib/worker.mjs: a hook that cannot start blocks the call", call("git status", hook.command.replace("worker-gh-hook.mjs", "no-such-hook.mjs")).status, 2)
 }
 
+/** The one hook of the shared Codex home, with the input that Codex sends: `cwd` is the `workdir` of the command. */
+const codexHookCases = () => {
+  const { worktree, env } = stageWorker()
+  const other = join(root, "gh-hook", "other-tree")
+  spawnSync("git", ["init", "--quiet", "--initial-branch", "fix/ticket-8", other])
+  const codexHome = join(root, "gh-hook", "codex-home")
+  writeCodexHome({ codexHome, hookPath: fileURLToPath(new URL("../lib/worker-gh-hook.mjs", import.meta.url)), skillFolders: [], denyPrefixes: [] })
+  const [{ hooks: [hook] }] = JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8")).hooks.PreToolUse
+  const identity = { ORBIT_WORKER_WORKTREE: worktree, ORBIT_WORKER_BRANCH: OWN.branch }
+  const call = (command, { cwd = worktree, worker = identity, shell = hook.command } = {}) => spawnSync("sh", ["-c", shell], { env: { ...env, ...worker }, input: JSON.stringify({ session_id: "s", turn_id: "t", cwd, hook_event_name: "PreToolUse", model: "m", tool_name: "Bash", tool_use_id: "c", tool_input: { command } }), encoding: "utf8" })
+  const log = join(codexHome, "hook-blocks.log")
+  same("lib/worker-gh-hook.mjs: a Codex call edits its own pull request and reads, and notes nothing", [call("gh pr edit 50 --add-label x").status, call("gh pr view 51", { cwd: other }).status, existsSync(log)], [0, 0, false])
+  const moved = call("gh pr edit --add-label x", { cwd: other })
+  T("lib/worker-gh-hook.mjs: a Codex call whose workdir is the worktree of another worker edits no pull request", moved.status === 2 && /in your working tree/.test(moved.stderr), `${moved.status} ${moved.stderr}`)
+  const merge = call("gh pr merge 50")
+  const noted = readFileSync(log, "utf8").trim().split("\n").map((line) => JSON.parse(line))
+  same("lib/worker-gh-hook.mjs: each block adds its time, directory and reason to the block log, with no command text", [merge.status, noted.map((entry) => Object.keys(entry)), noted.map((entry) => entry.cwd), noted.at(-1).reason], [2, [["at", "cwd", "reason"], ["at", "cwd", "reason"]], [other, worktree], "`gh pr merge` is not allowed for a worker"])
+  const probe = call("gh pr edit --add-label x", { worker: {} })
+  T("lib/worker-gh-hook.mjs: a Codex run with no worker identity edits no pull request", probe.status === 2 && /no branch of its own/.test(probe.stderr), `${probe.status} ${probe.stderr}`)
+  same("lib/worker-gh-hook.mjs: a block log that cannot be written still blocks", call("gh pr merge 50", { shell: hook.command.replace(log, codexHome) }).status, 2)
+}
+
 export const cases = async () => {
+  codexHookCases()
   lexerCases()
   policyCases()
   renderedSettingsCases()
