@@ -34,7 +34,7 @@ test("unit test steps retain their budget with setup and report time outside it"
   const workflow = workflows.find(([file]) => file === "test.yml")[1]
   for (const [job, stepName, stepMinutes, jobMinutes] of [
     ["web-tests", "Run web shard with coverage", 16, 20],
-    ["mobile-tests", "Run mobile shard with coverage", 10, 13],
+    ["mobile-tests", "Run mobile shard with coverage", 11, 14],
     ["checks", "Run workspaces with coverage thresholds", 6, 15],
   ]) {
     const step = workflow.jobs[job].steps.find((candidate) => candidate.name === stepName)
