@@ -251,6 +251,27 @@ describe('ChatPage', () => {
     editor.remove()
   })
 
+  it('opens a goal action without a paywall route', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    mocks.composer.hasProAccess = false
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-1', goalActionType))
+
+    expect(mocks.push).not.toHaveBeenCalledWith('/upgrade')
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+  })
+
+  it('opens the goal drawer for a goal action chip when pro', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    mocks.composer.hasProAccess = true
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+  })
+
   it('waits for the goal sheet dismissal before closing owners and navigating', () => {
     mocks.composer.messages = [{ id: 'm1' }]
     sheetTestControls.defer(true)
@@ -272,6 +293,23 @@ describe('ChatPage', () => {
     expect(mocks.push).toHaveBeenCalledOnce()
     expect(mocks.push).toHaveBeenCalledWith('/habits/linked-habit')
     expect(mocks.setOpen.mock.invocationCallOrder[0]!).toBeLessThan(mocks.push.mock.invocationCallOrder[0]!)
+  })
+
+  it('leaves modified linked habit clicks to the browser', () => {
+    mocks.composer.messages = [{ id: 'm1' }]
+    render(<ChatPage />)
+
+    act(() => mocks.onActionChipClick?.('goal-9', goalActionType))
+    const browserHandlesNavigation = fireEvent.click(
+      screen.getByRole('link', { name: /linked habit sentinel/ }),
+      { metaKey: true },
+    )
+
+    expect(browserHandlesNavigation).toBe(true)
+    expect(screen.getByTestId('sheet')).toBeInTheDocument()
+    expect(sheetTestControls.isDismissPending).toBe(false)
+    expect(mocks.setOpen).not.toHaveBeenCalled()
+    expect(mocks.push).not.toHaveBeenCalled()
   })
 
   it('closes the conversation before routing a habit action chip', () => {
