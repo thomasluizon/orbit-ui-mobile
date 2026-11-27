@@ -99,4 +99,30 @@ describe('Share progress sheet', () => {
     expect(screen.getByRole('button', { name: en.shareCard.download })).toBeEnabled()
   })
 
+  it('keeps both feedback rows in the page with no text and no leading gap while nothing needs saying', () => {
+    render(<ShareCardEntryButton />)
+    openSheet()
+    const alert = screen.getByRole('alert')
+    const status = screen.getByRole('status')
+    expect(alert).toBeEmptyDOMElement()
+    expect(status).toBeEmptyDOMElement()
+    expect(alert.parentElement).toBe(status.parentElement)
+    expect(alert.parentElement).not.toHaveClass('pt-section-gap')
+    expect(alert.parentElement).toBe(screen.getByTestId('share-card').closest('[data-slot="sheet-body"] > *')!.lastElementChild)
+  })
+
+  it.each([['error', { hasError: true }], ['saved file', { savedFileName: 'orbit.png' }]] as const)('opens a gap before the feedback of a %s', (_name, state) => {
+    Object.assign(mocks, state)
+    render(<ShareCardEntryButton />)
+    openSheet()
+    expect(screen.getByRole('alert').parentElement).toHaveClass('pt-section-gap')
+  })
+
+  it('sets the lead figure of the card in one 88px line of the display face', () => {
+    render(<ShareCardEntryButton />)
+    openSheet()
+    const [lead] = screen.getAllByTestId('share-card-figure')
+    expect(lead).toHaveStyle({ fontSize: '88px', lineHeight: '0.92', fontFamily: 'var(--font-display)' })
+    expect(lead!.textContent).not.toMatch(/\s/)
+  })
 })
