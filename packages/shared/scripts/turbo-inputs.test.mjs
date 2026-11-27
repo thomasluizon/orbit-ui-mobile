@@ -23,7 +23,7 @@ const consumers = [
     'design/canvas/Orbit Widget Android.dc.html', `${tokenDirectory}/typography.css`,
     'design/brand/orbit-mascot-feliz.svg', 'design/brand/orbit-lockup.svg', 'DESIGN.md',
     '.gitignore', 'apps/mobile/.gitignore', 'eslint-rules/no-comments.cjs', 'tsconfig.base.json',
-    'evals/astra/catalog.yaml',
+    'evals/astra/catalog.yaml', 'apps/web/vitest/project-tests.mjs',
   ] },
   { workspace: 'apps/desktop', name: '@orbit/desktop', inputs: [
     '.github/workflows/desktop-release.yml', '.github/workflows/desktop-acceptance.yml',
@@ -44,10 +44,8 @@ const consumers = [
     'apps/web/tsconfig.json',
   ] },
   { workspace: 'apps/web', name: '@orbit/web', inputs: [
-    'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
-    'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json',
-    'tsconfig.json', 'apps/mobile/tsconfig.json',
-    ...desktopFilesTheWebTestsRead,
+    'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
+    'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json', 'tsconfig.json',
   ] },
   { workspace: 'eslint-rules', name: '@orbit/eslint-rules', inputs: [
     'apps/web/eslint.config.mjs', 'apps/mobile/eslint.config.js', 'apps/web/tsconfig.json',
@@ -55,6 +53,13 @@ const consumers = [
     'packages/shared/src/theme/spacing.json', 'packages/shared/src/theme/spacing.css',
     `${tokenDirectory}/spacing.css`, 'packages/shared/src/i18n/en.json', 'packages/shared/src/i18n/pt-BR.json',
     'tsconfig.json',
+  ] },
+  // The web tests that read apps/mobile or apps/desktop. Their key holds those apps, and the web key holds none of them.
+  { workspace: 'apps/web', name: '@orbit/web', task: 'test:cross-app', inputs: [
+    'tools/arch-map.mjs', 'tools/lib/escape-regex.mjs', 'DESIGN.md', 'design/brand/png/orbit-platform-icon-512.png',
+    'apps/mobile/components/ui/list-row.tsx', 'packages/shared/src/__tests__/contrast.ts', 'tsconfig.base.json',
+    'tsconfig.json', 'apps/mobile/tsconfig.json',
+    ...desktopFilesTheWebTestsRead,
   ] },
 ]
 const fixtures = []
@@ -73,7 +78,7 @@ function fixture(consumer, config = configuration) {
   write(root, 'turbo.json', config)
   write(root, '.gitignore', '.turbo/\ncoverage/\nexecutions\n')
   for (const { workspace, name } of consumers) {
-    write(root, `${workspace}/package.json`, JSON.stringify({ name, scripts: { test: 'node run.mjs' } }))
+    write(root, `${workspace}/package.json`, JSON.stringify({ name, scripts: { test: 'node run.mjs', 'test:cross-app': 'node run.mjs' } }))
   }
   for (const input of consumer.inputs.filter((input) => input !== '.gitignore')) write(root, input, 'valid')
   const inputs = consumer.inputs.filter((input) => input !== '.gitignore')
@@ -94,14 +99,14 @@ function fixture(consumer, config = configuration) {
   return root
 }
 
-function run(root, name) {
-  return spawnSync(process.execPath, [turbo, 'run', 'test', `--filter=${name}`, '--cache=local:rw',
+function run(root, name, task = 'test') {
+  return spawnSync(process.execPath, [turbo, 'run', task, `--filter=${name}`, '--cache=local:rw',
     '--cache-dir=.turbo/cache'], { cwd: root, encoding: 'utf8', timeout: 30_000,
     env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } })
 }
 
-function expectRun(root, name, status, executions) {
-  const result = run(root, name)
+function expectRun(root, name, status, executions, task) {
+  const result = run(root, name, task)
   // spawnSync ends turbo with SIGTERM at its timeout, and turbo then exits 0 with the task output cut short.
   expect(result.error, result.stdout + result.stderr).toBeUndefined()
   expect(result.status, result.stdout + result.stderr).toBe(status)
@@ -109,31 +114,33 @@ function expectRun(root, name, status, executions) {
   return result
 }
 
-function taskHash(root, name) {
-  const result = spawnSync(process.execPath, [turbo, 'run', 'test', `--filter=${name}`, '--dry=json'], { cwd: root,
+function taskHash(root, name, task = 'test') {
+  const result = spawnSync(process.execPath, [turbo, 'run', task, `--filter=${name}`, '--dry=json'], { cwd: root,
     encoding: 'utf8', timeout: 30_000,
     env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } })
   expect(result.status, result.stdout + result.stderr).toBe(0)
-  return JSON.parse(result.stdout).tasks.find((task) => task.taskId === `${name}#test`).hash
+  return JSON.parse(result.stdout).tasks.find((entry) => entry.taskId === `${name}#${task}`).hash
 }
 
 afterEach(() => {
   for (const root of fixtures.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 
-it('moves the @orbit/web#test hash that keys the cached web unit results when a desktop file the web tests read changes', () => {
-  const consumer = consumers.find(({ name }) => name === '@orbit/web')
+it('moves the @orbit/web#test:cross-app hash, and not the @orbit/web#test hash, when a desktop file the web tests read changes', () => {
+  const consumer = consumers.find(({ name, task }) => name === '@orbit/web' && task === 'test:cross-app')
   const root = fixture(consumer)
   write(root, 'apps/desktop/src-tauri/src/main.rs', 'fn main() {}')
-  const baseline = taskHash(root, consumer.name)
+  const baseline = taskHash(root, consumer.name, consumer.task)
+  const webBaseline = taskHash(root, consumer.name)
   write(root, 'apps/desktop/src-tauri/src/main.rs', 'fn main() { changed() }')
-  expect(taskHash(root, consumer.name)).toBe(baseline)
+  expect(taskHash(root, consumer.name, consumer.task)).toBe(baseline)
   for (const input of desktopFilesTheWebTestsRead) {
     write(root, input, 'changed')
-    expect(taskHash(root, consumer.name), input).not.toBe(baseline)
+    expect(taskHash(root, consumer.name, consumer.task), input).not.toBe(baseline)
+    expect(taskHash(root, consumer.name), `${input} must leave the web key equal`).toBe(webBaseline)
     write(root, input, 'valid')
   }
-  expect(taskHash(root, consumer.name)).toBe(baseline)
+  expect(taskHash(root, consumer.name, consumer.task)).toBe(baseline)
 }, 30_000)
 
 it('demonstrates stale success when workflow inputs are omitted', () => {
@@ -178,34 +185,34 @@ it('executes the shared guard again when another consumer task configuration cha
   expect(result.stdout + result.stderr).toContain('1 failed')
 }, 60_000)
 
-describe.each(consumers)('$name external test inputs', (consumer) => {
+describe.each(consumers.map((consumer) => ({ ...consumer, label: consumer.task ? `${consumer.name} ${consumer.task}` : consumer.name })))('$label external test inputs', (consumer) => {
   it('retains valid hits and coverage, then executes every changed external input', () => {
     const root = fixture(consumer)
-    expectRun(root, consumer.name, 0, 1)
+    expectRun(root, consumer.name, 0, 1, consumer.task)
     rmSync(resolve(root, consumer.workspace, 'coverage'), { recursive: true })
-    expectRun(root, consumer.name, 0, 1)
+    expectRun(root, consumer.name, 0, 1, consumer.task)
     expect(readFileSync(resolve(root, consumer.workspace, 'coverage/result.txt'), 'utf8')).toBe('covered')
     write(root, 'unrelated-root.txt', 'unrelated')
     write(root, '.github/workflows/unrelated.txt', 'unrelated')
-    expectRun(root, consumer.name, 0, 1)
+    expectRun(root, consumer.name, 0, 1, consumer.task)
     write(root, `${consumer.workspace}/local-source.ts`, 'export const changed = true')
-    expectRun(root, consumer.name, 0, 2)
+    expectRun(root, consumer.name, 0, 2, consumer.task)
     let executions = 2
     for (const input of consumer.inputs) {
       const original = readFileSync(resolve(root, input), 'utf8')
       write(root, input, 'invalid')
-      const result = expectRun(root, consumer.name, input === '.gitignore' ? 0 : 1, ++executions)
+      const result = expectRun(root, consumer.name, input === '.gitignore' ? 0 : 1, ++executions, consumer.task)
       if (input !== '.gitignore') expect(result.stdout + result.stderr).toContain(`external input rejected: ${input}`)
       write(root, input, original)
     }
-    expectRun(root, consumer.name, 0, executions)
+    expectRun(root, consumer.name, 0, executions, consumer.task)
   }, 120_000)
 
   it('executes again when an external input is deleted', () => {
     const root = fixture(consumer)
-    expectRun(root, consumer.name, 0, 1)
+    expectRun(root, consumer.name, 0, 1, consumer.task)
     rmSync(resolve(root, consumer.inputs[0]))
-    expectRun(root, consumer.name, 1, 2)
+    expectRun(root, consumer.name, 1, 2, consumer.task)
   }, 30_000)
 })
 
@@ -308,10 +315,10 @@ function nearestTsconfig(file) {
 let dryRun
 function repositoryDryRun() {
   if (!dryRun) {
-    const result = spawnSync(process.execPath, [turbo, 'run', 'test', '--dry=json'], { cwd: repository,
+    const result = spawnSync(process.execPath, [turbo, 'run', 'test', 'test:cross-app', '--dry=json'], { cwd: repository,
       encoding: 'utf8', timeout: 30_000, maxBuffer: 64 * 1024 * 1024,
       env: { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TURBO_TELEMETRY_DISABLED: '1' } })
-    expect(result.status, `turbo run test --dry=json failed: ${result.error ?? result.stderr}`).toBe(0)
+    expect(result.status, `turbo run test test:cross-app --dry=json failed: ${result.error ?? result.stderr}`).toBe(0)
     dryRun = JSON.parse(result.stdout)
   }
   return dryRun
@@ -412,11 +419,11 @@ function readTsconfigChains(scan) {
  * test or setup file that names an outside file, and the imports and paths of each outside module a test imports or
  * runs. `runtimeFolders` holds each known outside folder under which a test or setup file completes a path at run time.
  */
-function outsideReads(workspace) {
+function outsideReads(workspace, skipsFile = () => false) {
   const scan = workspaceScan(workspace)
   for (const file of codeFilesIn(scan.workspaceRoot)) {
     const path = relative(scan.workspaceRoot, file).split(sep).join('/')
-    if (lintConfiguration.test(path)) continue
+    if (lintConfiguration.test(path) || skipsFile(repositoryPath(file))) continue
     // This file names its fixture files with repository paths, but it writes and reads them in temporary roots.
     if (testOrSetupFile.test(path) && file !== import.meta.filename) scanModule(scan, file, true)
     else followImports(scan, file, importsOf(file))
@@ -427,8 +434,8 @@ function outsideReads(workspace) {
 }
 
 /** One line for each outside file the task does not hash, and for each run-time folder with a file it does not hash. */
-function unhashedReads(directory, hashed) {
-  const { reads, runtimeFolders } = outsideReads(directory)
+function unhashedReads(directory, hashed, skipsFile = () => false) {
+  const { reads, runtimeFolders } = outsideReads(directory, skipsFile)
   const unhashed = [...reads].map(([file, reader]) => [repositoryPath(file), reader])
     .filter(([path]) => !hashed.has(path)).map(([path, reader]) => `${path} (read by ${reader})`)
   for (const [folder, reader] of runtimeFolders.values()) {
@@ -442,7 +449,7 @@ function unhashedReads(directory, hashed) {
     }
   }
   const readers = new Set([...runtimeFolders.values()].map(([, reader]) => reader.replace(/:\d+$/, '')))
-  const stale = Object.keys(folderWalks).filter((reader) => reader.startsWith(`${directory}/`) && !readers.has(reader))
+  const stale = Object.keys(folderWalks).filter((reader) => reader.startsWith(`${directory}/`) && !skipsFile(reader) && !readers.has(reader))
   return { unhashed: unhashed.sort(), stale }
 }
 
@@ -483,17 +490,26 @@ describe('the path evaluator of the turbo input guard', () => {
 })
 
 describe('workspace test tasks hash every outside file their tests read', () => {
-  const testTasks = () => repositoryDryRun().tasks.filter((task) => task.task === 'test' && task.command !== '<NONEXISTENT>')
+  const testTasks = () => repositoryDryRun().tasks.filter((task) => /^test(?::cross-app)?$/.test(task.task) && task.command !== '<NONEXISTENT>')
 
   it('finds a test task for every workspace with a test script', () => {
     expect(testTasks().map(({ taskId }) => taskId).sort()).toEqual(['@orbit/desktop#test', '@orbit/eslint-rules#test',
-      '@orbit/mobile#test', '@orbit/shared#test', '@orbit/web#test'])
+      '@orbit/mobile#test', '@orbit/shared#test', '@orbit/web#test', '@orbit/web#test:cross-app'])
   }, 30_000)
 
+  // The web tests split by the cross-app project of apps/web/vitest/project-tests.mjs: each task reads only its own files.
+  const isWebTest = (path) => /^apps\/web\/__tests__\/.*\.test\.tsx?$/.test(path)
+  const skipsOf = (name, crossAppTests) => name === 'test' ? (path) => crossAppTests.has(path) : (path) => isWebTest(path) && !crossAppTests.has(path)
+
   // The names are workspace directories, so the `-t @orbit/desktop` run in the shared guard test above skips them.
-  it.each(['apps/desktop', 'eslint-rules', 'apps/mobile', 'packages/shared', 'apps/web'])('%s', (directory) => {
-    const { taskId } = testTasks().find((task) => task.directory === directory)
-    const { unhashed, stale } = unhashedReads(directory, hashedFiles(taskId))
+  it.each([['apps/desktop', 'test'], ['eslint-rules', 'test'], ['apps/mobile', 'test'], ['packages/shared', 'test'],
+    ['apps/web', 'test'], ['apps/web', 'test:cross-app']])('%s %s', async (directory, name) => {
+    const { taskId } = testTasks().find((task) => task.directory === directory && task.task === name)
+    // The fixture of the guard test above copies only this file, so the project list loads when a case needs it.
+    const { findProjectTests } = await import('../../../apps/web/vitest/project-tests.mjs')
+    const crossAppTests = new Set(findProjectTests(resolve(repository, 'apps/web')).crossAppTests.map((file) => `apps/web/${file}`))
+    const skipsFile = directory === 'apps/web' ? skipsOf(name, crossAppTests) : undefined
+    const { unhashed, stale } = unhashedReads(directory, hashedFiles(taskId), skipsFile)
     expect(stale, 'remove each folderWalks entry whose test no longer walks a folder outside its workspace').toEqual([])
     expect(unhashed, `add a turbo.json input glob to ${taskId} for each file`).toEqual([])
   }, 60_000)

@@ -130,27 +130,39 @@ const unitResultsRestore = (job) => ({
   step: {
     if: `${job === "workspace" ? "needs.checks.outputs.workspace-unit-result" : `needs.${job}-tests.result`} == 'skipped'`,
     uses: "actions/cache/restore@v6",
-    with: { "fail-on-cache-miss": true, key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+    with: { "fail-on-cache-miss": true, key: `\${{ needs.plan.outputs.${job}-unit-key }}`, path: `\${{ env.${job.toUpperCase().replaceAll("-", "_")}_UNIT_RESULTS }}` },
   },
   calls: [],
 })
+// The web cross-app pass marker restores only when the web shards are cached and the cross-app tests are cached too.
+const crossAppMarkerRestore = {
+  step: {
+    if: "needs.web-tests.result == 'skipped' && needs.plan.outputs.web-cross-app-unit-hit == 'true'",
+    uses: "actions/cache/restore@v6",
+    with: { "fail-on-cache-miss": true, key: "${{ needs.plan.outputs.web-cross-app-unit-key }}", path: "${{ env.WEB_CROSS_APP_UNIT_RESULTS }}" },
+  },
+  calls: [],
+}
 const unitResultsLookup = (job) => ({
   step: {
     id: `${job}-unit`,
     uses: "actions/cache/restore@v6",
-    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase()}_UNIT_RESULTS }}` },
+    with: { key: `\${{ steps.plan.outputs.${job}-unit-key }}`, "lookup-only": true, path: `\${{ env.${job.toUpperCase().replaceAll("-", "_")}_UNIT_RESULTS }}` },
   },
   calls: [],
 })
 // The call of .github/actions/merged-unit-results, which leads to the lookups after the save of a merged pull request result.
 const MERGED_RESULTS_CALL = {
   id: "merged",
-  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
+  if: "github.event_name != 'pull_request' && (steps.web-unit.outputs.cache-hit != 'true' || steps.web-cross-app-unit.outputs.cache-hit != 'true' || steps.mobile-unit.outputs.cache-hit != 'true' || steps.workspace-unit.outputs.cache-hit != 'true')",
   uses: "./.github/actions/merged-unit-results",
   with: {
     "web-hit": "${{ steps.web-unit.outputs.cache-hit }}",
     "web-key": "${{ steps.plan.outputs.web-unit-key }}",
     "web-path": "${{ env.WEB_UNIT_RESULTS }}",
+    "web-cross-app-hit": "${{ steps.web-cross-app-unit.outputs.cache-hit }}",
+    "web-cross-app-key": "${{ steps.plan.outputs.web-cross-app-unit-key }}",
+    "web-cross-app-path": "${{ env.WEB_CROSS_APP_UNIT_RESULTS }}",
     "mobile-hit": "${{ steps.mobile-unit.outputs.cache-hit }}",
     "mobile-key": "${{ steps.plan.outputs.mobile-unit-key }}",
     "mobile-path": "${{ env.MOBILE_UNIT_RESULTS }}",
@@ -229,14 +241,16 @@ const REVIEWED_RESTORES = {
       calls: [],
     },
     unitResultsLookup("web"),
+    unitResultsLookup("web-cross-app"),
     unitResultsLookup("mobile"),
     unitResultsLookup("workspace"),
     mergedUnitResultsLookup("web"),
+    mergedUnitResultsLookup("web-cross-app"),
     mergedUnitResultsLookup("mobile"),
     mergedUnitResultsLookup("workspace"),
   ],
-  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
-  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), unitResultsRestore("mobile"), unitResultsRestore("workspace")],
+  "merged-unit-results/action.yml": [mergedUnitResultsLookup("web", []), mergedUnitResultsLookup("web-cross-app", []), mergedUnitResultsLookup("mobile", []), mergedUnitResultsLookup("workspace", [])],
+  "test.yml: unit-tests": [npmActionRestore({}), unitResultsRestore("web"), crossAppMarkerRestore, unitResultsRestore("mobile"), unitResultsRestore("workspace")],
 }
 
 function checkReviewedRestores(currentTree, inventory) {
