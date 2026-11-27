@@ -9,8 +9,8 @@ const usage = `usage: merged-unit-results.mjs record
 
   A push to main reuses the unit test results of the pull request that it merged, when the result keys are equal.
 
-  record  Prints the unit result keys of this run as JSON, read from WEB_UNIT_KEY, MOBILE_UNIT_KEY and
-          WORKSPACE_UNIT_KEY. The Unit Tests job of a pull request stores it in its unit-test-coverage artifact.
+  record  Prints the unit result keys of this run as JSON, read from WEB_UNIT_KEY, WEB_CROSS_APP_UNIT_KEY,
+          MOBILE_UNIT_KEY and WORKSPACE_UNIT_KEY. The Unit Tests job of a pull request stores it in its unit-test-coverage artifact.
   find    Prints artifact-id=<id>, run-id=<id> and pull=<number> as GITHUB_OUTPUT lines: the unit-test-coverage
           artifact of the newest successful pull_request run of .github/workflows/test.yml at the head of the pull
           request whose merge commit is <commit>. Reads the GitHub REST API with GITHUB_TOKEN. Prints no line and a
@@ -21,7 +21,7 @@ const usage = `usage: merged-unit-results.mjs record
 
 exit codes: 0 done, 1 an unreadable keys file or a missing key variable, 2 invalid arguments`
 
-const groups = { 'web-unit': 'WEB_UNIT_KEY', 'mobile-unit': 'MOBILE_UNIT_KEY', 'workspace-unit': 'WORKSPACE_UNIT_KEY' }
+const groups = { 'web-unit': 'WEB_UNIT_KEY', 'web-cross-app-unit': 'WEB_CROSS_APP_UNIT_KEY', 'mobile-unit': 'MOBILE_UNIT_KEY', 'workspace-unit': 'WORKSPACE_UNIT_KEY' }
 const workflowPath = '.github/workflows/test.yml'
 const artifactName = 'unit-test-coverage'
 

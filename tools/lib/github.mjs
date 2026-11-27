@@ -25,6 +25,8 @@ const SETUP_STEP = "Set up job"
 const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
+/** The `test.yml` steps that read the result of a needed job. A failure there comes from that job, so it is no flake. */
+const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
 
 const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
@@ -461,12 +463,12 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
 export const isDeterministicCheck = (name) => DETERMINISTIC_CHECKS.has(name)
 
 /**
- * What to do about one failed check, from the names of its failed steps: a rerun for the job setup or the checkout, the owner for a barrier,
+ * What to do about one failed check, from the names of its failed steps: a rerun for the job setup, the checkout or a gate step, the owner for a barrier,
  * otherwise a fix order. A deterministic check is never a rerun: its failure goes to a fix order.
  */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step) || GATE_STEPS.has(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
 }
 
 /** True while a job of one workflow run has not completed. GitHub refuses to rerun the failed jobs of such a run. */

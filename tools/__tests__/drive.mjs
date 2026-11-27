@@ -648,6 +648,10 @@ const ciCases = (open, approved) => {
   same("lib/github.mjs: any other failure is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: ["Run Domain Tests"] }), "ci-fix")
   same("lib/github.mjs: another step of Guard Migrations is a fix order", classifyCheckFailure({ name: "Guard Migrations", failedSteps: ["Fail on edits to applied migrations"] }), "ci-fix")
   same("lib/github.mjs: the barrier step under another check name is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: barrierSteps }), "ci-fix")
+  const workflowSteps = readFileSync(toolPath("../.github/workflows/test.yml"), "utf8").split(/^ {6}- /m)
+  const gateSteps = workflowSteps.filter((step) => /\$\{\{ needs\.[\w-]+\.result \}\}/.test(step)).map((step) => /^name: (.+)$/m.exec(step)?.[1])
+  T("lib/github.mjs: test.yml has steps that read the result of a needed job", gateSteps.length > 0)
+  same("lib/github.mjs: each test.yml step that reads the result of a needed job is a gate step, which gets a rerun", gateSteps.filter((step) => classifyCheckFailure({ name: "Gate", failedSteps: [step] }) !== "rerun"), [])
 }
 
 const failureStepCases = async (seams) => {
@@ -1130,6 +1134,8 @@ const orderCases = async () => {
   const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
   T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
   T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
+  const resumedGrant = renderResumeOrder({ kind: "merge-forward", pull: PULL, ownerNote: "Keep the left side of the conflict." })
+  T("lib/order.mjs: a resumed merge-forward order that an owner comment granted holds the comment, and one with no comment holds no owner section", resumedGrant.includes("## Owner comment") && resumedGrant.includes("Keep the left side of the conflict.") && resumedGrant.indexOf("## Owner comment") < resumedGrant.indexOf("Your first order and its brief still hold.") && !renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("## Owner comment"))
   for (const [label, call, message] of [
     ["a build order", () => renderResumeOrder({ kind: "build" }), /does not resume a session/],
     ["a fix order with no blocking class", () => renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [] } }), /needs its pull request/],
