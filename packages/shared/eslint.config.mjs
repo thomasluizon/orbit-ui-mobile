@@ -4,12 +4,35 @@ import noComments from "../../eslint-rules/no-comments.cjs"
 import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
 import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
+import noConstantEchoTest from "../../eslint-rules/no-constant-echo-test.cjs"
+import noSourceTextTest from "../../eslint-rules/no-source-text-test.cjs"
 import noOvershootEasing from "../../eslint-rules/no-overshoot-easing.cjs"
 import noRawFontFeatureTag from "../../eslint-rules/no-raw-font-feature-tag.cjs"
 import noRawGradient from "../../eslint-rules/no-raw-gradient.cjs"
 import noOklch from "../../eslint-rules/no-oklch-outside-web-tokens.cjs"
 import noUnjustifiedDisable from "../../eslint-rules/no-unjustified-disable.cjs"
 import spacingScale from "../../eslint-rules/spacing-scale.cjs"
+
+const LIE_1_EXCEPTIONS = [
+  "src/__tests__/astra-button.test.ts",
+  "src/__tests__/astra-offers.test.ts",
+  "src/__tests__/calendar-entries.test.ts",
+  "src/__tests__/calendar-range.test.ts",
+  "src/__tests__/calendar-slide-motion.test.ts",
+  "src/__tests__/i18n.test.ts",
+  "src/__tests__/interaction-clearance.test.ts",
+  "src/__tests__/play-billing.test.ts",
+  "src/__tests__/step-up.test.ts",
+  "src/__tests__/time-parts.test.ts",
+  "src/__tests__/validation-constants.test.ts",
+]
+const LIE_2_EXCEPTIONS = [
+  "src/__tests__/backlog-port-source.test.ts",
+  "src/__tests__/markdown.test.ts",
+  "src/__tests__/progress.test.ts",
+  "src/__tests__/typography.test.ts",
+  "src/__tests__/utils-barrel-size.test.ts",
+]
 
 const SHARED_IMPORT_BOUNDARY =
   "packages/shared/CLAUDE.md: put pure logic in a *-core module like tag-selection-core.ts and hooks in each app."
@@ -60,6 +83,8 @@ export default [
           "no-fullbleed-button": noFullbleedButton,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
+          "no-constant-echo-test": noConstantEchoTest,
+          "no-source-text-test": noSourceTextTest,
           "no-overshoot-easing": noOvershootEasing,
           "no-raw-font-feature-tag": noRawFontFeatureTag,
           "no-raw-gradient": noRawGradient,
@@ -137,6 +162,16 @@ export default [
         },
       ],
     },
+  },
+  {
+    files: ["src/__tests__/**/*.ts"],
+    ignores: LIE_1_EXCEPTIONS,
+    rules: { "local/no-constant-echo-test": "error" },
+  },
+  {
+    files: ["src/__tests__/**/*.ts"],
+    ignores: LIE_2_EXCEPTIONS,
+    rules: { "local/no-source-text-test": "error" },
   },
   {
     files: ["src/__tests__/**/*.ts", "**/*.test.ts", "**/*.spec.ts"],

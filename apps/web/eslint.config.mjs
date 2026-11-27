@@ -14,6 +14,8 @@ import noDeadHref from "../../eslint-rules/no-dead-href.cjs"
 import noDecorativeGlow from "../../eslint-rules/no-decorative-glow.cjs"
 import noRejectingAnimationWait from "../../eslint-rules/no-rejecting-animation-wait.cjs"
 import noDoubleAssertion from "../../eslint-rules/no-double-assertion.cjs"
+import noConstantEchoTest from "../../eslint-rules/no-constant-echo-test.cjs"
+import noSourceTextTest from "../../eslint-rules/no-source-text-test.cjs"
 import noDynamicTailwindClass from "../../eslint-rules/no-dynamic-tailwind-class.cjs"
 import noGradientText from "../../eslint-rules/no-gradient-text.cjs"
 import noJsxLogicalAnd from "../../eslint-rules/no-jsx-logical-and.cjs"
@@ -53,6 +55,53 @@ const maxButtonWordControls = [
   // Ruling 7 of #2121: a quick option is an answer of at most 4 words, and the destination action of a result dialog takes 4.
   { name: "OptionCard", labelProps: ["label"], maxWords: 4 },
   { name: "ResultDialog", labelProps: ["primaryLabel"], maxWords: 4 },
+]
+
+const LIE_1_EXCEPTIONS = [
+  "__tests__/components/auth/turnstile-widget.test.tsx",
+  "__tests__/components/chat/pending-operation-card.test.tsx",
+  "__tests__/components/habits/sortable-habit-item.test.tsx",
+  "__tests__/components/ui/confirm-sheet-prop.test.tsx",
+  "__tests__/perf/run-lighthouse.test.ts",
+  "__tests__/proxy.test.ts",
+  "__tests__/support/chromium.test.ts",
+]
+const LIE_2_EXCEPTIONS = [
+  "__tests__/app/fonts.test.ts",
+  "__tests__/app/unused-motion-css.test.ts",
+  "__tests__/components/calendar/calendar-grid-tokens.test.ts",
+  "__tests__/components/habits/description-viewer.test.tsx",
+  "__tests__/components/habits/habit-form-focus-treatments.test.tsx",
+  "__tests__/components/habits/habit-form-press-scale.test.tsx",
+  "__tests__/components/habits/habit-row.test.tsx",
+  "__tests__/components/motion/list-motion.test.tsx",
+  "__tests__/components/motion/tab-view-transition.test.tsx",
+  "__tests__/components/navigation/notification-bell.test.tsx",
+  "__tests__/components/navigation/route-context.test.tsx",
+  "__tests__/components/shell/composer-motion.test.tsx",
+  "__tests__/components/today/orbit-line-sentence-motion.test.tsx",
+  "__tests__/components/ui/badge.test.tsx",
+  "__tests__/components/ui/expanded-radio-text.test.tsx",
+  "__tests__/components/ui/interaction-motion.test.tsx",
+  "__tests__/components/ui/keyboard-reveal-group.test.tsx",
+  "__tests__/components/ui/list-primitives.test.tsx",
+  "__tests__/components/ui/navigation-source.test.ts",
+  "__tests__/components/ui/pill-button.test.tsx",
+  "__tests__/components/ui/pill-press-rules.test.ts",
+  "__tests__/components/ui/press-content-scale.test.tsx",
+  "__tests__/components/ui/press-shape.test.tsx",
+  "__tests__/components/ui/press-transition-sweep.test.ts",
+  "__tests__/components/ui/reduced-overlay-motion.test.ts",
+  "__tests__/components/ui/select.test.tsx",
+  "__tests__/components/ui/selection-indicator-ring.test.tsx",
+  "__tests__/components/ui/selection-ring-width.test.ts",
+  "__tests__/components/ui/selection-settle.test.ts",
+  "__tests__/components/ui/sheet.test.tsx",
+  "__tests__/components/ui/skeleton.test.tsx",
+  "__tests__/components/ui/status-dot.test.tsx",
+  "__tests__/components/ui/waiting-controls.test.tsx",
+  "__tests__/lib/theme-dom.test.ts",
+  "__tests__/service-worker.test.ts",
 ]
 
 export default [
@@ -105,6 +154,8 @@ export default [
           "no-dead-href": noDeadHref,
           "no-decorative-glow": noDecorativeGlow,
           "no-double-assertion": noDoubleAssertion,
+          "no-constant-echo-test": noConstantEchoTest,
+          "no-source-text-test": noSourceTextTest,
           "no-rejecting-animation-wait": noRejectingAnimationWait,
           "no-dynamic-tailwind-class": noDynamicTailwindClass,
           "no-gradient-text": noGradientText,
@@ -262,6 +313,16 @@ export default [
         },
       ],
     },
+  },
+  {
+    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+    ignores: LIE_1_EXCEPTIONS,
+    rules: { "local/no-constant-echo-test": "error" },
+  },
+  {
+    files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
+    ignores: LIE_2_EXCEPTIONS,
+    rules: { "local/no-source-text-test": "error" },
   },
   {
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "e2e/**/*.{ts,tsx}"],
