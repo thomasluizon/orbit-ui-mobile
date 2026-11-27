@@ -3,9 +3,9 @@ import { EventEmitter } from "node:events"
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { agentSkillFolders, codexAccountOf, codexCommand, codexConfigToml, codexEnvironment, codexFinalResult, codexLimitReset, codexLogEvent, codexLogFinalResult, codexResultText, codexRules, codexSessionId, codexWeeklyReading, isCodexUsageLimit, plainPrefixes, rolloutFile, writeCodexHome } from "../lib/codex-runner.mjs"
+import { agentSkillFolders, codexAccountOf, codexCommand, codexConfigToml, codexEnvironment, codexFinalResult, codexHooksJson, codexLimitReset, codexLogEvent, codexLogFinalResult, codexResultText, codexRules, codexSessionId, codexWeeklyReading, isCodexUsageLimit, plainPrefixes, rolloutFile, writeCodexHome } from "../lib/codex-runner.mjs"
 import { WORKER_DENY, codexHookCheck, codexInvocation, codexLoginStatus, isWorkerProcess, launch, probe } from "../lib/worker.mjs"
-import { T, root, same } from "./_harness.mjs"
+import { T, root, same, toolPath } from "./_harness.mjs"
 
 const THREAD = "01a21e2d-cd1e-7340-91e8-220da2e54801"
 const jsonl = (...records) => `${records.map((record) => JSON.stringify(record)).join("\n")}\n`
@@ -71,6 +71,8 @@ const commandCases = () => {
   const kept = { PATH: "/usr/bin", GH_TOKEN: "t", BRAIN_SESSION_CAPTURE: "1", CODEX_HOME: "/home/x/.codex-orbit-workers" }
   same("lib/codex-runner.mjs: the environment holds the Codex home, and no CLAUDE variable, login override or worker identity of its parent", codexEnvironment(parent, "/home/x/.codex-orbit-workers"), kept)
   same("lib/codex-runner.mjs: the environment of a launch names its worktree and branch", codexEnvironment(parent, "/home/x/.codex-orbit-workers", { worktree: "/work/tree", branch: "chore/ticket-9" }), { ...kept, ORBIT_WORKER_WORKTREE: "/work/tree", ORBIT_WORKER_BRANCH: "chore/ticket-9" })
+  same("lib/codex-runner.mjs: the environment of a launch with a gate names its run and its head", codexEnvironment(parent, "/home/x/.codex-orbit-workers", { worktree: "/work/tree", branch: "chore/ticket-9" }, { run: "chore-ticket-9-2026", head: "abc123" }), { ...kept, ORBIT_WORKER_WORKTREE: "/work/tree", ORBIT_WORKER_BRANCH: "chore/ticket-9", ORBIT_WORKER_RUN: "chore-ticket-9-2026", ORBIT_WORKER_HEAD: "abc123" })
+  same("lib/codex-runner.mjs: a gate with no worktree adds no variable, and a launch with no gate has no run or head", [codexEnvironment(parent, "/home/x/.codex-orbit-workers", null, { run: "r", head: "h" }), Object.keys(codexEnvironment(parent, "/home/x/.codex-orbit-workers", { worktree: "/w", branch: "b" }, null)).filter((key) => /^ORBIT_WORKER_(RUN|HEAD)$/.test(key))], [kept, []])
 }
 
 const homeCases = () => {
@@ -92,10 +94,73 @@ const homeCases = () => {
   mkdirSync(codexHome, { recursive: true })
   writeFileSync(join(codexHome, "auth.json"), AUTH_FILE)
   const before = statSync(join(codexHome, "auth.json")).mtimeMs
-  writeCodexHome({ codexHome, hookPath: "/tools/worker-gh-hook.mjs", skillFolders: ["orca-cli"], denyPrefixes: [["render"]] })
+  writeCodexHome({ codexHome, hookPath: "/tools/worker-gh-hook.mjs", sizeHookPath: "/tools/worker-size-hook.mjs", gateHookPath: "/tools/worker-gate-hook.mjs", skillFolders: ["orca-cli"], denyPrefixes: [["render"]] })
   same("lib/codex-runner.mjs: the home writer leaves auth.json as it was", [readFileSync(join(codexHome, "auth.json"), "utf8"), statSync(join(codexHome, "auth.json")).mtimeMs], [AUTH_FILE, before])
-  const command = `node '/tools/worker-gh-hook.mjs' --worktree "\${ORBIT_WORKER_WORKTREE-}" --branch "\${ORBIT_WORKER_BRANCH-}" --block-log '${join(codexHome, "hook-blocks.log")}' || exit 2`
-  same("lib/codex-runner.mjs: the home writer writes config.toml, default.rules and the one Bash hook, which reads the worker from its environment and keeps the exit 2 guard", [readFileSync(join(codexHome, "config.toml"), "utf8"), readFileSync(join(codexHome, "rules", "default.rules"), "utf8"), JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8"))], [codexConfigToml({ skillFolders: ["orca-cli"] }), codexRules([["render"]]), { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command, timeout: 60 }] }] } }])
+  const worktree = '--worktree "${ORBIT_WORKER_WORKTREE-}"'
+  const command = `node '/tools/worker-gh-hook.mjs' ${worktree} --branch "\${ORBIT_WORKER_BRANCH-}" --block-log '${join(codexHome, "hook-blocks.log")}' || exit 2`
+  const size = (event) => `test -z "\${ORBIT_WORKER_WORKTREE-}" || node '/tools/worker-size-hook.mjs' ${event} ${worktree} || exit 2`
+  const stop = `test -z "\${ORBIT_WORKER_RUN-}" || node '/tools/worker-gate-hook.mjs' ${worktree} --run "\${ORBIT_WORKER_RUN-}" --head "\${ORBIT_WORKER_HEAD-}"`
+  const expected = { hooks: {
+    PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command, timeout: 60 }] }, { matcher: "Bash|apply_patch", hooks: [{ type: "command", command: size("pre"), timeout: 120 }] }],
+    PostToolUse: [{ matcher: "Bash|apply_patch", hooks: [{ type: "command", command: size("post"), timeout: 120 }] }],
+    Stop: [{ hooks: [{ type: "command", command: stop, timeout: 1500 }] }],
+  } }
+  same("lib/codex-runner.mjs: the home writer writes config.toml, default.rules and the hooks of the confirmed events and tool names, which read the worker from its environment", [readFileSync(join(codexHome, "config.toml"), "utf8"), readFileSync(join(codexHome, "rules", "default.rules"), "utf8"), JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8"))], [codexConfigToml({ skillFolders: ["orca-cli"] }), codexRules([["render"]]), expected])
+  same("lib/codex-runner.mjs: the gh hook stays first on Bash, and only the gate hook has no matcher and no exit 2 guard", [expected.hooks.PreToolUse[0].matcher, Object.keys(expected.hooks.Stop[0]), stop.includes("exit 2")], ["Bash", ["hooks"], false])
+}
+
+/** A repository with one committed file on `work`, branched from `origin/main`, and the shell runner of a hook command of the worker home. */
+const hookWorktree = (name) => {
+  const directory = join(root, "codex-hooks", name)
+  mkdirSync(directory, { recursive: true })
+  const git = (...args) => spawnSync("git", ["-c", "user.email=c@o.test", "-c", "user.name=C", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], { cwd: directory, encoding: "utf8" }).stdout.trim()
+  git("init", "-q", "--initial-branch=main")
+  writeFileSync(join(directory, "kept.ts"), "export const kept = 1\n")
+  for (const args of [["add", "-A"], ["commit", "-q", "-m", "base"], ["update-ref", "refs/remotes/origin/main", "HEAD"], ["switch", "-q", "-c", "work"]]) git(...args)
+  const base = git("rev-parse", "HEAD")
+  const hooks = JSON.parse(codexHooksJson({ hookPath: toolPath("lib/worker-gh-hook.mjs"), sizeHookPath: toolPath("lib/worker-size-hook.mjs"), gateHookPath: toolPath("lib/worker-gate-hook.mjs"), blockLogPath: join(directory, "..", `${name}-blocks.log`) })).hooks
+  const outside = join(root, "codex-hooks")
+  /** Runs the first hook command of an event and a matcher, with the input that codex 0.172.0 sends and a `cwd` that names no worker. */
+  const run = (event, matcher, environment, input) => spawnSync("sh", ["-c", hooks[event].find((entry) => entry.matcher === matcher)?.hooks[0].command ?? hooks[event][0].hooks[0].command], {
+    cwd: outside, encoding: "utf8", env: { PATH: process.env.PATH, ...environment },
+    input: JSON.stringify({ session_id: "s", turn_id: "t", transcript_path: null, cwd: outside, hook_event_name: event, model: "m", permission_mode: "bypassPermissions", ...input }),
+  })
+  const worker = { ORBIT_WORKER_WORKTREE: directory, ORBIT_WORKER_BRANCH: "chore/ticket-9" }
+  return { directory, git, base, hooks, run, worker, gitDir: git("rev-parse", "--absolute-git-dir") }
+}
+
+const SHELL_AND_PATCH = "Bash|apply_patch"
+const patchOf = (path) => `*** Begin Patch\n*** Add File: ${path}\n+x\n*** End Patch`
+
+const hookRunCases = () => {
+  const { directory, git, base, run, worker, gitDir } = hookWorktree("run")
+  const lines = (count) => Array.from({ length: count }, (_, index) => `line ${index}\n`).join("")
+  const denial = (result) => (result.stdout === "" ? null : JSON.parse(result.stdout).hookSpecificOutput?.permissionDecisionReason ?? "unexpected")
+  writeFileSync(join(directory, "a.ts"), lines(300))
+  T("lib/codex-runner.mjs: at 300 lines the pre size hook denies an apply_patch of a new file for a call with a cwd outside the worktree", /^The diff is at 300 lines and 1 files\. The cap is 400 lines/.test(denial(run("PreToolUse", SHELL_AND_PATCH, worker, { cwd: join(directory, "sub"), tool_name: "apply_patch", tool_use_id: "u", tool_input: { command: patchOf("new.ts") } })) ?? ""))
+  T("lib/codex-runner.mjs: at 300 lines the pre size hook allows an apply_patch of a file in the diff", denial(run("PreToolUse", SHELL_AND_PATCH, worker, { cwd: directory, tool_name: "apply_patch", tool_use_id: "u", tool_input: { command: patchOf("a.ts").replace("Add File", "Update File") } })) === null)
+  writeFileSync(join(directory, "a.ts"), lines(400))
+  const shell = run("PreToolUse", SHELL_AND_PATCH, worker, { tool_name: "Bash", tool_use_id: "u", tool_input: { command: "echo x > a.ts" } })
+  T("lib/codex-runner.mjs: at 400 lines a Bash call from a cwd outside the worktree is measured on ORBIT_WORKER_WORKTREE and denied", /^The diff is at 400 lines and 1 files\./.test(denial(shell) ?? ""), `${shell.status} ${shell.stderr}`)
+  T("lib/codex-runner.mjs: at 400 lines a git call is allowed", denial(run("PreToolUse", SHELL_AND_PATCH, worker, { tool_name: "Bash", tool_use_id: "u", tool_input: { command: "git status" } })) === null)
+  const post = run("PostToolUse", SHELL_AND_PATCH, worker, { tool_name: "Bash", tool_use_id: "u", tool_input: { command: "git status" }, tool_response: "" })
+  T("lib/codex-runner.mjs: the post size hook records the count of the worktree of ORBIT_WORKER_WORKTREE", post.status === 0 && JSON.parse(readFileSync(join(gitDir, "orbit-size.json"), "utf8")).lines === 400, `${post.status} ${post.stderr}`)
+  const probe = run("PreToolUse", SHELL_AND_PATCH, {}, { tool_name: "Bash", tool_use_id: "u", tool_input: { command: "echo x > a.ts" } })
+  same("lib/codex-runner.mjs: a run with no worktree in its environment (a probe) gets no size check", [probe.status, probe.stdout], [0, ""])
+
+  // The gate: an uncommitted file is a failure, and a committed branch with no gate command is green.
+  const stop = (environment) => run("Stop", undefined, environment, { stop_hook_active: false, last_assistant_message: "done" })
+  const gateRecord = () => JSON.parse(readFileSync(join(gitDir, "orbit-gate.json"), "utf8"))
+  const red = stop({ ...worker, ORBIT_WORKER_RUN: "run-1", ORBIT_WORKER_HEAD: base })
+  const redOutput = red.stdout === "" ? {} : JSON.parse(red.stdout)
+  same("lib/codex-runner.mjs: the Stop hook of a Codex run gates the worktree of ORBIT_WORKER_WORKTREE, blocks a red gate and writes the record of its run", [red.status, redOutput.decision, /Failed command: git .*status/.test(redOutput.reason ?? ""), gateRecord().run, gateRecord().green, gateRecord().head], [0, "block", true, "run-1", false, base])
+  git("add", "-A")
+  git("commit", "-q", "-m", "work")
+  const green = stop({ ...worker, ORBIT_WORKER_RUN: "run-1", ORBIT_WORKER_HEAD: base })
+  same("lib/codex-runner.mjs: the Stop hook of a Codex run writes green true for a committed branch with a passing gate and lets the run end", [green.status, green.stdout, gateRecord().green, gateRecord().head === git("rev-parse", "HEAD"), gateRecord().blocks], [0, "", true, true, 1])
+  const before = readFileSync(join(gitDir, "orbit-gate.json"), "utf8")
+  const finder = stop(worker)
+  same("lib/codex-runner.mjs: a run with no ORBIT_WORKER_RUN (a find or a replan run) gets no gate and writes no record", [finder.status, finder.stdout, readFileSync(join(gitDir, "orbit-gate.json"), "utf8") === before], [0, "", true])
 }
 
 const accountCases = () => {
@@ -130,7 +195,8 @@ const probeCases = async () => {
 const launchCases = async () => {
   const { home, codexHome, session } = stageHome("launch")
   session()
-  const invocation = codexInvocation({ home, parentEnvironment: {}, token: "t", own: OWN })
+  const invocation = codexInvocation({ home, parentEnvironment: {}, token: "t", own: OWN, gate: { run: "worker-run", head: "head-1" } })
+  same("lib/worker.mjs: a Codex launch names its gate run and head in its environment, and a Codex launch with no gate names none", [invocation.environment.ORBIT_WORKER_RUN, invocation.environment.ORBIT_WORKER_HEAD, "ORBIT_WORKER_RUN" in codexInvocation({ home, parentEnvironment: {}, token: "t", own: OWN }).environment], ["worker-run", "head-1", false])
   same("lib/worker.mjs: a Codex launch runs in its worktree with the git check on, and names its branch", [invocation.command, invocation.environment.ORBIT_WORKER_WORKTREE, invocation.environment.ORBIT_WORKER_BRANCH], [codexCommand({ worktree: OWN.worktree }), OWN.worktree, OWN.branch])
   const logFile = join(home, "worker.log")
   const child = Object.assign(new EventEmitter(), { pid: 4242, stdin: { on: () => {}, end: () => {} } })
@@ -185,5 +251,6 @@ export const cases = async () => {
   readingCases()
   commandCases()
   homeCases()
+  hookRunCases()
   accountCases()
 }
