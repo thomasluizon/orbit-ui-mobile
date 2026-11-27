@@ -728,7 +728,8 @@ describe('weekday qualifiers', () => {
     ['pt-BR', 'Ler terça sim terça não', 'Tuesday', 'Ler'],
     ['en', 'Read every other Sunday', 'Sunday', 'Read'],
   ] as const)('reads alternating weekdays as every two weeks: %s %s', (locale, phrase, day, title) => {
-    const equivalent = locale === 'en' ? `every 2 weeks on ${day}` : `a cada duas semanas na ${phrase.includes('sexta') ? 'sexta' : day === 'Monday' ? 'segunda' : 'terça'}`
+    const ptDay: Readonly<Record<string, string>> = { Friday: 'sexta', Monday: 'segunda', Tuesday: 'terça' }
+    const equivalent = locale === 'en' ? `every 2 weeks on ${day}` : `a cada duas semanas na ${ptDay[day]}`
     for (const input of [phrase, phrase.toUpperCase(), phrase.normalize('NFD'), phrase.replaceAll(' ', '\t  ')]) {
       const read = readHabitPhrase(input, locale)
       expect(read).toMatchObject({ cadence: 'fixed', days: [day], intervalWeeks: 2, frequencyQuantity: null })
