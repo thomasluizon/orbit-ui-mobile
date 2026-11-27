@@ -84,7 +84,7 @@ const PT_RANGE_START_GROUPS = 6
 const PT_COUNT_BEFORE = String.raw`(?<!(?:\d|\b(?:dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|quinze|vinte)\b)\S*\s+(?:\S+\s+)?)`
 function ptHourRange(opener: string, joiner: string): RegExp {
   const start = String.raw`([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}`
-  const end = String.raw`(?:${joiner}\s+(?<endHour>[01]?\d|2[0-3])${PT_HOUR_RANGE_CLOCK}\b|(?:ao|${joiner})\s+meio-dia\b)${PT_RANGE_END_DAY_PART}`
+  const end = String.raw`(?:${joiner}\s+(?<endHour>[01]?\d|2[0-3])${PT_HOUR_RANGE_CLOCK}\b|(?:ao|ate(?:\s+o)?|${joiner})\s+meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b)${PT_RANGE_END_DAY_PART}`
   return new RegExp(String.raw`\b${opener}\s+${start}\s+${end}(?![:\dh]|[.,]\d)`, 'gu')
 }
 const PT_NOON =String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`

@@ -1231,6 +1231,11 @@ describe('a pt-BR range of hours', () => {
     ['Correr 5 km das 6 às 7 toda segunda', '06:00'],
     ['Meditar 10 minutos das 7 às 8', '07:00'],
     ['Fazer 3 séries das 10 às 7', '10:00'],
+    ['Almoçar das 11 ao meio-dia e meia', '11:00'],
+    ['Almoçar de 11 ao meio-dia e meia', '11:00'],
+    ['Estudar das 9 ao meio-dia e meia da tarde', '09:00'],
+    ['Almoçar das 11 até o meio-dia', '11:00'],
+    ['Almoçar das 11 até meio-dia', '11:00'],
   ] as const)('reads the start hour as the due time: %s', (phrase, dueTime) => {
     expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
   })
