@@ -46,6 +46,26 @@ The driver moves to a newer driver commit of `main` by itself, at a tick with no
 1. Run `git -C $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive fetch origin main`, then `git -C $HOME/orca/workspaces/orbit-ui-mobile/orbit-drive checkout --detach <full sha>`.
 2. Run `launchctl kickstart -k gui/$(id -u)/com.thomas.orbit-drive`.
 
+## health.json
+
+Every tick, good or failed, writes `health.json` in the state directory (`$S` of step 4 of `/driver`). The driver has no stall alarm. The watchdog outside the driver reads this file. A dry run writes nothing.
+
+| Field | Meaning |
+| --- | --- |
+| `writtenAt` | The time of the write. A file that is old means the driver does not run. |
+| `lastGoodTickAt` | The time of the last tick whose read of GitHub succeeded. |
+| `lastMergeAt` | The time of the last merge of the driver. |
+| `openPulls` | The count of open pull requests in the three repositories. |
+| `oldestGreenApprovedAt` | The approval time of the oldest open pull request that meets the bar and is not merged. It is `null` when none exists. |
+| `lastErrorClass` | The class of the error of this tick: `rate-limit`, `auth`, `network`, `server`, `timeout` or `other`. It is `null` when the tick had no error. |
+| `rateLimitedUntil` | The time that the empty GitHub limit refills, when `lastErrorClass` is `rate-limit` and `gh api rate_limit` names it. Otherwise `null`. |
+| `problems` | A list of `{ key, since, detail }`. Each `key` is stable: `blind:tickets`, `blind:ui`, `blind:api`, `blind:landing`, `unmerged:<repo>#<number>` or `error:tick`. |
+
+- All times are ISO strings.
+- `since` is the time that the problem started. It stays the same while the problem lasts.
+- A tick whose read fails keeps `openPulls`, `oldestGreenApprovedAt` and each `unmerged:` problem of the last good read.
+- A merge that the release train holds, and a merge that fails, both stay in `problems` as `unmerged:`.
+
 ## What the owner session does
 
 - Writes tickets with `/ticket`.

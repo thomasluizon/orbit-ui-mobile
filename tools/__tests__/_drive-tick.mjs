@@ -767,50 +767,69 @@ const checkOnlyCases = async () => {
   same("drive: a needs:owner pull request gets no check-only request", commentsOf(labelled.calls, 30).length, 0)
 }
 
-const STALL = "Driver stalled: no worker, request or merge for 60 minutes"
-
-const stallCases = async () => {
-  const stalled = async (offset, { extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false, refusesMerge = false } = {}) => {
-    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
-    mkdirSync(stateDirectory, { recursive: true })
-    if (offset !== null) writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW + offset }))
-    const scene = scenario({ tickets, runs, stateDirectory, sleeping, pulls: { ui: [withoutApprovalCheck(extra)] } })
-    if (refusesMerge) scene.env.github.merge = async (...args) => { scene.calls.push(["merge", ...args]); throw new Error("gh pr merge failed: a repository rule refuses the merge") }
-    await scene.run()
-    scene.stateDirectory = stateDirectory
-    return scene
-  }
-  const created = (scene) => only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
-  const first = await stalled(null)
-  same("drive: the first tick starts the clock and opens no stall issue", [created(first).length, JSON.parse(readFileSync(join(first.stateDirectory, "activity.json"), "utf8")).at], [0, NOW])
-  const young = await stalled(-59 * MINUTE)
-  same("drive: 59 minutes of waiting with no action opens no stall issue", created(young).length, 0)
-  const late = await stalled(-61 * MINUTE)
-  const [[, issue]] = created(late)
-  same("drive: 61 minutes with no action opens one needs:owner stall issue that names the waiting pull request", [created(late).length, issue.labels, issue.body.includes("ui#30: wait: a Pullfrog run is in progress")], [1, [OWNER_LABEL], true])
-  T("drive: the stall is logged with the reason of the waiting item", late.messages.some((line) => / driver stall \(ui#30: wait: a Pullfrog run is in progress\)/.test(line)), late.messages.join(" | "))
-  same("drive: the stall issue sends one notification", only(late.calls, "notify").length, 1)
-  const open = await stalled(-61 * MINUTE, { tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
-  same("drive: an open stall issue is not opened twice", created(open).length, 0)
-  const asleep = await stalled(-61 * MINUTE, { sleeping: true })
-  same("drive: while sleep is on the stall issue opens and no notification goes out", [created(asleep).length, only(asleep.calls, "notify").length, JSON.parse(readFileSync(join(asleep.stateDirectory, "sleep-items.json"), "utf8")).length], [1, 0, 1])
-  const acting = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a request in the tick resets the clock and opens no stall issue", [created(acting).length, commentsOf(acting.calls, 30).length > 0, JSON.parse(readFileSync(join(acting.stateDirectory, "activity.json"), "utf8")).at], [0, true, NOW])
-  const closing = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
-  same("drive: an action closes the open stall issue", only(closing.calls, "closeTicket"), [["closeTicket", 41]])
-  const quiet = await stalled(-61 * MINUTE, { tickets: [ticket(7)], extra: { labels: [OWNER_LABEL] } })
-  same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
-  const merging = await stalled(-61 * MINUTE, { runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
-  const refused = await stalled(-61 * MINUTE, { runs: [], refusesMerge: true, extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a pull request whose merge throws on every tick still opens one stall issue", [only(refused.calls, "merge").length, created(refused).length], [1, 1])
-}
-
 /** A saved release train with the mobile steps in the given states, as `release-train.json` keeps it. */
 const trainFile = (states, { status = "running", mobile = { appVersion: "1.3.161", sha: "6c925e9c4".padEnd(40, "0"), stagingCode: 1, productionCode: 2 } } = {}) => ({
   train: { id: "2026-11-26T08:07:24.444Z", status, mobile, steps: [["android", "staging"], ["ios", "staging"], ["android", "production"], ["ios", "production"]].map(([kind, environment], index) => ({ id: `${kind}-${environment}`, kind, service: kind, environment, state: states[index] })) },
   lastEndedAt: null, lastPlanAt: null, requested: false,
 })
+
+const healthOf = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "health.json"), "utf8"))
+
+/** The response of `gh api rate_limit`: each resource holds `limit`, `remaining`, `reset` (epoch seconds) and `used`. */
+const rateLimitResponse = (graphqlReset) => JSON.stringify({ resources: { core: { limit: 5000, remaining: 4000, reset: graphqlReset - 600, used: 1000 }, graphql: { limit: 5000, remaining: 0, reset: graphqlReset, used: 5000 } } })
+
+const healthCases = async () => {
+  const good = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] } })
+  await good.run()
+  same("drive: a good tick writes health.json with its read time, its pull request count and no problem", healthOf(good), { writtenAt: iso(0), lastGoodTickAt: iso(0), lastMergeAt: null, openPulls: 1, oldestGreenApprovedAt: null, lastErrorClass: null, rateLimitedUntil: null, problems: [] })
+
+  const failingRead = (message, { previous = null, routes = [], sleeping = false, dryRun = false } = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], routes, sleeping, dryRun })
+    scene.env.github.readRepositoryState = async (key) => { if (key === "api") throw new Error(message); return { repositoryKey: key, slug: `thomasluizon/${key}`, defaultBranch: "main", numbers: [], pulls: [] } }
+    if (previous !== null) writeFileSync(join(scene.env.stateDir, "health.json"), `${JSON.stringify(previous)}\n`)
+    return scene
+  }
+  const first = failingRead("gh api graphql -f query=query { x } failed: gh: HTTP 502: Bad Gateway")
+  same("drive: a tick that fails its read returns retried", (await first.run()).retried, true)
+  same("drive: a tick that fails its read still writes health.json with the error class and the blind part", healthOf(first), { writtenAt: iso(0), lastGoodTickAt: null, lastMergeAt: null, openPulls: null, oldestGreenApprovedAt: null, lastErrorClass: "server", rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(0), detail: "gh: HTTP 502: Bad Gateway" }] })
+
+  const previous = { writtenAt: iso(-2 * MINUTE), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: null, rateLimitedUntil: null, problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "x" }, { key: "unmerged:ui#12", since: iso(-30 * MINUTE), detail: "approved, meets the bar, not merged" }] }
+  const limited = failingRead("gh api graphql failed: gh: API rate limit already exceeded for user ID 1. (HTTP 403)", { previous, routes: [["api rate_limit", rateLimitResponse(Math.floor(NOW / 1000) + 1800)]] })
+  await limited.run()
+  same("drive: a rate limited read keeps the last good values, names the refill time and keeps the start of the blind part", healthOf(limited), { writtenAt: iso(0), lastGoodTickAt: iso(-2 * MINUTE), lastMergeAt: iso(-50 * MINUTE), openPulls: 3, oldestGreenApprovedAt: iso(-30 * MINUTE), lastErrorClass: "rate-limit", rateLimitedUntil: iso(30 * MINUTE), problems: [{ key: "blind:api", since: iso(-6 * MINUTE), detail: "gh: API rate limit already exceeded for user ID 1. (HTTP 403)" }, { key: "unmerged:ui#12", since: iso(-30 * MINUTE), detail: "approved, meets the bar, not merged" }] })
+  const unreadLimit = failingRead("gh api graphql failed: gh: API rate limit exceeded (HTTP 403)")
+  await unreadLimit.run()
+  same("drive: a rate limit that the rate_limit read cannot name leaves rateLimitedUntil null", [healthOf(unreadLimit).lastErrorClass, healthOf(unreadLimit).rateLimitedUntil], ["rate-limit", null])
+
+  const asleep = failingRead("gh api graphql failed: gh: HTTP 504: Gateway Timeout", { sleeping: true })
+  await asleep.run()
+  same("drive: while sleep is on a failed read still writes health.json and sends no notification", [healthOf(asleep).lastErrorClass, only(asleep.calls, "notify").length], ["server", 0])
+  const dry = failingRead("gh api graphql failed: gh: HTTP 502: Bad Gateway", { dryRun: true })
+  await dry.run()
+  same("drive: a dry run writes no health.json", existsSync(join(dry.env.stateDir, "health.json")), false)
+
+  const heldTrain = trainFile(["verified", "verified", "dispatched", "pending"])
+  const green = (number, offset, extra = {}) => pull(number, { headRef: `chore/ticket-7-${number}`, reviews: [review("APPROVED", HEAD, offset)], ...extra })
+  const heldGreen = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [green(31, -40 * MINUTE), green(30, -90 * MINUTE), green(32, -200 * MINUTE, { checks: [check("Unit Tests", "FAILURE"), approvalCheck()] })] } })
+  writeFileSync(join(heldGreen.env.stateDir, "release-train.json"), `${JSON.stringify(heldTrain)}\n`)
+  await heldGreen.run()
+  const held = healthOf(heldGreen)
+  same("drive: oldestGreenApprovedAt names the oldest approved pull request that meets the bar and is not merged", [held.oldestGreenApprovedAt, held.problems.map((problem) => [problem.key, problem.since])], [iso(-90 * MINUTE), [["unmerged:ui#30", iso(-90 * MINUTE)], ["unmerged:ui#31", iso(-40 * MINUTE)]]])
+
+  const merging = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [green(30, -90 * MINUTE)] } })
+  await merging.run()
+  same("drive: a merged pull request is no unmerged problem and sets lastMergeAt", [only(merging.calls, "merge").length, healthOf(merging).oldestGreenApprovedAt, healthOf(merging).problems, healthOf(merging).lastMergeAt], [1, null, [], iso(0)])
+
+  const refused = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [green(30, -90 * MINUTE)] } })
+  refused.env.github.merge = async () => { throw new Error("gh pr merge failed: a repository rule refuses the merge") }
+  await refused.run()
+  same("drive: a pull request whose merge throws stays unmerged in health.json", [healthOf(refused).oldestGreenApprovedAt, healthOf(refused).problems.map((problem) => problem.key), healthOf(refused).lastMergeAt], [iso(-90 * MINUTE), ["unmerged:ui#30"], null])
+
+  const waiting = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30, { reviews: [] })] } })
+  writeFileSync(join(waiting.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  await waiting.run()
+  same("drive: the driver has no stall alarm, so a clock of 61 minutes opens no issue and sends no notification", [only(waiting.calls, "createTicket").length, only(waiting.calls, "notify").length], [0, 0])
+}
 
 const mobileHoldCases = async () => {
   const held = async (label, file, { repo = "ui", expectMerges }) => {
@@ -826,11 +845,10 @@ const mobileHoldCases = async () => {
   }
   const lines = await held("a ui merge is held while the train has mobile steps that are not dispatched", trainFile(["verified", "verified", "dispatched", "pending"]), { expectMerges: 0 })
   same("drive: the held ui merge logs the pull request, the train id and the sha", lines[0].slice(lines[0].indexOf("ui#30")), "ui#30 merge held (release train 2026-11-26T08:07:24.444Z ships mobile at 6c925e9c40000000000000000000000000000000)")
-  const stalledHold = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30)] }, stateDirectory: join(root, `drive-stall-hold-${++scenarios}`) })
-  writeFileSync(join(stalledHold.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-  writeFileSync(join(stalledHold.env.stateDir, "release-train.json"), `${JSON.stringify(trainFile(["verified", "verified", "dispatched", "pending"]))}\n`)
-  await stalledHold.run()
-  same("drive: a held ui merge with a 61 minute clock opens no stall issue and sends no notification", [only(stalledHold.calls, "merge").length, only(stalledHold.calls, "createTicket").filter(([, input]) => input.title === STALL).length, only(stalledHold.calls, "notify").length], [0, 0, 0])
+  const heldHealth = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30)] } })
+  writeFileSync(join(heldHealth.env.stateDir, "release-train.json"), `${JSON.stringify(trainFile(["verified", "verified", "dispatched", "pending"]))}\n`)
+  await heldHealth.run()
+  same("drive: a held ui merge opens no issue, sends no notification and lists the pull request as unmerged in health.json", [only(heldHealth.calls, "merge").length, only(heldHealth.calls, "createTicket").length, only(heldHealth.calls, "notify").length, healthOf(heldHealth).problems.map((problem) => problem.key)], [0, 0, 0, ["unmerged:ui#30"]])
   await held("a ui merge is held while the first mobile step is still pending", trainFile(["pending", "pending", "pending", "pending"]), { expectMerges: 0 })
   await held("a ui merge is held while a mobile step is dispatching", trainFile(["verified", "verified", "verified", "dispatching"]), { expectMerges: 0 })
   await held("a ui merge runs when the last mobile production step is dispatched", trainFile(["verified", "verified", "verified", "dispatched"]), { expectMerges: 1 })
@@ -1289,7 +1307,7 @@ const blockingClassCases = async () => {
   same("drive: a waiting ticket whose merged history was not read gets no cap check and no needs:owner", [only(settled.calls, "editLabels").length, commentsOf(settled.calls, settledNumber).length], [0, 0])
 }
 
-/** A pull request with no open ticket gets no label, so its `needs-owner` report is the hold that the bar, the stall alarm and the questions run read. */
+/** A pull request with no open ticket gets no label, so its `needs-owner` report is the hold that the bar and the questions run read. */
 const reportHoldCases = async () => {
   const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
   const green = [check("Unit Tests"), approvalCheck()]
@@ -1298,25 +1316,21 @@ const reportHoldCases = async () => {
   const bumps = (checks, comments) => pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks, comments: [comment("ticket", "T"), RERAN, ...comments] })
   const tracked = (comments) => pull(30, { checks: green, comments: [comment("ticket", "T"), ...comments] })
   const table = [
-    ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [0, 1, 0, 0]],
-    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [0, 1, 0, 1]],
-    ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [0, 1, 0, 0]],
-    ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [0, 1, 0, 0]],
-    ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 0, 1, 0]],
-    ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [0, 1, 0, 0]],
-    ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [0, 1, 0, 0]],
-    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [1, 0, 0, 0]],
-    ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 0, 1, 0]],
+    ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [1, 0, 0]],
+    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [1, 0, 1]],
+    ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [1, 0, 0]],
+    ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [1, 0, 0]],
+    ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 1, 0]],
+    ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [1, 0, 0]],
+    ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [1, 0, 0]],
+    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [0, 0, 0]],
+    ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 1, 0]],
   ]
   for (const [label, held, tickets, expected] of table) {
-    const stateDirectory = join(root, `drive-report-hold-${++scenarios}`)
-    mkdirSync(stateDirectory, { recursive: true })
-    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-    const scene = scenario({ driver: {}, tickets, pulls: { ui: [held] }, stateDirectory })
+    const scene = scenario({ driver: {}, tickets, pulls: { ui: [held] } })
     await scene.run()
     await scene.mem.questions
-    const stalls = only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
-    same(`drive: ${label} gives [stall issues, questions runs, merges, new reports]`, [stalls.length, questionRuns(scene).length, only(scene.calls, "merge").length, needsOwnerComments(scene.calls, 30).length], expected)
+    same(`drive: ${label} gives [questions runs, merges, new reports]`, [questionRuns(scene).length, only(scene.calls, "merge").length, needsOwnerComments(scene.calls, 30).length], expected)
   }
 }
 
@@ -2197,27 +2211,6 @@ const twoAccountCases = async () => {
   same("drive: main at 0.92 posts no Pullfrog request while the worker account works", commentsOf(mainStopped.calls, 30).length, 0)
   T("drive: the weekly stop of the main account still opens its one stop issue", only(mainStopped.calls, "createTicket").some((entry) => entry[1].title === STOP_ISSUE_TITLE))
 
-  // The main account holds the Pullfrog request while the worker account has slots: the hold is chosen, so no stall issue opens.
-  const stallOf = async (label, { reading, usageLimit }) => {
-    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
-    mkdirSync(stateDirectory, { recursive: true })
-    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-    const scene = scenario({ tickets: [ticket(8)], pulls: { ui: [waitingPull] }, stateDirectory, reading, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.5, resetsAt: RESETS_AT, status: "rejected" } })
-    if (usageLimit) scene.mem.stoppedUntil = NOW + 60 * MINUTE
-    await scene.run()
-    same(`drive: ${label} and 61 minutes with no action open no stall issue`, [scene.launched.length, commentsOf(scene.calls, 30).length, only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 0, 0])
-  }
-  await stallOf("main at 0.92 with the worker account at 0.35 and one pull request waiting for its first review", { reading: stoppedReading })
-  await stallOf("main stopped by a usage limit with the worker account at 0.35 and one pull request waiting for its first review", { reading: below, usageLimit: true })
-
-  // A launch that fails on the worker account is no hold the driver chose, so it stays on the stall clock while the main account is stopped.
-  const failing = join(root, `drive-stall-${++scenarios}`)
-  mkdirSync(failing, { recursive: true })
-  writeFileSync(join(failing, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-  const failed = scenario({ tickets: [ticket(7)], occupants: [4242], stateDirectory: failing, reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: below })
-  await failed.run()
-  same("drive: main at 0.92 and the worker account at 0.35 with a worktree that another process holds on every tick open one stall issue after 61 minutes", [failed.launched.length, only(failed.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 1])
-
   const both = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await both.run()
   same("drive: both accounts below their lines give the sum of their slots, and the worker account fills first", both.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY, null, null])
@@ -2613,7 +2606,7 @@ export const driverUnit = async () => {
   await releaseCases()
   await admissionCases()
   await checkOnlyCases()
-  await stallCases()
+  await healthCases()
   await paceCases()
   await sleepCases()
   await questionsCases()

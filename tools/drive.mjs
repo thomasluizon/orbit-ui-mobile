@@ -15,12 +15,13 @@ import { delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
+import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "./lib/driver-health.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -118,9 +119,6 @@ const BRANCH_TYPE = { Bug: "fix", Feature: "feature", Improvement: "chore" }
 const PAUSE_TITLE = "Driver paused: a worker stopped at a usage limit or a sign-in failure"
 const STOP_TITLE = "Driver stopped: weekly usage reached 90%"
 const RESTART_TITLE = "Driver restarted three times in ten minutes"
-const STALL_TITLE = "Driver stalled: no worker, request or merge for 60 minutes"
-const ACTIVITY_FILE = "activity.json"
-const STALL_MS = HOUR_MS
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
@@ -320,7 +318,10 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
+/** What one tick tells `health.json`: the read of the world, the pull requests at the bar, a merge and each failed read. */
+const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null })
+
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1097,7 +1098,6 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "request":
       if (action.ticketComment) await env.github.comment(repoKey, pull.number, ticketComment({ repository: env.config.tickets.repository, ticket, part }))
       await env.github.comment(repoKey, pull.number, marked("request", action.text))
-      mem.acted = true
       if (action.record) await env.github.comment(repoKey, pull.number, marked("record", action.record))
       return undefined
     case "rerun":
@@ -1111,7 +1111,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await env.github.merge(repoKey, pull.number, pull.headSha)
-      mem.acted = true
+      mem.health.merged = true
       ctx.merged = true
       mem.merged.delete(pull.tracks)
       await outsideTicket(env, repoKey, pull)
@@ -1122,13 +1122,10 @@ const executeAction = async (env, mem, ctx, pull, action) => {
 
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
 
-/** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
-const isWaiting = (env, pull, tickets) => {
-  const ticket = tickets.find((entry) => entry.number === pull.tracks)
-  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !heldByReport(env, pull, ticket)
-}
-
-/** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
+/**
+ * Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds,
+ * a Pullfrog request waits. A pull request whose plan has a merge meets the bar: `mem.health.green` keeps it until its merge runs.
+ */
 const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
   const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running }
@@ -1144,10 +1141,9 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
       const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
-      let mergeHeld = false
+      if (stoppedPlan.some((action) => action.type === "merge")) mem.health.green.push({ key: item, approvedAt: approvalTime(pull) })
       const plan = hold === null ? stoppedPlan : stoppedPlan.map((action) => {
         if (action.type !== "merge") return action
-        mergeHeld = true
         log(env, item, "merge held", `release train ${hold.id} ships mobile at ${hold.sha}`)
         return { type: "none", reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` }
       })
@@ -1165,9 +1161,7 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
           if (ctx.merged) break
         }
       } finally {
-        // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
-        // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
-        if (!mergeHeld && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+        if (ctx.merged) mem.health.green = mem.health.green.filter((entry) => entry.key !== item)
       }
     } catch (error) {
       log(env, item, "error", error.message)
@@ -1816,12 +1810,14 @@ const intake = async (env, mem) => {
   }
 }
 
-/** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
 const readWorld = async (env, mem) => {
-  const tickets = await env.github.readTickets()
+  // A failed read names the part that failed, so `health.json` lists it as a blind part.
+  const blind = (key) => (error) => { mem.health.blind.push({ key, detail: detailOf(error) }); throw error }
+  const tickets = await env.github.readTickets().catch(blind("tickets"))
   const states = []
-  for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }))
+  for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).catch(blind(key)))
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
+  mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
   return { tickets, states }
 }
 
@@ -1846,31 +1842,6 @@ const reapExits = async (env, mem) => {
     mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
-}
-
-/**
- * The stall alarm. The clock is the last tick in which a worker ran, a request went out or a pull request merged, kept in
- * `activity.json` so a restart keeps it. It resets while nothing waits, while the driver is held on purpose, and at each
- * action. After 60 minutes of waiting items with no action it logs `stall` with each reason and opens one `needs:owner` issue.
- */
-const watchStall = async (env, tickets, { acted, held, waiting }) => {
-  const path = join(env.stateDir, ACTIVITY_FILE)
-  let last = null
-  try { last = JSON.parse(readFileSync(path, "utf8")).at } catch { /* a first start has no file */ }
-  const now = env.now()
-  const issue = tickets.find((ticket) => ticket.title === STALL_TITLE) ?? null
-  if (acted || held || waiting.length === 0 || !Number.isFinite(last)) {
-    writeFileSync(path, `${JSON.stringify({ at: now })}\n`)
-    if (acted && issue !== null) await closeIssue(env, tickets, issue, "The driver acted again, so the stall ends.")
-    return
-  }
-  if (now - last < STALL_MS) return
-  const reasons = waiting.join("; ")
-  log(env, "driver", "stall", reasons)
-  if (issue !== null) return
-  const message = `The driver ran no worker, posted no request and merged nothing since ${new Date(last).toISOString()}. Waiting: ${reasons}`
-  const created = await openProblem(env, { title: STALL_TITLE, body: message, notice: { key: `stall ${new Date(last).toISOString()}`, lines: [`Orbit stalled: nothing was built, reviewed or merged since ${clock(last)}.`] } })
-  tickets.push({ number: created.number, title: STALL_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
 }
 
 /**
@@ -1901,10 +1872,41 @@ const startQuestions = async (env, mem, { tickets, states, blocked }) => {
   })
 }
 
+/**
+ * Writes `health.json` at the end of every tick, good or failed, so a check outside the driver sees a blind or stuck driver.
+ * A dry run writes nothing. A failed write is logged and never fails the tick.
+ */
+const writeTickHealth = async (env, mem) => {
+  if (env.dryRun) return
+  const { read, green, merged, blind, failure } = mem.health
+  try {
+    const errorClass = failure === null ? null : errorClassOf(failure)
+    const resetAt = errorClass === "rate-limit" ? await rateLimitResetOf(env.gh) : null
+    writeHealth(env.stateDir, healthRecord({
+      previous: readHealth(env.stateDir), now: env.now(), merged, blind,
+      read: read === null ? null : { openPulls: read.openPulls, green },
+      failure: failure === null ? null : { errorClass, detail: detailOf(failure), rateLimitedUntil: resetAt === null ? null : new Date(resetAt).toISOString() },
+    }))
+  } catch (error) {
+    log(env, "health", "error", error.message)
+  }
+}
+
 export const tick = async (env, mem) => {
+  mem.health = newHealth()
+  try {
+    return await runTick(env, mem)
+  } catch (error) {
+    mem.health.failure ??= error
+    throw error
+  } finally {
+    await writeTickHealth(env, mem)
+  }
+}
+
+/** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
+const runTick = async (env, mem) => {
   env.lines = []
-  mem.acted = false
-  mem.waiting = []
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
@@ -1918,6 +1920,7 @@ export const tick = async (env, mem) => {
     world = await readWorld(env, mem)
   } catch (error) {
     log(env, "tick", "retry", error.message)
+    mem.health.failure = error
     return { retried: true }
   }
   const { tickets, states } = world
@@ -1958,21 +1961,17 @@ export const tick = async (env, mem) => {
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
   if (env.dryRun) env.lines.push(await nextTicketLine(env, mem, stillOpen, states, running))
   const launchable = [...fixOrders, ...chosen]
-  const unstarted = []
   if (!env.dryRun) {
     for (const order of launchable) {
       // The worker account takes a launch when it has a free slot, else the main account.
       const name = free.worker > 0 ? WORKER : MAIN
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
-      if (reason === null) { mem.acted = true; free[name] -= 1 }
-      else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
+      if (reason === null) free[name] -= 1
     }
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
     const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
-    const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
-    await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()
