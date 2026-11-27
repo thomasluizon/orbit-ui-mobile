@@ -1630,6 +1630,8 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
+  // Until the driver splits a pull request itself, a split request goes to the owner hold like a decision.
+  if (result.result.needsSplit) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_SPLIT: ${result.result.needsSplit}` })
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.

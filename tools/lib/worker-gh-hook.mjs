@@ -1,13 +1,17 @@
 /**
  * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except `gh pr create` and an edit
  * or a comment on the pull request of the worker's own branch. A permission pattern cannot say "my own pull request".
+ * It also blocks a `git push` of a branch that changes more than the cap of `diff-size.mjs` against `origin/main`.
  * It reads the command text, so it does not see a `gh` call that a script or a `bash -c` string makes.
  */
 
 import { spawnSync } from "node:child_process"
 import { readFileSync, realpathSync } from "node:fs"
 import { pathToFileURL } from "node:url"
+import { resolve } from "node:path"
 import { parseArgs } from "node:util"
+
+import { MAX_CHANGED_LINES, changedLines, gitFiles } from "./diff-size.mjs"
 
 /** Words that can stand before a program, so the program is a later word of the command. */
 const PREFIX_WORDS = new Set(["!", "{", "builtin", "command", "do", "elif", "else", "env", "exec", "if", "nice", "nohup", "sudo", "then", "time", "timeout", "until", "while", "xargs"])
@@ -136,16 +140,42 @@ export const shellCommands = (text) => {
   return commands
 }
 
-/** The arguments of the `gh` call of one command and the place of `gh` in it, or null when the command runs another program. */
-const ghCallOf = (words) => {
+/** The arguments of the call of `program` in one command and the place of `program` in it, or null when the command runs another program. */
+const callOf = (words, program) => {
   let prefixed = false
   let index = 0
   for (; index < words.length; index++) {
     if (PREFIX_WORDS.has(words[index])) prefixed = true
     else if (!ASSIGNMENT.test(words[index]) && !(prefixed && /^(?:-.*|\d+[smhd]?)$/.test(words[index]))) break
   }
-  return /(?:^|\/)gh$/.test(words[index] ?? "") ? { at: index, args: words.slice(index + 1) } : null
+  return (words[index] ?? "").split("/").at(-1) === program ? { at: index, args: words.slice(index + 1) } : null
 }
+
+const ghCallOf = (words) => callOf(words, "gh")
+
+/** The `git` options that take a value in the next word. */
+const GIT_VALUE_OPTIONS = new Set(["-C", "-c", "--exec-path", "--git-dir", "--namespace", "--work-tree"])
+
+/** The directory and the arguments of a `git push` command, or null when the command is no push. `-C <path>` moves the directory. */
+const gitPushOf = (words, directory) => {
+  const call = callOf(words, "git")
+  if (call === null) return null
+  let moved = directory
+  let index = 0
+  for (; index < call.args.length && call.args[index].startsWith("-"); index++) {
+    if (call.args[index] === "-C") moved = resolve(moved, call.args[++index] ?? "")
+    else if (GIT_VALUE_OPTIONS.has(call.args[index])) index++
+  }
+  return call.args[index] === "push" ? { directory: moved, args: call.args.slice(index + 1) } : null
+}
+
+/** A push that deletes a remote branch (`--delete`, `-d` or a `:<branch>` refspec) sends no commit, so it has no size. */
+const deletesRemote = (args) => args.some((argument) => argument === "--delete" || argument === "-d" || argument.startsWith(":"))
+
+/** The denial text of a push of `lines` changed lines, or null when the push is within the cap. */
+const pushDenial = (lines) => lines > MAX_CHANGED_LINES
+  ? `This push changes ${lines} lines. The cap is ${MAX_CHANGED_LINES}. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".`
+  : null
 
 /** The first two words of a `gh` call that are no flag and no repository value. */
 const commandWords = (args) => {
@@ -215,6 +245,11 @@ const run = (executable, args, cwd) => {
 const SYSTEM_READ = Object.freeze({
   checkout: (directory) => ({ root: realpathSync(run("git", ["rev-parse", "--show-toplevel"], directory)), branch: run("git", ["branch", "--show-current"], directory) }),
   ownPull: ({ worktree, branch }) => JSON.parse(run("gh", ["pr", "view", branch, "--json", "number,url"], worktree)),
+  /** The changed lines of the checkout in `directory` against a fresh `origin/main`. */
+  changedLines: (directory) => {
+    run("git", ["fetch", "origin", "main"], directory)
+    return changedLines(gitFiles({ cwd: directory, base: "origin/main" }))
+  },
 })
 
 /**
@@ -223,7 +258,14 @@ const SYSTEM_READ = Object.freeze({
  */
 export const ghDenial = ({ command, cwd, own, read = SYSTEM_READ }) => {
   let onlyOwnWrites = true
+  let directory = cwd
   for (const words of shellCommands(command)) {
+    if (words[0] === "cd" && words.length === 2) directory = resolve(directory, words[1])
+    const push = gitPushOf(words, directory)
+    if (push !== null && !deletesRemote(push.args)) {
+      const reason = pushDenial(read.changedLines(push.directory))
+      if (reason !== null) return reason
+    }
     const call = ghCallOf(words)
     const [group, verb] = call === null ? [] : commandWords(call.args)
     if (call !== null && group === "pr" && Object.hasOwn(OWN_PULL_FLAGS, verb ?? "") && !isHelp(call.args)) {
@@ -252,7 +294,7 @@ const main = () => {
     const own = values.worktree && values.branch ? { worktree: values.worktree, branch: values.branch } : null
     const reason = ghDenial({ command: String(input.tool_input.command), cwd: input.cwd, own })
     if (reason === null) return
-    console.error(`Blocked: ${reason}.`)
+    console.error(`Blocked: ${reason.endsWith(".") ? reason : `${reason}.`}`)
   } catch (error) {
     console.error(`Blocked: the GitHub hook could not check this call. ${error.message}`)
   }

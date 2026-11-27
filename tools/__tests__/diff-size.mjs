@@ -1,0 +1,88 @@
+import { spawnSync } from "node:child_process"
+import { mkdirSync, writeFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+
+import { GENERATED, MAX_CHANGED_LINES, TARGET_CHANGED_LINES, changedLines, gitFiles } from "../lib/diff-size.mjs"
+import { T, root, same } from "./_harness.mjs"
+
+const file = (path, status, additions, deletions) => ({ path, status, additions, deletions })
+
+const git = (cwd, ...args) => {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8" })
+  if (result.status !== 0) throw new Error(`git ${args.join(" ")}: ${result.stderr}`)
+  return result.stdout
+}
+
+const write = (cwd, path, text) => {
+  mkdirSync(dirname(join(cwd, path)), { recursive: true })
+  writeFileSync(join(cwd, path), text)
+}
+
+/** Text of `count` lines. Each `tag` gives its own text, so git pairs no two files as a rename. */
+const numbered = (count, tag = "x") => Array.from({ length: count }, (_, index) => `${tag} ${index + 1}\n`).join("")
+
+/** A repository with `main` committed, and a branch `work` that holds every kind of change that the count treats apart. */
+const stageRepository = (name, addedLines) => {
+  const cwd = join(root, "diff-size", name)
+  mkdirSync(cwd, { recursive: true })
+  git(cwd, "init", "--quiet", "--initial-branch", "main")
+  git(cwd, "config", "user.email", "tools@example.test")
+  git(cwd, "config", "user.name", "tools")
+  write(cwd, "gone.txt", numbered(250, "gone"))
+  write(cwd, "kept.txt", numbered(60, "kept"))
+  write(cwd, "edited.txt", numbered(20, "edited"))
+  write(cwd, "image.bin", "\0\u0001\u0002")
+  write(cwd, "apps/web/vitest/shard-timings.json", numbered(30, "timing"))
+  git(cwd, "add", "-A")
+  git(cwd, "commit", "--quiet", "-m", "base")
+  git(cwd, "switch", "--quiet", "--create", "work")
+  git(cwd, "rm", "--quiet", "gone.txt")
+  mkdirSync(join(cwd, "a folder"))
+  git(cwd, "mv", "kept.txt", "a folder/with space.txt")
+  write(cwd, "edited.txt", `${numbered(20, "edited")}one more line\n`)
+  write(cwd, "image.bin", "\0\u0009")
+  write(cwd, "apps/web/vitest/shard-timings.json", numbered(500, "slow"))
+  write(cwd, "packages/shared/package-lock.json", numbered(900, "lock"))
+  write(cwd, "apps/web/__snapshots__/view.snap", numbered(80, "snap"))
+  write(cwd, "new.txt", numbered(addedLines - 1, "new"))
+  git(cwd, "add", "-A")
+  git(cwd, "commit", "--quiet", "-m", "work")
+  return cwd
+}
+
+export const cases = () => {
+  same("lib/diff-size.mjs: the cap is 400 lines and the aim is 200", [MAX_CHANGED_LINES, TARGET_CHANGED_LINES], [400, 200])
+  same("lib/diff-size.mjs: a file counts its additions plus its deletions", changedLines([file("a.mjs", "modified", 10, 4), file("b.mjs", "added", 7, 0)]), 21)
+  same("lib/diff-size.mjs: a list with no file counts 0", changedLines([]), 0)
+  same("lib/diff-size.mjs: a file deleted whole counts 0, with the GitHub word and the git letter", changedLines([file("a.mjs", "removed", 0, 300), file("b.mjs", "D", 0, 300)]), 0)
+  same("lib/diff-size.mjs: a modified file with deletions still counts them", changedLines([file("a.mjs", "modified", 0, 300)]), 300)
+  same("lib/diff-size.mjs: a pure rename counts 0, with the GitHub word and the git letter", changedLines([file("a.mjs", "renamed", 0, 0), file("b.mjs", "R100", 0, 0)]), 0)
+  same("lib/diff-size.mjs: a rename with a content change counts the change", changedLines([file("a.mjs", "R096", 2, 1)]), 3)
+  same("lib/diff-size.mjs: a binary file counts 0", changedLines([file("a.png", "M", null, null)]), 0)
+
+  for (const path of ["apps/web/vitest/shard-timings.json", ".github/layout-shard-timings.json", "package-lock.json", "apps/web/package-lock.json", "apps/web/__snapshots__/view.snap", "packages/shared/src/__snapshots__/card.test.tsx.snap"]) {
+    same(`lib/diff-size.mjs: ${path} counts 0`, changedLines([file(path, "modified", 500, 500)]), 0)
+  }
+  for (const path of ["apps/web/vitest/other.json", "shard-timings.json", "package-lock.json.bak", "apps/web/view.snap", "my-package-lock.json", "apps/web/__snapshots__/view.ts"]) {
+    same(`lib/diff-size.mjs: ${path} counts its lines`, changedLines([file(path, "modified", 5, 5)]), 10)
+  }
+  T("lib/diff-size.mjs: GENERATED holds four patterns", GENERATED.length === 4, String(GENERATED.length))
+
+  const over = stageRepository("over", MAX_CHANGED_LINES + 1)
+  const files = gitFiles({ cwd: over, base: "main" })
+  same("lib/diff-size.mjs: gitFiles joins the status and the count of each path, for a rename, a binary file and a deleted file", files.map(({ path, status, additions, deletions }) => [path, status[0], additions, deletions]), [
+    ["a folder/with space.txt", "R", 0, 0],
+    ["apps/web/__snapshots__/view.snap", "A", 80, 0],
+    ["apps/web/vitest/shard-timings.json", "M", 500, 30],
+    ["edited.txt", "M", 1, 0],
+    ["gone.txt", "D", 0, 250],
+    ["image.bin", "M", null, null],
+    ["new.txt", "A", MAX_CHANGED_LINES, 0],
+    ["packages/shared/package-lock.json", "A", 900, 0],
+  ])
+  same("lib/diff-size.mjs: a branch of 401 changed lines counts 401, with a deletion, a rename, a binary and generated files beside it", changedLines(files), MAX_CHANGED_LINES + 1)
+
+  const exact = stageRepository("exact", MAX_CHANGED_LINES)
+  same("lib/diff-size.mjs: a branch of 400 changed lines counts 400", changedLines(gitFiles({ cwd: exact, base: "main" })), MAX_CHANGED_LINES)
+  T("lib/diff-size.mjs: gitFiles throws for a base that does not exist", (() => { try { gitFiles({ cwd: exact, base: "no-such-base" }) } catch { return true } return false })())
+}

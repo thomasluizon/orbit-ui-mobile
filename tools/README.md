@@ -9,8 +9,9 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/telegram.mjs`: sends each driver notice to the owner's phone with the Telegram Bot API, with the Keychain items `telegram-bot-token` and `telegram-chat-id`. With one of them missing, the driver shows a macOS notification.
 - `lib/driver-pin.mjs`: the commit that the driver worktree holds, and the crash count of a new version.
 - `lib/release-train.mjs`: the release train of the driver. Every 4 hours, when a service has unreleased work, it releases API, web, landing and mobile, staging first and then production. It reuses `release-plan.mjs` and `wait-release.mjs`. `drive.mjs --release-now` starts a train at once and `--release-status` prints the newest one.
-- `lib/worker.mjs`: starts and watches one headless worker.
-- `lib/worker-gh-hook.mjs`: the hook of a code worker. It blocks each `gh` write except `gh pr create` and an edit or a comment on the pull request of the worker's branch.
+- `lib/worker.mjs`: starts and watches one headless worker. It reads the last result line `NEEDS_DECISION: <question>` or `NEEDS_SPLIT: <work that is left>`.
+- `lib/worker-gh-hook.mjs`: the hook of a code worker. It blocks each `gh` write except `gh pr create` and an edit or a comment on the pull request of the worker's branch. It also blocks a `git push` of a branch above the cap of `lib/diff-size.mjs`.
+- `lib/diff-size.mjs`: the one count of the changed lines of a change (additions plus deletions, with a deleted file, a pure rename, a binary file and a generated file at 0) and the one cap, 400 lines.
 - `lib/worker-gate.cjs`: the child process that starts the worker after the driver sends its release message.
 - `lib/order.mjs`: writes the order that a worker receives from a ticket.
 - `lib/github.mjs`: the one GitHub adapter of the driver: reads, the merge bar and every write.

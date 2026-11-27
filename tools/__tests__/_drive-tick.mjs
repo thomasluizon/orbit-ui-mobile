@@ -493,6 +493,10 @@ const workerCases = async () => {
   await decision.run()
   await decision.run()
   same("drive: NEEDS_DECISION gives needs:owner and one needs-owner comment", [only(decision.calls, "editLabels")[0]?.[3], commentsOf(decision.calls, 7).filter((text) => text.includes("needs-owner")).length], [{ add: [OWNER_LABEL] }, 1])
+  const split = scenario({ tickets: [ticket(7)], limit: { exitCode: 0, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null, needsSplit: "The review fixes are left." } } })
+  await split.run()
+  await split.run()
+  same("drive: NEEDS_SPLIT gives needs:owner and one needs-owner comment with its text", [only(split.calls, "editLabels")[0]?.[3], commentsOf(split.calls, 7).filter((text) => text.includes("needs-owner") && text.includes("NEEDS_SPLIT: The review fixes are left.")).length], [{ add: [OWNER_LABEL] }, 1])
   const forbidden = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]] })
   forbidden.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve({ ...clean, exitCode: 1, sessionId: "s" }) }
   await forbidden.run()

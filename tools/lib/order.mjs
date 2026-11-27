@@ -1,5 +1,6 @@
 /** The delivery driver's work orders: the six kinds of order and the one generic brief that every worker reads. */
 
+import { MAX_CHANGED_LINES, TARGET_CHANGED_LINES } from "./diff-size.mjs"
 import { parityExemptTerms } from "./parity-scope.mjs"
 
 export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
@@ -156,6 +157,9 @@ const earlierLaunchesSection = (history) => {
 /** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
 const pushesToOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
 
+/** The size rule of every order that changes code. The numbers come from the one count of `diff-size.mjs`. */
+const SIZE_CAP_LINE = `Keep the whole pull request at or under ${MAX_CHANGED_LINES} changed lines (aim for ${TARGET_CHANGED_LINES}), counted by tools/lib/diff-size.mjs. A push above ${MAX_CHANGED_LINES} is refused.`
+
 /** The delivery rules. A find order has no delivery, so it does not get them. */
 const deliverySection = ({ ticket, kind }) => {
   const repository = ticket.repository
@@ -167,7 +171,7 @@ const deliverySection = ({ ticket, kind }) => {
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
   const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
   const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."
-  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**PR Metadata.** ${metadata}`
+  return `**Delivery.** Commit after each coherent piece.${pushRule} ${SIZE_CAP_LINE} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**PR Metadata.** ${metadata}`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */

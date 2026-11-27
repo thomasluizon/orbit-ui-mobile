@@ -245,16 +245,23 @@ const LIMIT_PATTERNS = [/^(?:Fable|Haiku|Mythos|Opus|Sonnet)(?: [^·\n]{1,40})? 
 export const isUsageLimitMessage = (text) => typeof text === "string" && (LIMIT_PREFIXES.some((prefix) => text.startsWith(prefix)) || LIMIT_PATTERNS.some((pattern) => pattern.test(text)))
 
 const NEEDS_DECISION_LINE = /^NEEDS_DECISION: (\S.*)$/
+const NEEDS_SPLIT_LINE = /^NEEDS_SPLIT: (\S.*)$/
 
 /** The verdict for a run that did not stop at a limit or at sign-in. */
-export const NO_STOP = Object.freeze({ usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null })
+export const NO_STOP = Object.freeze({ usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null, needsSplit: null })
 
-/** The question of the last line of a result, when that line is `NEEDS_DECISION: <question>`. */
-const decisionOf = (resultText) => {
+/** The text of the last line of a result that matches `pattern`, or null. */
+const lastLineOf = (resultText, pattern) => {
   if (typeof resultText !== "string") return null
   const lastLine = resultText.trimEnd().split("\n").at(-1)
-  return NEEDS_DECISION_LINE.exec(lastLine)?.[1] ?? null
+  return pattern.exec(lastLine)?.[1] ?? null
 }
+
+/** The question of the last line of a result, when that line is `NEEDS_DECISION: <question>`. */
+const decisionOf = (resultText) => lastLineOf(resultText, NEEDS_DECISION_LINE)
+
+/** The work that is left, when the last line of a result is `NEEDS_SPLIT: <text>`. */
+const splitOf = (resultText) => lastLineOf(resultText, NEEDS_SPLIT_LINE)
 
 /**
  * The verdict of the last `type: "result"` line. A failed result carries the error text in `result`, and the CLI tags the
@@ -275,6 +282,7 @@ export const finalResult = (logText) => {
       authenticationFailed: failed && apiError === "authentication_failed",
       error: failed && typeof record.result === "string" ? record.result : null,
       needsDecision: failed ? null : decisionOf(record.result),
+      needsSplit: failed ? null : splitOf(record.result),
     }
     apiError = null
   }

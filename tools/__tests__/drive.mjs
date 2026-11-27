@@ -889,6 +889,11 @@ const resultCases = () => {
   same("lib/worker.mjs: NEEDS_DECISION that is not the last line gives no question", finalResult(resultLine({ result: "NEEDS_DECISION: a question\nthen more text" })).needsDecision, null)
   same("lib/worker.mjs: NEEDS_DECISION with no question gives none", finalResult(resultLine({ result: "NEEDS_DECISION: " })).needsDecision, null)
   same("lib/worker.mjs: an error result gives no question", finalResult(resultLine({ is_error: true, result: "NEEDS_DECISION: a question" })).needsDecision, null)
+  same("lib/worker.mjs: the last line NEEDS_SPLIT gives the work that is left, and no question", [finalResult(resultLine({ result: "Pushed part of it.\nNEEDS_SPLIT: The review fixes are left." })).needsSplit, finalResult(resultLine({ result: "NEEDS_SPLIT: The review fixes are left." })).needsDecision], ["The review fixes are left.", null])
+  same("lib/worker.mjs: NEEDS_SPLIT that is not the last line gives no text", finalResult(resultLine({ result: "NEEDS_SPLIT: a part\nthen more text" })).needsSplit, null)
+  same("lib/worker.mjs: NEEDS_SPLIT with no text gives none", finalResult(resultLine({ result: "NEEDS_SPLIT: " })).needsSplit, null)
+  same("lib/worker.mjs: an error result gives no NEEDS_SPLIT text", finalResult(resultLine({ is_error: true, result: "NEEDS_SPLIT: a part" })).needsSplit, null)
+  same("lib/worker.mjs: NEEDS_DECISION gives no NEEDS_SPLIT text", finalResult(resultLine({ result: "NEEDS_DECISION: a question" })).needsSplit, null)
   T("lib/worker.mjs: the usage limit rules read a prefix, a pattern, and nothing else", isUsageLimitMessage("You're out of extra usage") && isUsageLimitMessage("Opus requires usage credits. Switch.") && !isUsageLimitMessage("Opus is experiencing high load.") && !isUsageLimitMessage(undefined) && !isUsageLimitMessage(`prefix ${"You've hit your"}`))
 
   const logFile = join(root, "drive-worker", "long-result.log")
@@ -1138,6 +1143,11 @@ const orderCases = async () => {
     return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))
   }))
   T("lib/order.mjs: the brief tells the worker to decide with the recommended option and to end with NEEDS_DECISION only for the four owner matters", /Decide every choice with the recommended option/.test(build) && /NEEDS_DECISION: <question>.*money.*model or effort.*standing owner order.*irreversible/.test(build))
+  T("lib/order.mjs: every order kind that changes code holds the size cap line, and the find order holds none", ORDER_KINDS.every((kind) => {
+    const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] } }, "ci-fix": { pull: PULL, failure: FAILURE }, "merge-forward": { pull: PULL, failure: FAILURE } }
+    const text = order(kind, extras[kind] ?? {})
+    return text.includes("Keep the whole pull request at or under 400 changed lines (aim for 200), counted by tools/lib/diff-size.mjs. A push above 400 is refused.") === (kind !== "find")
+  }))
   T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
   T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && !build.includes("`BRAND.md`"))
 
