@@ -50,6 +50,7 @@ jobs:
       type-check: ${{ steps.plan.outputs.type-check }}
       lint: ${{ steps.plan.outputs.lint }}
       tools: ${{ steps.plan.outputs.tools }}
+      deleted-test-guard: ${{ steps.plan.outputs.deleted-test-guard }}
       web-unit-key: ${{ steps.plan.outputs.web-unit-key }}
       web-cross-app-unit-key: ${{ steps.plan.outputs.web-cross-app-unit-key }}
       mobile-unit-key: ${{ steps.plan.outputs.mobile-unit-key }}
@@ -96,6 +97,7 @@ jobs:
           if [ "$EVENT_NAME" = pull_request ]; then git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed-paths.txt"; fi
           node .github/scripts/plan-test-jobs.mjs --event "$EVENT_NAME" --turbo-dry "$RUNNER_TEMP/turbo-test.json" \
             --workflow .github/workflows/test.yml --changed-files "$RUNNER_TEMP/changed-paths.txt" | tee -a "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = pull_request ]; then node tools/deleted-test-guard.mjs --plan --base HEAD^1 --head HEAD; else echo "deleted-test-guard=false"; fi | tee -a "$GITHUB_OUTPUT"
 
       - name: Save the Turbo download
         if: github.event_name != 'pull_request' && steps.turbo-download.outputs.cache-hit != 'true'
@@ -452,6 +454,20 @@ jobs:
       - name: Test CI workflow behavior
         if: ${{ !cancelled() && needs.plan.outputs.tools == 'true' }}
         run: node --test .github/scripts/check-web-test-budget.test.mjs tools/__tests__/guards-changed-paths.test.mjs tools/__tests__/ci-minutes.test.mjs tools/__tests__/npm-cache-workflows.test.mjs .github/scripts/check-pr-metadata.test.mjs .github/scripts/desktop-build-workflow.test.mjs .github/scripts/unit-tests-workflow.test.mjs .github/scripts/release-admission.test.mjs .github/scripts/plan-test-jobs.test.mjs .github/scripts/record-web-shard-timings.test.mjs .github/scripts/sweep-actions-caches.test.mjs .github/scripts/cache-save-rules.test.mjs .github/scripts/android-boot-action.test.mjs .github/scripts/write-locked-package.test.mjs .github/scripts/plan-layout-shards.test.mjs .github/scripts/merged-unit-results.test.mjs
+
+  # Fails a pull request that loses a test of code that stays (tools/deleted-test-guard.mjs). It starts only when the plan finds
+  # a test file that loses lines, and it stops itself after 10 minutes.
+  deleted-test-guard:
+    name: Deleted test guard
+    needs: plan
+    if: needs.plan.outputs.deleted-test-guard == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: { contents: read, pull-requests: write }
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 2 }
+      - uses: ./.github/actions/deleted-test-guard
 
   # The required check: every test group passed here or has a cached result at the same inputs.
   # The SonarCloud scan runs last, so the SonarCloud Code Analysis context arrives whenever this job passes.

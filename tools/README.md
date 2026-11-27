@@ -25,6 +25,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 ## Product gates
 
 - `check-copy.mjs`, `check-dashes.mjs`, `check-gradients.mjs`, `check-i18n-usage.mjs`: copy, dash, gradient and translation key checks.
+- `deleted-test-guard.mjs`, `lib/deleted-test-guard/*.mjs`: the CI guard that fails a pull request that loses a test of code that stays. It proves, for each test file that loses lines, that the head keeps the coverage and each mutant that the lost tests killed on the base. It lists what only the AI review can judge. `--plan` reads git alone.
 - `check-hermetic-web-build.mjs`, `check-native-module-copies.mjs`, `check-android-bundle.mjs`: build and bundle checks.
 
 ## Release and devices

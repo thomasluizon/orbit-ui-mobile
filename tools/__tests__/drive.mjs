@@ -239,6 +239,12 @@ const githubUnit = async () => {
   same("lib/github.mjs: a review comment that starts with BLOCKING: is kept with its path and line", syntheticState.pulls[0].reviews[0].blocking.map((entry) => [entry.path, entry.line, entry.body.split("\n")[0]]), [["src/a.mjs", 4, "BLOCKING: a class"]])
   same("lib/github.mjs: a driver comment is kept with its marker kind", syntheticState.pulls[0].comments.map((entry) => entry.kind), [null, "request"])
 
+  const guarded = stateResponse([2509])
+  guarded.data.repository.pr2509.comments.nodes.push({ id: "IC_g", body: `<!-- deleted-test-guard:${"c".repeat(40)} -->\nitems`, createdAt: "2026-11-20T10:00:00Z", author: { login: "github-actions" } }, { id: "IC_h", body: "plain chat", createdAt: "2026-11-20T10:01:00Z", author: { login: "github-actions" } })
+  const guardedComments = (await readPulls([2509], [2509, 2510], guarded)).state.pulls[0].comments
+  same("lib/github.mjs: a Deleted test guard comment is kept with the head sha of its marker, and other chat is dropped", guardedComments.filter((entry) => entry.guardHead !== null).map((entry) => [entry.author, entry.guardHead]), [["github-actions", "c".repeat(40)]])
+  T("lib/github.mjs: only the guard comment of the added chat stays", !guardedComments.some((entry) => entry.body === "plain chat"))
+
   const withBody = stateResponse([2509])
   const bodyReviews = withBody.data.repository.pr2509.reviews.nodes
   bodyReviews.length = 0
@@ -430,6 +436,14 @@ const mergeBarCases = (approved) => {
   T("lib/github.mjs: a whole-diff review with no recorded request does not count", !wholeDiffApproved({ ...ready, reviews: [wholeDiffReview("Whole diff: ok")] }, {}))
   same("lib/github.mjs: a fix-launch pull request with no whole-diff review fails the bar", barOf({}, { fixLaunches: 1 }), ["whole-diff-review-missing"])
   same("lib/github.mjs: a fix-launch pull request with a whole-diff approval at its head passes the bar", barOf({ reviews: [wholeDiffReview("> Whole diff: ok")] }, { fixLaunches: 1, wholeDiffRequests: requests }), [])
+
+  const guardComment = (changes = {}) => ({ id: "IC_guard", url: "https://example.test/guard", author: "github-actions", body: `<!-- deleted-test-guard:${HEAD} -->\nreview items`, createdAt: "2026-11-20T08:50:00Z", kind: null, guardHead: HEAD, ...changes })
+  T("lib/github.mjs: a guard comment on the head needs the whole-diff pass", needsWholeDiff({ ...ready, comments: [guardComment()] }))
+  T("lib/github.mjs: a guard comment on an earlier head does not", !needsWholeDiff({ ...ready, comments: [guardComment({ guardHead: "a".repeat(40) })] }))
+  T("lib/github.mjs: a guard comment from another author does not", !needsWholeDiff({ ...ready, comments: [guardComment({ author: "someone" })] }))
+  same("lib/github.mjs: a guard comment on the head with no whole-diff review fails the bar", barOf({ comments: [guardComment()] }), ["whole-diff-review-missing"])
+  same("lib/github.mjs: a guard comment on the head with a whole-diff approval after the request passes the bar", barOf({ comments: [guardComment()], reviews: [wholeDiffReview("> Whole diff: ok")] }, { wholeDiffRequests: requests }), [])
+  same("lib/github.mjs: a guard comment on an earlier head leaves the bar as it was", barOf({ comments: [guardComment({ guardHead: "a".repeat(40) })] }), [])
 
   const [first, second, last] = [ready.commits.at(-3), ready.commits.at(-2), ready.commits.at(-1)]
   const merges = ready.commits.map((commit) => ([second.sha, last.sha].includes(commit.sha) ? { ...commit, parents: 2 } : commit))
