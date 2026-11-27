@@ -27,9 +27,7 @@ Every change lands in `apps/web` and `apps/mobile` in the same PR: logic, featur
 
 ## Code
 
-1. Fix the root cause. Add no defensive branch for a problem that an upstream owner has. An unavoidable one gets a one-line WHY comment.
-2. Put cross-app code in `packages/shared` and cross-component code in `apps/<platform>/components/`. Extract on the third real use.
-3. Confirm a field, flag, exit code or response shape of an external interface against the real response or the installed source, never memory or `--help`. Write no fixture that agrees with a guess.
+1. Confirm a field, flag, exit code or response shape of an external interface against the real response or the installed source, never memory or `--help`. Write no fixture that agrees with a guess.
 
 ## Security and contracts
 
