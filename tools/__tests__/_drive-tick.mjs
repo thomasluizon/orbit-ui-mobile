@@ -49,6 +49,8 @@ const RERAN = comment("record", "driver rerun 9001")
 const ticket = (number, extra = {}) => ({ number, title: `Ticket ${number}`, body: "Do the work.", labels: ["repo:ui", "Improvement"], repoKey: "ui", blockedBy: [], comments: [], ...extra })
 const blocker = (number, open = true, labels = []) => ({ number, open, labels, repoKey: "ui" })
 const partComment = (number, total, extra = "") => comment(null, `Part ${number} of ${total}: part ${number}\n${extra}`, -7200 * 1000)
+/** A decision comment of the owner session, as `update-ticket.mjs note --decision` writes it. */
+const decision = (text, offset, extra = {}) => comment(null, `<!-- orbit-decision -->\n${text}`, offset, extra)
 
 let scenarios = 0
 
@@ -590,32 +592,40 @@ const ownerAndBodyCases = async () => {
   const finding = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
   const capReport = (offset, head = HEAD, count = 2) => comment("needs-owner", `ui#30 at ${head}: ui#30 used its 2 fix launches. Launches: ${count}. Open: tools/a.mjs:3`, offset)
   const launches = [launchComment("fix", branch, -90 * MINUTE), launchComment("fix", branch, -80 * MINUTE)]
-  const answered = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "Use the second option for the label.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const carried = (offset, seen = offset) => [launchComment("apply-comment", branch, offset + MINUTE), comment("applied", JSON.stringify({ branch, seen: iso(seen) }), offset + 2 * MINUTE)]
+  const answered = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), decision("Use the second option for the label.", -30 * MINUTE), ...carried(-30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await answered.run()
   same("drive: a capped pull request whose label the owner removed after a ticket comment gets one fix launch and no needs:owner", [answered.launched.length, answered.launched[0]?.order.includes("Use the second option for the label."), only(answered.calls, "editLabels").length], [1, true, 0])
+  const unmarked = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "Use the second option for the label.", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await unmarked.run()
+  same("drive: a comment with no owner or decision marker grants no fix launch", [unmarked.launched.length, only(unmarked.calls, "editLabels").length], [0, 1])
+  const ownerGrant = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "<!-- orbit-owner -->\nUse the third option.", -30 * MINUTE), ...carried(-30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await ownerGrant.run()
+  same("drive: an owner order comment grants one fix launch too", [ownerGrant.launched.length, ownerGrant.launched[0]?.order.includes("## This order (fix)")], [1, true])
   const silent = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await silent.run()
   same("drive: a capped pull request whose label the owner removed with no ticket comment gets needs:owner again", [silent.launched.length, only(silent.calls, "editLabels").length], [0, 1])
-  const before = scenario({ tickets: [ticket(7, { comments: [comment(null, "A note from before the cap.", -100 * MINUTE), ...launches, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const before = scenario({ tickets: [ticket(7, { comments: [decision("A note from before the cap.", -100 * MINUTE), ...launches, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await before.run()
   same("drive: an owner comment from before the cap report grants no launch", [before.launched.length, only(before.calls, "editLabels").length], [0, 1])
   const queued = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment("owner-question", "<!-- orbit-drive:owner-question -->\nWhich label?", -30 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await queued.run()
   same("drive: a queued owner question after the cap report grants no launch", [queued.launched.length, only(queued.calls, "editLabels").length], [0, 1])
   const extra = launchComment("fix", branch, -20 * MINUTE)
-  const cappedAgain = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const cappedAgain = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), decision("One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await cappedAgain.run()
   same("drive: the extra launch is used up, so a later cap with no new owner comment gives needs:owner", [cappedAgain.launched.length, only(cappedAgain.calls, "editLabels").length], [0, 1])
-  const sameHead = (...later) => scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, ...later] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const sameHead = (...later) => scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), decision("One more try.", -30 * MINUTE), extra, ...later] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   const stuck = sameHead()
   await stuck.run()
   same("drive: a granted launch that leaves the head the same gives a new cap report with the launch count and a notification", [stuck.launched.length, needsOwnerComments(stuck.calls, 7).map((text) => /Launches: 3\. Open: tools\/a\.mjs:3/.test(text)), only(stuck.calls, "notify").length], [0, [true], 1])
-  const stuckAnswered = sameHead(capReport(-10 * MINUTE, HEAD, 3), comment(null, "The answer to the question.", -5 * MINUTE))
+  const stuckAnswered = sameHead(capReport(-10 * MINUTE, HEAD, 3), decision("The answer to the question.", -5 * MINUTE), ...carried(-5 * MINUTE))
   await stuckAnswered.run()
   same("drive: an owner comment after the second cap report at the same head grants the next launch with its comment", [stuckAnswered.launched.length, stuckAnswered.launched[0]?.order.includes("The answer to the question."), only(stuckAnswered.calls, "editLabels").length], [1, true, 0])
-  const askedTwice = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), comment(null, "One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3), comment(null, "And one more.", -5 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const askedTwice = scenario({ tickets: [ticket(7, { comments: [...launches, capReport(-60 * MINUTE), decision("One more try.", -30 * MINUTE), extra, capReport(-10 * MINUTE, NEXT_HEAD, 3), decision("And one more.", -5 * MINUTE), ...carried(-5 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
   await askedTwice.run()
-  same("drive: a second owner comment after the second cap report grants a second extra launch with its own comment", [askedTwice.launched.length, askedTwice.launched[0]?.order.includes("And one more."), askedTwice.launched[0]?.order.includes("One more try.")], [1, true, false])
+  const grantedWith = askedTwice.launched[0]?.order.split("## Owner comment")[1] ?? ""
+  same("drive: a second owner comment after the second cap report grants a second extra launch with its own comment", [askedTwice.launched.length, grantedWith.includes("And one more."), grantedWith.includes("One more try.")], [1, true, false])
 
   const OWNER_REQUEST = FIXTURE.ownerWholeDiffRequest
   const at = Date.parse("2026-11-21T16:47:00Z")
@@ -1844,6 +1854,101 @@ const unreadLogCases = async () => {
 }
 
 const launchComment = (kind, branch, offset = -3600 * 1000, part = null) => comment("launch", JSON.stringify({ kind, part, branch }), offset)
+
+/** A change of a ticket after its newest launch: the apply-comment order, and the close and the merge that wait for it. */
+const ticketChangeCases = async () => {
+  const done = (branch = "chore/ticket-7") => [mergedRoute(7, [mergedPull(7, branch, "Remaining: none")])]
+  const launched = launchComment("build", "chore/ticket-7", -120 * MINUTE)
+  const late = decision("Show no spinner anywhere.", -30 * MINUTE)
+  const finishedWith = async (extra) => {
+    const scene = scenario({ tickets: [ticket(7, extra)], routes: done() })
+    await scene.run()
+    return scene
+  }
+  const outcome = (scene) => [only(scene.calls, "closeTicket").length, scene.launched.map((entry) => /## This order \(([a-z -]+)\)/.exec(entry.order)[1]), scene.launched.map((entry) => entry.worktree)]
+  const applied = [0, ["apply-comment"], ["/r/orbit-worktrees/ui/chore-ticket-7-r2"]]
+  const stopped = await finishedWith({ comments: [launched, late] })
+  same("drive: a decision comment newer than the newest launch stops the close and starts one apply-comment order on a new branch", outcome(stopped), applied)
+  T("drive: that apply-comment order carries the decision and opens a pull request, or none", stopped.launched[0]?.order.includes("Show no spinner anywhere.") && stopped.launched[0].order.includes("No pull request of the ticket is open."))
+  same("drive: an owner order comment newer than the newest launch stops the close", outcome(await finishedWith({ comments: [launched, comment(null, "<!-- orbit-owner -->\nNo spinner.", -30 * MINUTE)] })), applied)
+  same("drive: a decision comment edited after the newest launch stops the close", outcome(await finishedWith({ comments: [decision("Old text.", -180 * MINUTE, { editedAt: iso(-30 * MINUTE) }), launched] })), applied)
+  same("drive: a body edit after the newest launch stops the close", outcome(await finishedWith({ editedAt: iso(-30 * MINUTE), comments: [launched] })), applied)
+  same("drive: a part edit after the newest launch stops the close", outcome(await finishedWith({ comments: [{ ...partComment(1, 1), editedAt: iso(-30 * MINUTE) }, launchComment("build part", "chore/ticket-7", -120 * MINUTE, 1)] })), applied)
+  same("drive: a new part comment after the last merge is applied, never closed over", outcome(await finishedWith({ comments: [partComment(1, 2), launchComment("build part", "chore/ticket-7", -150 * MINUTE, 1), comment(null, "Part 2 of 2: part 2", -30 * MINUTE)] })), applied)
+  const closes = [1, [], []]
+  same("drive: a comment with no marker after the newest launch does not stop the close", outcome(await finishedWith({ comments: [launched, comment(null, "A note.", -30 * MINUTE)] })), closes)
+  same("drive: changes older than the newest launch do not stop the close", outcome(await finishedWith({ editedAt: iso(-180 * MINUTE), comments: [decision("Old.", -150 * MINUTE), launched] })), closes)
+  same("drive: a ticket that no launch carried closes", outcome(await finishedWith({ comments: [late] })), closes)
+  const unseen = comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7", seen: iso(-180 * MINUTE) }), -20 * MINUTE)
+  same("drive: a change that the read of the newest launch did not hold is applied, also when it is older than the launch comment", outcome(await finishedWith({ comments: [late, unseen] })), applied)
+
+  const fresh = scenario({ tickets: [ticket(7, { comments: [launched] })], routes: done() })
+  let reads = 0
+  fresh.env.github.readTickets = async () => structuredClone([ticket(7, { comments: reads++ === 0 ? [launched] : [launched, late] })])
+  await fresh.run()
+  same("drive: a decision that arrives after the read of the tick stops the close", only(fresh.calls, "closeTicket").length, 0)
+
+  const kept = [ticket(7, { comments: [launched, late] })]
+  const worked = scenario({ tickets: kept, routes: done() })
+  keepWrites(worked, kept)
+  worked.env.worker.launch = (options) => { worked.launched.push(options); writeFileSync(options.logFile, resultLine("The change is in.")); return Promise.resolve(clean) }
+  await worked.run()
+  await worked.run()
+  same("drive: an apply-comment run that reports a result is recorded, and the ticket then closes", [worked.launched.length, commentsOf(worked.calls, 7).filter((text) => text.startsWith(marked("applied", ""))).length, only(worked.calls, "closeTicket")], [1, 1, [["closeTicket", 7]]])
+  T("drive: the launch record of an apply-comment order holds the newest change that it carries", commentsOf(worked.calls, 7).some((text) => text.startsWith(marked("launch", "")) && text.includes(`"seen":"${iso(-30 * MINUTE)}"`)))
+
+  const failing = [ticket(7, { comments: [launched, late] })]
+  const failed = scenario({ tickets: failing, routes: done() })
+  keepWrites(failed, failing)
+  await failed.run()
+  await failed.run()
+  await failed.run()
+  same("drive: an apply-comment run with no result runs again, and after two launches the ticket goes to the owner and stays open", [failed.launched.length, needsOwnerComments(failed.calls, 7).map((text) => text.includes("launched 2 times without a result")), only(failed.calls, "closeTicket").length], [2, [true], 0])
+
+  const spentApply = (offset) => launchComment("apply-comment", "chore/ticket-7-r2", offset)
+  const answeredCap = await finishedWith({ comments: [launched, late, spentApply(-25 * MINUTE), spentApply(-20 * MINUTE), comment("owner-answer", "Decided: run it again.", -10 * MINUTE)] })
+  same("drive: an owner decision after two apply-comment launches with no result gives the order its full count again", outcome(answeredCap), applied)
+
+  const asking = [ticket(7, { comments: [launched, late] })]
+  const asked = scenario({ tickets: asking, routes: done() })
+  keepWrites(asked, asking)
+  asked.env.worker.launch = (options) => { asked.launched.push(options); writeFileSync(options.logFile, resultLine("NEEDS_DECISION: Which one?")); return Promise.resolve({ ...clean, result: { ...clean.result, needsDecision: "Which one?" } }) }
+  await asked.run()
+  await asked.run()
+  same("drive: an apply-comment run that asks a question applies nothing and waits for the owner", [asked.launched.length, commentsOf(asked.calls, 7).filter((text) => text.startsWith(marked("applied", ""))).length, only(asked.calls, "closeTicket").length], [1, 0, 0])
+
+  const onPull = async (extra = {}, ticketExtra = {}) => {
+    const scene = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), late], ...ticketExtra })], pulls: { ui: [pull(30, extra)] } })
+    await scene.run()
+    return scene
+  }
+  const ready = await onPull()
+  same("drive: a change holds the merge of the open pull request and starts one apply-comment order on its branch", [only(ready.calls, "merge").length, ready.launched.map((entry) => entry.worktree), ready.launched[0]?.order.includes("The pull request 30 has the head")], [0, ["/r/orbit-worktrees/ui/chore-ticket-7-30"], true])
+  const blocked = await onPull({ reviews: [blockingChanges()] })
+  same("drive: the apply-comment order comes before a fix order", [blocked.launched.length, blocked.launched[0]?.order.includes("## This order (apply-comment)")], [1, true])
+  const held = await onPull({}, { labels: ["repo:ui", "Improvement", OWNER_LABEL] })
+  same("drive: a changed ticket that waits on the owner gets no order and no merge", [held.launched.length, only(held.calls, "merge").length], [0, 0])
+  const two = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), late] })], pulls: { ui: [pull(31), pull(30)] } })
+  await two.run()
+  same("drive: a change on a ticket with two open pull requests starts one order, on the lower number, and merges neither", [two.launched.map((entry) => entry.worktree), only(two.calls, "merge").length], [["/r/orbit-worktrees/ui/chore-ticket-7-30"], 0])
+
+  const parts = [partComment(1, 2, "Paths: apps/web/a.ts"), partComment(2, 2, "Paths: apps/mobile/b.ts")]
+  const part1 = launchComment("build part", "chore/ticket-7-part-1", -120 * MINUTE, 1)
+  const partPull = { headRef: "chore/ticket-7-part-1" }
+  const partsHeld = scenario({ tickets: [ticket(7, { comments: [...parts, part1, late] })], pulls: { ui: [pull(30, partPull)] } })
+  await partsHeld.run()
+  same("drive: a change holds the next part until the open pull request applied it", partsHeld.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-1"])
+  const unbuilt = scenario({ tickets: [ticket(7, { comments: [parts[0], { ...parts[1], editedAt: iso(-30 * MINUTE) }, part1] })], pulls: { ui: [pull(30, partPull)] } })
+  await unbuilt.run()
+  same("drive: an edit of a part that no launch started needs no apply-comment order, because its own order carries it", [only(unbuilt.calls, "merge").length, unbuilt.launched.map((entry) => entry.worktree)], [1, ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"]])
+  const rebuilt = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7", -120 * MINUTE), late] })], routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7", "Remaining: the settings screen")])] })
+  await rebuilt.run()
+  same("drive: a change on a ticket whose merged pull request leaves work starts the apply-comment order and no build", rebuilt.launched.map((entry) => /## This order \(([a-z -]+)\)/.exec(entry.order)[1]), ["apply-comment"])
+  T("drive: that order names the work that the merged pull request left open", rebuilt.launched[0]?.order.includes("Remaining after the merged pull requests: Remaining: the settings screen"))
+  const unmerged = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7", -120 * MINUTE), late] })] })
+  await unmerged.run()
+  same("drive: a change on a ticket with no pull request goes into the next build order", unmerged.launched.map((entry) => [/## This order \(([a-z -]+)\)/.exec(entry.order)[1], entry.order.includes("Show no spinner anywhere.")]), [["build", true]])
+}
 const mergedPull = (number, branch, remaining) => ({ number: 40, body: `Tracks ${REPOSITORY}#${number}\n\n${remaining}`, mergedAt: iso(-60 * 1000), headRefName: branch })
 const mergedRoute = (number, history) => ["--state merged", (args) => (args.join(" ").includes(`#${number}"`) ? JSON.stringify(history) : "[]")]
 const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
@@ -1967,7 +2072,7 @@ const restartCases = async () => {
   const started = scenario({ tickets: [ticket(7)] })
   await started.run()
   const records = readdirSync(started.env.stateDir).filter((name) => name.endsWith(".launch.json"))
-  same("drive: a launch writes its record beside the pid file, with what a reap needs", records.length === 1 ? Object.keys(JSON.parse(readFileSync(join(started.env.stateDir, records[0]), "utf8"))).sort() : records, ["account", "branch", "headBefore", "kind", "logFile", "partNumber", "prNumber", "repoKey", "startedAt", "ticketNumber", "worktree"])
+  same("drive: a launch writes its record beside the pid file, with what a reap needs", records.length === 1 ? Object.keys(JSON.parse(readFileSync(join(started.env.stateDir, records[0]), "utf8"))).sort() : records, ["account", "branch", "headBefore", "kind", "logFile", "partNumber", "prNumber", "repoKey", "seen", "startedAt", "ticketNumber", "worktree"])
 
   const failedRun = (offset) => ({ databaseId: 81, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(offset), updatedAt: iso(offset + 3 * MINUTE) })
   const oldRun = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T"), comment("request", PLAIN, -20 * MINUTE)] })] }, runs: [failedRun(-40 * MINUTE)], routes: [["--log-failed", "You've hit your limit. Resets 4am (America/Sao_Paulo)"]] })
@@ -2979,6 +3084,7 @@ export const driverUnit = async () => {
   await updateCases()
   await ciCases()
   await closeCases()
+  await ticketChangeCases()
   await sweepCases()
   await intakeCases()
   await accountCases()

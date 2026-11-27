@@ -1,8 +1,15 @@
-/** The delivery driver's work orders: the six kinds of order and the one generic brief that every worker reads. */
+/** The delivery driver's work orders: the seven kinds of order and the one generic brief that every worker reads. */
 
 import { parityExemptTerms } from "./parity-scope.mjs"
 
-export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
+export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find", "apply-comment"])
+
+/** The first line of a comment that holds an order of the owner. `update-ticket.mjs note --owner` writes it. */
+export const OWNER_MARKER = "<!-- orbit-owner -->"
+/** The first line of a comment that holds a decision of the owner session. `update-ticket.mjs note --decision` writes it. */
+export const DECISION_MARKER = "<!-- orbit-decision -->"
+/** Every comment that a tool writes for a tool starts with this. Only the two markers above reach a worker. */
+const TOOL_MARK = "<!-- orbit-"
 
 /** The first line of an owner's part comment: heading marks, an optional ticket reference such as `#7`, then `Part n of m`. The rest of the line is the title. */
 const PART_HEADING = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Part\s+(\d+)\s+of\s+(\d+)/i
@@ -55,6 +62,32 @@ export const ownerParts = (comments) => {
 
 const trimmed = (text) => text.replace(/\s*$/, "")
 
+/** `owner` or `decision` for a comment that starts with one of the two markers, else null. */
+export const noteKindOf = (comment) => (comment.body.startsWith(OWNER_MARKER) ? "owner" : comment.body.startsWith(DECISION_MARKER) ? "decision" : null)
+
+const noteText = (body) => trimmed(body.replace(/^<!-- orbit-(?:owner|decision) -->\n*/, ""))
+
+/**
+ * What can change a ticket after a launch, each with the time of its last change: an edit of the body, a part comment in
+ * force, and an owner or decision comment. `ticket.editedAt` and `comment.editedAt` are the `lastEditedAt` of GitHub.
+ */
+export const ticketChanges = (ticket) => {
+  const parts = new Set(ownerParts(ticket.comments.filter((comment) => noteKindOf(comment) === null && !comment.body.startsWith(TOOL_MARK))))
+  const comments = ticket.comments.flatMap((comment) => {
+    const kind = noteKindOf(comment) ?? (parts.has(comment) ? "part" : null)
+    return kind === null ? [] : [{ kind, at: comment.editedAt ?? comment.createdAt, comment }]
+  })
+  return ticket.editedAt ? [{ kind: "body", at: ticket.editedAt, comment: null }, ...comments] : comments
+}
+
+/** The comments that every order carries in full: the owner orders, the decisions, then each comment that no tool wrote and that is no part. */
+const commentSections = (comments) => {
+  const section = (title, texts) => (texts.length === 0 ? "" : `\n\n## ${title}\n\n${texts.join("\n\n")}`)
+  const notes = (kind) => comments.filter((comment) => noteKindOf(comment) === kind).map((comment) => noteText(comment.body))
+  const others = comments.filter((comment) => !comment.body.startsWith(TOOL_MARK) && partOf(comment) === null).map((comment) => trimmed(comment.body))
+  return `${section("Owner orders", notes("owner"))}${section("Decisions of the owner session", notes("decision"))}${section("Other comments on the ticket", others)}`
+}
+
 /** The heading of a part comment as a list item or a section title, without its leading `#` marks. */
 const headingOf = (comment) => firstLineOf(comment.body).replace(/^#+ +/, "")
 
@@ -75,6 +108,20 @@ const partSection = (partComments, partNumber) => {
 const findingsSection = (findings) =>
   findings.length === 0 ? "" : `\n\n## Findings to apply\n\n${findings.map((comment) => trimmed(comment.body.replace(/^<!-- orbit-drive:[a-z-]+ -->\n?/, ""))).join("\n\n")}`
 
+const changeText = ({ kind, comment }) => {
+  if (kind === "body") return "- The ticket body was edited. Compare the body above with the code."
+  if (kind === "part") return `- This part comment is new or edited:\n\n${trimmed(comment.body).split("\n").map((line) => `  ${line}`).join("\n")}`
+  return `- This comment under "${kind === "owner" ? "Owner orders" : "Decisions of the owner session"}" is new or edited: ${firstLineOf(noteText(comment.body))}`
+}
+
+/** The work of an apply-comment order: each change, and where its commits go. */
+const applySection = ({ pull, changes }) => {
+  const where = pull === null
+    ? "No pull request of the ticket is open. Rebase on `origin/main` before the first push. Open one pull request. Its `Remaining:` line keeps each item that the last merged pull request left open. When the code already meets each change, commit nothing, open no pull request and say so in your final message."
+    : `The pull request ${pull.number} has the head \`${pull.headSha}\`. Push to its branch. When the code already meets each change, commit nothing and say so in your final message. Do not merge \`origin/main\`.`
+  return `The ticket changed after the newest launch. Apply each change below, and change nothing else. Do not build the ticket again.\n\n${changes.map(changeText).join("\n")}\n\n${where}`
+}
+
 const instanceList = (review) =>
   review.blocking.map((finding) => `- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}\n\n${trimmed(finding.body).split("\n").map((line) => `  ${line}`).join("\n")}`).join("\n\n")
 
@@ -90,8 +137,10 @@ export const CLASS_RULE = "Fix the whole class of each finding in this round. Na
 const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/main\`. The branch was green at \`${baseMerge.before}\` before the merge. The merge brought in these base commits:\n\n${baseMerge.commits.map((line) => `- ${line}`).join("\n")}\n\nThe cause is one of these commits and how it meets this branch. Find it and fix it.\n\n`
 
 /** The part of the order that belongs to one kind: what to do first and what to fix. */
-const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => {
+const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, changes }) => {
   switch (kind) {
+    case "apply-comment":
+      return applySection({ pull, changes })
     case "build":
       return "Build the ticket. Rebase on `origin/main` before the first push."
     case "build part":
@@ -109,13 +158,12 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => 
   }
 }
 
-/** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
-const pushesToOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+/** A fix, ci-fix or merge-forward order, and an apply-comment order with a pull request, push to the branch of that open pull request and open none. */
+const pushesToOpenPull = (kind, pull) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward" || (kind === "apply-comment" && pull !== null)
 
 /** The delivery rules. A find order has no delivery, so it does not get them. */
-const deliverySection = ({ ticket, kind }) => {
+const deliverySection = ({ ticket, pushes }) => {
   const repository = ticket.repository
-  const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
     : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
@@ -127,10 +175,10 @@ const deliverySection = ({ ticket, kind }) => {
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
-export const renderBrief = ({ kind, place, ticket }) => {
+export const renderBrief = ({ kind, place, ticket, pull = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   const reads = kind === "find"
-  const pushes = pushesToOpenPull(kind)
+  const pushes = pushesToOpenPull(kind, pull)
   const brief = `## Brief
 
 **Place.** Repository \`${place.repoKey}\` at \`${place.repoPath}\`. Working tree \`${place.worktree}\`. Branch \`${place.branch}\` is checked out. Base branch \`${place.base}\`. Work in this repository only, and create no other branch.
@@ -147,7 +195,7 @@ ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command 
 
 **Copy.** Write copy with \`/humanizer\`. Then approve it with \`/second-opinion\`, run with the same \`--settings\` and environment as this session, inside your own turn.
 
-${reads ? "**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub." : deliverySection({ ticket, kind })}
+${reads ? "**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub." : deliverySection({ ticket, pushes })}
 
 **Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. Search with the Grep tool. Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`. Run no command that Claude Code holds for an approval.
 
@@ -158,20 +206,22 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
 }
 
 /**
- * The order text for one worker. It holds the ticket body, the owner's part comments (the full comment of the
- * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
- * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
+ * The order text for one worker. It holds the ticket body, the part comments (the full comment of the part it builds and
+ * the first line of each other part), the comments that every order carries, the `findings` comments of an apply part, the
+ * work of its kind, and the brief. A comment that a tool wrote never reaches the worker, except an owner order or a
+ * decision, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, ownerNote = null, place, partNumber = null }) => {
+export const renderOrder = ({ kind, ticket, comments = [], findings = [], pull = null, review = null, failure = null, ownerNote = null, changes = [], place, partNumber = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
   if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
     throw new Error(`a ${kind} order needs its pull request and what it fixes`)
   }
-  if ((kind === "build part" || kind === "find") && !ownerParts(partComments).some((comment) => partOf(comment).number === partNumber)) {
+  if (kind === "apply-comment" && changes.length === 0) throw new Error("an apply-comment order needs the changes it applies")
+  if ((kind === "build part" || kind === "find") && !ownerParts(comments).some((comment) => partOf(comment).number === partNumber)) {
     throw new Error(`the ticket has no comment for part ${partNumber}`)
   }
-  const parts = kind === "build" ? "" : partSection(partComments, partNumber)
-  const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
+  const parts = kind === "build" ? "" : partSection(comments, partNumber)
+  const partTotal = kind === "build part" ? partOf(ownerParts(comments).findLast((comment) => partOf(comment).number === partNumber)).total : null
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${commentSections(comments)}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, changes })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${noteText(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket, pull })}`
 }

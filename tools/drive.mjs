@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, partProblem, renderOrder } from "./lib/order.mjs"
+import { noteKindOf, ownerParts, partOf, partProblem, renderOrder, ticketChanges } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -100,6 +100,8 @@ const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
 const FIX_KINDS = ["fix", "ci-fix", "merge-forward"]
+/** The order that applies a change of a ticket that came after its newest launch. */
+const APPLY = "apply-comment"
 const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
 const FLAKE_LOG_LINES = 40
@@ -128,6 +130,8 @@ const STALL_MS = HOUR_MS
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
+/** A ticket with one of these labels waits on the owner: it gets no new order and it does not close. */
+const HOLD_LABELS = [OWNER, "needs:conversation", "owner-work"]
 const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const CHECK_REQUEST_RECORD = "driver check request"
@@ -144,23 +148,59 @@ const recordsOf = (ticket, kind) => (ticket?.comments ?? []).filter((entry) => e
 })
 
 /**
- * The launch records on a ticket, read in comment order. A `launch-refund` comment takes back the newest launch of its branch and
- * kind that comes before it: a worker that ended on a usage limit did no work, so its launch counts toward no cap.
- * A launch comment at or before `since` (epoch milliseconds) is not read.
+ * The launch records on a ticket, read in comment order, each with the time of its comment. A `launch-refund` comment takes back
+ * the newest launch of its branch and kind that comes before it: a worker that ended on a usage limit did no work, so its
+ * launch counts toward no cap. A launch comment at or before `since` (epoch milliseconds) is not read.
  */
-export const launchesOf = (ticket, since = 0) => {
+const launchEntriesOf = (ticket, since = 0) => {
   const launches = []
   for (const entry of ticket?.comments ?? []) {
     if (entry.kind !== "launch" && entry.kind !== "launch-refund") continue
     if (Date.parse(entry.createdAt) <= since) continue
     let record
     try { record = JSON.parse(bodyAfterMarker(entry)) } catch { continue }
-    if (entry.kind === "launch") { launches.push(record); continue }
-    const at = launches.findLastIndex((launch) => launch.branch === record.branch && launch.kind === record.kind)
+    if (entry.kind === "launch") { launches.push({ record, createdAt: entry.createdAt }); continue }
+    const at = launches.findLastIndex((launch) => launch.record.branch === record.branch && launch.record.kind === record.kind)
     if (at >= 0) launches.splice(at, 1)
   }
   return launches
 }
+
+export const launchesOf = (ticket, since = 0) => launchEntriesOf(ticket, since).map((entry) => entry.record)
+
+/** The newest change that a launch carries: the `seen` of its record, which the read of its order held, else the time of its comment. */
+const carriedBy = ({ record, createdAt }) => (record.seen === null ? 0 : Date.parse(record.seen ?? createdAt))
+
+/** The time of the newest change that this read of a ticket holds, or null. A launch records it as `seen`. */
+const newestChangeAt = (ticket) => ticketChanges(ticket).map((change) => change.at).sort((left, right) => Date.parse(left) - Date.parse(right)).at(-1) ?? null
+
+/**
+ * The changes of a ticket that no launch applied yet; a ticket with no launch has none. A launch carries what its read of the
+ * ticket held. An apply-comment launch counts only after its `applied` record, so a run with no result applies nothing.
+ */
+const pendingChanges = (ticket) => {
+  const launches = launchEntriesOf(ticket)
+  if (launches.length === 0) return []
+  const carried = Math.max(0, ...launches.filter((entry) => entry.record.kind !== APPLY).map(carriedBy), ...recordsOf(ticket, "applied").map((record) => Date.parse(record.seen)))
+  return ticketChanges(ticket).filter((change) => Date.parse(change.at) > carried)
+}
+
+/**
+ * The changes that need an apply-comment order. A part that no launch started gets its own order, which carries its comment, so
+ * that comment needs none while the ticket is not `finished`.
+ */
+const dueChanges = (ticket, { finished = false } = {}) => {
+  const started = new Set(launchesOf(ticket).map((launch) => launch.part))
+  return pendingChanges(ticket).filter((change) => finished || change.kind !== "part" || started.has(partOf(change.comment).number))
+}
+
+/** The apply-comment launches after `since` that carried the newest of these changes. */
+const applyAttempts = (ticket, changes, since) => {
+  const newest = Math.max(...changes.map((change) => Date.parse(change.at)))
+  return launchEntriesOf(ticket, since).filter((entry) => entry.record.kind === APPLY && carriedBy(entry) >= newest).length
+}
+
+const applyCapReason = (ticket, branch, attempts) => `The ${APPLY} order of ${branch} launched ${attempts} times without a result for the change of ${newestChangeAt(ticket)}`
 
 /** Parts of a ticket, oldest comment first, one entry for each part number. */
 const partsOf = (ticket) => {
@@ -995,20 +1035,38 @@ const flakeActions = (pull) => {
 }
 
 /**
- * The owner comments on the ticket that follow a fix cap report of the pull request, oldest first. The cap report is the comment
- * that goes with the label. Each owner comment after it grants one more fix launch, and a later cap report asks for the next one.
+ * The owner and decision comments on the ticket that follow a fix cap report of the pull request, oldest first. The cap report is
+ * the comment that goes with the label. Each such comment after it grants one more fix launch, and a later cap report asks for
+ * the next one.
  */
 const capGrants = (ticket, item) => {
   const grants = []
   let capped = false
   for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(`${item} used its ${MAX_FIX_LAUNCHES} fix launches.`)
-    else if (entry.kind === null && capped && partOf(entry) === null) {
+    else if (capped && noteKindOf(entry) !== null) {
       grants.push(entry)
       capped = false
     }
   }
   return grants
+}
+
+/** The open pull request that takes the apply-comment order: the one of a changed part, else the lowest number. */
+const applyTarget = (state, ticket, changes) => {
+  const open = state.pulls.filter((pull) => pull.tracks === ticket.number && !pull.draft).sort((left, right) => left.number - right.number)
+  const parts = changes.filter((change) => change.kind === "part").map((change) => partOf(change.comment).number)
+  return open.find((pull) => parts.some((number) => partBranch(ticket.number, number).test(pull.headRef))) ?? open[0]
+}
+
+/** What an open pull request does while its ticket holds a change to apply: one of them takes the order, and none merges. */
+const changePlan = ({ repoKey, state, ticket, pull, changes, decidedAt }) => {
+  if ([...pull.labels, ...ticket.labels].some((label) => HOLD_LABELS.includes(label))) return { type: "none", reason: "the ticket changed and waits on the owner" }
+  const target = applyTarget(state, ticket, changes)
+  if (target.number !== pull.number) return { type: "none", reason: `the ${APPLY} order of ${repoKey}#${target.number} goes first` }
+  const attempts = applyAttempts(ticket, changes, decidedAt)
+  if (attempts >= MAX_ORDER_LAUNCHES) return { type: "needs-owner", reason: applyCapReason(ticket, pull.headRef, attempts), relabel: true }
+  return { type: "order", kind: APPLY, repoKey, pull, ticket, changes }
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. */
@@ -1033,6 +1091,9 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
   const counted = launches.filter((entry) => !entry.baseMerge)
   const actions = flakeActions(pull)
+  // Another order would carry the change without the work to apply it, and a merge would pass over it, so the change goes first.
+  const changes = ticket === null ? [] : dueChanges(ticket)
+  if (changes.length > 0) return [...actions, changePlan({ repoKey, state, ticket, pull, changes, decidedAt: ownerDecisionAt(env, ticket) })]
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
   const orderOrOwner = (order, classes) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
@@ -1357,13 +1418,15 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
     return reason
   }
   const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
-  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
-  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
+  const seen = newestChangeAt(ticket)
+  const record = { kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, seen, ...baseMergeMark }
+  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...record, at: new Date(env.now()).toISOString() })))
+  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify(record)), createdAt: new Date(env.now()).toISOString() })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const stem = branch.replaceAll("/", "-")
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
-  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
+  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), comments: ticket.comments.filter((entry) => entry.kind === null), changes: order.changes, findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
@@ -1372,7 +1435,7 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
-  writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, worktree, headBefore, logFile, account, startedAt })}\n`)
+  writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, worktree, headBefore, logFile, account, startedAt, seen })}\n`)
   const running = env.worker.launch({ invocation, worktree, order: text, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
   log(env, `ticket#${ticket.number}`, `launch ${kind}`, `branch ${branch}, worktree ${worktree}`)
   mem.running.set(stem, running.then((result) => {
@@ -1514,6 +1577,9 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
+  // Only a run that reported a result applied its changes. Any other end leaves them for the next launch.
+  const applied = kind === APPLY && result.result.error === null && resultText(tail) !== ""
+  if (applied) await env.github.comment("tickets", ticket.number, marked("applied", JSON.stringify({ branch, seen: exit.seen })))
   if (kind === "find") {
     const text = resultText(tail)
     // A result that failed (an API error) is not a findings report: the part stays pending for its next launch.
@@ -1524,6 +1590,8 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const found = findPullByBranch(states, branch)
   const number = prNumber ?? found?.pull.number ?? Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
   if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
+  // A change that the code already met leaves a branch with no commit and no pull request, which no sweep removes.
+  if (applied && shas.length === 0 && !(number > 0)) await removeWorktrees(env, repoKey, [branch])
 }
 
 /**
@@ -1670,7 +1738,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const stop = (reason) => ({ reason })
   const repoLabels = labels.filter((label) => label.startsWith("repo:"))
   if (repoLabels.length !== 1) return stop("needs exactly one repo label")
-  for (const label of [OWNER, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
+  for (const label of HOLD_LABELS) if (labels.includes(label)) return stop(`carries ${label}`)
   const open = ticket.blockedBy.filter((blocker) => blocker.open)
   if (open.length > 0) return stop(`blocked by ${open.map((blocker) => blocker.number).join(", ")}`)
   const waiting = runsLastOpen(tickets, ticket)
@@ -1685,22 +1753,32 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
+  if (tracking.length > 0 && dueChanges(ticket).length > 0) return stop("an open pull request applies the ticket change first")
   if (settled !== null) return stop(settled)
   const working = running.workers.filter(({ record }) => record.ticketNumber === ticket.number)
   if (parts.length === 0 && working.length > 0) return stop("a worker runs on its branch")
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
-  if (tracking.length === 0 && history.some((pull) => REMAINING_NONE.test(pull.body))) return stop("a merged pull request says Remaining: none")
+  const finished = history.some((pull) => REMAINING_NONE.test(pull.body))
+  const changes = tracking.length === 0 && history.length > 0 ? dueChanges(ticket, { finished }) : []
+  if (finished && tracking.length === 0 && changes.length === 0) return stop("a merged pull request says Remaining: none")
   const doneBranches = new Set(history.map((pull) => pull.headRefName))
   // An open pull request keeps the order on its branch, so the cap counts every launch of one piece of work. One with no `Tracks` line goes to the owner.
   const ownBranch = (part) => branchName(ticket, part, doneBranches)
   const untracked = (branch) => state.pulls.find((pull) => pull.headRef === branch && pull.tracks !== ticket.number)
   const held = (branch) => { const pull = untracked(branch); return pull === undefined ? null : { reason: `${ticket.repoKey}#${pull.number} is open on ${branch} with no Tracks line for this ticket`, owner: `Pull request ${ticket.repoKey}#${pull.number} is open on ${branch} with no \`Tracks ${env.config.tickets.repository}#${ticket.number}\` line. Add the line or close it.` } }
+  const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
+  if (changes.length > 0) {
+    if (working.length > 0) return stop("a worker runs on the ticket, so the apply-comment order waits")
+    const branch = ownBranch(null)
+    return held(branch) ?? { order: { kind: APPLY, repoKey: ticket.repoKey, ticket, branch, changes, extra: remaining } }
+  }
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const stopReason = rebuildStopReason(history)
+    // An apply-comment pull request built no item of the Remaining line, so it does not show that a build cannot.
+    const applyBranches = new Set(launchesOf(ticket).filter((launch) => launch.kind === APPLY && launch.pr === null).map((launch) => launch.branch))
+    const stopReason = rebuildStopReason(history.filter((pull) => !applyBranches.has(pull.headRefName)))
     if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
-    const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
   }
   const partDone = (entry) => (entry.find ? ticket.comments.some((comment) => comment.kind === "findings" && firstLine(bodyAfterMarker(comment)) === `Findings, part ${entry.number}`) : [...doneBranches].some((branch) => partBranch(ticket.number, entry.number).test(branch)))
@@ -1731,12 +1809,17 @@ const closeFinished = async (env, mem, ticket, merged) => {
   await removeWorktrees(env, ticket.repoKey, merged.map((pull) => pull.headRefName))
 }
 
-/** Closes every ticket whose merged pull request says `Remaining: none` while no open pull request tracks it. It runs on every tick, paused or not, and before admission. */
+/**
+ * Closes every ticket whose merged pull request says `Remaining: none` while no open pull request tracks it, no worker of it
+ * waits for its reap and no change of it waits to be applied. It runs on every tick, paused or not, and before admission.
+ */
 const closeFinishedTickets = async (env, mem, tickets, states) => {
   const closed = new Set()
+  const working = new Set(launchRecords(env).map(({ record }) => record.ticketNumber))
+  let latest = null
   const closable = tickets.filter((ticket) => {
     const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
-    return state !== undefined && ![OWNER, "needs:conversation", "owner-work"].some((label) => ticket.labels.includes(label)) && !state.pulls.some((pull) => pull.tracks === ticket.number)
+    return state !== undefined && !HOLD_LABELS.some((label) => ticket.labels.includes(label)) && !state.pulls.some((pull) => pull.tracks === ticket.number) && !working.has(ticket.number) && pendingChanges(ticket).length === 0
   }).sort((left, right) => (mem.merged.get(left.number)?.at ?? 0) - (mem.merged.get(right.number)?.at ?? 0) || left.number - right.number)
   for (const ticket of closable) {
     try {
@@ -1744,6 +1827,10 @@ const closeFinishedTickets = async (env, mem, tickets, states) => {
       if (!finishedIn(await mergedHistory(env, mem, ticket))) continue
       const merged = mem.mergedReadThisTick.has(ticket.number) ? mem.merged.get(ticket.number).history : await mergedHistory(env, mem, ticket, { fresh: true })
       if (!finishedIn(merged)) continue
+      // A change can arrive after the read of this tick, so a second read comes before the close.
+      latest ??= await env.github.readTickets()
+      const newest = latest.find((entry) => entry.number === ticket.number)
+      if (newest !== undefined && pendingChanges(newest).length > 0) continue
       await closeFinished(env, mem, ticket, merged)
       closed.add(ticket.number)
     } catch (error) {
@@ -1781,11 +1868,13 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
       if (verdict.owner) await needsOwner(env, mem, { ticket, reason: verdict.owner })
       continue
     }
+    const { kind, branch, changes } = verdict.order
     // The launches before the newest owner decision are answered, so a decided order gets its full count again.
-    const launches = launchesOf(ticket, ownerDecisionAt(env, ticket)).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
-    if (launches.length >= MAX_ORDER_LAUNCHES) {
+    const decidedAt = ownerDecisionAt(env, ticket)
+    const attempts = kind === APPLY ? applyAttempts(ticket, changes, decidedAt) : launchesOf(ticket, decidedAt).filter((entry) => entry.branch === branch && entry.kind === kind).length
+    if (attempts >= MAX_ORDER_LAUNCHES) {
       decisions.set(ticket.number, "needs:owner: the order used its launches")
-      await needsOwner(env, mem, { ticket, reason: `The ${verdict.order.kind} order of ${verdict.order.branch} launched ${launches.length} times without a result`, relabel: true })
+      await needsOwner(env, mem, { ticket, reason: kind === APPLY ? applyCapReason(ticket, branch, attempts) : `The ${kind} order of ${branch} launched ${attempts} times without a result`, relabel: true })
       continue
     }
     if (running.branches.has(verdict.order.branch)) {

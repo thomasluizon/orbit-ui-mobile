@@ -58,10 +58,10 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
     issues(states: OPEN, first: 50, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title body
+        number title body lastEditedAt
         labels(first: 50) { nodes { name } }
         blockedBy(first: 100) { nodes { number state labels(first: 50) { nodes { name } } } }
-        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
+        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt lastEditedAt author { login } } }
       }
     }
   }
@@ -69,7 +69,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
 
 const MORE_COMMENTS_QUERY = `query DriveComments($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
-    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } } }
+    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt lastEditedAt author { login } } } }
   }
 }`
 
@@ -163,6 +163,7 @@ const normalizeComment = (comment) => ({
   author: comment.author?.login ?? null,
   body: comment.body,
   createdAt: comment.createdAt,
+  editedAt: comment.lastEditedAt ?? null,
   kind: MARKER.exec(comment.body)?.[1] ?? null,
 })
 
@@ -252,6 +253,7 @@ export const readTickets = async (seams = {}) => {
         number: issue.number,
         title: issue.title,
         body: issue.body ?? "",
+        editedAt: issue.lastEditedAt ?? null,
         labels,
         repoKey: repoKeyOf(labels),
         blockedBy: nodes(issue.blockedBy).map((blocker) => {
@@ -517,6 +519,18 @@ export const rerunFailed = async (repositoryKey, runId, seams = {}) => {
 export const comment = async (repositoryKey, number, body, seams = {}) => {
   const api = bind(seams)
   await api.run(["api", `repos/${api.slugOf(repositoryKey)}/issues/${number}/comments`, "--method", "POST", "--input", "-"], { input: JSON.stringify({ body: nonEmpty(body, "comment body") }) })
+}
+
+const EDIT_COMMENT_MUTATION = `mutation DriveEditComment($id: ID!, $body: String!) {
+  updateIssueComment(input: { id: $id, body: $body }) { issueComment { id } }
+}`
+
+/** Replaces the body of one issue comment, by its node id. The body goes on stdin, because a comment can be long. */
+export const editComment = async (id, body, seams = {}) => {
+  const api = bind(seams)
+  const input = JSON.stringify({ query: EDIT_COMMENT_MUTATION, variables: { id: nonEmpty(id, "comment id"), body: nonEmpty(body, "comment body") } })
+  const response = parseJson("gh api graphql", await api.run(["api", "graphql", "--input", "-"], { input }))
+  if (response?.errors || response?.data?.updateIssueComment?.issueComment?.id !== id) throw new Error(`updateIssueComment failed: ${JSON.stringify(response?.errors ?? response).slice(0, 500)}`)
 }
 
 const listLabels = async (api, repositoryKey) => {

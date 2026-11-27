@@ -1,11 +1,58 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, partOf, partProblem, renderBrief, renderOrder } from "../lib/order.mjs"
+import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, partOf, partProblem, renderBrief, renderOrder, ticketChanges } from "../lib/order.mjs"
 import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
 const TICKET = { number: 9, title: "A ticket title", body: "The ticket body.", repository: "owner/tickets" }
 const owner = (body, createdAt) => ({ body, createdAt, kind: null })
+
+const OWNER_HEADING = "# Owner order: no spinner anywhere, a skeleton everywhere"
+const OPEN_PULL = { number: 30, headSha: "a".repeat(40) }
+
+/** What every order carries beside its part, and the order that applies a change. */
+const commentCases = (fixtures) => {
+  const real = fixtures[2121].map((entry) => ({ ...entry, kind: null }))
+  const ticket = { number: 2121, title: "T", body: "B", repository: "owner/tickets" }
+  const built = renderOrder({ kind: "build", ticket, comments: real, place: PLACE })
+  T("lib/order.mjs: a build order of #2121 carries the owner order that is no part", built.includes(OWNER_HEADING) && built.includes("## Other comments on the ticket"))
+  T("lib/order.mjs: a build order carries no part text in the other comments and no comment that a tool wrote", !built.includes("Move onboarding and auth to the Orbit logic") && !built.includes("<!-- orbit-run-note"))
+
+  const comments = [
+    owner("# #9 Part 1 of 2: first\n\nBODY-1", "2026-11-10T10:00:00Z"),
+    owner("# #9 Part 2 of 2: second\n\nBODY-2", "2026-11-10T10:01:00Z"),
+    owner("<!-- orbit-owner -->\nNo spinner anywhere.", "2026-11-10T10:02:00Z"),
+    owner("<!-- orbit-decision -->\nUse the second label.", "2026-11-10T10:03:00Z"),
+    owner("A plain note.\nIts second line.", "2026-11-10T10:04:00Z"),
+    owner("<!-- orbit-run-note: kind=report -->\nRUN-NOTE", "2026-11-10T10:05:00Z"),
+    owner("<!-- orbit-drive:legacy -->\nLEGACY-NOTE", "2026-11-10T10:06:00Z"),
+  ]
+  const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: OPEN_PULL, review: { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] } }, "ci-fix": { pull: OPEN_PULL, failure: { checks: [{ name: "Unit Tests" }] } }, "merge-forward": { pull: OPEN_PULL }, "apply-comment": { changes: [{ kind: "body", at: "2026-11-10T10:07:00Z", comment: null }] } }
+  for (const kind of ORDER_KINDS) {
+    const order = renderOrder({ kind, ticket: TICKET, comments, place: PLACE, ...extras[kind] })
+    const at = (heading) => order.indexOf(heading)
+    T(`lib/order.mjs: the ${kind} order carries the owner orders, the decisions and the other comments under their headings, in that order`, at("## Owner orders\n\nNo spinner anywhere.") > 0 && at("## Decisions of the owner session\n\nUse the second label.") > at("## Owner orders") && at("## Other comments on the ticket\n\nA plain note.\nIts second line.") > at("## Decisions of the owner session") && at("## This order") > at("## Other comments on the ticket"))
+    T(`lib/order.mjs: the ${kind} order carries no other tool comment`, !order.includes("RUN-NOTE") && !order.includes("LEGACY-NOTE"))
+    if (kind !== "build") T(`lib/order.mjs: the ${kind} order puts the comments after the part text`, at("## Parts") > 0 && at("## Owner orders") > at("## Parts"))
+  }
+  const none = renderOrder({ kind: "build", ticket: TICKET, place: PLACE })
+  T("lib/order.mjs: an order of a ticket with no comment has no comment section", !none.includes("## Owner orders") && !none.includes("## Decisions of the owner session") && !none.includes("## Other comments on the ticket"))
+  const granted = renderOrder({ kind: "fix", ticket: TICKET, place: PLACE, ownerNote: "<!-- orbit-decision -->\nOne more try.", ...extras.fix })
+  T("lib/order.mjs: the owner comment of a granted launch loses its marker", granted.includes("on the ticket.\n\nOne more try.") && !granted.includes("<!-- orbit-decision -->"))
+
+  const edited = { editedAt: "2026-11-11T00:00:00Z", comments: comments.map((comment, index) => (index === 1 ? { ...comment, editedAt: "2026-11-12T00:00:00Z" } : comment)) }
+  same("lib/order.mjs: the changes of a ticket are the body edit, the part comments and the two marked comments, each at its last change", ticketChanges(edited).map((change) => [change.kind, change.at]), [["body", "2026-11-11T00:00:00Z"], ["part", "2026-11-10T10:00:00Z"], ["part", "2026-11-12T00:00:00Z"], ["owner", "2026-11-10T10:02:00Z"], ["decision", "2026-11-10T10:03:00Z"]])
+  same("lib/order.mjs: a ticket with no body edit, no part and no marked comment has no change", ticketChanges({ editedAt: null, comments: [comments[4], comments[5], comments[6]] }), [])
+
+  const changes = ticketChanges(edited)
+  const onPull = renderOrder({ kind: "apply-comment", ticket: TICKET, comments, place: PLACE, pull: OPEN_PULL, changes })
+  T("lib/order.mjs: an apply-comment order on a pull request lists each change, gives the changed part in full and pushes to that branch", ["The ticket body was edited.", "  BODY-2", 'under "Owner orders" is new or edited: No spinner anywhere.', 'under "Decisions of the owner session" is new or edited: Use the second label.', "The pull request 30 has the head", "Push to the branch of the open pull request."].every((text) => onPull.includes(text)) && !onPull.includes("Open one non-draft pull request"))
+  const onMain = renderOrder({ kind: "apply-comment", ticket: TICKET, comments, place: PLACE, changes })
+  T("lib/order.mjs: an apply-comment order on main opens one pull request, or none when the code meets each change", onMain.includes("No pull request of the ticket is open.") && onMain.includes("open no pull request") && onMain.includes("Open one non-draft pull request") && !onMain.includes("Build the ticket."))
+  let refused = null
+  try { renderOrder({ kind: "apply-comment", ticket: TICKET, place: PLACE }) } catch (error) { refused = error.message }
+  same("lib/order.mjs: an apply-comment order with no change is refused", refused, "an apply-comment order needs the changes it applies")
+}
 
 export const cases = async () => {
   const forms = [
@@ -37,10 +84,10 @@ export const cases = async () => {
   same("lib/order.mjs: a ticket with no part comment has no part set", ownerParts([owner("A note", "2026-11-01T10:00:00Z")]), [])
 
   const fiveParts = Array.from({ length: 5 }, (_, index) => owner(`# #9 Part ${index + 1} of 5: step ${index + 1}\n\nBODY-${index + 1}`, `2026-11-10T10:0${index}:00Z`))
-  const part = renderOrder({ kind: "build part", ticket: TICKET, partComments: fiveParts, place: PLACE, partNumber: 2 })
+  const part = renderOrder({ kind: "build part", ticket: TICKET, comments: fiveParts, place: PLACE, partNumber: 2 })
   T("lib/order.mjs: the build part order for part 2 of 5 asks for a title that ends with (Part 2 of 5)", part.includes('End the pull request title with "(Part 2 of 5)".'))
   T("lib/order.mjs: the build part order shows the heading of the part without its # marks", part.includes("### #9 Part 2 of 5: step 2 (this order)") && part.includes("- #9 Part 1 of 5: step 1") && !part.includes("# #9 Part 2 of 5: step 2\n\nBODY-2\n\n## "))
-  const mixed = renderOrder({ kind: "build part", ticket: TICKET, partComments: sets, place: PLACE, partNumber: 2 })
+  const mixed = renderOrder({ kind: "build part", ticket: TICKET, comments: sets, place: PLACE, partNumber: 2 })
   T("lib/order.mjs: a build part order of a ticket with two part sets reads the newest set", mixed.includes("(Part 2 of 13)") && !mixed.includes("old one") && !mixed.includes("old two"))
 
   const fixtures = JSON.parse(readFileSync(join(REPO_ROOT, "tools/__tests__/fixtures/ticket-comments.json"), "utf8"))
@@ -51,7 +98,7 @@ export const cases = async () => {
   same("lib/order.mjs: #2121 real comments, the four `# Part n of 4` comments are parts", first.slice(0, 4).map((comment) => partOf(comment)), [1, 2, 3, 4].map((number) => ({ number, total: 4 })))
   const ticket2121 = { number: 2121, title: "T", body: "B", repository: "owner/tickets" }
   const unique2121 = first.filter((comment) => !comment.body.startsWith("# Part 3 of 4, owner order"))
-  const order2121 = renderOrder({ kind: "build part", ticket: ticket2121, partComments: unique2121, place: PLACE, partNumber: 3 })
+  const order2121 = renderOrder({ kind: "build part", ticket: ticket2121, comments: unique2121, place: PLACE, partNumber: 3 })
   T("lib/order.mjs: #2121 build part order holds the full part 3 and the first line of the other three", order2121.includes("### Part 3 of 4: Move onboarding and auth to the Orbit logic (this order)") && order2121.includes("- Part 1 of 4: Build the guided create and edit flows: one question in each step") && order2121.includes("- Part 4 of 4: Move Perfil and settings to the Orbit logic, and move the AI settings slug") && order2121.includes("(Part 3 of 4)"))
   same("lib/order.mjs: #2121 real comments, the owner order that repeats part 3 is a second live comment of part 3", duplicateParts(first).map((entry) => [entry.number, entry.comments.map((comment) => comment.url)]), [[3, [first[2].url, first[4].url]]])
   T("lib/order.mjs: #2121 part problem names both comment URLs", partProblem(first)?.includes(first[2].url) && partProblem(first)?.includes(first[4].url))
@@ -74,6 +121,8 @@ export const cases = async () => {
   const fault = partProblem([{ body: "Part 3/4: a", url: "https://example.test/c1" }])
   same("lib/order.mjs: a broken heading problem quotes the line and names the comment URL once", [fault.includes('"Part 3/4: a"'), fault.match(/https?:\/\/[^\s"]+/g)], [true, ["https://example.test/c1"]])
   same("lib/order.mjs: a dash ban holds in the part problem text", /[\u2013\u2014]/.test(fault), false)
+
+  commentCases(fixtures)
 
   for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })

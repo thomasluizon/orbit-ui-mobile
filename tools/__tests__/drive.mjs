@@ -285,6 +285,13 @@ const githubUnit = async () => {
     response.data.repository.issues.nodes[0].labels.nodes.push({ name: "repo:api" })
     return response
   })()).run)))[0].repoKey === null)
+  const editedResponse = structuredClone(FIXTURE.tickets.response)
+  editedResponse.data.repository.issues.nodes[1].lastEditedAt = "2026-11-21T10:00:00Z"
+  editedResponse.data.repository.issues.nodes[1].comments.nodes[0].lastEditedAt = "2026-11-22T10:00:00Z"
+  const editedRun = ticketRoute(editedResponse)
+  const edited = await readTickets(seams(editedRun.run))
+  same("lib/github.mjs: a ticket and a comment keep the time of their last edit, or null", [edited[1].editedAt, edited[1].comments[0].editedAt, edited[0].editedAt], ["2026-11-21T10:00:00Z", "2026-11-22T10:00:00Z", null])
+  T("lib/github.mjs: the ticket read asks GitHub for each last edit time", editedRun.calls[0].text.includes("number title body lastEditedAt") && editedRun.calls[0].text.includes("id url body createdAt lastEditedAt"))
   const paged = structuredClone(FIXTURE.tickets.response)
   paged.data.repository.issues.nodes[1].comments.pageInfo = { hasNextPage: true, endCursor: "cursor-1" }
   paged.data.repository.issues.pageInfo = { hasNextPage: true, endCursor: "issues-1" }
@@ -1014,10 +1021,10 @@ const REVIEW = {
 }
 const PULL = { number: 50, headSha: "d77a67c4c0ae619b41e7ffb03316f142aad46606" }
 const FAILURE = { checks: [{ name: "Unit Tests", failedSteps: ["Run Domain Tests"], logLines: Array.from({ length: 80 }, (_, index) => `log line ${index}`) }, { name: "Lint", failedSteps: [], logLines: [] }], conflicts: ["a.ts", "b.ts"] }
-const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, partComments: PART_COMMENTS, place: PLACE, ...extra })
+const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, comments: PART_COMMENTS, place: PLACE, ...extra })
 
 const orderCases = async () => {
-  same("lib/order.mjs: the order kinds are the six of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find"])
+  same("lib/order.mjs: the order kinds are the seven of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find", "apply-comment"])
   same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
   same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "Part 5 is complete", "See Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
   same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
@@ -1034,7 +1041,7 @@ const orderCases = async () => {
   const noted = order("fix", { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] }, ownerNote: "Use the second option.\n" })
   T("lib/order.mjs: a fix order names a body finding by the review body and carries the owner comment of a granted launch", noted.includes("- the review body\n\n  BLOCKING: body finding") && noted.includes("## Owner comment") && noted.includes("Use the second option.") && !order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] } }).includes("## Owner comment"))
 
-  const build = order("build", { partComments: [] })
+  const build = order("build", { comments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
   T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
@@ -1050,7 +1057,7 @@ const orderCases = async () => {
   const part = order("build part", { partNumber: 2, findings: [] })
   T("lib/order.mjs: a part order holds the full comment of its part under a title, with the heading marks cut", part.includes("### Part 2 of 3: the second behaviour (this order)") && part.includes("BODY-OF-PART-2 holds the paths.") && part.includes("Paths: a/, b"))
   T("lib/order.mjs: a part order holds only the first line of each other part", part.includes("- Part 1 of 3: the first behaviour") && part.includes("- Part 3 of 3: the third behaviour") && !part.includes("SECRET-BODY-OF-PART-1") && !part.includes("SECRET-BODY-OF-PART-3"))
-  T("lib/order.mjs: an order holds none of the comments of the driver and no owner note that is no part", ["launch", "record", "request", "needs-owner", "notice", "close"].every((kind) => !part.includes(`DRIVER-${kind.toUpperCase()}`)) && !part.includes("NOTE-WITHOUT-PART") && !part.includes("orbit-drive:"))
+  T("lib/order.mjs: an order holds none of the comments of the driver and holds the owner note that is no part", ["launch", "record", "request", "needs-owner", "notice", "close"].every((kind) => !part.includes(`DRIVER-${kind.toUpperCase()}`)) && part.includes("## Other comments on the ticket\n\nAn owner note that is no part.\n\nNOTE-WITHOUT-PART.") && !part.includes("orbit-drive:"))
   T("lib/order.mjs: a part order names its part and the part-only rule", part.includes("## This order (build part)") && part.includes("Build Part 2 of this ticket and no other part"))
   const apply = order("build part", { partNumber: 2, findings: FINDINGS })
   T("lib/order.mjs: an apply part holds the findings it applies, in full and without the marker", apply.includes("## Findings to apply") && apply.includes("src/a.ts:4 | class | fix") && !apply.includes("<!-- orbit-drive:findings -->") && !apply.includes("DRIVER-LAUNCH"))
@@ -1074,10 +1081,11 @@ const orderCases = async () => {
     "ci-fix": ciFix,
     "merge-forward": forward,
     find,
+    "apply-comment": order("apply-comment", { pull: PULL, changes: [{ kind: "body", at: "2026-11-20T11:00:00Z", comment: null }] }),
   }
   for (const [kind, text] of Object.entries(orders)) {
     const reads = kind === "find"
-    const pushes = kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+    const pushes = kind === "fix" || kind === "ci-fix" || kind === "merge-forward" || kind === "apply-comment"
     const opens = !reads && !pushes
     T(`lib/order.mjs: the ${kind} brief gives the final message the rule of its own kind`, reads
       ? !text.includes("at most 12 lines") && /final message is the area list and the findings table of "This order", with nothing after the table/.test(text)
@@ -1103,7 +1111,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "update-ticket.mjs", "mark-legacy-notes.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1115,12 +1123,13 @@ const skillText = (name) => readFileSync(join(REPO_ROOT, ".claude", "skills", na
 
 const skillMarkerCases = () => {
   const questions = skillText("questions")
-  // The driver reads a comment's kind only from "<!-- orbit-drive:<kind> -->". A bare marker has the kind null, and capGrants counts it as the owner's grant.
+  // The driver reads a comment's kind only from "<!-- orbit-drive:<kind> -->". The next questions run finds a sleep decision by its bare marker.
   const bare = [...questions.matchAll(/<!-- (?!orbit-drive:)([a-z-]+) -->/g)].map((match) => match[1])
-  same("skills/questions: the only bare marker is the owner-review decision, which grants a launch", [...new Set(bare)], ["owner-review"])
+  same("skills/questions: the only bare marker is the one of the owner-review decision", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
-  // An order carries the ticket body, the part comments, the findings and the cap grant. A plain answer comment reaches no worker, so the body holds every answer.
-  T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
+  // Only a marked comment reaches every order, starts an apply-comment order and grants a fix launch.
+  T("skills/questions: section 4 records each answer with update-ticket.mjs note --decision and edits no ticket body", questions.includes("`node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>`") && !questions.includes("gh issue edit"), "section 4 writes no decision note")
+  T("skills/sleep: each sleep decision is a decision note", skillText("sleep").includes("`node tools/update-ticket.mjs note --decision`"), "the skill names no decision note")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.

@@ -4,7 +4,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 
 ## Delivery driver
 
-- `drive.mjs`: the delivery driver. Each tick it reads GitHub, acts on every open pull request and fills every free worker slot. It runs workers on two Claude accounts: the main account and the worker account (`CLAUDE_CONFIG_DIR=$HOME/.claude-orbit-workers`). Each account has its own pace line, its own 90% stop and its own `--allow-over-limit [main|worker]`. Each real change gets one Pullfrog pass: a head that has a review gets no plain request (`review skip (same head)`), an approval carries to a head with the same own diff (`review skip (same diff)`), and a pull request that owes a whole-diff pass asks for it first.
+- `drive.mjs`: the delivery driver. Each tick it reads GitHub, acts on every open pull request and fills every free worker slot. It runs workers on two Claude accounts: the main account and the worker account (`CLAUDE_CONFIG_DIR=$HOME/.claude-orbit-workers`). Each account has its own pace line, its own 90% stop and its own `--allow-over-limit [main|worker]`. Each real change gets one Pullfrog pass: a head that has a review gets no plain request (`review skip (same head)`), an approval carries to a head with the same own diff (`review skip (same diff)`), and a pull request that owes a whole-diff pass asks for it first. A ticket body, part, owner order or decision that changes after the newest launch gets one `apply-comment` order before a merge or a close of that ticket.
 - `lib/telegram.mjs`: sends each driver notice to the owner's phone with the Telegram Bot API, with the Keychain items `telegram-bot-token` and `telegram-chat-id`. With one of them missing, the driver shows a macOS notification.
 - `lib/driver-pin.mjs`: the commit that the driver worktree holds, and the crash count of a new version.
 - `lib/release-train.mjs`: the release train of the driver. Every 4 hours, when a service has unreleased work, it releases API, web, landing and mobile, staging first and then production. It reuses `release-plan.mjs` and `wait-release.mjs`. `drive.mjs --release-now` starts a train at once and `--release-status` prints the newest one.
@@ -21,6 +21,8 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/attribution-lines.mjs`: finds attribution lines in a message.
 - `lib/escape-regex.mjs`: escapes text for a regular expression.
 - `create-ticket.mjs`: creates one ticket, adds it to the board and sets its Status.
+- `update-ticket.mjs`: writes an owner order or a decision comment on a ticket, with the marker that every order carries.
+- `mark-legacy-notes.mjs`: a one-time deploy step that marks the old review and run notes of the open tickets, so no order carries them.
 
 ## Product gates
 
