@@ -1494,3 +1494,63 @@ describe('a range end that a minute tail follows', () => {
     expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
   })
 })
+
+describe('a de range whose start has an h suffix or a day part', () => {
+  it.each([
+    ['Estudar de 9h às 11', '09:00'],
+    ['Estudar de 9h30 às 11', '09:30'],
+    ['Curso de 3h às 19', '03:00'],
+    ['Estudar de 9h às 11 horas', '09:00'],
+    ['Estudar de 9h às 11 da noite', '21:00'],
+    ['Estudar de 9h da noite às 11h', '21:00'],
+    ['Estudar de 9h e meia às 11', '09:30'],
+  ] as const)('reads the start hour and leaves the title bare in %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(input.split(' de ')[0])
+  })
+
+  it.each([
+    ['Corrida de 1 hora às 7 da manhã', '07:00', 'Corrida de 1 hora'],
+    ['Curso de 3 horas às 19h', '19:00', 'Curso de 3 horas'],
+  ] as const)('keeps a spaced duration out of the range in %s', (input, time, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
+})
+
+describe('a marked range start beside an end that a minute tail follows', () => {
+  it.each([
+    ['Estudar das 9h às 11 e quinze', 'Estudar das 9h e quinze'],
+    ['Estudar das 9:30 às 11 e quinze', 'Estudar das 9:30 e quinze'],
+    ['Estudar das 9 da manhã às 11 menos dez', 'Estudar das 9 da manhã menos dez'],
+    ['Estudar de 9:30 às 11 e quinze', 'Estudar de 9:30 e quinze'],
+    ['Estudar de 9h às 11 e quinze', 'Estudar de 9h e quinze'],
+    ['Estudar das 9 às 11 e 15 minutos', 'Estudar das 9 e 15 minutos'],
+  ] as const)('reads the end hour and keeps the start in the title in %s', (input, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe('11:00')
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
+})
+
+describe('a range end that a quantity follows', () => {
+  it.each([
+    ['Ler das 9 às 11 e 20 páginas', '09:00', 'Ler e 20 páginas'],
+    ['Correr das 6 às 7 e 5 km', '06:00', 'Correr e 5 km'],
+    ['Correr de 6 às 7 e 5 km', '06:00', 'Correr e 5 km'],
+    ['Beber das 8 às 10 e 2 copos', '08:00', 'Beber e 2 copos'],
+    ['Estudar das 9 às 10 e cinco vezes por semana', '09:00', 'Estudar'],
+    ['Estudar de 9 às 11 e dez páginas', '09:00', 'Estudar e dez páginas'],
+    ['Estudar das 9 às 11 e 2 vezes', '09:00', 'Estudar e 2 vezes'],
+  ] as const)('keeps the range and leaves the quantity in the title in %s', (input, time, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
+
+  it.each([
+    ['Correr ao meio-dia e 5 km', '12:00'],
+    ['Ler ao meio-dia e 20 páginas', '12:00'],
+    ['Estudar das 9 ao meio-dia e 5 km', '09:00'],
+  ] as const)('reads the noon hour before a quantity in %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
