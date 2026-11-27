@@ -227,9 +227,25 @@ const deliverySection = ({ ticket, kind }) => {
   return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**Size.** ${SIZE_LINE}\n\n**PR Metadata.** ${metadata}`
 }
 
+/** The words of the brief that name a tool of one runner. Codex loads no `.claude` skill and has no Grep tool. */
+const RUNNER_WORDS = Object.freeze({
+  claude: Object.freeze({
+    copy: "Write copy with `/humanizer`. Then approve it with `/second-opinion`, run with the same `--settings` and environment as this session, inside your own turn.",
+    search: "Search with the Grep tool.",
+    approval: " Run no command that Claude Code holds for an approval.",
+  }),
+  codex: Object.freeze({
+    copy: "Write copy with the rules in `~/.claude/skills/humanizer/SKILL.md`. Read that file first.",
+    search: "Search with `rg`.",
+    approval: "",
+  }),
+})
+
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
-export const renderBrief = ({ kind, place, ticket }) => {
+export const renderBrief = ({ kind, place, ticket, runner = "claude" }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
+  if (!Object.hasOwn(RUNNER_WORDS, runner)) throw new Error(`unknown runner: ${runner}`)
+  const words = RUNNER_WORDS[runner]
   const reads = kind === "find" || kind === "replan"
   const pushes = pushesToOpenPull(kind)
   const brief = `## Brief
@@ -246,11 +262,11 @@ ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command 
 
 **Decisions.** Nobody answers a question. Decide every choice with the recommended option. ${reads ? "Never wait on a prompt." : `Write the choice and its evidence in the ${pushes ? "commit message" : "pull request body"}. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.`}
 
-**Copy.** Write copy with \`/humanizer\`. Then approve it with \`/second-opinion\`, run with the same \`--settings\` and environment as this session, inside your own turn.
+**Copy.** ${words.copy}
 
 ${reads ? "**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub." : deliverySection({ ticket, kind })}
 
-**Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. Search with the Grep tool. Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`. Run no command that Claude Code holds for an approval.
+**Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. ${words.search} Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`.${words.approval}
 
 **Report.** ${kind === "replan" ? "Your final message is the answer of \"This order\", with nothing after it." : reads ? "Your final message is the area list and the findings table of \"This order\", with nothing after the table." : "Your final message is at most 12 lines: the verdict, the commit SHAs, each test command with its pass count, and the pull request URL."}
 `
@@ -280,7 +296,7 @@ export const renderResumeOrder = ({ kind, pull, review = null, failure = null, o
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null, replan = null }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null, replan = null, runner = "claude" }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
@@ -290,5 +306,5 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
   }
   const parts = kind === "build" ? "" : kind === "replan" ? wholePartSection(partComments) : partSection(partComments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket, runner })}`
 }

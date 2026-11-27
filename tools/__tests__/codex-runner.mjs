@@ -1,9 +1,10 @@
 import { spawnSync } from "node:child_process"
-import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
+import { EventEmitter } from "node:events"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { agentSkillFolders, codexAccountOf, codexCommand, codexConfigToml, codexEnvironment, codexFinalResult, codexLimitReset, codexLogEvent, codexLogFinalResult, codexResultText, codexRules, codexSessionId, codexWeeklyReading, isCodexUsageLimit, plainPrefixes, rolloutFile, writeCodexHome } from "../lib/codex-runner.mjs"
-import { WORKER_DENY } from "../lib/worker.mjs"
+import { WORKER_DENY, codexHookCheck, codexInvocation, isWorkerProcess, launch, probe } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const THREAD = "01a21e2d-cd1e-7340-91e8-220da2e54801"
@@ -66,7 +67,10 @@ const commandCases = () => {
   same("lib/codex-runner.mjs: the command is codex exec with the model, the effort and the bypass flags, and the order on stdin", [executable, args], ["codex", ["exec", "--json", "-C", "/work/tree", "-m", "gpt-6.2-sol", "-c", 'model_reasoning_effort="high"', "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "-"]])
   T("lib/codex-runner.mjs: the command names no sandbox mode, no resume and no ephemeral flag", !args.some((argument) => ["--sandbox", "-s", "resume", "--ephemeral"].includes(argument)))
   same("lib/codex-runner.mjs: the probe adds the git check flag before the bypass flags", codexCommand({ worktree: "/tmp", skipGitCheck: true }).args.slice(8, 11), ["--skip-git-repo-check", "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust"])
-  same("lib/codex-runner.mjs: the environment holds the Codex home and no CLAUDE variable", codexEnvironment({ PATH: "/usr/bin", GH_TOKEN: "t", BRAIN_SESSION_CAPTURE: "1", CLAUDE_CODE_TMPDIR: "/x", CLAUDE_CONFIG_DIR: "/y" }, "/home/x/.codex-orbit-workers"), { PATH: "/usr/bin", GH_TOKEN: "t", BRAIN_SESSION_CAPTURE: "1", CODEX_HOME: "/home/x/.codex-orbit-workers" })
+  const parent = { PATH: "/usr/bin", GH_TOKEN: "t", BRAIN_SESSION_CAPTURE: "1", CLAUDE_CODE_TMPDIR: "/x", CLAUDE_CONFIG_DIR: "/y", CODEX_API_KEY: "k", CODEX_ACCESS_TOKEN: "a", ORBIT_WORKER_WORKTREE: "/stale", ORBIT_WORKER_BRANCH: "stale" }
+  const kept = { PATH: "/usr/bin", GH_TOKEN: "t", BRAIN_SESSION_CAPTURE: "1", CODEX_HOME: "/home/x/.codex-orbit-workers" }
+  same("lib/codex-runner.mjs: the environment holds the Codex home, and no CLAUDE variable, login override or worker identity of its parent", codexEnvironment(parent, "/home/x/.codex-orbit-workers"), kept)
+  same("lib/codex-runner.mjs: the environment of a launch names its worktree and branch", codexEnvironment(parent, "/home/x/.codex-orbit-workers", { worktree: "/work/tree", branch: "chore/ticket-9" }), { ...kept, ORBIT_WORKER_WORKTREE: "/work/tree", ORBIT_WORKER_BRANCH: "chore/ticket-9" })
 }
 
 const homeCases = () => {
@@ -88,19 +92,10 @@ const homeCases = () => {
   mkdirSync(codexHome, { recursive: true })
   writeFileSync(join(codexHome, "auth.json"), AUTH_FILE)
   const before = statSync(join(codexHome, "auth.json")).mtimeMs
-  const [first, second, gone] = ["one", "two", "gone"].map((name) => join(base, `tree-${name}`))
-  for (const tree of [first, second, gone]) mkdirSync(tree)
-  const write = (own) => writeCodexHome({ codexHome, hookPath: "/tools/worker-gh-hook.mjs", skillFolders: ["orca-cli"], denyPrefixes: [["render"]], own })
-  write({ worktree: first, branch: "chore/ticket-1" })
-  write({ worktree: second, branch: "chore/ticket-2" })
-  write({ worktree: gone, branch: "chore/ticket-3" })
+  writeCodexHome({ codexHome, hookPath: "/tools/worker-gh-hook.mjs", skillFolders: ["orca-cli"], denyPrefixes: [["render"]] })
   same("lib/codex-runner.mjs: the home writer leaves auth.json as it was", [readFileSync(join(codexHome, "auth.json"), "utf8"), statSync(join(codexHome, "auth.json")).mtimeMs], [AUTH_FILE, before])
-  same("lib/codex-runner.mjs: the home writer writes config.toml, default.rules and the one Bash hook with the targets file and the exit 2 guard", [readFileSync(join(codexHome, "config.toml"), "utf8"), readFileSync(join(codexHome, "rules", "default.rules"), "utf8"), JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8"))], [codexConfigToml({ skillFolders: ["orca-cli"] }), codexRules([["render"]]), { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: `node '/tools/worker-gh-hook.mjs' --targets '${join(codexHome, "worker-targets.json")}' || exit 2`, timeout: 60 }] }] } }])
-  const targets = () => JSON.parse(readFileSync(join(codexHome, "worker-targets.json"), "utf8"))
-  same("lib/codex-runner.mjs: each launch adds its worktree and branch to the targets file, so parallel workers share one hook", targets(), { [first]: "chore/ticket-1", [second]: "chore/ticket-2", [gone]: "chore/ticket-3" })
-  spawnSync(process.execPath, ["-e", `require("fs").rmSync(${JSON.stringify(gone)}, { recursive: true })`])
-  write(null)
-  same("lib/codex-runner.mjs: a write with no launch keeps the targets of the workers that run and drops a worktree that is gone", targets(), { [first]: "chore/ticket-1", [second]: "chore/ticket-2" })
+  const command = `node '/tools/worker-gh-hook.mjs' --worktree "\${ORBIT_WORKER_WORKTREE-}" --branch "\${ORBIT_WORKER_BRANCH-}" --block-log '${join(codexHome, "hook-blocks.log")}' || exit 2`
+  same("lib/codex-runner.mjs: the home writer writes config.toml, default.rules and the one Bash hook, which reads the worker from its environment and keeps the exit 2 guard", [readFileSync(join(codexHome, "config.toml"), "utf8"), readFileSync(join(codexHome, "rules", "default.rules"), "utf8"), JSON.parse(readFileSync(join(codexHome, "hooks.json"), "utf8"))], [codexConfigToml({ skillFolders: ["orca-cli"] }), codexRules([["render"]]), { hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command, timeout: 60 }] }] } }])
 }
 
 const accountCases = () => {
@@ -108,7 +103,71 @@ const accountCases = () => {
   same("lib/codex-runner.mjs: a file with no readable token gives no account", [codexAccountOf("not json"), codexAccountOf(JSON.stringify({ tokens: {} })), codexAccountOf(JSON.stringify({ tokens: { id_token: "a.b", account_id: "x" } }))], [null, null, null])
 }
 
+const OWN = { worktree: "/work/tree", branch: "chore/ticket-9" }
+
+/** A home of the driver with an empty Codex worker home, and the session file that a Codex run leaves in it. */
+const stageHome = (name) => {
+  const home = join(root, "codex-worker", name)
+  const codexHome = join(home, ".codex-orbit-workers")
+  const sessions = join(codexHome, "sessions", "2026", "11", "27")
+  mkdirSync(sessions, { recursive: true })
+  return { home, codexHome, session: () => writeFileSync(join(sessions, `rollout-2026-11-27T15-04-08-${THREAD}.jsonl`), jsonl(tokenCount(pro))) }
+}
+
+const probeCases = async () => {
+  const { home, codexHome, session } = stageHome("probe")
+  const invocation = codexInvocation({ home, parentEnvironment: { PATH: "/usr/bin", CLAUDE_CONFIG_DIR: "/y" }, token: "t", cwd: "/tmp/probe" })
+  const calls = []
+  const run = async (...call) => { calls.push([...call, existsSync(join(codexHome, "hooks.json"))]); return { status: 0, stdout: jsonl(started, message("ok"), completed), stderr: "" } }
+  same("lib/worker.mjs: a Codex probe with no session file gives no reading", await probe({ invocation, cwd: "/tmp/probe", run }), null)
+  session()
+  same("lib/worker.mjs: a Codex probe reads the weekly reading of the session file of its thread", await probe({ invocation, cwd: "/tmp/probe", run }), { sessionId: THREAD, utilization: 0.41, resetsAt: 1796406658, status: "allowed" })
+  const [file, args, options, written] = calls[0]
+  same("lib/worker.mjs: a Codex probe writes the home first, then runs codex exec with the prompt on stdin and no turn flag", [written, file, args, options.input, options.cwd], [true, "codex", codexCommand({ worktree: "/tmp/probe", skipGitCheck: true }).args, "reply ok", "/tmp/probe"])
+  same("lib/worker.mjs: a Codex probe runs with the worker home and token and no worker identity", [options.env.CODEX_HOME, options.env.GH_TOKEN, options.env.BRAIN_SESSION_CAPTURE, Object.keys(options.env).filter((key) => /^(CLAUDE|ORBIT_WORKER)_/.test(key))], [codexHome, "t", "1", []])
+}
+
+const launchCases = async () => {
+  const { home, codexHome, session } = stageHome("launch")
+  session()
+  const invocation = codexInvocation({ home, parentEnvironment: {}, token: "t", own: OWN })
+  same("lib/worker.mjs: a Codex launch runs in its worktree with the git check on, and names its branch", [invocation.command, invocation.environment.ORBIT_WORKER_WORKTREE, invocation.environment.ORBIT_WORKER_BRANCH], [codexCommand({ worktree: OWN.worktree }), OWN.worktree, OWN.branch])
+  const logFile = join(home, "worker.log")
+  const child = Object.assign(new EventEmitter(), { pid: 4242, stdin: { on: () => {}, end: () => {} } })
+  let written = false
+  const running = launch({ invocation, worktree: home, order: "the order", logFile, pidFile: join(home, "worker.pid"), kill: () => {}, spawnChild: () => { written = existsSync(join(codexHome, "config.toml")); return child } })
+  appendFileSync(logFile, jsonl(started, ...failed(LIMIT)))
+  child.emit("exit", 1, null)
+  const facts = await running
+  same("lib/worker.mjs: a Codex launch writes the home before it starts, and reads the session, the reading and the usage limit of its log", [written, facts.exitCode, facts.sessionId, facts.utilization, facts.resetsAt, facts.result.usageLimitReached, facts.result.error], [true, 1, THREAD, 0.41, 1796406658, true, LIMIT])
+  const ps = (stdout) => ({ run: () => ({ status: 0, stdout }) })
+  same("lib/worker.mjs: a codex process counts as a worker, and a word that only holds codex does not", ["node /opt/homebrew/bin/codex exec --json\n", "/opt/homebrew/lib/codex/bin/codex exec\n", "/usr/bin/vim mycodexnotes\n"].map((line) => isWorkerProcess(process.pid, ps(line))), [true, true, false])
+}
+
+/** The check against a fake Codex that runs `act` with the options of the run: the rendered hook, the `gh` of the check, or nothing. */
+const hookCheckCases = async () => {
+  const { home } = stageHome("check")
+  const calls = []
+  const checked = (act) => codexHookCheck({ home, parentEnvironment: process.env, token: "t", repository: "owner/tickets", run: async (file, args, options) => { calls.push({ args, options }); act(options); return { status: 0, stdout: jsonl(started, completed), stderr: "" } } })
+  const hook = (command) => (options) => {
+    const { hooks } = JSON.parse(readFileSync(join(options.env.CODEX_HOME, "hooks.json"), "utf8"))
+    spawnSync("sh", ["-c", hooks.PreToolUse[0].hooks[0].command], { env: options.env, input: JSON.stringify({ hook_event_name: "PreToolUse", cwd: options.cwd, tool_name: "Bash", tool_input: { command } }) })
+  }
+  const merge = "gh pr merge 1 --repo owner/tickets"
+  same("lib/worker.mjs: the hook check passes when the real hook notes the block and gh never ran", await checked(hook(merge)), { passed: true, reason: null })
+  const [{ args, options }] = calls
+  T("lib/worker.mjs: the hook check orders the merge on stdin, in a directory of its own, which is gone after the check", options.input.includes(merge) && args.includes(options.cwd) && options.env.ZDOTDIR === options.cwd && !existsSync(options.cwd))
+  const idle = await checked(() => {})
+  T("lib/worker.mjs: the hook check fails when the hook notes no block in this run, with an older block in the log", idle.passed === false && /noted no block/.test(idle.reason), idle.reason)
+  T("lib/worker.mjs: a block of another command does not pass the hook check", (await checked(hook("gh issue close 1"))).passed === false)
+  const ran = await checked((run) => { hook(merge)(run); spawnSync("sh", ["-c", merge], { env: run.env }) })
+  T("lib/worker.mjs: the hook check fails when gh ran, also with a noted block", ran.passed === false && /ran/.test(ran.reason), ran.reason)
+}
+
 export const cases = async () => {
+  await probeCases()
+  await launchCases()
+  await hookCheckCases()
   parseCases()
   readingCases()
   commandCases()

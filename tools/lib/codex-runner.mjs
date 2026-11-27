@@ -3,7 +3,7 @@
  * `codex exec --json` log says about how it stopped, and the weekly reading of its session file. Nothing here starts a process.
  */
 
-import { closeSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, statSync, writeFileSync, existsSync } from "node:fs"
+import { closeSync, mkdirSync, openSync, readdirSync, readSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 /** The model of every Codex worker launch and its effort, in one place. The owner changes the model here after a pilot. */
@@ -15,10 +15,15 @@ const WEEK_MINUTES = 10080
 const HEAD_BYTES = 64 * 1024
 const TAIL_BYTES = 2 * 1024 * 1024
 /** The files of the worker home that the driver writes. `auth.json` is not one of them. */
-const HOME_FILES = Object.freeze({ config: "config.toml", hooks: "hooks.json", rules: join("rules", "default.rules"), targets: "worker-targets.json" })
+const HOME_FILES = Object.freeze({ config: "config.toml", hooks: "hooks.json", rules: join("rules", "default.rules"), blocks: "hook-blocks.log" })
+/** A key or a token in one of these variables replaces the ChatGPT login of the worker home. */
+const LOGIN_OVERRIDES = new Set(["CODEX_API_KEY", "CODEX_ACCESS_TOKEN"])
 
 /** The private Codex home of the worker slots: the second login, beside the default one. */
 export const codexHomeDirectory = (home) => join(home, ".codex-orbit-workers")
+
+/** The file of the worker home where the `gh` hook notes each call that it blocks. */
+export const blockLogFile = (codexHome) => join(codexHome, HOME_FILES.blocks)
 
 /** The command of a Codex worker. The order goes in on stdin (`-`), never in argv, and every flag comes before any `resume`. */
 export const codexCommand = ({ worktree, skipGitCheck = false }) => ({
@@ -30,11 +35,15 @@ export const codexCommand = ({ worktree, skipGitCheck = false }) => ({
   ],
 })
 
-/** The environment of a Codex worker: the worker environment, without any `CLAUDE_*` variable, plus `CODEX_HOME`. */
-export const codexEnvironment = (workerEnvironment, codexHome) => {
+/**
+ * The environment of a Codex worker: the worker environment, without any `CLAUDE_*` variable or login override, plus `CODEX_HOME`.
+ * `own` is the `{ worktree, branch }` of a launch. The `gh` hook reads them from the environment of the `codex` process,
+ * which no command of the worker changes.
+ */
+export const codexEnvironment = (workerEnvironment, codexHome, own = null) => {
   const environment = { ...workerEnvironment, CODEX_HOME: codexHome }
-  for (const key of Object.keys(environment)) if (key.startsWith("CLAUDE_")) delete environment[key]
-  return environment
+  for (const key of Object.keys(environment)) if (key.startsWith("CLAUDE_") || key.startsWith("ORBIT_WORKER_") || LOGIN_OVERRIDES.has(key)) delete environment[key]
+  return own === null ? environment : { ...environment, ORBIT_WORKER_WORKTREE: own.worktree, ORBIT_WORKER_BRANCH: own.branch }
 }
 
 const tomlString = (text) => JSON.stringify(text)
@@ -51,12 +60,14 @@ export const codexConfigToml = ({ skillFolders }) => [
 ].join("\n")
 
 /**
- * `hooks.json` of the worker home. One hook serves every worker at once: it finds the worktree and the branch of the calling
- * worker by the working directory of the call, in the targets file. Only a hook of this home fires in a linked worktree.
+ * `hooks.json` of the worker home. One hook serves every worker at once: its shell reads the worktree and the branch of the
+ * calling worker from the environment. The `cwd` of a call is the `workdir` that the model chose, so it names no worker.
+ * Only a hook of this home fires in a linked worktree.
  */
-export const codexHooksJson = ({ hookPath, targetsPath }) => `${JSON.stringify({
-  hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: `node ${shellQuoted(hookPath)} --targets ${shellQuoted(targetsPath)} || exit 2`, timeout: 60 }] }] },
-}, null, 2)}\n`
+export const codexHooksJson = ({ hookPath, blockLogPath }) => {
+  const command = `node ${shellQuoted(hookPath)} --worktree "\${ORBIT_WORKER_WORKTREE-}" --branch "\${ORBIT_WORKER_BRANCH-}" --block-log ${shellQuoted(blockLogPath)} || exit 2`
+  return `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command, timeout: 60 }] }] } }, null, 2)}\n`
+}
 
 const shellQuoted = (text) => `'${text.replaceAll("'", "'\\''")}'`
 
@@ -75,29 +86,12 @@ const writeAtomic = (path, text) => {
   renameSync(temporary, path)
 }
 
-/** The registry of the workers that run: worktree to branch. A worktree that is gone drops out. */
-const readTargets = (path) => {
-  try {
-    const saved = JSON.parse(readFileSync(path, "utf8"))
-    return Object.fromEntries(Object.entries(saved).filter(([worktree, branch]) => typeof branch === "string" && existsSync(worktree)))
-  } catch {
-    return {}
-  }
-}
-
-/**
- * Writes the files of the worker home before a launch or a probe. It never touches `auth.json`. The files that do not change
- * between workers are written whole each time. A launch also registers its worktree and branch for the hook.
- */
-export const writeCodexHome = ({ codexHome, hookPath, skillFolders, denyPrefixes, own = null }) => {
+/** Writes the files of the worker home before a launch or a probe, each one whole. It never touches `auth.json`. */
+export const writeCodexHome = ({ codexHome, hookPath, skillFolders, denyPrefixes }) => {
   mkdirSync(join(codexHome, "rules"), { recursive: true })
-  const targetsPath = join(codexHome, HOME_FILES.targets)
   writeAtomic(join(codexHome, HOME_FILES.config), codexConfigToml({ skillFolders }))
-  writeAtomic(join(codexHome, HOME_FILES.hooks), codexHooksJson({ hookPath, targetsPath }))
+  writeAtomic(join(codexHome, HOME_FILES.hooks), codexHooksJson({ hookPath, blockLogPath: blockLogFile(codexHome) }))
   writeAtomic(join(codexHome, HOME_FILES.rules), codexRules(denyPrefixes))
-  const targets = readTargets(targetsPath)
-  if (own !== null) targets[own.worktree] = own.branch
-  writeAtomic(targetsPath, `${JSON.stringify(targets)}\n`)
 }
 
 /** The folder names under `~/.agents/skills`: each one is a skill that the worker home turns off. */
@@ -224,13 +218,16 @@ export const rolloutFile = ({ codexHome, threadId }) => {
   return null
 }
 
-/** The session id and the weekly reading of a Codex log: the id from the log head, the reading from the tail of the session file of that thread. */
-export const codexLogEvent = (logFile, codexHome) => {
-  const sessionId = codexSessionId(readRange(logFile, "head"))
+/** The session id and the weekly reading of a Codex output: the id from the output, the reading from the tail of the session file of that thread. */
+export const codexEvent = (logText, codexHome) => {
+  const sessionId = codexSessionId(logText)
   const file = sessionId === null ? null : rolloutFile({ codexHome, threadId: sessionId })
   const reading = file === null ? null : codexWeeklyReading(readRange(file, "tail"))
   return { sessionId, utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, status: reading?.status ?? null }
 }
+
+/** `codexEvent` of a log file of any size: the thread starts in its head. */
+export const codexLogEvent = (logFile, codexHome) => codexEvent(readRange(logFile, "head"), codexHome)
 
 /** The log of a Codex worker is JSONL of the `codex exec --json` events: the last 256 KiB hold its end. */
 export const codexLogFinalResult = (logFile) => codexFinalResult(readRange(logFile, "tail"))
