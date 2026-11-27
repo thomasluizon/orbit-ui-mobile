@@ -1162,10 +1162,10 @@ const replanRunning = (running, ticketNumber) => running.workers.some(({ record 
  * What a plan does when its ladder ends (2 launches on the worker model, then 1 on the coordinator model): one re-plan run, or
  * the park once the ticket used its re-plans. A running re-plan run makes the plan wait.
  */
-const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches, pulls }) => {
+const ladderEnd = (env, { ticket, repoKey, pull = null, part = null, branch, running, launches, pulls, cause = null }) => {
   if (replanRunning(running, ticket.number)) return { type: "none", reason: WAITS_FOR_REPLAN }
   if (replansSincePark(ticket).length >= MAX_REPLANS) return { type: "park", repoKey, ticket, reason: `the plan on ${branch} used its launches after ${MAX_REPLANS} re-plans` }
-  return { type: "order", kind: "replan", repoKey, ticket, pull, part, branch: replanBranch(ticket), stuckBranch: branch, model: workerApi.COORDINATOR_MODEL, openParts: openPartNumbers(ticket, partsOf(ticket), pulls, running.workers, branch), history: failureHistory(env, launches) }
+  return { type: "order", kind: "replan", repoKey, ticket, pull, part, branch: replanBranch(ticket), stuckBranch: branch, model: workerApi.COORDINATOR_MODEL, openParts: openPartNumbers(ticket, partsOf(ticket), pulls, running.workers, branch), history: failureHistory(env, launches), ...(cause === null ? {} : { cause, extra: cause }) }
 }
 
 /**
@@ -1756,11 +1756,11 @@ const openPartNumbers = (ticket, parts, pulls, workers, exceptBranch) => parts
   .map((entry) => entry.number)
 
 /** The facts that a re-plan order names: the merged parts (read fresh), the open parts that the order carries, and the total of the part set in force. */
-const replanFacts = async (env, mem, ticket, stuck, openParts) => {
+const replanFacts = async (env, mem, ticket, stuck, openParts, order) => {
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   const parts = partsOf(ticket)
   const merged = new Set(history.map((entry) => entry.headRefName))
-  return { stuckBranch: stuck.branch, openParts, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
+  return { stuckBranch: stuck.branch, cause: order.cause ?? null, openParts, mergedParts: parts.filter((entry) => partIsDone(ticket, entry, merged)).map((entry) => entry.number), currentTotal: parts[0]?.total ?? 0, highestTotal: highestTotal(ticket.comments.filter((comment) => comment.kind === null)) }
 }
 
 /** Gives a new worktree its dependencies: a clone of the main checkout's, or one `npm ci`. A failure only logs, because the worker installs for itself. */
@@ -1843,7 +1843,7 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
     log(env, `ticket#${ticket.number}`, "wait", reason)
     return reason
   }
-  const replan = kind === "replan" ? await replanFacts(env, mem, ticket, stuck, order.openParts ?? []) : null
+  const replan = kind === "replan" ? await replanFacts(env, mem, ticket, stuck, order.openParts ?? [], order) : null
   const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
   const model = order.model ?? workerApi.WORKER_MODEL
   const startedIso = new Date(env.now()).toISOString()
@@ -2394,7 +2394,8 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
     if (stop?.kind === "owner") return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}` }
     if (stop?.kind === "blocked") return { reason: "the Remaining line waits on another ticket", park: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}` }
     if (stop?.kind === "repeat") {
-      const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, branch: history.at(-1).headRefName, running, launches: launchesOf(ticket).filter((entry) => entry.branch === history.at(-1).headRefName), pulls: state.pulls })
+      const cause = `The branch \`${history.at(-1).headRefName}\` merged. It and the merge before it left the same Remaining line, so a build cannot finish the ticket: ${remainingLineOf(history.at(-1))}`
+      const end = ladderEnd(env, { ticket, repoKey: ticket.repoKey, cause, branch: history.at(-1).headRefName, running, launches: launchesOf(ticket).filter((entry) => entry.branch === history.at(-1).headRefName), pulls: state.pulls })
       if (end.type === "order") return { order: end }
       return { reason: end.reason, ...(end.type === "park" ? { park: `No build can meet the Remaining line of the last merged pull request: ${stop.reason}, and the ticket used its re-plans` } : {}) }
     }

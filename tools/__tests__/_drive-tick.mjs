@@ -1344,6 +1344,7 @@ const closeCases = async () => {
   const repeated = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(lineOf(listing)) })
   await repeated.run()
   same("drive: two merged pull requests with the same Remaining line start one re-plan run and write no owner step", [repeated.launched.length, repeated.launched[0]?.invocation.model, JSON.parse(recordsOf(repeated, "launch")[0].split("\n").slice(1).join("\n")).kind, writesNothingForOwner(repeated)], [1, "claude-opus-5-5", "replan", [0, 0, 0]])
+  T("drive: the re-plan order of a repeat stop holds the repeated Remaining line and does not say that the plan still fails", orderText(repeated).includes(listing) && orderText(repeated).includes("left the same Remaining line") && !orderText(repeated).includes("still fails"), orderText(repeated).slice(0, 600))
   const replanLaunch = (offset) => comment("launch", JSON.stringify({ kind: "replan", part: null, branch: "chore/ticket-7-replan", model: "claude-opus-5-5" }), offset)
   const replanned = scenario({ tickets: [ticket(7, { comments: [launchRecord, replanLaunch(-1500 * 1000), comment("replan", JSON.stringify({ plan: "fresh", branch: "chore/ticket-7-r2", pr: null, part: null, count: 1, at: iso(-900 * 1000) }), -900 * 1000)] })], routes: listed(lineOf(listing)) })
   await replanned.run()
