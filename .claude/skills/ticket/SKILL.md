@@ -102,14 +102,14 @@ List each open item that carries `parked`:
 
 Do these steps for each item. A pull request belongs to the ticket that its `Tracks` line names.
 
-1. Read the item: `gh issue view <number> --repo thomasluizon/orbit-tickets --json body,comments,labels`. Read the `parked` comment, each `replan` comment and each `launch` record.
+1. Read the item: `gh issue view <number> --repo thomasluizon/orbit-tickets --json body,comments,labels`. Read the `parked` comment, each `replan` comment and each `launch` record. The `parked` comment lists each pull request that the park closed, with its branch. The remote branches stay, so reuse their work in the new plan.
 2. Read the failure history. The `log` field of a launch record names its files: `<log>.facts.json` and `<log>.log`. They are in `orbit-drive/logs`, in the directory that `git rev-parse --path-format=absolute --git-common-dir` prints. The last `result` line of a log holds the answer of the worker.
 3. Find the cause and the best way. Use the research rules of "Before the split: find the best way".
 4. Re-plan the item in one of these ways:
    - Write a new body: `gh issue edit <number> --repo thomasluizon/orbit-tickets --body-file <file>`. Keep the `## Owner decisions` section.
    - Post a new part set as plain comments. Make the total higher than each earlier total on the ticket. Keep each merged part and each part with a good open pull request, with its number and title.
    - Create new tickets with `node tools/create-ticket.mjs` and `--blocked-by`. Then close the old ticket: `gh issue close <number> --repo thomasluizon/orbit-tickets --comment "<the numbers of the new tickets>"`.
-5. Close the open pull request of each plan that you replace: `gh pr close <number> --repo <repository> --comment "<reason>"`. The driver builds the new plan on a new branch from `main`.
+5. Close each open pull request of a plan that you replace. The park already closed the pull requests that its `parked` comment lists: `gh pr close <number> --repo <repository> --comment "<reason>"`. The driver builds the new plan on a new branch from `main`.
 6. For a parked pull request with no open ticket, close it, add its `Tracks` line, or create the ticket that it needs.
 7. Add `needs:owner` only for a step that needs the owner's hands, as section 6 of `.claude/skills/questions/SKILL.md` lists them. Write one comment that starts with `<!-- orbit-drive:needs-owner -->`. Name that step, where the owner does it, and what it unblocks. A pull request with no open ticket gets the comment and no label.
 8. Remove `parked` last, because the driver can start the new plan at once. First run `gh pr edit <number> --repo <repository> --remove-label parked` for each pull request. Then run `gh issue edit <number> --repo thomasluizon/orbit-tickets --remove-label parked`.
