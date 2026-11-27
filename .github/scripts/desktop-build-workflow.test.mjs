@@ -194,3 +194,33 @@ test('a step that packages a target before the acceptance harness removes the bu
   }
   assert.deepEqual(checked, ['desktop-acceptance.yml: installed'], 'the Windows job is the one job that packages before the harness')
 })
+
+// A pass skips installed (windows-latest) when the key repeats, so the key must hash each tree that the job reads. The harness
+// builds apps/web and imports packages/shared, and a later push of one pull request can change those after a pass.
+test('the Windows pass key hashes each app and package tree that the acceptance harness reads, and the base tsconfig of their builds', () => {
+  const root = new URL('../../', import.meta.url)
+  const read = (path) => readFileSync(new URL(path, root), 'utf8')
+  const seen = new Set()
+  const roots = new Set()
+  const visit = (path) => {
+    if (seen.has(path)) return
+    seen.add(path)
+    const source = read(path)
+    for (const match of source.matchAll(/['"`/]((?:apps|packages)\/[\w-]+)/g)) roots.add(match[1])
+    for (const match of source.matchAll(/(?:\.\.\/)+((?:apps|packages)\/[\w-]+)/g)) roots.add(match[1])
+    for (const [, specifier] of source.matchAll(/(?:from|import\()\s*['"](\.\.?\/[^'"]+)['"]/g)) {
+      const base = join(dirname(path), specifier)
+      const found = ['', '.mjs', '.ts', '.js', '.cjs'].map((extension) => base + extension).find((candidate) => {
+        try { return readFileSync(new URL(candidate, root), 'utf8') !== '' } catch { return false }
+      })
+      if (found) visit(found)
+    }
+  }
+  visit('tools/desktop-bench/acceptance.mjs')
+  roots.delete('apps/desktop')
+  assert.deepEqual([...roots].sort(), ['apps/web', 'packages/shared'], 'the harness reads the web build and the shared source')
+  const key = acceptance.jobs.plan.steps.find((step) => step.id === 'key').run
+  const patterns = [...key.match(/hashFiles\(([^)]*)\)/)[1].matchAll(/'([^']+)'/g)].map((match) => match[1])
+  for (const tree of roots) assert.ok(patterns.includes(`${tree}/**`), `the key hashes ${tree}/**`)
+  assert.ok(patterns.includes('tsconfig.base.json'), 'apps/web and packages/shared extend the base tsconfig')
+})

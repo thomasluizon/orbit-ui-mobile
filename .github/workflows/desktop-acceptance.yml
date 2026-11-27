@@ -30,7 +30,8 @@ concurrency:
 
 jobs:
   # A pull request runs the Windows job when a file that the job reads changed and no pass exists for those inputs.
-  # The inputs are the shell, the harness and its producer tests, the root manifests and the two local actions.
+  # The trigger is the shell, the harness and its producer tests, the root manifests and the two local actions.
+  # The key also holds the web app and the shared package that the harness builds and imports, so a later push that changes them runs the job again.
   plan:
     name: Plan desktop acceptance
     runs-on: ubuntu-latest
@@ -45,7 +46,7 @@ jobs:
           persist-credentials: false
       - name: Hash the Windows inputs
         id: key
-        run: echo "value=desktop-windows-pass-v1-${{ hashFiles('apps/desktop/**', '!apps/desktop/**/*.md', 'tools/desktop-bench/**', '!tools/desktop-bench/README.md', 'package.json', 'package-lock.json', '.github/actions/desktop-acceptance-setup/**', '.github/actions/desktop-nsis-tools/**', '.github/workflows/desktop-acceptance.yml') }}" >> "$GITHUB_OUTPUT"
+        run: echo "value=desktop-windows-pass-v1-${{ hashFiles('apps/desktop/**', '!apps/desktop/**/*.md', 'tools/desktop-bench/**', '!tools/desktop-bench/README.md', 'apps/web/**', 'packages/shared/**', 'tsconfig.base.json', 'package.json', 'package-lock.json', '.github/actions/desktop-acceptance-setup/**', '.github/actions/desktop-nsis-tools/**', '.github/workflows/desktop-acceptance.yml') }}" >> "$GITHUB_OUTPUT"
       - name: Look up a pass for these Windows inputs
         id: pass
         if: github.event_name != 'workflow_dispatch'
