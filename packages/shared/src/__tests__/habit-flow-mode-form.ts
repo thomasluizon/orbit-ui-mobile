@@ -51,7 +51,7 @@ export function mountModeFlow(readPhrase: GuidedHabitFlowOptions['readPhrase'] =
     const [, setVersion] = useState(0)
     render = () => setVersion((version) => version + 1)
     flow = useGuidedHabitFlow({
-      mode, lockedGeneral: null, locale: 'en', timeZone: 'UTC', isOnline: true, helpers, form, readPhrase, applySchedule,
+      mode, lockedGeneral: null, locale: 'en', timeZone: 'UTC', isOnline: true, helpers, form, readPhrase, applySchedule, interpretDate: async () => { throw new Error('The Orbit date read is not under test.') }, atOrbitLimit: false,
       watched: { title: values.title, itemType: values.itemType, dueDate: values.dueDate, dueTime: values.dueTime, frequencyUnit: values.frequencyUnit, isFlexible: values.isFlexible },
     })
     return null
