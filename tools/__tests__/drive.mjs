@@ -641,6 +641,10 @@ const ciCases = (open, approved) => {
   same("lib/github.mjs: any other failure is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: ["Run Domain Tests"] }), "ci-fix")
   same("lib/github.mjs: another step of Guard Migrations is a fix order", classifyCheckFailure({ name: "Guard Migrations", failedSteps: ["Fail on edits to applied migrations"] }), "ci-fix")
   same("lib/github.mjs: the barrier step under another check name is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: barrierSteps }), "ci-fix")
+  const workflowSteps = readFileSync(toolPath("../.github/workflows/test.yml"), "utf8").split(/^ {6}- /m)
+  const gateSteps = workflowSteps.filter((step) => /\$\{\{ needs\.[\w-]+\.result \}\}/.test(step)).map((step) => /^name: (.+)$/m.exec(step)?.[1])
+  T("lib/github.mjs: test.yml has steps that read the result of a needed job", gateSteps.length > 0)
+  same("lib/github.mjs: each test.yml step that reads the result of a needed job is a gate step, which gets a rerun", gateSteps.filter((step) => classifyCheckFailure({ name: "Gate", failedSteps: [step] }) !== "rerun"), [])
 }
 
 const failureStepCases = async (seams) => {
