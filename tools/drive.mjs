@@ -31,7 +31,7 @@ import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --runner claude|codex | --runner-check | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -76,6 +76,14 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               runs it when the owner says so. It takes the main account with no word. A new week of that account ends it.
   --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
               and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
+  --runner claude|codex  the owner's setting of what runs in the worker slots. claude (the default) runs claude -p on the worker
+              account. codex runs codex exec on the Codex login of ~/.codex-orbit-workers. The main account, Pullfrog, the questions
+              run, the harness review and the re-plan run stay on Claude, and an order on the coordinator model never takes a Codex
+              slot. The next tick reads the setting, with no restart. codex needs a pass of --runner-check on the installed
+              codex --version, else it exits 2 with the reason and the setting stays.
+  --runner-check  the live check of the Codex runner, with the real Codex home. A probe must return a weekly reading. Then one
+              codex exec is told to run gh pr merge, and the check passes only when the hook blocked it and the command never ran.
+              A pass writes runner-check.json with the codex version. It exits 1 on a failed check and 3 with no Codex login.
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item that
               needs the owner's hands still gets one comment, plus the needs:owner label on its ticket, and the driver works on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
@@ -89,7 +97,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               The driver runs it on a new commit before it switches to that commit.
   --help, -h  print this usage and exit 0
 
-exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
+exit codes: 0 done, 1 failed runner check, 2 usage error or refused runner, 3 missing tool, configuration or credential`
 
 const TICK_MS = 120 * 1000
 /** After this many failed ticks in a row, the driver waits `BACKOFF_MS` between ticks until one passes. */
@@ -107,6 +115,7 @@ const ALLOW_FILE = "over-limit.json"
 const PACE_SETTING_FILE = "pace-setting.json"
 const RUNNER_SETTING_FILE = "runner-setting.json"
 const RUNNERS = ["claude", "codex"]
+const RUNNER_CHECK_FILE = "runner-check.json"
 const SLEEP_FILE = "sleep.json"
 const SLEEP_ITEMS_FILE = "sleep-items.json"
 const NOTICES_FILE = "notices.json"
@@ -640,6 +649,16 @@ export const readRunner = (stateDir) => {
   }
 }
 
+/** The `{ version, passedAt }` of the last passed live check of the Codex runner, or null. */
+export const readRunnerCheck = (stateDir) => {
+  try {
+    const { version, passedAt } = JSON.parse(readFileSync(join(stateDir, RUNNER_CHECK_FILE), "utf8"))
+    return typeof version === "string" && typeof passedAt === "string" ? { version, passedAt } : null
+  } catch {
+    return null
+  }
+}
+
 /** The runner of the launch that a record names. A record from before the Codex runner has none, and it ran on Claude. */
 const runnerOfRecord = (record) => (record.runner === "codex" ? "codex" : "claude")
 
@@ -652,6 +671,54 @@ export const setPace = (env, name, word, { out }) => {
   const off = readUnpaced(env.stateDir).includes(name)
   out(off ? `The ${name} account runs ${MAX_WORKERS} workers with no weekly pace until a worker ends on its usage limit.` : `The ${name} account follows the weekly pace.`)
   return off === (word === "off") ? 0 : 3
+}
+
+/**
+ * Writes `runner-setting.json` for `--runner claude|codex`. `codex` needs a passed live check on the installed `codex --version`.
+ * Without it the command exits 2 with the reason and the setting stays as it was.
+ */
+export const setRunner = async (env, word, { out, err }) => {
+  if (word === "codex") {
+    const kept = readRunner(env.stateDir)
+    let version
+    try { version = await env.codexVersion() } catch (error) { err(`The runner stays ${kept}: codex --version failed: ${error.message}`); return 2 }
+    const passed = readRunnerCheck(env.stateDir)
+    if (passed?.version !== version) {
+      err(`The runner stays ${kept}: the live check has not passed on ${version}${passed === null ? "" : ` (it passed on ${passed.version})`}. Run: node tools/drive.mjs --runner-check`)
+      return 2
+    }
+  }
+  writeFileSync(join(env.stateDir, RUNNER_SETTING_FILE), `${JSON.stringify({ runner: word })}\n`)
+  const runner = readRunner(env.stateDir)
+  out(`The worker slots run on ${runner} from the next tick.`)
+  return runner === word ? 0 : 3
+}
+
+/**
+ * The live check of the Codex runner, with the real Codex home: a probe that returns a weekly reading, then one real `codex exec`
+ * that is told to merge a pull request, which the hook must block. A pass writes `runner-check.json` with the `codex --version`.
+ * A failed check removes an older pass, so a setting of `codex` needs a new one.
+ */
+export const runnerCheck = async (env, { out, err }) => {
+  let version
+  let status
+  try { version = await env.codexVersion() } catch (error) { err(`codex --version failed: ${error.message}`); return 3 }
+  try { status = await env.authStatus(WORKER, "codex") } catch (error) { err(error.message); return 3 }
+  if (status.loggedIn !== true) { err("Codex is not logged in on the worker account. Run: CODEX_HOME=$HOME/.codex-orbit-workers codex login"); return 3 }
+  const failed = (reason) => {
+    rmSync(join(env.stateDir, RUNNER_CHECK_FILE), { force: true })
+    err(`The live check failed on ${version}: ${reason}`)
+    return 1
+  }
+  const reading = await env.worker.probe({ invocation: await env.invocation(undefined, WORKER, null, undefined, "codex") })
+  if (reading === null) return failed("the probe returned no weekly reading")
+  out(`probe: utilization ${reading.utilization}, resetsAt ${reading.resetsAt} (${new Date(reading.resetsAt * 1000).toISOString()}), status ${reading.status}`)
+  const hook = await env.worker.codexHookCheck({ home: env.home, parentEnvironment: process.env, token: (await env.worker.readWorkerToken()) ?? "probe-only", repository: env.config.tickets.repository })
+  if (!hook.passed) return failed(hook.reason)
+  out("hook: the hook blocked gh pr merge, and the command never ran")
+  writeFileSync(join(env.stateDir, RUNNER_CHECK_FILE), `${JSON.stringify({ version, passedAt: new Date(env.now()).toISOString() })}\n`)
+  out(`The live check passed on ${version}. Run: node tools/drive.mjs --runner codex`)
+  return 0
 }
 
 export const setSleep = (env, word, { out }) => {
@@ -981,6 +1048,47 @@ const readPullDiff = async (env, repoPath, pull) => {
   if (messages.status !== 0) throw new Error(`git log of ${pull.number} failed: ${messages.stderr.trim()}`)
   pull.files = names.stdout.split("\0").filter(Boolean)
   pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
+}
+
+const GITHUB_ACTIONS_APP = 15368
+/** GitHub builds the test merge commit at the push, before the first job starts, so the CI sees main from a little before its first start. */
+const TEST_MERGE_LEAD_MS = 5 * 60 * 1000
+/** The files that a break between two changes can come from. A Markdown file never counts. */
+const CODE_PATH = /\.(?:js|mjs|cjs|ts|tsx|json|yml|yaml|cs)$/
+
+/** The time before which the CI of the head saw the base branch: the earliest start of a GitHub Actions check run, less the lead of the test merge commit. Null when no such run exists. */
+const ciSeenUntil = (pull) => {
+  const starts = pull.checks.filter((check) => check.__typename === "CheckRun" && check.checkSuite?.app?.databaseId === GITHUB_ACTIONS_APP).map((check) => Date.parse(check.startedAt)).filter(Number.isFinite)
+  return starts.length === 0 ? null : Math.min(...starts) - TEST_MERGE_LEAD_MS
+}
+
+/**
+ * The code paths that the pull request changes and that a commit of the base branch changed after the CI of the head started. Such a commit
+ * is a change that the CI never tested together with the pull request. A commit that the head holds is tested, so it never counts: this ends
+ * the loop that an update would start. A read that git cannot answer throws, so no merge goes out on a base that the driver did not see.
+ */
+const sharedUnseenPaths = async (env, repoPath, pull, base) => {
+  const seenUntil = ciSeenUntil(pull)
+  const own = new Set(pull.files.filter((path) => CODE_PATH.test(path)))
+  if (seenUntil === null || own.size === 0) return []
+  await fetchPull(env, repoPath, pull, base)
+  const unseen = await env.git(repoPath, ["log", `--since=${new Date(seenUntil).toISOString()}`, "--format=", "--name-only", "--no-renames", "-z", `origin/${base}`, `^${pull.headSha}`])
+  if (unseen.status !== 0) throw new Error(`git log of origin/${base} for ${pull.number} failed: ${unseen.stderr.trim()}`)
+  return [...new Set(unseen.stdout.split(/[\0\n]/).filter((path) => own.has(path)))].sort()
+}
+
+/** The log reason of an update for shared paths: the paths, or the first 5 and the count of the rest. */
+const staleReason = (shared) => `main changed ${shared.length > 5 ? `${shared.slice(0, 5).join(", ")} and ${shared.length - 5} more` : shared.join(", ")} after the CI of this head started`
+
+/**
+ * Every plan of a repository ends before its first merge runs, so a merge of this tick is a commit that no plan read from main.
+ * A planned merge into the default branch becomes an update when a pull request that merged earlier in the tick changed a code path that this one also changes.
+ */
+const afterMergesOfTick = (ctx, pull, action) => {
+  if (pull.baseRef !== ctx.state.defaultBranch) return action
+  const landed = new Set([...ctx.mergedPulls].filter((other) => other.baseRef === ctx.state.defaultBranch).flatMap((other) => other.files ?? []))
+  const shared = [...new Set((pull.files ?? []).filter((path) => CODE_PATH.test(path) && landed.has(path)))].sort()
+  return shared.length === 0 ? action : { type: "update", reason: staleReason(shared) }
 }
 
 /** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
@@ -1314,7 +1422,14 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
-  if (bar.length === 0) return [...actions, { type: "merge" }]
+  if (bar.length === 0) {
+    // A stacked pull request merges into its parent branch, so only a merge into the default branch can meet a base that the CI did not see.
+    const shared = pull.baseRef === state.defaultBranch ? await sharedUnseenPaths(env, env.config.repos[repoKey], pull, state.defaultBranch) : []
+    // Being behind the base branch alone never updates a branch. A code path that the base gained after the CI started, and that this pull request also changes, does.
+    // A re-run never helps: it runs on the old test merge commit, and only a push builds a new one.
+    if (shared.length > 0) return [...actions, { type: "update", reason: staleReason(shared) }]
+    return [...actions, { type: "merge" }]
+  }
   // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
@@ -1564,7 +1679,8 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
     case "close-stuck": return closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
-    // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
+    // Two triggers update a branch: a retargeted child still holds its parent's commits, so main is merged in before the first pass reads its diff,
+    // and a merge candidate whose changed code path main gained after the CI started needs a new CI on the new base.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
       await mergePull(env, mem, repoKey, pull)
@@ -1581,7 +1697,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))
@@ -1646,7 +1762,8 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       const labelled = !ownerAtPlan && pull.tracks !== null && holdsTicket(ctx.ticketMap.get(pull.tracks))
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
-      const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const replanned = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const plan = replanned.map((action) => (action.type === "merge" ? afterMergesOfTick(ctx, pull, action) : action))
       checked = true
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
@@ -3193,13 +3310,19 @@ export const parseArguments = (argv) => {
     if (!ACCOUNT_NAMES.includes(argv[paceAt + 1]) || !SLEEP_WORDS.includes(argv[paceAt + 2]) || rest.length > 0) return { error: `--pace takes an account, main or worker, then on or off, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "pace", account: argv[paceAt + 1], word: argv[paceAt + 2] }
   }
+  const runnerAt = argv.indexOf("--runner")
+  if (runnerAt >= 0) {
+    const rest = argv.filter((argument, index) => index !== runnerAt && index !== runnerAt + 1 && argument !== "--help" && argument !== "-h")
+    if (!RUNNERS.includes(argv[runnerAt + 1]) || rest.length > 0) return { error: `--runner takes one word, claude or codex, and no other argument` }
+    return { help: argv.includes("--help") || argv.includes("-h"), mode: "runner", word: argv[runnerAt + 1] }
+  }
   const allowAt = argv.indexOf("--allow-over-limit")
   if (allowAt >= 0 && ACCOUNT_NAMES.includes(argv[allowAt + 1])) {
     const rest = argv.filter((argument, index) => index !== allowAt && index !== allowAt + 1 && argument !== "--help" && argument !== "-h")
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets", "--runner-check"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -3274,6 +3397,12 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       const result = await runBounded("claude", ["auth", "status", "--json"], { timeoutMs: 30 * 1000, ...(name === WORKER ? { env: workerApi.workerAccountEnvironment(process.env, configDirectory) } : {}) })
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
+    codexVersion: async () => {
+      const result = await runBounded("codex", ["--version"], { timeoutMs: 30 * 1000 })
+      const version = (result.stdout ?? "").trim()
+      if (result.error || result.status !== 0 || version === "") throw new Error(result.error?.message ?? `exit ${result.status ?? "none"}`)
+      return version
+    },
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
@@ -3313,6 +3442,8 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "pace") return setPace(env, parsed.account, parsed.word, { out })
+  if (parsed.mode === "runner") return setRunner(env, parsed.word, { out, err })
+  if (parsed.mode === "runner-check") return runnerCheck(env, { out, err })
   if (parsed.mode === "budgets") return runBudgets(env, { out })
   if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
   if (parsed.mode === "release-now") {

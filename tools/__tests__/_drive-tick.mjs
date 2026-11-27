@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -1275,6 +1275,56 @@ const updateCases = async () => {
   const parentMerges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1" }), pull(30, { baseRef: "chore/ticket-7-part-1", comments: [comment("ticket", "T")] })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await parentMerges.run()
   same("drive: a child whose base pull request merged in the same tick is retargeted and updated, and it is not merged", [only(parentMerges.calls, "merge").map((entry) => entry[2]), only(parentMerges.calls, "retarget"), only(parentMerges.calls, "updateBranch")], [[29], [["retarget", "ui", 30, "main"]], [["updateBranch", "ui", 30]]])
+  await staleBaseCases()
+}
+
+/** The fake git answers `git log --since` with the commits of main (an offset from NOW and the paths that the commit changed) that the given time does not pass. */
+const mainLog = (commits) => ["log --since=", (args) => {
+  const since = Date.parse(args.find((text) => text.startsWith("--since=")).slice("--since=".length))
+  return commits.filter((commit) => NOW + commit.at >= since).map((commit) => commit.files.map((path) => `${path}\0`).join("")).join("")
+}]
+
+/** A merge candidate whose base moved after the CI of its head started. The CI of the fixture head started 60 minutes before NOW. */
+const staleBaseCases = async () => {
+  const drive = "tools/drive.mjs"
+  const staleScene = (commits, files, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files, checks: [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()], ...extra })] }, gitRoutes: [mainLog(commits)], routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const outcome = (scene) => [only(scene.calls, "updateBranch"), only(scene.calls, "merge").map((entry) => entry[2])]
+  const shared = staleScene([{ at: -30 * MINUTE, files: [drive] }], [drive])
+  await shared.run()
+  same("drive: a code path that main gained after the CI started and the pull request changes gets one update and no merge", outcome(shared), [[["updateBranch", "ui", 30]], []])
+  same("drive: the update for a shared path logs the paths and records the new head", [shared.messages.some((line) => line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), commentsOf(shared.calls, 30).includes(marked("record", `driver update-branch -> ${NEXT_HEAD}`))], [true, true])
+  const read = only(shared.calls, "git").find((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))
+  same("drive: the read of main starts 5 minutes before the first CI start, skips the commits that the head holds, and lists names with no rename", [read.find((text) => text.startsWith("--since=")), read.slice(-2), read.includes("--no-renames")], [`--since=${new Date(NOW - 65 * MINUTE).toISOString()}`, ["origin/main", `^${HEAD}`], true])
+  const lead = staleScene([{ at: -62 * MINUTE, files: [drive] }], [drive])
+  await lead.run()
+  same("drive: a commit of main inside the 5 minutes before the first CI start counts as unseen", outcome(lead), [[["updateBranch", "ui", 30]], []])
+  const other = staleScene([{ at: -30 * MINUTE, files: ["apps/web/a.ts"] }], [drive])
+  await other.run()
+  same("drive: a commit of main after the CI started with no shared path lets the pull request merge with no update", outcome(other), [[], [30]])
+  const before = staleScene([{ at: -120 * MINUTE, files: [drive] }], [drive])
+  await before.run()
+  same("drive: a commit of main before the CI started lets the pull request merge with no update", outcome(before), [[], [30]])
+  const markdown = staleScene([{ at: -30 * MINUTE, files: ["docs/x.md"] }], ["docs/x.md"])
+  await markdown.run()
+  same("drive: a Markdown file that both sides changed is no shared code path, so the pull request merges", outcome(markdown), [[], [30]])
+  const stacked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(29, { headRef: "chore/ticket-7-part-1", labels: [OWNER_LABEL] }), pull(30, { baseRef: "chore/ticket-7-part-1", files: [drive] })] }, gitRoutes: [mainLog([{ at: -30 * MINUTE, files: [drive] }])] })
+  await stacked.run()
+  // Every plan of a repository ends before the first merge runs, so a merge of this tick is a commit that no plan read.
+  // The fake git answers the file list by head, so the two heads differ.
+  const SECOND_HEAD = "e".repeat(40)
+  const pair = (second, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: [drive], checks: lintChecks }), pull(31, { files: second, checks: lintChecks, headSha: SECOND_HEAD, commits: [{ sha: SECOND_HEAD, parents: 1 }], reviews: [review("APPROVED", SECOND_HEAD)], ...extra })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
+  const lintChecks = [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()]
+  const twice = pair([drive])
+  await twice.run()
+  same("drive: two pull requests of one tick that change one code path merge the first and update the second", [only(twice.calls, "merge").map((entry) => entry[2]), only(twice.calls, "updateBranch")], [[30], [["updateBranch", "ui", 31]]])
+  same("drive: the update that follows a merge of the same tick logs the shared paths", twice.messages.some((line) => line.includes("ui#31") && line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), true)
+  const apart = pair(["apps/web/a.ts"])
+  await apart.run()
+  same("drive: two pull requests of one tick with no shared code path both merge", [only(apart.calls, "merge").map((entry) => entry[2]), only(apart.calls, "updateBranch")], [[30, 31], []])
+  const docs = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files: ["docs/x.md"] }), pull(31, { files: ["docs/x.md"] })] } })
+  await docs.run()
+  same("drive: two pull requests of one tick that change one Markdown file both merge", [only(docs.calls, "merge").map((entry) => entry[2]), only(docs.calls, "updateBranch")], [[30, 31], []])
+  same("drive: a stacked pull request reads no unseen path of main and gets no update", [only(stacked.calls, "updateBranch"), only(stacked.calls, "git").some((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))], [[], false])
 }
 
 const ciCases = async () => {
@@ -4264,7 +4314,7 @@ const diffBarCases = async () => {
   const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
   same("drive: fixed context and a Tracks line merges", only(tracking.calls, "merge").length, 1)
 
-  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")))
+  const read = (entry) => entry.calls.filter((call) => call[0] === "git" && (call.includes("--no-renames") || call.includes("--format=%B%x00")) && !call.some((text) => text.startsWith("--since=")))
   same("drive: the changed paths come from git diff between the base and the head, with no rename detection", read(clean).filter((call) => call.includes("--name-only")), [["git", "diff", "--name-only", "--no-renames", "-z", `${"c".repeat(40)}...${HEAD}`]])
   same("drive: the commit messages come from git log between the base and the head", read(clean).filter((call) => call.includes("--format=%B%x00")), [["git", "log", "--format=%B%x00", `${"c".repeat(40)}..${HEAD}`]])
 
@@ -4523,6 +4573,70 @@ const codexRunnerCases = async () => {
   same("drive: a Codex fix order starts cold and never reads a transcript", [fix.launched.map(homeOf), fix.launched[0]?.invocation.command.args, only(fix.calls, "sessionExists").length, fix.messages.some((line) => line.includes("fix cold start (fix, a Codex order starts cold"))], [[CODEX_DIRECTORY], [], 0, true])
 }
 
+/** The switch `--runner claude|codex` and the live check `--runner-check`. */
+const runnerSwitchCases = async () => {
+  const VERSION = "codex-cli 0.172.0"
+  const PASS = { passed: true, reason: null }
+  const reading = { utilization: 0.2, resetsAt: RESETS_AT, status: "allowed" }
+  const checkScene = ({ version = VERSION, probeReading = reading, hook = PASS, auth = { loggedIn: true } } = {}) => {
+    const scene = scenario({})
+    const steps = []
+    Object.assign(scene.env, {
+      codexVersion: async () => { if (version instanceof Error) throw version; return version },
+      authStatus: async (name, runner) => { steps.push(["auth", name, runner]); return auth },
+    })
+    scene.env.worker.probe = async ({ invocation }) => { steps.push(["probe", invocation.command.executable]); return probeReading }
+    scene.env.worker.codexHookCheck = async (options) => { steps.push(["hook", options.repository, options.home]); return hook }
+    return { ...scene, steps }
+  }
+  const run = async (fn, scene, ...rest) => {
+    const lines = []
+    const errors = []
+    const code = await fn(scene.env, ...rest, { out: (line) => lines.push(line), err: (line) => errors.push(line) })
+    return { code, lines, errors }
+  }
+  const checkFile = (scene) => readRunnerCheck(scene.env.stateDir)
+
+  same("drive: --runner takes claude or codex and nothing else", [parseArguments(["--runner", "codex"]), parseArguments(["--runner", "claude"]).word, parseArguments(["--runner"]).error !== undefined, parseArguments(["--runner", "gpt"]).error !== undefined, parseArguments(["--runner", "codex", "--once"]).error !== undefined], [{ help: false, mode: "runner", word: "codex" }, "claude", true, true, true])
+  same("drive: --runner-check is a mode of its own", [parseArguments(["--runner-check"]), parseArguments(["--runner-check", "--once"]).error !== undefined], [{ help: false, mode: "runner-check" }, true])
+  const usage = await usageText()
+  same("drive: the usage states the runner switch and the live check", [/--runner claude\|codex/.test(usage), /--runner-check/.test(usage), /exit codes: 0 done, 1 failed runner check, 2 /.test(usage)], [true, true, true])
+
+  const refused = checkScene()
+  const noCheck = await run(setRunner, refused, "codex")
+  same("drive: --runner codex with no passed check exits 2, names the reason and keeps the setting", [noCheck.code, noCheck.errors[0].includes("the live check has not passed on codex-cli 0.172.0"), noCheck.errors[0].includes("--runner-check"), readRunner(refused.env.stateDir), existsSync(join(refused.env.stateDir, "runner-setting.json"))], [2, true, true, "claude", false])
+  writeFileSync(join(refused.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: "codex-cli 0.171.0", passedAt: iso(0) })}\n`)
+  const older = await run(setRunner, refused, "codex")
+  same("drive: a pass on another codex version is no pass", [older.code, older.errors[0].includes("it passed on codex-cli 0.171.0"), readRunner(refused.env.stateDir)], [2, true, "claude"])
+  const noBinary = checkScene({ version: new Error("spawn codex ENOENT") })
+  const missing = await run(setRunner, noBinary, "codex")
+  same("drive: --runner codex with no readable codex version exits 2 and keeps the setting", [missing.code, missing.errors[0].includes("codex --version failed"), readRunner(noBinary.env.stateDir)], [2, true, "claude"])
+
+  const passed = checkScene()
+  writeFileSync(join(passed.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const toCodex = await run(setRunner, passed, "codex")
+  const toClaude = await run(setRunner, passed, "claude")
+  const bare = await run(setRunner, noBinary, "claude")
+  same("drive: --runner codex with a pass on the same version writes the setting, and claude needs no check", [toCodex.code, toCodex.lines, toClaude.code, readRunner(passed.env.stateDir), bare.code], [0, ["The worker slots run on codex from the next tick."], 0, "claude", 0])
+
+  const good = checkScene()
+  const pass = await run(runnerCheck, good)
+  same("drive: the live check runs the probe, then the hook step, and a pass writes the version", [pass.code, good.steps, pass.lines.at(-1).startsWith("The live check passed on codex-cli 0.172.0"), checkFile(good)?.version, Number.isNaN(Date.parse(checkFile(good)?.passedAt))], [0, [["auth", "worker", "codex"], ["probe", "codex"], ["hook", REPOSITORY, "/home/x"]], true, VERSION, false])
+
+  const signedOut = checkScene({ auth: { loggedIn: false } })
+  const out = await run(runnerCheck, signedOut)
+  same("drive: the live check with no Codex login exits 3 and runs no probe", [out.code, out.errors[0].includes("codex login"), signedOut.steps.filter(([step]) => step === "probe").length, checkFile(signedOut)], [3, true, 0, null])
+
+  const blind = checkScene({ probeReading: null })
+  writeFileSync(join(blind.env.stateDir, "runner-check.json"), `${JSON.stringify({ version: VERSION, passedAt: iso(0) })}\n`)
+  const noReading = await run(runnerCheck, blind)
+  same("drive: a probe with no weekly reading fails the check, runs no hook step and removes an older pass", [noReading.code, noReading.errors[0].includes("no weekly reading"), blind.steps.filter(([step]) => step === "hook").length, checkFile(blind)], [1, true, 0, null])
+
+  const open = checkScene({ hook: { passed: false, reason: "`gh pr merge` ran, so the hook did not block it" } })
+  const merged = await run(runnerCheck, open)
+  same("drive: a hook that blocks nothing fails the check with its reason and writes no pass", [merged.code, merged.errors[0], checkFile(open)], [1, "The live check failed on codex-cli 0.172.0: `gh pr merge` ran, so the hook did not block it", null])
+}
+
 export const driverUnit = async () => {
   await diffBarCases()
   await requiredChecksDriftCases()
@@ -4586,4 +4700,5 @@ export const driverUnit = async () => {
   await paceRestartCases()
   await twoAccountCases()
   await codexRunnerCases()
+  await runnerSwitchCases()
 }
