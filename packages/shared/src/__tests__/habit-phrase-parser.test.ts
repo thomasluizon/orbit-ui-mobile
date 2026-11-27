@@ -1111,6 +1111,19 @@ describe('a daily word that names a part of the day', () => {
     expect(read.dueTime).toBe(time)
   })
 
+  it.each([
+    ['toda noite menos sexta às 10', 'pt-BR', '22:00'],
+    ['toda tarde exceto sexta às 3', 'pt-BR', '15:00'],
+    ['every evening except friday at 8', 'en', '20:00'],
+    ['every night except friday at 10', 'en', '22:00'],
+    ['every morning except friday at 8', 'en', '08:00'],
+  ] as const)('reads the hour of %s inside that part of the day with a day left out', (input, locale, time) => {
+    const read = readHabitPhrase(input, locale)
+    expect(read.cadence).toBe('fixed')
+    expect(read.days).toHaveLength(6)
+    expect(read.dueTime).toBe(time)
+  })
+
   it('keeps an explicit part of the day over the daily word', () => {
     expect(readHabitPhrase('toda noite às 8 da manhã', 'pt-BR').dueTime).toBe('08:00')
     expect(readHabitPhrase('every evening at 8am', 'en').dueTime).toBe('08:00')
@@ -1123,6 +1136,33 @@ describe('the pt-BR abbreviation ter', () => {
     ['academia ter a sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
     ['academia ter. e qui.', ['Tuesday', 'Thursday']],
   ] as const)('reads ter beside another day: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['Ter a segunda de folga', ['Monday']],
+    ['Ter a sexta livre', ['Friday']],
+    ['Ter às sextas uma folga', ['Friday']],
+    ['Ter aos domingos um tempo pra mim', ['Sunday']],
+  ] as const)('keeps ter as a verb before an article and a full day name: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['academia de ter a sexta', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia das ter às sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia ter até sex', ['Tuesday', 'Wednesday', 'Thursday', 'Friday']],
+    ['academia segunda e ter', ['Monday', 'Tuesday']],
+  ] as const)('reads ter in a range with a range opener or a short form: %s', (input, days) => {
+    expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
+  })
+
+  it.each([
+    ['Pilates ter/qui', ['Tuesday', 'Thursday']],
+    ['academia seg/ter/qui', ['Monday', 'Tuesday', 'Thursday']],
+    ['academia às ter e às qui', ['Tuesday', 'Thursday']],
+    ['academia ter e aos sáb', ['Tuesday', 'Saturday']],
+  ] as const)('reads ter beside a day with a slash or a repeated article: %s', (input, days) => {
     expect(readHabitPhrase(input, 'pt-BR').days).toEqual(days)
   })
 

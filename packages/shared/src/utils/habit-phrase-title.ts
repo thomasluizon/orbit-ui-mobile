@@ -70,7 +70,7 @@ function removeDaySuffixWord(text: TitleText, start: number, end: number): boole
 function removeOrphanedGlue(sentence: string, locale: SupportedLocale, text: TitleText): void {
   const words = [...sentence.matchAll(GLUE[locale])]
   const daySuffixes = locale === 'pt-BR' ? [...sentence.matchAll(DAY_SUFFIX_WORD)] : []
-  const separators = [...sentence.matchAll(/[,;\-\u2013\u2014]/gu)]
+  const separators = [...sentence.matchAll(/[,;\-\u2013\u2014/&+]/gu)]
   let changed = true
   while (changed) {
     const separatorsRemoved = separators.map((match) => removeJoiningSeparator(text, match.index))

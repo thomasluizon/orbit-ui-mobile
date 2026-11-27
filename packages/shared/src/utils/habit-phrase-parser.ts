@@ -329,6 +329,10 @@ function extractTime(remaining: string, phrase: NormalizedPhrase, patterns: Loca
   }
 }
 
+function applyDailyPeriod(match: RegExpExecArray | null, dueTime: string | null, period: DayPeriod | undefined): string | null {
+  return match && period ? parseTime(match, period) ?? dueTime : dueTime
+}
+
 function extractInterval(
   remaining: string,
   phrase: NormalizedPhrase,
@@ -392,7 +396,10 @@ function extractCount(text: string, patterns: LocalePatterns): { match: RegExpEx
   return quantity > 0 ? { match, quantity } : null
 }
 
-const WEEKDAY_NEIGHBOR_GLUE = /^\.?\s*(?:[,;]|[-\u2013\u2014])?\s*(?:(?:e|a|ao|aos|as|ate)\s+)?$/u
+const WEEKDAY_JOIN_MARK = String.raw`^\.?\s*(?:[,;/]|[-\u2013\u2014])?\s*`
+const WEEKDAY_NEIGHBOR_GLUE = new RegExp(String.raw`${WEEKDAY_JOIN_MARK}(?:(?:e(?:\s+(?:as|aos))?|a|ao|aos|as|ate)\s+)?$`, 'u')
+const WEEKDAY_ARTICLE_GLUE = new RegExp(String.raw`${WEEKDAY_JOIN_MARK}(?:a|ao|aos|as|ate)\s+$`, 'u')
+const SHORT_WEEKDAY = /^(?:seg|ter|qua|qui|sex|sab|dom)s?\.?$/u
 
 function matchWeekdays(text: string, patterns: LocalePatterns) {
   const all = patterns.weekdays.flatMap(({ day, pattern, withNeighbor }) => {
@@ -402,8 +409,11 @@ function matchWeekdays(text: string, patterns: LocalePatterns) {
   const standalone = all.filter((weekday) => !weekday.withNeighbor)
   const besideDay = ({ match }: (typeof all)[number]): boolean => standalone.some((other) => {
     const [first, second] = other.match.index < match.index ? [other.match, match] : [match, other.match]
-    return first.index + first[0].length <= second.index
-      && WEEKDAY_NEIGHBOR_GLUE.test(text.slice(first.index + first[0].length, second.index))
+    const glue = text.slice(first.index + first[0].length, second.index)
+    if (first.index + first[0].length > second.index || !WEEKDAY_NEIGHBOR_GLUE.test(glue)) return false
+    return !WEEKDAY_ARTICLE_GLUE.test(glue)
+      || SHORT_WEEKDAY.test(other.match[0])
+      || RANGE_OPENER.test(text.slice(0, first.index))
   })
   return all
     .filter((weekday) => !weekday.withNeighbor || besideDay(weekday))
@@ -535,7 +545,7 @@ function readWeekdayExclusion(
   phrase: NormalizedPhrase,
   patterns: LocalePatterns,
   locale: SupportedLocale,
-): { days: string[]; consumed: HabitPhraseToken[] } | 'unresolved' | null {
+): { days: string[]; consumed: HabitPhraseToken[]; dailyPeriod?: DayPeriod } | 'unresolved' | null {
   const weekdays = matchWeekdays(remaining, patterns)
   if (!weekdays.some(({ match }) => hasWeekdayNegation(remaining.slice(0, match.index), locale))) return null
   const exclusions = [...remaining.matchAll(/\b(?:menos|exceto|sem ser|except|but not)\b/gu)]
@@ -564,7 +574,7 @@ function readWeekdayExclusion(
     start: phrase.originalStarts[exclusion.index]!, end: phrase.originalEnds[cursor - 1]!, kind: 'weekday',
   }]
   if (daily) consumed.unshift(toToken(phrase, daily, 'daily'))
-  return { days, consumed }
+  return { days, consumed, dailyPeriod: daily ? PERIOD_OF_DAILY_WORD[daily[1]!] : undefined }
 }
 
 function subtractConsumedTokens(token: HabitPhraseToken, consumed: HabitPhraseToken[]): HabitPhraseToken[] {
@@ -700,7 +710,11 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = alternating.remaining
   if (hasUnmodeledWeekday(remaining, patterns)) return buildWeekdayExclusionRead('unresolved', dueTime, consumed)
   const exclusion = readWeekdayExclusion(remaining, phrase, patterns, locale)
-  if (exclusion) return buildWeekdayExclusionRead(alternating.consumed.length > 0 ? 'unresolved' : exclusion, dueTime, consumed)
+  if (exclusion) {
+    const read = alternating.consumed.length > 0 ? 'unresolved' : exclusion
+    const period = read === 'unresolved' ? undefined : read.dailyPeriod
+    return buildWeekdayExclusionRead(read, applyDailyPeriod(time.match, dueTime, period), consumed)
+  }
 
   const interval = extractInterval(remaining, phrase, patterns)
   const hasAlternation = alternating.consumed.length > 0
@@ -713,7 +727,7 @@ export function readHabitPhrase(text: string, locale: SupportedLocale): HabitPhr
   remaining = interval.remaining
 
   const cadenceRead = extractCadence(remaining, phrase, patterns)
-  if (time.match && cadenceRead.dailyPeriod) dueTime = parseTime(time.match, cadenceRead.dailyPeriod) ?? dueTime
+  dueTime = applyDailyPeriod(time.match, dueTime, cadenceRead.dailyPeriod)
   consumed.sort((left, right) => left.start - right.start)
   consumed.push(...cadenceRead.consumed.flatMap((token) => subtractConsumedTokens(token, consumed)))
 

@@ -141,8 +141,23 @@ describe('a title beside a day or a range of days', () => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })
 
-  it('keeps a dash and a comma that join title words', () => {
+  it.each([
+    ['gym mon/wed/fri', 'en', 'gym'],
+    ['academia segunda/quarta/sexta', 'pt-BR', 'academia'],
+    ['Pilates seg/qua', 'pt-BR', 'Pilates'],
+    ['academia seg & qua', 'pt-BR', 'academia'],
+    ['gym mon + wed', 'en', 'gym'],
+    ['Pilates ter/qui', 'pt-BR', 'Pilates'],
+    ['academia seg/ter/qui', 'pt-BR', 'academia'],
+    ['academia às ter e às qui', 'pt-BR', 'academia'],
+  ] as const)('leaves no mark that joined the days: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+
+  it('keeps a dash, a comma, a slash and an ampersand that join title words', () => {
     expect(getHabitPhraseTitle('Pull-ups, squats every friday', 'en')).toBe('Pull-ups, squats')
+    expect(getHabitPhraseTitle('Push/pull every friday', 'en')).toBe('Push/pull')
+    expect(getHabitPhraseTitle('Rock & roll every friday', 'en')).toBe('Rock & roll')
   })
 })
 
