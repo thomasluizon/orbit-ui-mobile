@@ -22,6 +22,10 @@ on:
         description: Leave empty for a release that mirrors Android. Name the iOS-specific defect to release iOS alone
         type: string
         required: false
+      source_sha:
+        description: Leave empty to build the commit of the dispatch ref. Set a full commit SHA of main to build that commit
+        type: string
+        required: false
 
 permissions:
   contents: read
@@ -68,7 +72,25 @@ jobs:
       CCACHE_MAXSIZE: 2G
       CCACHE_COMPILERCHECK: content
     steps:
+      - name: Validate the source commit
+        if: ${{ inputs.source_sha != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::source_sha must be a full 40 character commit SHA" >&2
+            exit 1
+          fi
+          relation=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${SOURCE_SHA}...main" --jq .status)
+          if [ "$relation" != ahead ] && [ "$relation" != identical ]; then
+            echo "::error::source_sha must be a commit of main" >&2
+            exit 1
+          fi
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
       - name: Select Xcode
         run: |
           sudo xcode-select --switch /Applications/Xcode_27.1.app/Contents/Developer
@@ -83,6 +105,7 @@ jobs:
           APP_VERSION: ${{ inputs.app_version }}
           IOS_BUILD_NUMBER: ${{ inputs.build_number }}
           PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -99,7 +122,7 @@ jobs:
           done
           # The build may start while the Android release of this version and commit runs; the upload waits for its record.
           node apps/mobile/scripts/mobile-version-pair.js check --platform ios --environment "$ORBIT_APP_VARIANT" \
-            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" --stage build
+            --app-version "$APP_VERSION" --sha "$SOURCE_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" --stage build
           node apps/mobile/scripts/set-app-version.js "$APP_VERSION" '' "$IOS_BUILD_NUMBER"
       - name: Install dependencies
         # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
@@ -242,10 +265,11 @@ jobs:
         env:
           APP_VERSION: ${{ inputs.app_version }}
           PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           node apps/mobile/scripts/mobile-version-pair.js check --platform ios --environment "$ORBIT_APP_VARIANT" \
-            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" \
+            --app-version "$APP_VERSION" --sha "$SOURCE_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" \
             --stage upload --wait-minutes 45
       - name: Upload to TestFlight with the App Store Connect API key
         run: |
@@ -288,10 +312,11 @@ jobs:
           APP_VERSION: ${{ inputs.app_version }}
           IOS_BUILD_NUMBER: ${{ inputs.build_number }}
           PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
         run: |
           node apps/mobile/scripts/mobile-version-pair.js record-ios --environment "$ORBIT_APP_VARIANT" \
             --variant "$ORBIT_APP_VARIANT" --app-version "$APP_VERSION" --build-number "$IOS_BUILD_NUMBER" \
-            --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
+            --sha "$SOURCE_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
 
   testflight-access:
     name: Wait for TestFlight processing and give the internal tester access

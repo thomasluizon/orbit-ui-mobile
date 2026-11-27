@@ -232,10 +232,10 @@ describe('iOS build and release boundaries', () => {
       env: {
         ...iosReleaseEnvironment,
         PATH: `${directory}:${process.env.PATH ?? ''}`, ORBIT_APP_VARIANT: options.variant, GITHUB_REF: options.ref,
-        GITHUB_REPOSITORY: 'owner/repository', GITHUB_SHA: options.commit ?? androidCommit,
+        GITHUB_REPOSITORY: 'owner/repository',
         ...declaredStepEnvironment(step, {
           APP_VERSION: iosReleaseEnvironment.APP_VERSION, IOS_BUILD_NUMBER: iosReleaseEnvironment.IOS_BUILD_NUMBER,
-          PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', GH_TOKEN: 'test-token',
+          PLATFORM_ONLY_REASON: options.platformOnlyReason ?? '', GH_TOKEN: 'test-token', SOURCE_SHA: options.commit ?? androidCommit,
         }),
       },
     })

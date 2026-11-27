@@ -15,6 +15,7 @@ Facts for `/release`, `/android-release` and `/ios-release`. The skills own the 
 - A merge or a push deploys nothing by itself. The driver release train deploys on its cadence, and `/release` starts the same train at once.
 - The train starts when `node tools/release-plan.mjs` shows `needsRelease: true` for a service and the previous train ended at least 4 hours ago. Only one train runs at a time. It releases staging first and then production, for each service in order.
 - The train releases mobile staging as Android track `internal` plus iOS variant `staging`, and mobile production as Android track `open` plus iOS variant `production`. The Android `android_version_code` is the newest code of the Android Release run titles plus one for staging and plus two for production. The iOS `build_number` is the highest build of the app in App Store Connect plus one.
+- The train dispatches each Android and iOS step with `source_sha` set to the `main` commit that it read when the first mobile step ran. Each workflow builds that commit, so `main` can move and merges never wait for the train.
 - Route all work to `main` in every repository.
 - Release in this order: API, web, landing, then mobile. Stop after a failed release or a failed verification.
 - Android fixes on `main` ship to the Open track. The production track stays empty until the owner orders a launch.

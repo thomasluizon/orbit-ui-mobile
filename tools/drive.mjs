@@ -23,7 +23,7 @@ import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
-import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
@@ -1315,9 +1315,7 @@ const planOrder = (state) => [...state.pulls].sort((left, right) => left.number 
  */
 const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
-  const hold = repoKey === "ui" ? mobileMergeHold(readTrainState(env.stateDir)) : null
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running, hold }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running }
   const repoPath = env.config.repos[repoKey]
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
@@ -1329,8 +1327,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planAgain = async () => {
         const planned = await planPull(env, mem, { ...ctx, runs }, pull)
-        const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
-        return hold === null ? stoppedPlan : stoppedPlan.map((action) => (action.type === "merge" ? { type: "none", held: true, reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` } : action))
+        return stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
       }
       const plan = await planAgain()
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
@@ -1364,12 +1361,9 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       // The plan ran before any action, so a child whose base pull request merged in this tick planned against an open base. It plans again and takes the retarget path.
       const baseMerged = pull.baseRef !== ctx.state.defaultBranch && ctx.state.pulls.some((other) => other.headRef === pull.baseRef && ctx.mergedPulls.has(other))
       const plan = labelled || baseMerged ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
-      const mergeHeld = plan.some((action) => action.held)
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
-      // The hold takes the wait scope with the wait signature, so it logs once when it starts and the wait line adds no second one.
-      if (mergeHeld) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "merge held", reason: `release train ${ctx.hold.id} ships mobile at ${ctx.hold.sha}` })
-      else if (waits.length > 0 && !env.dryRun) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "wait", reason: waits.join("; ") })
+      if (waits.length > 0 && !env.dryRun) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "wait", reason: waits.join("; ") })
       try {
         for (const action of plan) {
           if (action.type === "order") orders.push(action)
@@ -1381,10 +1375,9 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
         }
       } finally {
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
-        // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
         // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it.
         const waitsForReplan = plan.some((action) => action.reason === WAITS_FOR_REPLAN)
-        if (!mergeHeld && !waitsForReplan && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+        if (!waitsForReplan && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
     } catch (failure) {
       log(env, item, "error", failure.message)

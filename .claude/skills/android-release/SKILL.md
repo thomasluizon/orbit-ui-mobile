@@ -50,7 +50,7 @@ Read the inputs from `.github/workflows/android-release.yml`, never from memory.
 
 ## Step 1: Read the last run to derive the defaults
 
-The workflow sets `run-name` to `Android Release <app_version> (<android_version_code>) to <track> on <ref>`.
+The workflow sets `run-name` to `Android Release <app_version> (<android_version_code>) to <track> on <ref>`. A run with the input `source_sha` adds ` at <source_sha>`.
 
 ```bash
 gh run list --workflow android-release.yml --limit 5 \

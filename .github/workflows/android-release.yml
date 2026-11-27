@@ -5,8 +5,9 @@ name: Android Release
 
 # Carry the dispatch inputs in the run title so `gh run list` identifies every
 # release without opening it: the default title is the workflow name, which
-# makes a list of past runs indistinguishable from one another.
-run-name: Android Release ${{ inputs.app_version }} (${{ inputs.android_version_code }}) to ${{ inputs.track }} on ${{ github.ref_name }}
+# makes a list of past runs indistinguishable from one another. A run of a recorded commit ends its title with that commit,
+# because the head of the run is the dispatch ref and not the commit that it builds.
+run-name: Android Release ${{ inputs.app_version }} (${{ inputs.android_version_code }}) to ${{ inputs.track }} on ${{ github.ref_name }}${{ inputs.source_sha && format(' at {0}', inputs.source_sha) || '' }}
 
 on:
   workflow_dispatch:
@@ -45,6 +46,10 @@ on:
         description: Leave empty for a release that mirrors iOS. Name the Android-specific defect to release Android alone
         required: false
         type: string
+      source_sha:
+        description: Leave empty to build the commit of the dispatch ref. Set a full commit SHA of main to build that commit
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -75,10 +80,26 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      - name: Validate the source commit
+        if: ${{ inputs.source_sha != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]; then
+            echo "::error::source_sha must be a full 40 character commit SHA" >&2
+            exit 1
+          fi
+          relation=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${SOURCE_SHA}...main" --jq .status)
+          if [ "$relation" != ahead ] && [ "$relation" != identical ]; then
+            echo "::error::source_sha must be a commit of main" >&2
+            exit 1
+          fi
       - name: Require successful release CI
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
         run: |
           set -euo pipefail
           checks=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/commits/${SOURCE_SHA}/check-runs?per_page=100")
@@ -120,6 +141,7 @@ jobs:
           VALIDATE_EXPO_DEPENDENCIES: ${{ inputs.validate_expo_dependencies }}
           BUILD_MESSAGE: ${{ inputs.message }}
           PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
+          SOURCE_INPUT: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
 
@@ -129,7 +151,7 @@ jobs:
           echo "versionCode:    ${ANDROID_VERSION_CODE}"
           echo "track:          ${RELEASE_TRACK}"
           echo "branch:         ${GITHUB_REF_NAME}"
-          echo "commit:         ${GITHUB_SHA}"
+          echo "commit:         ${SOURCE_INPUT:-${GITHUB_SHA}}"
           echo "clear cache:    ${CLEAR_CACHE}"
           echo "expo dep check: ${VALIDATE_EXPO_DEPENDENCIES}"
           echo "message:        ${BUILD_MESSAGE:-<none>}"
@@ -145,6 +167,9 @@ jobs:
           if [ -n "${PLATFORM_ONLY_REASON}" ]; then
             RERUN_COMMAND="${RERUN_COMMAND} -f platform_only_reason=$(printf '%q' "${PLATFORM_ONLY_REASON}")"
           fi
+          if [ -n "${SOURCE_INPUT}" ]; then
+            RERUN_COMMAND="${RERUN_COMMAND} -f source_sha=${SOURCE_INPUT}"
+          fi
 
           echo "re-run:         ${RERUN_COMMAND}"
 
@@ -157,7 +182,7 @@ jobs:
             echo "| versionCode | \`${ANDROID_VERSION_CODE}\` |"
             echo "| Track | \`${RELEASE_TRACK}\` |"
             echo "| Branch | \`${GITHUB_REF_NAME}\` |"
-            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo "| Commit | \`${SOURCE_INPUT:-${GITHUB_SHA}}\` |"
             echo "| Clear cache | \`${CLEAR_CACHE}\` |"
             echo "| Expo dep check | \`${VALIDATE_EXPO_DEPENDENCIES}\` |"
             echo "| Platform only reason | ${PLATFORM_ONLY_REASON:-none, iOS mirrors this version} |"
@@ -171,6 +196,8 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
 
       - name: Require one mobile version
         shell: bash
@@ -179,12 +206,13 @@ jobs:
           APP_VERSION: ${{ inputs.app_version }}
           PLATFORM_ONLY_REASON: ${{ inputs.platform_only_reason }}
           RELEASE_TRACK: ${{ inputs.track }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
         run: |
           set -euo pipefail
           environment=production
           if [ "$RELEASE_TRACK" = internal ]; then environment=staging; fi
           node apps/mobile/scripts/mobile-version-pair.js check --platform android --environment "$environment" \
-            --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
+            --app-version "$APP_VERSION" --sha "$SOURCE_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON"
 
       # SENTRY_AUTH_TOKEN belongs here with the rest: the Sentry sourcemap upload
       # runs inside the Gradle bundle task, so a missing token surfaced ~15 minutes
@@ -651,6 +679,7 @@ jobs:
           RELEASE_TRACK: ${{ inputs.track }}
           DEPLOYMENT_ENVIRONMENT: ${{ env.DEPLOYMENT_ENVIRONMENT }}
           BUILD_API_BASE: ${{ env.BUILD_API_BASE }}
+          SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
         run: |
           set -euo pipefail
 
@@ -685,7 +714,7 @@ jobs:
             local page=1 count
             deployment_id=''
             while :; do
-              if api_request "deployments?sha=${GITHUB_SHA}&task=android-release&per_page=100&page=${page}"; then :; else return "$?"; fi
+              if api_request "deployments?sha=${SOURCE_SHA}&task=android-release&per_page=100&page=${page}"; then :; else return "$?"; fi
               jq -e 'type == "array"' "$response_file" > /dev/null || return 1
               deployment_id=$(jq -r --arg environment "$DEPLOYMENT_ENVIRONMENT" \
                 --arg version "$APP_VERSION" --arg code "$ANDROID_VERSION_CODE" --arg track "$RELEASE_TRACK" \
@@ -706,7 +735,7 @@ jobs:
           }
 
           deployment_payload=$(jq -n \
-            --arg sha "${GITHUB_SHA}" \
+            --arg sha "${SOURCE_SHA}" \
             --arg environment "${DEPLOYMENT_ENVIRONMENT}" \
             --arg version "${APP_VERSION}" \
             --arg code "${ANDROID_VERSION_CODE}" \
@@ -727,7 +756,7 @@ jobs:
             sleep "$((attempt * 2))"
           done
 
-          echo "Android deployment ${deployment_id}: ${DEPLOYMENT_ENVIRONMENT}, ${APP_VERSION} (${ANDROID_VERSION_CODE}), ${GITHUB_SHA}"
+          echo "Android deployment ${deployment_id}: ${DEPLOYMENT_ENVIRONMENT}, ${APP_VERSION} (${ANDROID_VERSION_CODE}), ${SOURCE_SHA}"
           echo "| GitHub deployment | \`${deployment_id}\` |" >> "${GITHUB_STEP_SUMMARY}"
 
       # The build materializes the Firebase config, the decoded upload keystore and

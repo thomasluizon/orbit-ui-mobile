@@ -213,7 +213,7 @@ const dispatchWith = async (ctx, state, step, args, repoKey) => {
   stepLine(ctx, step, "dispatched")
 }
 
-/** The shared version and the two Android codes of the train, read when the first mobile step dispatches. */
+/** The shared version, the two Android codes and the commit of the train, read when the first mobile step dispatches. Each mobile workflow builds that commit through `source_sha`, so `main` can move. */
 const prepareMobile = async (ctx, state) => {
   const { ports } = ctx
   const [production, staging] = await Promise.all([ports.mobilePlan("production"), ports.mobilePlan("staging")])
@@ -232,30 +232,15 @@ const dispatchAndroid = async (ctx, state, step) => {
     try { await prepareMobile(ctx, state) } catch (error) { return stopTrain(ctx, state, step, `mobile version unreadable: ${error.message}`) }
     save(ctx, state)
   }
-  const head = await ctx.ports.mainHead("ui").catch(() => null)
-  if (head !== train.mobile.sha) return skipMobile(ctx, state, step, `main moved from ${train.mobile.sha} to ${head}`)
   const code = step.environment === "staging" ? train.mobile.stagingCode : train.mobile.productionCode
   step.plannedSha = train.mobile.sha
   step.version = train.mobile.appVersion
   step.code = code
-  await dispatchWith(ctx, state, step, ["workflow", "run", "android-release.yml", "--repo", slugOf("android"), "--ref", "main", "-f", `app_version=${train.mobile.appVersion}`, "-f", `android_version_code=${code}`, "-f", `track=${TRACKS[step.environment]}`, "-f", `message=release train ${train.id}`], "ui")
-}
-
-/** A mobile step that cannot ship at the train commit ends with the later mobile steps skipped and no ticket: the next train carries them. */
-const skipMobile = (ctx, state, step, reason) => {
-  for (const entry of state.train.steps) {
-    if (!["android", "ios"].includes(entry.kind) || done(entry)) continue
-    entry.state = "skipped"
-    entry.reason = reason
-    stepLine(ctx, entry, `skipped: ${reason}`)
-  }
-  save(ctx, state)
+  await dispatchWith(ctx, state, step, ["workflow", "run", "android-release.yml", "--repo", slugOf("android"), "--ref", "main", "-f", `app_version=${train.mobile.appVersion}`, "-f", `android_version_code=${code}`, "-f", `track=${TRACKS[step.environment]}`, "-f", `source_sha=${train.mobile.sha}`, "-f", `message=release train ${train.id}`], "ui")
 }
 
 const dispatchIos = async (ctx, state, step) => {
   const train = state.train
-  const head = await ctx.ports.mainHead("ui").catch(() => null)
-  if (head !== train.mobile.sha) return stopTrain(ctx, state, step, `main moved from ${train.mobile.sha} to ${head} between the Android and the iOS dispatch`)
   let build
   try {
     build = await ctx.ports.iosBuildNumber(step.environment)
@@ -267,7 +252,7 @@ const dispatchIos = async (ctx, state, step) => {
   step.plannedSha = train.mobile.sha
   step.version = train.mobile.appVersion
   step.build = build
-  await dispatchWith(ctx, state, step, ["workflow", "run", "ios-release.yml", "--repo", slugOf("ios"), "--ref", "main", "-f", `variant=${step.environment}`, "-f", `app_version=${train.mobile.appVersion}`, "-f", `build_number=${build}`], "ui")
+  await dispatchWith(ctx, state, step, ["workflow", "run", "ios-release.yml", "--repo", slugOf("ios"), "--ref", "main", "-f", `variant=${step.environment}`, "-f", `app_version=${train.mobile.appVersion}`, "-f", `build_number=${build}`, "-f", `source_sha=${train.mobile.sha}`], "ui")
 }
 
 const dispatchStep = async (ctx, state, step) => {
@@ -290,28 +275,32 @@ const resolveRun = async (ctx, step) => {
   return ctx.now() - step.dispatchedAt > RUN_FIND_MS ? { error: "no unique new run appeared for the dispatch" } : { run: null }
 }
 
+/** A refusal while `main` is at the planned commit dispatches Tests and Guards. A refusal after `main` moved dispatches nothing: the push runs at the planned commit exist and are never cancelled, so the step waits for them. */
 const startTests = async (ctx, state, step) => {
-  const sha = step.plannedSha
   const head = await ctx.ports.mainHead(SERVICES[step.service].repoKey).catch(() => null)
-  if (head !== sha) return stopTrain(ctx, state, step, `the release was refused for a missing green Tests or Guards run, and main moved from ${sha} to ${head}`)
-  try {
-    for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
-  } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
+  const dispatch = head === step.plannedSha
+  if (dispatch) {
+    try {
+      for (const workflow of ["test.yml", "guards.yml"]) await ctx.ports.dispatch(["workflow", "run", workflow, "--repo", slugOf(step.service), "--ref", "main"])
+    } catch (error) { return stopTrain(ctx, state, step, `the Tests and Guards dispatch failed: ${error.message}`) }
+  }
   step.state = "testing"
   step.previousRunId = step.runId
   step.runId = null
-  step.tests = { dispatchedAt: ctx.now(), ran: {}, readRunningAt: {} }
+  step.tests = { dispatchedAt: ctx.now(), ran: {}, readRunningAt: {}, dispatched: dispatch }
   step.retried = true
   save(ctx, state)
-  stepLine(ctx, step, "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml")
+  stepLine(ctx, step, dispatch ? "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml" : "refused for a missing green Tests or Guards run, and main moved: waits for the runs at the planned SHA")
 }
 
 /** A Tests or Guards run waits in the runner queue behind the pull request runs, so the run ceiling counts the run time and the queue has its own ceiling. */
 const checkTests = async (ctx, state, step) => {
   const repoKey = SERVICES[step.service].repoKey
   const workflows = ["test.yml", "guards.yml"]
-  const newest = async (workflow) => (await ctx.ports.listRuns(repoKey, workflow))
-    .filter((run) => run.headSha === step.plannedSha && Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS)
+  // A train state written before the push wait has no `dispatched` flag and always dispatched.
+  const dispatched = step.tests.dispatched !== false
+  const newest = async (workflow) => (await (dispatched ? ctx.ports.listRuns : ctx.ports.listMainRuns)(repoKey, workflow))
+    .filter((run) => run.headSha === step.plannedSha && (!dispatched || Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS))
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
   const runs = [await newest(workflows[0]), await newest(workflows[1])]
   if (runs.some((run) => run?.status === "completed" && run.conclusion !== "success")) return stopTrain(ctx, state, step, "the Tests or Guards run at the planned SHA failed")
@@ -369,7 +358,7 @@ const checkStep = async (ctx, state, step) => {
   }
   if (step.environment === "staging" && step.kind === "release") await ports.wake([healthUrl(step.service, "staging")])
   const waited = await ports.waitRelease(step.kind === "android"
-    ? { repo: "ui", workflow: "android", run: step.runId, sha: step.plannedSha, workflowSha: step.plannedSha }
+    ? { repo: "ui", workflow: "android", run: step.runId, sha: step.plannedSha, workflowSha: step.mainSha }
     : { repo: SERVICES[step.service].waiter, workflow: "release", run: step.runId, sha: step.plannedSha, workflowSha: step.mainSha, serviceUrl: SERVICES[step.service].origins[step.environment] })
   if (waited.code === 3 || (waited.code === 1 && waited.result?.reason === "READ_ERROR" && run.conclusion === "success")) {
     step.checks += 1
@@ -458,18 +447,6 @@ export const requestTrain = (stateDir) => {
   return null
 }
 
-/**
- * The hold that a train puts on the merges into the mobile repository, or null. The train ships Android and iOS at the commit that
- * `prepareMobile` read, and the release workflows build `main`, so `main` must not move until the last mobile step is dispatched.
- * A skipped, held, verified or failed step and a train that stopped or ended lift the hold.
- */
-export const mobileMergeHold = (state) => {
-  const train = state?.train
-  if (!train || train.status !== "running" || !train.mobile) return null
-  const waiting = train.steps.some((step) => ["android", "ios"].includes(step.kind) && ["pending", "dispatching"].includes(step.state))
-  return waiting ? { id: train.id, sha: train.mobile.sha } : null
-}
-
 /** One line for `/driver`: the newest train, what it released and where it stopped. */
 export const trainSummary = (stateDir) => {
   const { train } = readTrainState(stateDir)
@@ -537,6 +514,7 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
       return found
     },
     dispatch: async (args) => { await gh(args) },
+    listMainRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--branch", "main", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     listRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     runStatus: async (key, runId) => parseJson("gh api run", await gh(["api", `repos/${repoOf(key)}/actions/runs/${runId}`, "--jq", "{status,conclusion,url:.html_url,headSha:.head_sha}"])),
     failedLog: async (key, runId) => (await gh(["run", "view", String(runId), "--repo", repoOf(key), "--log-failed"])).slice(-20000),

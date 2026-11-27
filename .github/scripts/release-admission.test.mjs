@@ -112,7 +112,7 @@ test("web release requires both successful workflows and their actual checks bef
   const step = stepNamed(web.jobs.select, "Require successful release CI")
   const android = stepNamed(load("android-release").jobs["release-android"], "Require successful release CI")
   assert.equal(android.run, step.run)
-  assert.equal(android.env.SOURCE_SHA, "${{ github.sha }}")
+  assert.equal(android.env.SOURCE_SHA, "${{ inputs.source_sha || github.sha }}")
   for (const name of ["build", "admission"]) assert.equal(web.jobs[name].needs, "select")
   assert.deepEqual(web.jobs["desktop-release"].needs, ["select", "admission"])
   assert.ok(web.jobs.build.steps.some((candidate) => candidate.uses?.startsWith("docker/build-push-action@")))

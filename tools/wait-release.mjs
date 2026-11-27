@@ -44,7 +44,7 @@ const validOrigin = (value) => {
 const ceilingMinutes = Number(values["--ceiling-minutes"] ?? 360)
 const pollSeconds = Number(values["--poll-seconds"] ?? 30)
 if (!repo || !["release", "android"].includes(workflow) ||
-    (workflow === "release" ? !validOrigin(serviceUrl) : values["--repo"] !== "ui" || serviceUrl !== undefined || workflowSha !== sha) ||
+    (workflow === "release" ? !validOrigin(serviceUrl) : values["--repo"] !== "ui" || serviceUrl !== undefined) ||
     !SHA.test(workflowSha ?? "") || !Number.isSafeInteger(runId) || runId <= 0 || !SHA.test(sha ?? "") ||
     !Number.isFinite(ceilingMinutes) || ceilingMinutes <= 0 ||
     !Number.isFinite(pollSeconds) || pollSeconds <= 0) {

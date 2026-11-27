@@ -148,6 +148,8 @@ function checkProofVersion(startup) {
   ]
   for (const [name, response, status, expected] of [
     ["released", runs, 0, "1.3.138"], ["production", [{ displayTitle: "Android Release 1.3.137 (197) to production on main" }], 0, "1.3.137"],
+    // A train run adds " at <source_sha>" to the title through the run-name of android-release.yml.
+    ["train-open", [{ displayTitle: `Android Release 1.5.1 (703) to internal on main at ${"a".repeat(40)}` }, { displayTitle: `Android Release 1.5.0 (702) to open on main at ${"a".repeat(40)}` }, ...runs], 0, "1.5.0"],
     ["missing", [], 0, null], ["internal-only", runs.slice(0, 1), 0, null],
     ["unrecognized", [{ displayTitle: "Unrecognized release title" }], 0, null], ["unavailable", [], 1, null],
   ]) {

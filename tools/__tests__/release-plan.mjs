@@ -323,7 +323,7 @@ function androidRecordCases() {
     const statusPayload = stage("android-record/status-payload", "")
     const result = spawnSync(BASH, ["-c", `${ANDROID_API_STUB}\n${step.run}`], { encoding: "utf8", timeout: 5000,
       env: { ...process.env, MODE: mode, CALLS: calls, DEPLOYMENT: response, PAYLOAD: payload, STATUS_PAYLOAD: statusPayload,
-        GITHUB_REPOSITORY: "example/repository", GITHUB_SHA: androidFixture.sha,
+        GITHUB_REPOSITORY: "example/repository", SOURCE_SHA: androidFixture.sha,
         GITHUB_SERVER_URL: "https://github.com", GITHUB_API_URL: "https://api.github.com",
         GITHUB_RUN_ID: "123", GITHUB_STEP_SUMMARY: summary, GH_TOKEN: "fixture",
         APP_VERSION: androidFixture.payload.app_version, ANDROID_VERSION_CODE: androidFixture.payload.android_version_code,

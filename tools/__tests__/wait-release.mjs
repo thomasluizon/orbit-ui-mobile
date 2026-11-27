@@ -100,6 +100,12 @@ export async function cases() {
   const native = staged("android", [{ ...workflowRun("completed", "success"), path: ".github/workflows/android-release.yml" }], SHA, "ui")
   const nativeResult = run(TOOL, ["--repo", "ui", "--workflow", "android", "--run", "1", "--sha", SHA], { path: native.path, env: native.env })
   T("Android verifies its workflow commit without requiring a service origin", nativeResult.status === 0, nativeResult.stdout + nativeResult.stderr)
+  const dispatchRef = "c".repeat(40)
+  const recorded = staged("android-recorded", [{ ...workflowRun("completed", "success"), head_sha: dispatchRef, path: ".github/workflows/android-release.yml" }], SHA, "ui")
+  const recordedResult = run(TOOL, ["--repo", "ui", "--workflow", "android", "--run", "1", "--sha", SHA, "--workflow-sha", dispatchRef], { path: recorded.path, env: recorded.env })
+  T("Android verifies a run of a recorded commit by the head of its dispatch ref", recordedResult.status === 0 && JSON.parse(recordedResult.stdout).workflowSha === dispatchRef, recordedResult.stdout + recordedResult.stderr)
+  const mismatch = run(TOOL, ["--repo", "ui", "--workflow", "android", "--run", "1", "--sha", SHA, "--workflow-sha", "d".repeat(40)], { path: recorded.path, env: recorded.env })
+  T("Android rejects a run whose head is not the workflow commit", mismatch.status === 1 && JSON.parse(mismatch.stdout).reason === "READ_ERROR", mismatch.stdout + mismatch.stderr)
   for (const origin of [undefined, "http://example.invalid"]) {
     const argv = ["--repo", "api", "--run", "1", "--sha", SHA, ...(origin ? ["--service-url", origin] : [])]
     const observed = run(TOOL, argv, { path: completed.path, env: completed.env })
