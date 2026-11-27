@@ -6,8 +6,8 @@
 
 import { spawnSync } from "node:child_process"
 
-export const MAX_CHANGED_LINES = 400
-export const TARGET_CHANGED_LINES = 200
+export const MAX_CHANGED_LINES = 1000
+export const TARGET_CHANGED_LINES = 300
 
 /** The files that a tool writes, so no reviewer reads them. Each entry matches a whole path. */
 export const GENERATED = Object.freeze([

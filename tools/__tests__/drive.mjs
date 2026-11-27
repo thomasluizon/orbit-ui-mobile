@@ -1146,7 +1146,7 @@ const orderCases = async () => {
   T("lib/order.mjs: every order kind that changes code holds the size cap line, and the find order holds none", ORDER_KINDS.every((kind) => {
     const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] } }, "ci-fix": { pull: PULL, failure: FAILURE }, "merge-forward": { pull: PULL, failure: FAILURE } }
     const text = order(kind, extras[kind] ?? {})
-    return text.includes("Keep the whole pull request at or under 400 changed lines (aim for 200), counted by tools/lib/diff-size.mjs. A push above 400 is refused.") === (kind !== "find")
+    return text.includes("Keep the whole pull request at or under 1000 changed lines (aim for 300), counted by tools/lib/diff-size.mjs. A push above 1000 is refused.") === (kind !== "find")
   }))
   T("lib/order.mjs: the brief bans a browser, a dev server and the production CLI, and names the two barrier files", /Open no browser\. Start no dev server\. Run no production CLI/.test(build) && build.includes(".github/migration-contracts.json") && build.includes(".github/migration-locks.json"))
   T("lib/order.mjs: the brief names the copy rule", build.includes("`/humanizer`") && build.includes("`/second-opinion`") && !build.includes("`BRAND.md`"))

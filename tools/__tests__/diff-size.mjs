@@ -51,7 +51,7 @@ const stageRepository = (name, addedLines) => {
 }
 
 export const cases = () => {
-  same("lib/diff-size.mjs: the cap is 400 lines and the aim is 200", [MAX_CHANGED_LINES, TARGET_CHANGED_LINES], [400, 200])
+  same("lib/diff-size.mjs: the cap is 1000 lines and the aim is 300", [MAX_CHANGED_LINES, TARGET_CHANGED_LINES], [1000, 300])
   same("lib/diff-size.mjs: a file counts its additions plus its deletions", changedLines([file("a.mjs", "modified", 10, 4), file("b.mjs", "added", 7, 0)]), 21)
   same("lib/diff-size.mjs: a list with no file counts 0", changedLines([]), 0)
   same("lib/diff-size.mjs: a file deleted whole counts 0, with the GitHub word and the git letter", changedLines([file("a.mjs", "removed", 0, 300), file("b.mjs", "D", 0, 300)]), 0)
@@ -80,9 +80,9 @@ export const cases = () => {
     ["new.txt", "A", MAX_CHANGED_LINES, 0],
     ["packages/shared/package-lock.json", "A", 900, 0],
   ])
-  same("lib/diff-size.mjs: a branch of 401 changed lines counts 401, with a deletion, a rename, a binary and generated files beside it", changedLines(files), MAX_CHANGED_LINES + 1)
+  same("lib/diff-size.mjs: a branch of 1001 changed lines counts 1001, with a deletion, a rename, a binary and generated files beside it", changedLines(files), MAX_CHANGED_LINES + 1)
 
   const exact = stageRepository("exact", MAX_CHANGED_LINES)
-  same("lib/diff-size.mjs: a branch of 400 changed lines counts 400", changedLines(gitFiles({ cwd: exact, base: "main" })), MAX_CHANGED_LINES)
+  same("lib/diff-size.mjs: a branch of 1000 changed lines counts 1000", changedLines(gitFiles({ cwd: exact, base: "main" })), MAX_CHANGED_LINES)
   T("lib/diff-size.mjs: gitFiles throws for a base that does not exist", (() => { try { gitFiles({ cwd: exact, base: "no-such-base" }) } catch { return true } return false })())
 }

@@ -1,7 +1,8 @@
 /**
  * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except `gh pr create` and an edit
  * or a comment on the pull request of the worker's own branch. A permission pattern cannot say "my own pull request".
- * It also blocks a `git push` of a branch that changes more than the cap of `diff-size.mjs` against `origin/main`.
+ * It also blocks a `git push` of a branch that changes more than the cap of `diff-size.mjs` against `origin/main`. The push must
+ * come before every command of the call except a `cd`, because the hook runs before the call and cannot see a commit of the same call.
  * It reads the command text, so it does not see a `gh` call that a script or a `bash -c` string makes.
  */
 
@@ -174,7 +175,7 @@ const deletesRemote = (args) => args.some((argument) => argument === "--delete" 
 
 /** The denial text of a push of `lines` changed lines, or null when the push is within the cap. */
 const pushDenial = (lines) => lines > MAX_CHANGED_LINES
-  ? `This push changes ${lines} lines. The cap is ${MAX_CHANGED_LINES}. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".`
+  ? `This push changes ${lines} lines. The cap is ${MAX_CHANGED_LINES.toLocaleString("en-US")}. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".`
   : null
 
 /** The first two words of a `gh` call that are no flag and no repository value. */
@@ -259,13 +260,17 @@ const SYSTEM_READ = Object.freeze({
 export const ghDenial = ({ command, cwd, own, read = SYSTEM_READ }) => {
   let onlyOwnWrites = true
   let directory = cwd
+  let leading = true
   for (const words of shellCommands(command)) {
-    if (words[0] === "cd" && words.length === 2) directory = resolve(directory, words[1])
+    const isCd = words[0] === "cd" && words.length === 2
+    if (isCd) directory = resolve(directory, words[1])
     const push = gitPushOf(words, directory)
     if (push !== null && !deletesRemote(push.args)) {
+      if (!leading) return "start the Bash call with `git push`, after your commit"
       const reason = pushDenial(read.changedLines(push.directory))
       if (reason !== null) return reason
     }
+    leading &&= isCd
     const call = ghCallOf(words)
     const [group, verb] = call === null ? [] : commandWords(call.args)
     if (call !== null && group === "pr" && Object.hasOwn(OWN_PULL_FLAGS, verb ?? "") && !isHelp(call.args)) {

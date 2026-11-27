@@ -154,25 +154,32 @@ const pushCases = () => {
     const reason = denial(command, { cwd, read: reader({ lines, measured }) })
     return { reason, measured }
   }
-  const text = (lines) => `This push changes ${lines} lines. The cap is 400. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".`
-  same("lib/worker-gh-hook.mjs: a push of 401 changed lines is denied with the NEEDS_SPLIT text", push("git push origin fix/ticket-9", 401).reason, text(401))
-  same("lib/worker-gh-hook.mjs: a push of 400 changed lines passes", push("git push origin fix/ticket-9", 400).reason, null)
+  const text = (lines) => `This push changes ${lines} lines. The cap is 1,000. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".`
+  same("lib/worker-gh-hook.mjs: a push of 1001 changed lines is denied with the NEEDS_SPLIT text", push("git push origin fix/ticket-9", 1001).reason, text(1001))
+  same("lib/worker-gh-hook.mjs: a push of 1000 changed lines passes", push("git push origin fix/ticket-9", 1000).reason, null)
   same("lib/worker-gh-hook.mjs: a push of 59124 changed lines is denied", push("git push", 59124).reason, text(59124))
   same("lib/worker-gh-hook.mjs: the push is measured in the directory of the call", push("git push", 1).measured, ["/work/tree/apps"])
   same("lib/worker-gh-hook.mjs: git -C moves the measured directory", push("git -C /work/tree push -u origin HEAD", 1).measured, ["/work/tree"])
   same("lib/worker-gh-hook.mjs: a cd before the push moves the measured directory", push("cd /work/tree && git push", 1).measured, ["/work/tree"])
-  same("lib/worker-gh-hook.mjs: a git option with a value before push is read", push("git -c push.default=current push", 401).reason, text(401))
+  same("lib/worker-gh-hook.mjs: a git option with a value before push is read", push("git -c push.default=current push", 1001).reason, text(1001))
   for (const command of ["git push origin --delete fix/ticket-9", "git push origin :fix/ticket-9", "git push -d origin fix/ticket-9"]) {
     same(`lib/worker-gh-hook.mjs: ${JSON.stringify(command)} sends no commit and is not measured`, push(command, 9999), { reason: null, measured: [] })
   }
   for (const command of ["git status", "git commit -m 'git push'", "echo git push", "grep -n push tools/drive.mjs", "git pull", "gh pr view 50"]) {
     same(`lib/worker-gh-hook.mjs: ${JSON.stringify(command)} is no push and is not measured`, push(command, 9999), { reason: null, measured: [] })
   }
-  T("lib/worker-gh-hook.mjs: a push that is a later command of the call is measured", push("git add -A && git commit -qm x && git push", 401).reason === text(401))
+  const later = "start the Bash call with `git push`, after your commit"
+  for (const command of ["git add -A && git commit -qm x && git push", "git merge origin/main && git push", "git cherry-pick abc1234 && git push -u origin HEAD", "git am patch.mbox; git push", "git rebase origin/main && git push --force-with-lease", "git status\ngit push", "echo $(git commit -qm x) && git push"]) {
+    same(`lib/worker-gh-hook.mjs: ${JSON.stringify(command)} puts the push after another command and is denied before any measure`, push(command, 1), { reason: later, measured: [] })
+  }
+  same("lib/worker-gh-hook.mjs: a second push of the call is denied after the first push is measured", push("git push && git push", 1), { reason: later, measured: ["/work/tree/apps"] })
+  for (const command of ["cd /work/tree && git push", "cd /work/tree && cd apps && git push -u origin HEAD", "git push 2>&1 | tail -3", "FOO=1 git push", "git push; git status"]) {
+    same(`lib/worker-gh-hook.mjs: ${JSON.stringify(command)} starts with the push and is measured`, push(command, 1).reason, null)
+  }
 }
 
 /** A bare `origin` with one commit on `main`, and a clone on the worker's branch with `lines` added lines. */
-const stagePushRepository = (name, lines) => {
+const stagePushRepository = (name, lines, { commit = true } = {}) => {
   const base = join(root, "gh-hook-push", name)
   const origin = join(base, "origin.git")
   const worktree = join(base, "tree")
@@ -188,22 +195,30 @@ const stagePushRepository = (name, lines) => {
   git(worktree, "push", "--quiet", "origin", "HEAD:main")
   git(worktree, "switch", "--quiet", "--create", OWN.branch)
   writeFileSync(join(worktree, "work.txt"), Array.from({ length: lines }, (_, index) => `line ${index}\n`).join(""))
-  git(worktree, "add", "-A")
-  git(worktree, "commit", "--quiet", "-m", "work")
+  if (commit) {
+    git(worktree, "add", "-A")
+    git(worktree, "commit", "--quiet", "-m", "work")
+  }
   return worktree
 }
 
 /** The rendered hook, run in a shell with a real repository: it fetches `origin/main` and counts the branch. */
 const pushCasesInRepository = () => {
-  for (const [lines, blocked] of [[401, true], [400, false]]) {
-    const worktree = stagePushRepository(`lines-${lines}`, lines)
+  const hookRun = (worktree, command) => {
     const settings = workerSettings({ hotPath: "/home/driver/hot.md", skillNames: [], own: { worktree, branch: OWN.branch } })
     const [hook] = settings.hooks.PreToolUse[0].hooks
-    const input = JSON.stringify({ ...FIXTURE.preToolUseHook.input, cwd: worktree, tool_input: { command: "git push origin HEAD" } })
-    const result = spawnSync("sh", ["-c", hook.command], { cwd: worktree, input, encoding: "utf8" })
-    if (blocked) T(`lib/worker-gh-hook.mjs: the rendered hook blocks a real push of ${lines} changed lines with the NEEDS_SPLIT text`, result.status === 2 && result.stderr === `Blocked: This push changes ${lines} lines. The cap is 400. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".\n`, `${result.status} ${result.stderr}`)
+    const input = JSON.stringify({ ...FIXTURE.preToolUseHook.input, cwd: worktree, tool_input: { command } })
+    return spawnSync("sh", ["-c", hook.command], { cwd: worktree, input, encoding: "utf8" })
+  }
+  for (const [lines, blocked] of [[1001, true], [1000, false]]) {
+    const worktree = stagePushRepository(`lines-${lines}`, lines)
+    const result = hookRun(worktree, "git push origin HEAD")
+    if (blocked) T(`lib/worker-gh-hook.mjs: the rendered hook blocks a real push of ${lines} changed lines with the NEEDS_SPLIT text`, result.status === 2 && result.stderr === `Blocked: This push changes ${lines} lines. The cap is 1,000. Push nothing more. End your run with the last line "NEEDS_SPLIT: <one sentence that names the work that is left>".\n`, `${result.status} ${result.stderr}`)
     else same(`lib/worker-gh-hook.mjs: the rendered hook lets a real push of ${lines} changed lines run`, [result.status, result.stderr], [0, ""])
   }
+  const chained = stagePushRepository("chained", 1500, { commit: false })
+  const result = hookRun(chained, "git add work.txt && git commit -qm work && git push -u origin HEAD")
+  same("lib/worker-gh-hook.mjs: the rendered hook blocks a push chained after its own commit of 1500 lines", [result.status, result.stderr], [2, "Blocked: start the Bash call with `git push`, after your commit.\n"])
 }
 
 /** A repository on the worker's branch, and a `gh` on PATH that answers `pr view` in the recorded shape. */
