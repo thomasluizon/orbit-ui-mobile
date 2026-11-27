@@ -316,8 +316,8 @@ const stateOf = (mem, name) => (name === WORKER ? mem.worker : mem)
 /** The accounts that can take a worker now: the main account when its login is known, and the worker account when it is signed in as another login. */
 const knownAccounts = (mem) => ACCOUNT_NAMES.filter((name) => stateOf(mem, name).account !== null)
 
-/** The name of the account that a launch record or a reading names by its key. A key that matches neither belongs to the main account. */
-const nameOfKey = (mem, key) => (key !== null && mem.worker.account?.key === key ? WORKER : MAIN)
+/** The name of the account that a launch record or a reading names by its key. No key means the main account. A key of a login that no account holds now gives null. */
+const nameOfKey = (mem, key) => (key === null ? MAIN : ACCOUNT_NAMES.find((name) => stateOf(mem, name).account?.key === key) ?? null)
 
 /** The account of the newest session of the branch of a fix order, or null for a build order, a launch at a cap, an unknown session or an account of no known login. */
 const sessionAccountOf = (mem, order) => {
@@ -2120,8 +2120,9 @@ const enforceRunCeiling = (env, mem, { stem, slot }) => {
 const stopAndRefund = async (env, mem, ticket, exit, result) => {
   const { kind, branch, partNumber, prNumber, account } = exit
   const name = nameOfKey(mem, account)
-  const until = result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS
-  await stopAccount(env, mem, name, until, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
+  // A worker of a login that no account holds now stops no account: the login is gone, so its limit binds no slot.
+  if (name === null) log(env, `ticket#${ticket.number}`, "stop-skipped", "the login of the worker ended on a stop, and no account holds it now")
+  else await stopAccount(env, mem, name, result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
   await refundLaunch(env, ticket, { kind, partNumber, branch, prNumber }, `${kind} on ${branch} starts again on the other account`)
 }
 
@@ -2289,16 +2290,16 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   // The ticket as this read holds it, so a label that the owner wrote is seen. A ticket that is closed by now keeps a bare stand-in.
   const ticket = tickets.find((entry) => entry.number === exit.ticketNumber) ?? { number: exit.ticketNumber, title: "", body: "", labels: [], comments: [], blockedBy: [] }
   const item = `ticket#${ticket.number}`
-  const own = stateOf(mem, nameOfKey(mem, account))
-  const newerReading = own.reading?.account === account && own.reading.at > startedAt
-  if (result.utilization !== null && account !== null && !newerReading) setReading(env, mem, { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account })
+  const owner = nameOfKey(mem, account)
+  const newerReading = owner !== null && stateOf(mem, owner).reading?.account === account && stateOf(mem, owner).reading.at > startedAt
+  if (result.utilization !== null && account !== null && owner !== null && !newerReading) setReading(env, mem, { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account })
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   await recordExit(env, exit, result)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
     // With a second account the stopped account waits and the order starts again on the other one. A lone account pauses the driver.
-    if (knownAccounts(mem).length > 1 && account !== null) return stopAndRefund(env, mem, ticket, exit, result)
+    if (account !== null && (knownAccounts(mem).length > 1 || owner === null)) return stopAndRefund(env, mem, ticket, exit, result)
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
   // A Codex order starts cold, so its session is no resume point.
