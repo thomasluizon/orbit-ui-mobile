@@ -41,7 +41,7 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 
 ## 4. Record each answer and decision
 
-1. Write the text to a file: the answer or the decision, the reason, and the exact next step for the worker. Record it with `node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>`. Every order carries each decision comment, and the driver starts an `apply-comment` order for a new one before the ticket can close. A pull request that used its fix launches gets one more launch for it. A comment with no marker starts no order and grants no launch.
+1. Write the text to a file: the answer or the decision, the reason, and the exact next step for the worker. Record it with `node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>`. Every order carries each decision comment, and the driver starts an `apply-comment` order for a new one before the ticket can close. A comment with no marker starts no order.
 2. Comment `<!-- orbit-drive:owner-answer -->` and one line that names the decision on the ticket. Write it after the decision note. The driver counts the launches of an order only after this comment, so a spent order gets new launches.
 3. Remove `needs:owner` from the ticket and from its open pull request.
 4. A pull request with no open ticket takes no ticket note. Comment the answer or the decision on the pull request in place of steps 1 and 2. When the decision lets the driver merge it at the bar, start the comment with `<!-- orbit-drive:owner-answer -->`. That marker ends the hold. When the decision keeps the pull request on hold, write no marker.
@@ -58,7 +58,7 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 **`--auto` mode** (the driver, or `/sleep`) never calls `AskUserQuestion`. Read the sleep state: `cat "$(git rev-parse --git-common-dir)/orbit-drive/sleep.json"`. For a pull request with no open ticket, post each comment below on the pull request.
 
 - Sleep on: decide each survivor with your recommendation and record it as in section 4, so the work goes on. Start the text file with the line `<!-- owner-review -->` and then "Decided while the owner slept:". His next `/questions` asks him each one, so he confirms or changes it.
-- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind, so the question grants no fix launch. Keep `needs:owner`. His next `/questions` asks it.
+- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind. Keep `needs:owner`. His next `/questions` asks it.
 
 ## 6. Then the manual steps only he can do
 

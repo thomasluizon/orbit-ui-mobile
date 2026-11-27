@@ -19,6 +19,10 @@ const PART_LIKE = /^#{0,6}\s*(?:#\d+\s+)?\**\s*Parte?\s+\d+\s*(?:$|[/:.,;\u2013\
 
 const BRIEF_LIMIT_BYTES = 6000
 const LOG_LINES_PER_CHECK = 60
+/** The section of earlier launches stays under this size. The oldest launch goes first. */
+export const EARLIER_LAUNCHES_LIMIT_BYTES = 16000
+/** The tail of a worker result that the failure history keeps. */
+export const RESULT_TAIL_BYTES = 2000
 
 const firstLineOf = (text) => text.split("\n", 1)[0]
 
@@ -125,9 +129,9 @@ const applySection = ({ pull, changes }) => {
 const instanceList = (review) =>
   review.blocking.map((finding) => `- ${finding.path === null ? "the review body" : `${finding.path}:${finding.line}`}\n\n${trimmed(finding.body).split("\n").map((line) => `  ${line}`).join("\n")}`).join("\n\n")
 
-const checkSection = (check) => {
+const checkSection = (check, lineLimit = LOG_LINES_PER_CHECK) => {
   const steps = check.failedSteps?.length > 0 ? ` (failed steps: ${check.failedSteps.join(", ")})` : ""
-  const lines = (check.logLines ?? []).slice(-LOG_LINES_PER_CHECK)
+  const lines = lineLimit > 0 ? (check.logLines ?? []).slice(-lineLimit) : []
   return `### ${check.name}${steps}${lines.length === 0 ? "" : `\n\n\`\`\`\n${lines.join("\n")}\n\`\`\``}`
 }
 
@@ -148,7 +152,7 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, chang
     case "fix":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`. Push once.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map(checkSection).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`. Push once.`
     case "merge-forward":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":
@@ -156,6 +160,46 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, chang
     default:
       throw new Error(`unknown order kind: ${kind}`)
   }
+}
+
+const fenced = (text) => {
+  const longest = Math.max(0, ...[...text.matchAll(/`+/g)].map((match) => match[0].length))
+  const fence = "`".repeat(Math.max(3, longest + 1))
+  return `${fence}\n${text}\n${fence}`
+}
+
+const byteTail = (text, limit) => {
+  const buffer = Buffer.from(text)
+  return buffer.length <= limit ? text : buffer.subarray(buffer.length - limit).toString()
+}
+
+/** One earlier launch: what ran, how it ended, and what stayed open at its head. */
+const launchSection = (launch, lineLimit = LOG_LINES_PER_CHECK) => {
+  const ended = launch.exitCode === null || launch.exitCode === undefined ? "unknown" : String(launch.exitCode)
+  const killed = launch.killReason ? `, killed: ${launch.killReason}` : ""
+  const heads = launch.headBefore ? `${launch.headBefore} to ${launch.headAfter ?? "unknown"}` : "unknown"
+  const findings = (launch.blocking ?? []).map((entry) => `- ${entry.path === null ? "the review body" : `${entry.path}:${entry.line}`}: ${trimmed(entry.body).split("\n").join(" ")}`)
+  const checks = (launch.checks ?? []).map((entry) => checkSection(entry, lineLimit).replace(/^###/, "####"))
+  const parts = [
+    `### ${launch.kind} on ${launch.model}, started ${launch.at ?? "at an unknown time"}`,
+    `Exit: ${ended}${killed}. Head: ${heads}.`,
+    ...(findings.length === 0 ? [] : [`Open BLOCKING findings at the head:\n\n${findings.join("\n")}`]),
+    ...(checks.length === 0 ? [] : [`Failing checks at the head:\n\n${checks.join("\n\n")}`]),
+    ...(launch.result ? [`The end of the worker result:\n\n${fenced(byteTail(launch.result, RESULT_TAIL_BYTES))}`] : []),
+  ]
+  return parts.join("\n\n")
+}
+
+/** The failure history of the launches of a plan, newest first, under the size limit. A launch that no longer fits drops, the oldest first. */
+const earlierLaunchesSection = (history) => {
+  if (history.length === 0) return ""
+  const sections = history.map((launch) => launchSection(launch))
+  const size = (list) => Buffer.byteLength(list.join("\n\n"))
+  while (sections.length > 1 && size(sections) > EARLIER_LAUNCHES_LIMIT_BYTES) sections.pop()
+  // One launch is left here. When it is still over the limit, drop its oldest check-log lines and render it again, so every fence closes and the result tail stays.
+  let lineLimit = LOG_LINES_PER_CHECK
+  while (size(sections) > EARLIER_LAUNCHES_LIMIT_BYTES && lineLimit > 0) sections[0] = launchSection(history[0], --lineLimit)
+  return `\n\n## Earlier launches\n\n${sections.join("\n\n")}\n\nThe launches above failed. Find why before you change code.`
 }
 
 /** A fix, ci-fix or merge-forward order, and an apply-comment order with a pull request, push to the branch of that open pull request and open none. */
@@ -211,7 +255,7 @@ ${reads ? "**Delivery.** This is a read-only order. Change no file, make no comm
  * work of its kind, and the brief. A comment that a tool wrote never reaches the worker, except an owner order or a
  * decision, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, comments = [], findings = [], pull = null, review = null, failure = null, ownerNote = null, changes = [], place, partNumber = null }) => {
+export const renderOrder = ({ kind, ticket, comments = [], findings = [], pull = null, review = null, failure = null, history = [], changes = [], place, partNumber = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
   if ((kind === "fix" && (pull === null || !(review?.blocking?.length > 0))) || (kind === "ci-fix" && (pull === null || !(failure?.checks?.length > 0))) || (kind === "merge-forward" && pull === null)) {
@@ -223,5 +267,5 @@ export const renderOrder = ({ kind, ticket, comments = [], findings = [], pull =
   }
   const parts = kind === "build" ? "" : partSection(comments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(comments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${commentSections(comments)}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, changes })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the cap, with this comment on the ticket.\n\n${noteText(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket, pull })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${commentSections(comments)}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, changes })}${earlierLaunchesSection(history)}\n\n${renderBrief({ kind, place, ticket, pull })}`
 }

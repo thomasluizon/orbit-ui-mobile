@@ -37,8 +37,6 @@ const commentCases = (fixtures) => {
   }
   const none = renderOrder({ kind: "build", ticket: TICKET, place: PLACE })
   T("lib/order.mjs: an order of a ticket with no comment has no comment section", !none.includes("## Owner orders") && !none.includes("## Decisions of the owner session") && !none.includes("## Other comments on the ticket"))
-  const granted = renderOrder({ kind: "fix", ticket: TICKET, place: PLACE, ownerNote: "<!-- orbit-decision -->\nOne more try.", ...extras.fix })
-  T("lib/order.mjs: the owner comment of a granted launch loses its marker", granted.includes("on the ticket.\n\nOne more try.") && !granted.includes("<!-- orbit-decision -->"))
 
   const edited = { editedAt: "2026-11-11T00:00:00Z", comments: comments.map((comment, index) => (index === 1 ? { ...comment, editedAt: "2026-11-12T00:00:00Z" } : comment)) }
   same("lib/order.mjs: the changes of a ticket are the body edit, the part comments and the two marked comments, each at its last change", ticketChanges(edited).map((change) => [change.kind, change.at]), [["body", "2026-11-11T00:00:00Z"], ["part", "2026-11-10T10:00:00Z"], ["part", "2026-11-12T00:00:00Z"], ["owner", "2026-11-10T10:02:00Z"], ["decision", "2026-11-10T10:03:00Z"]])

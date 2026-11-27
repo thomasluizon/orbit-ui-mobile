@@ -1038,8 +1038,24 @@ const orderCases = async () => {
     T(`lib/order.mjs: the ${kind} brief names the place and no draft`, brief.includes(PLACE.worktree) && brief.includes(PLACE.branch) && !brief.includes("--draft ") && (!kind.startsWith("build") || brief.includes("non-draft")))
   }
 
-  const noted = order("fix", { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] }, ownerNote: "Use the second option.\n" })
-  T("lib/order.mjs: a fix order names a body finding by the review body and carries the owner comment of a granted launch", noted.includes("- the review body\n\n  BLOCKING: body finding") && noted.includes("## Owner comment") && noted.includes("Use the second option.") && !order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] } }).includes("## Owner comment"))
+  const noted = order("fix", { pull: PULL, review: { blocking: [{ path: null, line: null, body: "BLOCKING: body finding" }] } })
+  T("lib/order.mjs: a fix order names a body finding by the review body and holds no owner comment section", noted.includes("- the review body\n\n  BLOCKING: body finding") && !noted.includes("## Owner comment") && !noted.includes("## Earlier launches"))
+
+  const launch = (index, extra = {}) => ({ kind: "fix", model: "claude-sonnet-5-5", at: `2026-11-19T0${index}:00:00.000Z`, exitCode: index, killReason: null, headBefore: "a".repeat(40), headAfter: "b".repeat(40), blocking: [{ path: "a.mjs", line: index, body: `BLOCKING: finding ${index}` }], checks: [], result: `RESULT-${index}`, ...extra })
+  const earlier = order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] }, history: [launch(2, { model: "claude-opus-5-5", killReason: "made no progress" }), launch(1, { checks: FAILURE.checks })] })
+  const section = earlier.slice(earlier.indexOf("## Earlier launches"), earlier.indexOf("## Brief"))
+  T("lib/order.mjs: an order with a history holds the section Earlier launches before the brief, newest first, with the closing line", earlier.indexOf("## This order") < earlier.indexOf("## Earlier launches") && earlier.indexOf("## Earlier launches") < earlier.indexOf("## Brief") && section.indexOf("claude-opus-5-5") < section.indexOf("claude-sonnet-5-5") && section.trimEnd().endsWith("The launches above failed. Find why before you change code."))
+  T("lib/order.mjs: each earlier launch names its model, exit, kill reason, heads, findings, failing checks and result", ["fix on claude-opus-5-5, started 2026-11-19T02:00:00.000Z", "Exit: 2, killed: made no progress.", `Head: ${"a".repeat(40)} to ${"b".repeat(40)}.`, "- a.mjs:2: BLOCKING: finding 2", "#### Unit Tests (failed steps: Run Domain Tests)", "log line 79", "RESULT-1"].every((text) => section.includes(text)) && !section.includes("log line 19\n"))
+  const bulky = Array.from({ length: 9 }, (_, index) => launch(index + 1, { blocking: [{ path: "a.mjs", line: index, body: `BLOCKING: ${"x".repeat(3000)} OLD${index + 1}` }] }))
+  const capped = order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] }, history: [...bulky].reverse() })
+  const cappedSection = capped.slice(capped.indexOf("## Earlier launches"), capped.indexOf("## Brief"))
+  T("lib/order.mjs: the earlier launches stay under 16,000 bytes and the oldest launch drops first", Buffer.byteLength(cappedSection) <= 16000 + 200 && cappedSection.includes("OLD9") && !cappedSection.includes("OLD1 ") && !cappedSection.includes("OLD1\n"), `${Buffer.byteLength(cappedSection)} bytes`)
+  T("lib/order.mjs: the tail of a worker result is cut to 2,000 bytes", order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] }, history: [launch(1, { result: `CUT-AWAY${"y".repeat(2500)}END-OF-RESULT` })] }).includes("END-OF-RESULT") && !order("fix", { pull: PULL, review: { blocking: [{ path: "a.mjs", line: 1, body: "BLOCKING: x" }] }, history: [launch(1, { result: `CUT-AWAY${"y".repeat(2500)}END-OF-RESULT` })] }).includes("CUT-AWAY"))
+  const longChecks = ["Unit Tests", "Web Tests"].map((name, index) => ({ name, failedSteps: ["Run tests"], logLines: Array.from({ length: 120 }, (_, line) => `${name} LOG LINE ${line} ${"z".repeat(110)}`) }))
+  const oneLong = order("ci-fix", { pull: PULL, failure: FAILURE, history: [launch(1, { checks: longChecks, result: `CUT-AWAY${"y".repeat(2500)}RESULT-TAIL-KEPT` })] })
+  const longSection = oneLong.slice(oneLong.indexOf("## Earlier launches"), oneLong.indexOf("## Brief"))
+  const fenceLines = longSection.split("\n").filter((line) => /^`{3,}$/.test(line))
+  T("lib/order.mjs: one earlier launch that is over 16,000 bytes drops its oldest check-log lines and keeps the result tail and every fence", Buffer.byteLength(longSection.slice(0, longSection.indexOf("\n\nThe launches above failed."))) <= 16000 + 40 && longSection.includes("RESULT-TAIL-KEPT") && !longSection.includes("CUT-AWAY") && fenceLines.length > 0 && fenceLines.length % 2 === 0 && longSection.indexOf("The launches above failed. Find why before you change code.") >= 0 && oneLong.indexOf("The launches above failed. Find why before you change code.") < oneLong.indexOf("## Brief") && longSection.includes("LOG LINE 119"), `${Buffer.byteLength(longSection)} bytes, ${fenceLines.length} fence lines`)
 
   const build = order("build", { comments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
@@ -1127,7 +1143,7 @@ const skillMarkerCases = () => {
   const bare = [...questions.matchAll(/<!-- (?!orbit-drive:)([a-z-]+) -->/g)].map((match) => match[1])
   same("skills/questions: the only bare marker is the one of the owner-review decision", [...new Set(bare)], ["owner-review"])
   same("skills/questions: the queued question and its reader use the orbit-drive:owner-question marker", questions.split("<!-- orbit-drive:owner-question -->").length - 1, 2)
-  // Only a marked comment reaches every order, starts an apply-comment order and grants a fix launch.
+  // Only a marked comment reaches every order, and starts an apply-comment order.
   T("skills/questions: section 4 records each answer with update-ticket.mjs note --decision and edits no ticket body", questions.includes("`node tools/update-ticket.mjs note --decision --ticket <number> --body-file <file>`") && !questions.includes("gh issue edit"), "section 4 writes no decision note")
   T("skills/sleep: each sleep decision is a decision note", skillText("sleep").includes("`node tools/update-ticket.mjs note --decision`"), "the skill names no decision note")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
