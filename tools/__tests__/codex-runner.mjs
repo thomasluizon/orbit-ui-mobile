@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFil
 import { join } from "node:path"
 
 import { agentSkillFolders, codexAccountOf, codexCommand, codexConfigToml, codexEnvironment, codexFinalResult, codexLimitReset, codexLogEvent, codexLogFinalResult, codexResultText, codexRules, codexSessionId, codexWeeklyReading, isCodexUsageLimit, plainPrefixes, rolloutFile, writeCodexHome } from "../lib/codex-runner.mjs"
-import { WORKER_DENY, codexHookCheck, codexInvocation, isWorkerProcess, launch, probe } from "../lib/worker.mjs"
+import { WORKER_DENY, codexHookCheck, codexInvocation, codexLoginStatus, isWorkerProcess, launch, probe } from "../lib/worker.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 const THREAD = "01a21e2d-cd1e-7340-91e8-220da2e54801"
@@ -164,7 +164,20 @@ const hookCheckCases = async () => {
   T("lib/worker.mjs: the hook check fails when gh ran, also with a noted block", ran.passed === false && /ran/.test(ran.reason), ran.reason)
 }
 
+const loginStatusCases = async () => {
+  const seen = []
+  const status = (result, { exists = true, read = () => AUTH_FILE } = {}) => codexLoginStatus({ home: "/home/x", parentEnvironment: { PATH: "/bin", CLAUDE_CONFIG_DIR: "/c", CODEX_API_KEY: "k" }, exists: () => exists, read, run: async (file, args, options) => { seen.push({ file, args, options }); return result } }).catch((error) => ({ thrown: error.message }))
+  same("lib/worker.mjs: a missing Codex home is signed out, and the check runs nothing", [await status({ status: 0 }, { exists: false }), seen.length], [{ loggedIn: false }, 0])
+  same("lib/worker.mjs: exit 1 of codex login status is signed out", await status({ status: 1 }), { loggedIn: false })
+  same("lib/worker.mjs: exit 0 gives the account of auth.json", await status({ status: 0 }), { loggedIn: true, orgId: "00000000-0000-4000-8000-000000000009", email: "worker@example.test", subscriptionType: "pro" })
+  const [{ file, args, options }] = seen
+  same("lib/worker.mjs: the check runs codex login status on the worker home with no Claude variable and no key override", [file, args, options.env.CODEX_HOME, options.env.CLAUDE_CONFIG_DIR ?? null, options.env.CODEX_API_KEY ?? null], ["codex", ["login", "status"], "/home/x/.codex-orbit-workers", null, null])
+  T("lib/worker.mjs: exit 0 with an unreadable auth.json is an error, not a login", /no readable account/.test((await status({ status: 0 }, { read: () => { throw new Error("gone") } })).thrown))
+  T("lib/worker.mjs: a codex that cannot start is an error, not a signed-out login", /exit none: spawn codex ENOENT/.test((await status({ status: null, error: new Error("spawn codex ENOENT") })).thrown))
+}
+
 export const cases = async () => {
+  await loginStatusCases()
   await probeCases()
   await launchCases()
   await hookCheckCases()
