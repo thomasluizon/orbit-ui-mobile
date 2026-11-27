@@ -57,7 +57,7 @@ describe('result dialog centring in Chromium', () => {
           return tops.filter((top, index) => index === 0 || top - tops[index - 1]! > 8).length
         }
         const actions = [...document.querySelectorAll('[role="dialog"] button')].filter((button) => button.textContent.trim())
-          .map((button) => ({ label: button.textContent.trim(), lines: lineCount(button) }))
+          .map((button) => ({ label: button.textContent.trim(), lines: lineCount(button), width: button.getBoundingClientRect().width, height: button.getBoundingClientRect().height, top: button.getBoundingClientRect().top, bottom: button.getBoundingClientRect().bottom }))
         return { top: panel.top, bottom: panel.bottom, left: panel.left, right: panel.right, actions, state: document.querySelector('[data-result-dialog]')?.getAttribute('data-orbit-state'), viewport: { width: window.innerWidth, height: window.innerHeight } }
       })
       expect(Math.abs((geometry.top + geometry.bottom) / 2 - geometry.viewport.height / 2), JSON.stringify(geometry)).toBeLessThanOrEqual(1)
@@ -67,6 +67,13 @@ describe('result dialog centring in Chromium', () => {
       expect(geometry.state).toBe(content.orbitState)
       expect(geometry.actions.map((action) => action.label)).toEqual(content.secondary ? [content.primary, content.secondary] : [content.primary])
       for (const action of geometry.actions) expect(action.lines, action.label).toBe(1)
+      const [first, second] = geometry.actions
+      expect(first!.width, JSON.stringify(geometry)).toBeGreaterThan((geometry.right - geometry.left) / 2)
+      if (second) {
+        expect(second.width, JSON.stringify(geometry)).toBeCloseTo(first!.width, 1)
+        expect(second.height, JSON.stringify(geometry)).toBeCloseTo(first!.height, 1)
+        expect(second.top - first!.bottom, JSON.stringify(geometry)).toBeCloseTo(12, 1)
+      }
     } finally { await page.close(); view.unmount() }
   }, 60_000)
 })

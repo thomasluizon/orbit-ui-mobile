@@ -21,7 +21,6 @@ interface ConfirmSheetProps {
   destructive?: boolean
   inlineActions?: boolean
   quickOptions?: boolean
-  freePathLabel?: string
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
@@ -44,7 +43,6 @@ export function ConfirmSheet({
   destructive = false,
   inlineActions = false,
   quickOptions = false,
-  freePathLabel,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -139,7 +137,7 @@ export function ConfirmSheet({
       )}
     >
       {quickOptions ? (
-        <QuestionBody message={message} freePathLabel={freePathLabel} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm}>{children}</QuestionBody>
+        <QuestionBody message={message}>{children}</QuestionBody>
       ) : (
         <>
           {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
@@ -152,19 +150,15 @@ export function ConfirmSheet({
 
 interface QuestionBodyProps {
   message: string
-  freePathLabel?: string
-  confirmDisabled: boolean
-  onConfirm: () => void
   children?: ReactNode
 }
 
-function QuestionBody({ message, freePathLabel, confirmDisabled, onConfirm, children }: Readonly<QuestionBodyProps>) {
-  if (!message && !children && !freePathLabel) return null
+function QuestionBody({ message, children }: Readonly<QuestionBodyProps>) {
+  if (!message && !children) return null
   return (
     <div className="flex flex-col gap-6">
       {message ? <p className="break-words text-sm text-[var(--fg-2)]">{message}</p> : null}
       {children}
-      {freePathLabel ? <div className="flex justify-end"><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></div> : null}
     </div>
   )
 }
