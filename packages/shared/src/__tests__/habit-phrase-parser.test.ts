@@ -1287,6 +1287,38 @@ describe('a bare das hour range', () => {
   })
 })
 
+describe('a das hour range that ends at noon', () => {
+  it.each([
+    ['Almoçar das 11 ao meio-dia', '11:00'],
+    ['Almoçar das 11 às meio-dia', '11:00'],
+    ['Almoçar das 11 até meio-dia', '11:00'],
+    ['Almoçar das 11 até o meio-dia', '11:00'],
+    ['Almoçar das 11 ao meio-dia e meia', '11:00'],
+    ['Estudar das 9 ao meio-dia e meia da tarde', '09:00'],
+    ['Estudar das 9h30 ao meio-dia', '09:30'],
+    ['Estudar das 9 e meia ao meio-dia', '09:30'],
+    ['Estudar das 10 da manhã ao meio-dia', '10:00'],
+  ] as const)('reads the start hour of %s', (input, time) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.dueTime).toBe(time)
+    expect(read.days).toEqual([])
+  })
+
+  it('reads the start hour of a noon end on a weekday', () => {
+    const read = readHabitPhrase('Almoçar das 11 ao meio-dia toda segunda', 'pt-BR')
+    expect(read.dueTime).toBe('11:00')
+    expect(read.days).toEqual(['Monday'])
+  })
+
+  it.each([
+    ['Ler todo dia ao meio-dia', '12:00'],
+    ['Almoçar ao meio-dia e meia', '12:30'],
+    ['Almoçar das 11 e ao meio-dia', '12:00'],
+  ] as const)('reads a single noon as before: %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
+
 describe('a das hour range with a day part, e meia or an hour unit', () => {
   it.each([
     ['Estudar das 2 às 4 da tarde', '14:00'],
