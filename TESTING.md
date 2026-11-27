@@ -35,19 +35,7 @@ The shared suite runs on the `America/Sao_Paulo` device calendar on every host. 
 
 Stryker also runs a copy of `packages/shared` in `packages/shared/.stryker-tmp/sandbox-*`, where a fixed `../` depth resolves to `packages/shared`. Every shared test under `src/` and `scripts/` that reads repository files imports `repositoryRoot` from `src/test-support/repository-root.ts`. That module finds the root by its `workspaces` manifest.
 
-- **Behavior, not implementation.** Assert what the user or caller observes: rendered text, a `data-*` attribute, a returned value, a thrown error. Never assert class names, call order, or private state. Those pass while the behavior is broken and block honest refactors.
-- **Three axes.** A real test covers the happy path **and** an edge case **and** a failure case. Invalid input must be *rejected*, not just valid input accepted.
-- **Factories over literals.** Build fixtures with `packages/shared/src/__tests__/factories.ts` so a schema change updates every test in one place.
-- **Fixtures follow producers.** Confirm payload shapes against the real producer or recorded external response. Never write the fixture that agrees with a guess (CLAUDE.md code standard 8).
-- **Exercise the path that broke.** Advance timers through automatic replays, enter the affected mode, prove accepted destinations as well as rejection, and mount the owning composition when ownership is the behavior. A child-only test cannot prove that its parent avoids duplicate subscriptions.
 - **Observe the missed regression before fixing it.** When existing coverage missed a defect, run that test unchanged before editing the test or implementation and record whether it passes with the defect present. Strengthen the test to drive the failing path, observe it fail for the intended reason with the defect still present, then fix the implementation and confirm it passes. Put both pre-fix observations, the test name, exact commands, and the final passing result in the PR body; Cloud workers record them in the committed handoff's `testResults` for delivery to the PR. Explain any observation you could not obtain instead of claiming it happened.
-- **Mock at the boundary.** Mobile: mock at the hook level (query by role or `testID`). Web: mock `next/navigation` and server actions, query by role or `data-*`. Shared: no mocks, pin the pure logic directly.
-- **Parity.** A behavior that lands on both platforms gets a test on both platforms in the same change (the cross-platform parity rule).
-- **Property tests** for pure shared logic (`@fast-check/vitest`) when a value range matters more than a single example.
-
-## What to avoid
-
-Happy-path-only; rubber-stamp / assertion-free; "asserts a mock was called" tautologies; over-mocked tests that exercise the mock instead of the code; implementation-coupled tests (call-order or private state); snapshot-as-crutch.
 
 ## Suite catalog
 

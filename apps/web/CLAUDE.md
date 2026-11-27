@@ -11,4 +11,3 @@ Web client. Server Components by default. Auth uses httpOnly cookies and a BFF p
 - Form schemas live in `packages/shared/src/validation/*.ts`, so mobile uses the same rules.
 - `app/api/[...path]/route.ts` forwards client requests to `orbit-api` with the cookie's bearer token. The mobile app calls `orbit-api` directly.
 - A React inline style that sets a shorthand and then a longhand to `undefined` loses half the shorthand on the client only. Set both longhands.
-- Wrap shadcn-style primitives in `components/ui/*` and restyle them to the tokens. Never use one in its default state.
