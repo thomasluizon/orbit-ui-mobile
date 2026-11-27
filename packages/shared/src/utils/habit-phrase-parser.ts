@@ -51,7 +51,10 @@ const MONTH_DAY_LIST_END = String.raw`(?=\s*(?:[,.;!?…]|$|a partir\b|comecando
 const EN_MONTH_DAY = String.raw`\d{1,2}(?:st|nd|rd|th)`
 const EN_MONTH_DAY_LIST = String.raw`${EN_MONTH_DAY}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+)(?:the\s+)?${EN_MONTH_DAY})*`
 
-const PT_DAY_PART = String.raw`(?:\s+(?:horas?|hrs?|hs|h)\b)?(?:\s+(?:d[ae]|pela|a)\s+(manha|tarde|noite|madrugada)\b)?`
+const PT_HOUR_UNIT = String.raw`(?:horas?|hrs?|hs|h)`
+const PT_DAY_PART_CONNECTOR = String.raw`(?:d[ae]|pela|a)`
+const PT_PERIOD_WORD = String.raw`manha|tarde|noite|madrugada`
+const PT_DAY_PART = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(${PT_PERIOD_WORD})\b)?`
 const EN_DAY_PART = String.raw`(?:\s+o['\u2019]?clock\b)?(?:\s+((?:in the|at|of the) (?:morning|afternoon|evening|night))\b)?`
 const EN_MERIDIEM_WORD = String.raw`(a\.m\.?|p\.m\.?|am|pm)`
 const EN_MERIDIEM = String.raw`(?:\s*${EN_MERIDIEM_WORD})?${EN_DAY_PART}`
@@ -66,7 +69,7 @@ const PERIOD_OF_DAILY_WORD: Readonly<Record<string, DayPeriod>> = {
   'every morning': 'morning', 'every afternoon': 'afternoon', 'every evening': 'evening', 'every night': 'night',
 }
 const PT_RANGE_HOUR = String.raw`(?:[01]?\d|2[0-3])`
-const PT_RANGE_END_WITHOUT_OWN_UNIT = String.raw`\b(?![:\dh]|[.,]\d)(?!\s+(?:(?:horas?|hrs?|hs|h)\b|d[ae]\s+(?:manha|tarde|noite|madrugada)\b|e\s+mei[ao]\b))`
+const PT_RANGE_END_WITHOUT_OWN_UNIT = String.raw`\b(?![:\dh]|[.,]\d)(?!\s+(?:${PT_HOUR_UNIT}\b|${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})\b|e\s+mei[ao]\b|(?:(?:ao|as|a)\s+)?meio-dia\b))`
 const PT_RANGE_UNIT_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)${PT_RANGE_END_WITHOUT_OWN_UNIT}`
 const PT_RANGE_BARE_END_BEFORE_CADENCE = String.raw`${PT_RANGE_HOUR}${PT_RANGE_END_WITHOUT_OWN_UNIT}(?=\s*(?:[,.;!?…]|$)|\s+(?:toda|todo|todas|todos|diariamente|de|nas|nos|aos|(?:seg|ter|qua|qui|sex|sab|dom)\w*)\b)`
 const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::([0-5]\d)|h([0-5]\d)?)?\s+(?:(?:ate\s+as|ate|as)\s+${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)?${PT_RANGE_END_WITHOUT_OWN_UNIT}|a\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}))`

@@ -1264,6 +1264,12 @@ describe('a bare das hour range', () => {
     ['Curso de 3 horas às 19h toda quarta', '19:00'],
     ['Ler das 5 a 7 páginas', '07:00'],
     ['Ler das 9 as 11 horas toda segunda', '11:00'],
+    ['Estudar das 7 às 9 à noite', '21:00'],
+    ['Estudar das 2 às 5 à tarde', '17:00'],
+    ['Estudar das 8 às 10 pela manhã', '10:00'],
+    ['Estudar das 2 a 5h à tarde', '17:00'],
+    ['Estudar das 2 às 5:30 a tarde', '17:30'],
+    ['Estudar das 9 até 11 ao meio-dia', '12:00'],
   ] as const)('reads a phrase outside the form as before: %s', (input, time) => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
   })
