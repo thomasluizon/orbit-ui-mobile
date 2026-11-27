@@ -56,7 +56,12 @@ const partComment = (number, total, extra = "") => comment(null, `## Part ${numb
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], board = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], board = [], unsound = false, auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true } = {}) => {
+  // A fixture ticket that the ticket check refuses needs `unsound: true`, so no case builds on a ticket that the driver would send to the owner.
+  for (const entry of unsound ? [] : tickets) {
+    const problems = checkTicket(entry, board, { primitives: null })
+    if (problems.length > 0) T(`drive: the fixture ticket ${entry.number} passes the ticket check`, false, problems.join(" "))
+  }
   const calls = []
   const messages = []
   let elapsed = 0
@@ -251,14 +256,14 @@ const admissionCases = async () => {
   T("drive: a next part whose Paths sit inside an open part's Paths is held", overlapping.launched.length === 0)
 
   const doubled = [comment(null, "Part 1 of 2: first\n", -7200 * 1000), comment(null, "Part 2 of 2: second\n", -7100 * 1000), comment(null, "Part 2 of 2: second again\n", -7000 * 1000)]
-  const doubledScene = scenario({ tickets: [ticket(7, { comments: doubled })] })
+  const doubledScene = scenario({ tickets: [ticket(7, { comments: doubled })], unsound: true })
   await doubledScene.run()
   const doubledText = commentsOf(doubledScene.calls, 7).find((text) => text.includes("orbit-drive:parked")) ?? ""
   same("drive: two live comments of one part launch nothing and park the ticket with both comment URLs", [doubledScene.launched.length, parkWrites(doubledScene), doubledText.includes(doubled[1].url) && doubledText.includes(doubled[2].url)], [0, PARKED_ONCE, true])
-  const openPart = scenario({ tickets: [ticket(7, { comments: doubled })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] } })
+  const openPart = scenario({ tickets: [ticket(7, { comments: doubled })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] }, unsound: true })
   await openPart.run()
   same("drive: a doubled part comment parks no ticket while its pull request is open", parkWrites(openPart), [[], 0, 0, 0])
-  const brokenScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), comment(null, "## Part 2 of two: second\n", -7000 * 1000)] })] })
+  const brokenScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), comment(null, "## Part 2 of two: second\n", -7000 * 1000)] })], unsound: true })
   await brokenScene.run()
   const brokenText = commentsOf(brokenScene.calls, 7).find((text) => text.includes("orbit-drive:parked")) ?? ""
   same("drive: a broken part heading launches no part and no build, and the parked comment quotes the line", [brokenScene.launched.length, parkWrites(brokenScene), brokenText.includes('"## Part 2 of two: second"')], [0, PARKED_ONCE, true])
@@ -1159,7 +1164,7 @@ const mergeCases = async () => {
     "merge-forward": partPull({ mergeState: "DIRTY" }),
   }
   for (const [kind, open] of Object.entries(orderKinds)) {
-    const scene = scenario({ tickets: [ticket(7, { comments: doubledParts })], pulls: { ui: [open] }, ...(kind === "ci-fix" ? { failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] } : {}) })
+    const scene = scenario({ tickets: [ticket(7, { comments: doubledParts })], pulls: { ui: [open] }, unsound: true, ...(kind === "ci-fix" ? { failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] } : {}) })
     await scene.run()
     const order = orderText(scene)
     same(`drive: a ${kind} order on a part pull request with two live comments of one part has no "this order" part and no part body`, [scene.launched.length, order.includes("(this order)"), order.includes("BODY-OF-SECOND") || order.includes("BODY-OF-AGAIN"), order.includes("- Part 2 of 2: second again")], [1, false, false, true])
@@ -1234,7 +1239,7 @@ const updateCases = async () => {
     await scene.run()
     same(`drive: ${label} at the same head does not stop a merge-forward order`, [scene.launched.length, /## This order \(merge-forward\)/.test(orderText(scene) ?? ""), only(scene.calls, "editLabels").length], [1, true, 0])
   }
-  const forwardPart = stuckForward(conflictReport(-60 * MINUTE), comment(null, "Part 1 of 2: first\n", -30 * MINUTE))
+  const forwardPart = stuckForward(conflictReport(-60 * MINUTE), comment(null, "## Part 1 of 2: first\n", -30 * MINUTE))
   await forwardPart.run()
   same("drive: a part comment after the conflict report grants no merge-forward launch", forwardPart.launched.length, 0)
   const forwardTwice = stuckForward(conflictReport(-60 * MINUTE), comment(null, "Keep the left side.", -30 * MINUTE), comment(null, "Also keep the imports.", -25 * MINUTE), grantedMark)
@@ -1920,7 +1925,7 @@ const baseMergeCases = async () => {
   same("drive: a flake that has its filed record gets no second ticket", only(filedOnce.calls, "createTicket").length, 0)
   const flakeTable = [
     ["an open ticket of the same check in the same repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "ui" }, 0],
-    ["an open ticket of the same check in another repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"] }, 1],
+    ["an open ticket of the same check in another repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"], body: BUG_BODY }, 1],
   ]
   for (const [label, other, created] of flakeTable) {
     const held = scenario({ tickets: [ticket(7), other], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
@@ -2594,10 +2599,10 @@ const branchKeyCases = async () => {
   await rotated.run()
   same("drive: a part that merged on a rotated branch is done, so the next tick builds the next part", rotated.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-part-2"])
 
-  const headed = (number, total, offset) => comment(null, `# #7 Part ${number} of ${total}: part ${number}\nPaths: apps/web/p${number}.ts`, offset)
+  const headed = (number, total, offset) => comment(null, `## Part ${number} of ${total}: part ${number}\nPaths: apps/web/p${number}.ts`, offset)
   const twoSets = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2, "Paths: apps/web/old.ts"), headed(1, 13, -3600 * 1000), headed(2, 13, -3500 * 1000)] })] })
   await twoSets.run()
-  same("drive: a ticket with # #N Part headings and an older part set builds a part of the newest set", twoSets.launched.map((entry) => [entry.worktree, entry.order.includes("(Part 1 of 13)")]), [["/r/orbit-worktrees/ui/chore-ticket-7-part-1", true]])
+  same("drive: a ticket with an older part set builds a part of the newest set", twoSets.launched.map((entry) => [entry.worktree, entry.order.includes("(Part 1 of 13)")]), [["/r/orbit-worktrees/ui/chore-ticket-7-part-1", true]])
 
   const inFlight = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1-r2" })] } })
   await inFlight.run()
@@ -2732,7 +2737,7 @@ const orderOfApiCases = async () => {
   same("drive: the newest review request decides a miss when the API lists the comments out of order", [needsOwnerComments(requests.calls, 7).length, only(requests.calls, "comment").length, only(requests.calls, "editLabels").length], [0, 0, 0])
 
   const edited = [comment(null, "Part 1 of 1: the edited part", -3600 * 1000), comment(null, "Part 1 of 1: the first version\nKind: find", -7200 * 1000)]
-  const part = scenario({ tickets: [ticket(7, { comments: edited })] })
+  const part = scenario({ tickets: [ticket(7, { comments: edited })], unsound: true })
   await part.run()
   same("drive: two comments of one part launch nothing, whatever order the API lists them in", [part.launched.length, only(part.calls, "editLabels").length], [0, 1])
 }
@@ -4090,7 +4095,7 @@ const replanCases = async () => {
   await rotatedAgain.run()
   same("drive: the closed branch of every re-plan counts as used, so the third plan takes -r3", JSON.parse(recordsOn(rotatedAgain, "launch")[0]).branch, "chore/ticket-7-r3")
 
-  const setTicket = () => ticket(7, { comments: [partComment(1, 2, "Paths: a/"), comment(null, "Part 2 of 2: part 2\nPaths: b/", -7200 * 1000), ...ladder(partBranch2, "fix", 2)] })
+  const setTicket = () => ticket(7, { comments: [partComment(1, 2, "Paths: a/"), comment(null, "## Part 2 of 2: part 2\nPaths: b/", -7200 * 1000), ...ladder(partBranch2, "fix", 2)] })
   const mergedOne = mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])
   const split = await reaped({ tickets: [setTicket()], answer: "Plan: split\n## Part 1 of 4: reworded one\n## Part 2 of 4: second a\nBODY-2\n## Part 3 of 4: second b\n## Part 4 of 4: second c", stuck: { branch: partBranch2, pr: 30, partNumber: 2 }, partNumber: 2, headRef: partBranch2, routes: [mergedOne] })
   const posted = plainOn(split)
@@ -4374,10 +4379,14 @@ const ticketCheckCases = async () => {
   same("drive: the board read lists every state for the class and leaves the ticket out", [await readBoardFor(bug(rule), seams), calls.length, calls[0].includes('--state all --search "Class: example class" in:body'), await readBoardFor(bug("x"), seams), calls.length], [[{ number: 3, body: "Class: example class", open: false }], 1, true, [], 1])
 
   for (const [name, body, board] of [["has no section", "Class: example class", []], ["repeats a class without its code", rule, earlier(fixed("`eslint-rules/old.cjs`"))]]) {
-    const scene = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Bug"], body })], board })
+    const scene = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Bug"], body })], board, unsound: true })
     await scene.run()
     same(`drive: a launch of a Bug ticket that ${name} goes to the owner`, [scene.launched.length, needsOwnerComments(scene.calls, 7).filter((text) => text.includes("The ticket check refuses ticket 7")).length], [0, 1])
   }
+
+  const unfixed = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Bug"], body: rule })], pulls: { ui: [pull(30)] } })
+  await unfixed.run()
+  same("drive: the last pull request of a Bug ticket that leaves its permanent fix alone goes to the owner and does not merge", [only(unfixed.calls, "merge").length, needsOwnerComments(unfixed.calls, 7).filter((text) => text.includes("permanent-fix-unchanged")).length], [0, 1])
 
   const last = (files) => pull(30, { files, mergeState: "CLEAN" })
   const fix = (extra) => ({ permanentFix: { section: "paths", paths: ["eslint-rules/a.cjs"], changedOnMain: false, ...extra } })

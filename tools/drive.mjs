@@ -22,7 +22,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, checkTicket, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, checkTicket, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -1225,6 +1225,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A technical stop parks the ticket, or the pull request when no open ticket tracks it. Only a step that needs the owner's hands writes `needs:owner`.
   const parked = (reason) => ({ type: "park", repoKey, ticket, reason })
   const park = (reason) => [...actions, parked(reason)]
+  const owner = (reason, cause = reason) => [...actions, { type: "needs-owner", reason, cause }]
   const orderOrWait = (order) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket parks.
     if (ticket === null) return park(`${item} needs a ${order.kind} order and no open ticket tracks it`)
@@ -1278,7 +1279,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
   // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
-  const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
+  const ownerFailures = bar.filter((failure) => (OWNER_BAR_FAILURES.has(failure) || OWNER_FIX_FAILURES.has(failure)) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
   if (ownerFailures.length > 0) return owner(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}, which only the owner clears.`, `bar-${ownerFailures.join("-")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))

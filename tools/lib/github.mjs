@@ -41,7 +41,9 @@ const LINT_CHECK_BY_REPOSITORY = { ui: "Checks" }
 /** The name of the lint check of a repository, or null when the repository has none. */
 export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositoryKey] ?? null
 /** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
-export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword", "permanent-fix-missing", "permanent-fix-unchanged"])
+export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
+/** The merge bar failures of the permanent fix of a Bug ticket. No worker order clears them either, so the driver hands them to the owner. */
+export const OWNER_FIX_FAILURES = new Set(["permanent-fix-missing", "permanent-fix-unchanged"])
 /** The last line of a pull request body when no part of the ticket stays open. */
 export const REMAINING_NONE = /^Remaining: none\s*$/m
 const BUG_LABEL = "Bug"
