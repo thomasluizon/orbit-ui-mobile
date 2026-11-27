@@ -61,9 +61,9 @@ const nextConfig: NextConfig = {
 
 const intlConfig = withNextIntl(nextConfig)
 
-// WHY: The Docker release build has no CI variable, so the plugin hid its source map upload result. A build with the token shows it.
+// WHY: The Docker release build has no CI variable. A release build sets the commit SHA, so it logs the upload result or the missing token.
 export function isSentryBuildSilent(env: Record<string, string | undefined>) {
-  return !env.CI && !env.SENTRY_AUTH_TOKEN
+  return !env.CI && !env.SENTRY_AUTH_TOKEN && !env.NEXT_PUBLIC_WEB_COMMIT_SHA
 }
 
 export default process.env.NODE_ENV === 'development'
