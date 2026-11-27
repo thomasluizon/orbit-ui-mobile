@@ -1276,11 +1276,6 @@ describe('a bare das hour range', () => {
     ['Correr das 5 a 8 quilômetros', '08:00'],
     ['Meditar das 5 a 10 segundos', '10:00'],
     ['Correr das 3 a 5 dias por semana', '05:00'],
-    ['Estudar das 7 às 9 à noite', '21:00'],
-    ['Estudar das 2 às 5 à tarde', '17:00'],
-    ['Estudar das 8 às 10 pela manhã', '10:00'],
-    ['Estudar das 2 a 5h à tarde', '17:00'],
-    ['Estudar das 2 às 5:30 a tarde', '17:30'],
     ['Estudar das 9 até 11 ao meio-dia', '12:00'],
   ] as const)('reads a phrase outside the form as before: %s', (input, time) => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
@@ -1350,5 +1345,27 @@ describe('a das hour range with a day part, e meia or an hour unit', () => {
     ['Estudar toda noite das 8 às 10', '20:00'],
   ] as const)('keeps the small hours of the night range %s', (input, time) => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
+
+describe('a das hour range whose end day part has a connector other than da', () => {
+  it.each([
+    ['Estudar das 7 às 9 à noite', '19:00', 'das 7 às 9 à noite'],
+    ['Estudar das 2 às 4 de tarde', '14:00', 'das 2 às 4 de tarde'],
+    ['Estudar das 2 a 4 de tarde', '14:00', 'das 2 a 4 de tarde'],
+    ['Estudar das 2 às 5 à tarde', '14:00', 'das 2 às 5 à tarde'],
+    ['Estudar das 8 às 10 pela manhã', '08:00', 'das 8 às 10 pela manhã'],
+    ['Estudar das 2 a 5h à tarde', '14:00', 'das 2 a 5h à tarde'],
+    ['Estudar das 2 às 5:30 a tarde', '14:00', 'das 2 às 5:30 a tarde'],
+  ] as const)('reads the start hour and consumes the whole range of %s', (input, time, range) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.dueTime).toBe(time)
+    expect(segmentHabitPhrase(input, read.consumed).filter((segment) => segment.consumed).map((segment) => segment.text)).toEqual([range])
+  })
+
+  it('keeps a weekday after the range', () => {
+    const read = readHabitPhrase('Ler das 2 a 4 de tarde toda segunda', 'pt-BR')
+    expect(read.dueTime).toBe('14:00')
+    expect(read.days).toEqual(['Monday'])
   })
 })
