@@ -2123,7 +2123,8 @@ export const tick = async (env, mem) => {
       if (early && limitSeen.found) return LIMIT_STOP
       // A fix order goes to the account of its build session when that account has a free slot, so it resumes. Else the worker account takes a launch when it has a free slot, else the main account.
       const own = sessionAccountOf(mem, order)
-      const name = own !== null && free[own] > 0 ? own : free.worker > 0 ? WORKER : MAIN
+      // A session on the main account is unusable after a Pullfrog limit, so the order starts cold on the worker account.
+      const name = own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       reached.add(order.ticket.number)
       const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))

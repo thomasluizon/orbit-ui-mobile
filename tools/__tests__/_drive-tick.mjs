@@ -2729,7 +2729,14 @@ const twoAccountCases = async () => {
   const pullfrogLimitedMany = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await pullfrogLimitedMany.run()
   same("drive: with two accounts a Pullfrog usage limit that a plan found starts no launch on the main account, even with orders left", pullfrogLimitedMany.launched.map(accountOfLaunch), [WORKER_DIRECTORY, WORKER_DIRECTORY])
-  const pullfrogLimitedQuestions = scenario({ driver: {}, tickets: [ticket(7), heldTicket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
+  // A fix order whose build session is on the main account starts cold on the worker account when a plan found a Pullfrog limit, and it does not end the launches of the tick.
+  const lowReading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - MINUTE }
+  const sessionComment = comment("launch-session", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7-30", pr: 30, session: "sess-1", account: ACCOUNT.key, tokens: 90000 }))
+  const blockingReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })
+  const sessionLimited = scenario({ tickets: [ticket(7, { comments: [sessionComment] }), ticket(8)], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-30", reviews: [blockingReview] }), pull(31, { reviews: [], tracks: 8, headRef: "chore/ticket-8-31" })] }, runs: [{ ...failedRun, displayTitle: `Respond to mention on #${31} [abc]` }], routes: [["--log-failed", limitLine]], reading: lowReading, workerAuth: WORKER_AUTH, workerReading: lowReading })
+  await sessionLimited.run()
+  same("drive: with two accounts a fix order of a main account session starts cold on the worker account when a plan found a Pullfrog limit", [sessionLimited.launched.map(accountOfLaunch), sessionLimited.launched[0]?.invocation.command.args], [[WORKER_DIRECTORY], []])
+  const pullfrogLimitedQuestions = scenario({ driver: {},tickets: [ticket(7), heldTicket(8)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun], routes: [["--log-failed", limitLine]], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await pullfrogLimitedQuestions.run()
   await pullfrogLimitedQuestions.mem.questions
   same("drive: with two accounts a Pullfrog usage limit that a plan found starts no questions run on the main account", [questionRuns(pullfrogLimitedQuestions).length, questionLines(pullfrogLimitedQuestions), startedFile(pullfrogLimitedQuestions)], [0, ["questions wait (a Pullfrog limit stops the main account: ticket#8)"], null])
