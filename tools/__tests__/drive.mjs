@@ -1222,6 +1222,7 @@ const orderCases = async () => {
   T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
   T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && !delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "Never merge and never force-push"].every((text) => delivery.includes(text)))
+  T("lib/order.mjs: the Remaining rule gives owner: only to a step that needs the owner's hands and names the list in the questions skill", ["only for a step that needs the owner's hands", ".claude/skills/questions/SKILL.md", "Write a technical step that stays open as a plain item"].every((part) => delivery.includes(part)))
   T("lib/order.mjs: an opening order names the parity:exempt label, the ## Parity line and every term that the PR Metadata gate accepts", ["build", "build part"].every((kind) => {
     const opening = order(kind, { partNumber: 2 })
     return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))

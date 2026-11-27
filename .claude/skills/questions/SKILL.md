@@ -33,6 +33,7 @@ A question you never wrote down cannot be answered. It blocks the driver and nob
 
 Stop at the first step that resolves the question.
 
+0. **Does the open step need the owner's hands?** Read the open step in the ticket, the `needs-owner` comment and the `Remaining:` line. The steps that need his hands are the list in section 6. An item whose open step needs none of them is not his. Remove `needs:owner` from the ticket and from its open pull requests. Write the next step for the worker under `## Owner decisions`, (step 1 of section 4). Keep `needs:owner` only for the step that needs his hands. For an item that waits on another ticket, replace the label with a `--blocked-by` link.
 1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the text of section 4.
 2. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
 3. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.

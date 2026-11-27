@@ -1344,7 +1344,30 @@ const closeCases = async () => {
     same(`drive: ${label}`, [scene.launched.length, only(scene.calls, "editLabels").map((entry) => entry[3]), needsOwnerComments(scene.calls, 7).length, needsOwnerComments(scene.calls, 7).every((entry) => entry.includes(text))], [0, [{ add: [OWNER_LABEL] }], 1, true])
   }
   const listing = "Remaining: the App Store card needs the live listing URL, and the pt-BR copy needs /second-opinion."
-  await heldFor("two merged pull requests with the same Remaining line launch no build and set needs:owner once", [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }], listing)
+  const lineOf = (line, ...more) => [merged(147, `Tracks ${REPOSITORY}#7\n\n${line}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${line}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }, ...more]
+  const recordsOf = (scene, kind) => commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked(kind, "")))
+  const writesNothingForOwner = (scene) => [only(scene.calls, "notify").length, needsOwnerComments(scene.calls, 7).length, only(scene.calls, "editLabels").filter((entry) => entry[3].add?.includes(OWNER_LABEL)).length]
+  const repeated = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(lineOf(listing)) })
+  await repeated.run()
+  same("drive: two merged pull requests with the same Remaining line start one re-plan run and write no owner step", [repeated.launched.length, repeated.launched[0]?.invocation.model, JSON.parse(recordsOf(repeated, "launch")[0].split("\n").slice(1).join("\n")).kind, writesNothingForOwner(repeated)], [1, "claude-opus-5-5", "replan", [0, 0, 0]])
+  T("drive: the re-plan order of a repeat stop holds the repeated Remaining line and does not say that the plan still fails", orderText(repeated).includes(listing) && orderText(repeated).includes("left the same Remaining line") && !orderText(repeated).includes("still fails"), orderText(repeated).slice(0, 600))
+  const replanLaunch = (offset) => comment("launch", JSON.stringify({ kind: "replan", part: null, branch: "chore/ticket-7-replan", model: "claude-opus-5-5" }), offset)
+  const replanned = scenario({ tickets: [ticket(7, { comments: [launchRecord, replanLaunch(-1500 * 1000), comment("replan", JSON.stringify({ plan: "fresh", branch: "chore/ticket-7-r2", pr: null, part: null, count: 1, at: iso(-900 * 1000) }), -900 * 1000)] })], routes: listed(lineOf(listing)) })
+  await replanned.run()
+  same("drive: a replan record after the last merge lifts the repeat stop, so the next tick builds", [replanned.launched.length, JSON.parse(recordsOf(replanned, "launch")[0].split("\n").slice(1).join("\n")).kind], [1, "build"])
+  const bound = scenario({ tickets: [ticket(7, { comments: [launchRecord, replanLaunch(-2400 * 1000), replanLaunch(-2300 * 1000)] })], routes: listed(lineOf(listing)) })
+  await bound.run()
+  same("drive: a repeat stop after the re-plans parks the ticket with one parked comment and no owner step", [bound.launched.length, recordsOf(bound, "parked").length, only(bound.calls, "editLabels").filter((entry) => entry[3].add?.includes("parked")).length, writesNothingForOwner(bound)], [0, 1, 1, [0, 0, 0]])
+  const blocked = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9; blocked by #8`, "chore/ticket-7")]
+  const waiting = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(blocked) })
+  await waiting.run()
+  same("drive: a Remaining line of blocked by items only parks the ticket with one parked comment and no owner step", [waiting.launched.length, recordsOf(waiting, "parked").length, only(waiting.calls, "editLabels").filter((entry) => entry[3].add?.includes("parked")).length, writesNothingForOwner(waiting)], [0, 1, 1, [0, 0, 0]])
+  const takenBack = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -900 * 1000)] })], routes: listed(blocked) })
+  await takenBack.run()
+  same("drive: a blocked park that the review took back builds on the next tick and writes no new park", [takenBack.launched.length, recordsOf(takenBack, "parked").length], [1, 0])
+  const parkedAgain = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("parked", "Parked.", -7200 * 1000)] })], routes: listed(blocked) })
+  await parkedAgain.run()
+  same("drive: a second blocked park after a newer merge writes a new parked comment", [parkedAgain.launched.length, recordsOf(parkedAgain, "parked").length], [0, 1])
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
   const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
@@ -4183,7 +4206,7 @@ const replanCases = async () => {
   T("drive: the re-plan order names the highest total of any part set, not only the set in force", largerReplan !== undefined && largerReplan.order.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerReplan.order.includes("make m higher than 4."))
 }
 
-/** The merge bar failures that the git diff settles: each reads the diff from git, and each that no worker order clears goes to the owner. */
+/** The merge bar failures that the git diff settles: each reads the diff from git, and each that no worker order clears parks the ticket. */
 const diffBarCases = async () => {
   const LINT = (conclusion) => check("Checks", conclusion, { databaseId: 31 })
   const scene = (extra, gitRoutes = [], repoKey = "ui") => scenario({ tickets: [ticket(7, { labels: [`repo:${repoKey}`, "Improvement"], repoKey })], gitRoutes, pulls: { ui: [], api: [], landing: [], [repoKey]: [pull(30, { checks: [check("Unit Tests"), approvalCheck(), ...(extra.lint ? [LINT(extra.lint)] : [])], ...extra.pull })] } })
@@ -4226,7 +4249,7 @@ const diffBarCases = async () => {
   same("drive: a commit message that closes a ticket parks the ticket and does not merge", [only(closing.calls, "merge").length, owned(closing).length], [0, 1])
   T("drive: the parked comment names closing-keyword", owned(closing)[0]?.includes("closing-keyword") === true, owned(closing).join(" | "))
   const bodied = await settled({ pull: { body: "Closes thomasluizon/orbit-tickets#7\n\nRemaining: none", files: ["tools/README.md"] } })
-  same("drive: a body that closes a ticket does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
+  same("drive: a body that closes a ticket parks the ticket and does not merge", [only(bodied.calls, "merge").length, owned(bodied).length], [0, 1])
   const tracking = await settled({ pull: { commitMessages: ["cut fixed context. Tracks thomasluizon/orbit-tickets#7"], files: ["tools/README.md"] } })
   same("drive: fixed context and a Tracks line merges", only(tracking.calls, "merge").length, 1)
 
