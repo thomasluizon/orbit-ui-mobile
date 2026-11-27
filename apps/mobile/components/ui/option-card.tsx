@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { OptionCardProps } from '@orbit/shared/contracts/flow'
+import { SMALL_PILL_VISIBLE_MIN } from '@orbit/shared/theme'
 import { MotionPressable } from '@/components/ui/motion-pressable'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { useFlowLook } from '@/components/ui/flow-look'
@@ -12,7 +13,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const control = useRef<View>(null)
-  const { lookAtControl, lookAway } = useFlowLook()
+  const { lookAtControl, lookAway, wide: flowWide } = useFlowLook()
   return (
     <View style={[styles.wrapper, wide ? styles.wide : null]}>
       <MotionPressable
@@ -27,7 +28,7 @@ export function OptionCard({ label, selected = false, disabled = false, disabled
         onPress={onSelect}
         onFocus={() => { lookAtControl(control); onHighlight?.(true) }}
         onBlur={() => { lookAway(); onHighlight?.(false) }}
-        style={({ pressed }) => [styles.card, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard }, disabled && !loading ? styles.disabled : null]}
+        style={({ pressed }) => [styles.card, flowWide ? styles.cardCompact : null, { backgroundColor: pressed ? tokens.bgHover : tokens.bgCard }, disabled && !loading ? styles.disabled : null]}
       >
         {loading ? <SkeletonFace tokens={tokens} /> : null}
         <Text style={[styles.label, { color: tokens.fg1 }]} numberOfLines={wide ? 1 : 2} ellipsizeMode="tail">{label}</Text>
@@ -44,6 +45,7 @@ const styles = StyleSheet.create({
   wrapper: { width: '48%', gap: 4, minWidth: 0 },
   wide: { width: '100%' },
   card: { minHeight: 72, alignItems: 'center', justifyContent: 'center', borderRadius: 20, overflow: 'hidden', paddingHorizontal: 16, paddingVertical: 12 },
+  cardCompact: { minHeight: SMALL_PILL_VISIBLE_MIN, paddingVertical: 8 },
   disabled: { opacity: 0.5 },
   label: { fontFamily: 'Geist_400Regular', fontSize: 17, lineHeight: 24, textAlign: 'center' },
   reason: { fontFamily: 'Geist_400Regular', fontSize: 12, lineHeight: 16, textAlign: 'center' },

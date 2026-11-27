@@ -17,6 +17,7 @@ import {
   failedChecks,
   isAncestor,
   merge,
+  carriedApproval,
   mergeBar,
   needsWholeDiff,
   pullfrogRunsFor,
@@ -48,6 +49,7 @@ import {
   readEvent,
   readWorkerToken,
   readOwnerToken,
+  CODE_WORKER_DENY,
   WORKER_DENIED_TOOLS,
   WORKER_DENY,
   WORKER_LIMITS,
@@ -118,6 +120,29 @@ const stateResponse = (numbers) => {
   return copy
 }
 
+/** A gh runner that lists `open` and answers each pull request that a state query names. `requested` keeps the numbers of each query. */
+const batchedState = (open, { failAt = null } = {}) => {
+  const requested = []
+  let active = 0
+  let mostActive = 0
+  const run = async (args) => {
+    const numbers = [...args.join(" ").matchAll(/pr(\d+): pullRequest\(number: (\d+)\)/g)].map((match) => Number(match[1]))
+    requested.push(numbers)
+    const call = requested.length
+    mostActive = Math.max(mostActive, ++active)
+    await new Promise((resolve) => setImmediate(resolve))
+    active -= 1
+    if (call === failAt) throw new Error("gh api graphql failed: HTTP 502")
+    const response = stateResponse(open)
+    const sample = response.data.repository.pr2509
+    delete response.data.repository.pr2509
+    delete response.data.repository.pr2510
+    for (const number of numbers) response.data.repository[`pr${number}`] = { ...sample, number }
+    return json(response)
+  }
+  return { run, requested, mostActive: () => mostActive }
+}
+
 const configCases = () => {
   const keySource = readFileSync(new URL("../lib/config.mjs", import.meta.url), "utf8")
   const keys = [.../const CLAUDE_ACCOUNT_OVERRIDE_KEYS = \[([^\]]*)\]/.exec(keySource)[1].matchAll(/"([A-Z0-9_]+)"/g)].map((match) => match[1])
@@ -176,13 +201,13 @@ const githubUnit = async () => {
   const [approved] = (await readPulls([2510])).state.pulls
 
   const { state: openState, calls: openCalls } = await readPulls([2509])
-  same("lib/github.mjs: one read holds every open pull request when the numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
+  same("lib/github.mjs: one read holds every open pull request when at most 8 numbers are known", [openCalls.length, openState.numbers, openState.defaultBranch, openState.slug], [1, [2509], "main", UI])
   same("lib/github.mjs: a pull request keeps its identity fields", [open.number, open.state, open.draft, open.author, open.headRef, open.headSha, open.baseRef, open.mergeState, open.changedFiles, open.files.length], [2509, "OPEN", false, "thomasluizon", "feature/ticket-2181-pace-governor", "a4c62a196324df595f5597e00863abc65f86435f", "main", "DIRTY", 23, 23])
   const rolled = stateResponse([2509])
   rolled.data.repository.pr2509.commits.nodes = FIXTURE.commitRollups.nodes
   same("lib/github.mjs: a commit keeps the state of its own check rollup, from the recorded answer", (await readPulls([2509], [2509, 2510], rolled)).state.pulls[0].commits.map((commit) => [commit.sha.slice(0, 7), commit.parents, commit.checkState]), [["fffd31f", 1, "FAILURE"], ["21741e7", 1, "SUCCESS"]])
   same("lib/github.mjs: a commit with no rollup in the answer has a null check state", open.commits.map((commit) => commit.checkState).every((state) => state === null), true)
-  same("lib/github.mjs: behindBy comes from the comparison that names this head and this base tip", open.behindBy, 1)
+  same("lib/github.mjs: a pull request read holds no behind count and the query asks for none", [open.behindBy, /behindBy/.test(JSON.stringify(openCalls))], [undefined, false])
   const labelled = stateResponse([2509])
   labelled.data.repository.pr2509.labels = FIXTURE.pullLabels.response.data.repository.pr7.labels
   same("lib/github.mjs: a pull request keeps the names of its labels", [open.labels, (await readPulls([2509], [2509, 2510], labelled)).state.pulls[0].labels], [[], ["parity:exempt"]])
@@ -194,12 +219,6 @@ const githubUnit = async () => {
   same("lib/github.mjs: only a request for a Pullfrog review stays of the issue comments", open.comments.map((entry) => [entry.author, entry.kind, entry.body]), [["thomasluizon", null, "@pullfrog review"]])
   T("lib/github.mjs: a rollup that holds every check reads as complete", open.checksComplete && open.threadsComplete && open.checks.length === 27)
 
-  const missingHead = await readPulls([2509], [2509, 2510], (() => {
-    const response = stateResponse([2509])
-    response.data.repository.pr2509.baseRef.compare.headTarget.oid = "0".repeat(40)
-    return response
-  })())
-  same("lib/github.mjs: a comparison that names another head gives no behindBy", missingHead.state.pulls[0].behindBy, null)
 
   const synthetic = stateResponse([2509])
   const reviewComments = synthetic.data.repository.pr2509.reviews.nodes[0].comments.nodes
@@ -221,6 +240,27 @@ const githubUnit = async () => {
   const unknown = await readPulls([2509, 2510], [])
   same("lib/github.mjs: a number the last tick did not know costs one more read for those numbers only", [unknown.calls.length, unknown.calls[0].text.includes("pr2509"), unknown.calls[1].text.includes("pr2509"), unknown.calls[1].text.includes("pr2510")], [2, false, true, true])
   same("lib/github.mjs: a known pull request that is no longer open is not returned", (await readPulls([2509], [2509, 2510])).state.pulls.map((pull) => pull.number), [2509])
+  const many = Array.from({ length: 35 }, (_, index) => 3035 - index)
+  for (const [label, knownNumbers, sizes] of [["no number is known", [], [0, 8, 8, 8, 8, 3]], ["every number is known", many, [8, 8, 8, 8, 3]]]) {
+    const gh = batchedState(many)
+    const state = await readRepositoryState("ui", { knownNumbers, ...seams(gh.run) })
+    same(`lib/github.mjs: no state query holds more than 8 of 35 open pull requests when ${label}`, gh.requested.map((numbers) => numbers.length), sizes)
+    same(`lib/github.mjs: 35 open pull requests come back in the order of the open list when ${label}`, [state.numbers, state.pulls.map((pull) => pull.number)], [many, many])
+    T(`lib/github.mjs: the state queries run one after the other when ${label}`, gh.mostActive() === 1)
+  }
+
+  const known = Array.from({ length: 12 }, (_, index) => 4001 + index)
+  const current = [4021, ...known.slice(1), 4022, 4023]
+  const mixed = batchedState(current)
+  const mixedState = await readRepositoryState("ui", { knownNumbers: known, ...seams(mixed.run) })
+  const read = mixed.requested.flat()
+  same("lib/github.mjs: known and new numbers make one merged state", mixedState.pulls.map((pull) => pull.number), current)
+  same("lib/github.mjs: no number is read twice, and each open number is read", [read.length, new Set(read).size, current.every((number) => read.includes(number))], [15, 15, true])
+
+  const failing = batchedState(many, { failAt: 3 })
+  const failure = await thrown(() => readRepositoryState("ui", { knownNumbers: many, ...seams(failing.run) }))
+  same("lib/github.mjs: a failed third batch fails the whole read and stops the later batches", [/HTTP 502/.test(failure), failing.requested.length], [true, 3])
+
   T("lib/github.mjs: more than 100 open pull requests is refused", /more than 100 open/.test(await thrown(() => {
     const response = stateResponse([2509])
     response.data.repository.open.pageInfo.hasNextPage = true
@@ -298,18 +338,21 @@ const mergeBarCases = (approved) => {
   same("lib/github.mjs: a dismissed newest review fails the bar", barOf({ reviews: [...ready.reviews, { ...review, state: "DISMISSED", submittedAt: "2026-11-20T09:30:00Z" }] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: an approval at an earlier commit fails the bar", barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: no review fails the bar", barOf({ reviews: [] }), ["review-not-approved-at-head"])
+  same("lib/github.mjs: an approval of an earlier commit with the diff of the head carries to the bar", [barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [ready.commits[3].sha] }), carriedApproval({ ...ready, reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [ready.commits[3].sha] })?.commit], [[], ready.commits[3].sha])
+  same("lib/github.mjs: an earlier approval whose diff differs from the head does not carry", carriedApproval({ ...ready, reviews: [{ ...review, commit: ready.commits[3].sha }], sameDiffAs: [] }), null)
+  same("lib/github.mjs: a carried approval does not replace a newer review that is not an approval", barOf({ reviews: [{ ...review, commit: ready.commits[3].sha }, { ...review, state: "CHANGES_REQUESTED", body: "x", submittedAt: "2026-11-20T09:30:00Z" }], sameDiffAs: [ready.commits[3].sha] }), ["review-not-approved-at-head"])
   same("lib/github.mjs: an unresolved thread fails the bar", barOf({ threads: [...ready.threads, { id: "t", resolved: false, author: "pullfrog" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: an unresolved thread of any author fails the bar", barOf({ threads: [{ id: "t", resolved: false, author: "someone" }] }), ["threads-unresolved:1"])
   same("lib/github.mjs: a thread list that ends early fails the bar", barOf({ threadsComplete: false }), ["threads-incomplete"])
-  same("lib/github.mjs: a pull request behind its base fails the bar", barOf({ behindBy: 2 }), ["behind:2"])
-  same("lib/github.mjs: an unknown lag fails the bar", barOf({ behindBy: null }), ["behind-unknown"])
+  same("lib/github.mjs: a pull request that is behind its base passes the bar", [barOf({ behindBy: 2 }), barOf({ behindBy: null }), barOf({})], [[], [], []])
   same("lib/github.mjs: a merge state that is not CLEAN fails the bar", barOf({ mergeState: "BLOCKED" }), ["merge-state:BLOCKED"])
   same("lib/github.mjs: an open blocker of the tracked ticket fails the bar", barOf({}, { blockers: [3, 4] }), ["blocked-by:3,4"])
   same("lib/github.mjs: a pull request that carries needs:owner fails the bar", barOf({ labels: ["parity:exempt", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: a tracked ticket that carries needs:owner fails the bar", barOf({}, { ticketLabels: ["repo:ui", "needs:owner"] }), ["needs-owner"])
   same("lib/github.mjs: needs:owner on both the pull request and its ticket is one failed condition", barOf({ labels: ["needs:owner"] }, { ticketLabels: ["needs:owner"] }), ["needs-owner"])
+  same("lib/github.mjs: a pull request that its needs-owner report holds fails the bar", barOf({}, { reportHeld: true }), ["needs-owner"])
   same("lib/github.mjs: other labels on the pull request and its ticket leave the bar alone", barOf({ labels: ["parity:exempt"] }, { ticketLabels: ["repo:ui", "needs:conversation"] }), [])
-  same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, behindBy: 1, mergeState: "BEHIND" }), ["draft", "behind:1", "merge-state:BEHIND"])
+  same("lib/github.mjs: every failed condition is listed, not only the first", barOf({ draft: true, mergeState: "DIRTY" }), ["draft", "merge-state:DIRTY"])
 
   const dependabot = { author: "dependabot", tracks: null }
   same("lib/github.mjs: a Dependabot patch and minor update passes the bar with no Tracks line", barOf(dependabot, { updateTypes: ["patch", "minor"] }), [])
@@ -551,6 +594,14 @@ const ciCases = (open, approved) => {
   same("lib/github.mjs: the recorded barrier failure is one failed step", barrierSteps, ["Require deployment barriers for schema contractions"])
   same("lib/github.mjs: a failed barrier step of Guard Migrations goes to the owner", classifyCheckFailure({ name: "Guard Migrations", failedSteps: barrierSteps }), "needs-owner")
   same("lib/github.mjs: a failed Set up job step gets a rerun", classifyCheckFailure({ name: "Lint", failedSteps: ["Set up job"] }), "rerun")
+  const checkoutTable = [
+    ["the default name of a checkout step", ["Run actions/checkout@v7"], "rerun"],
+    ["the default name of a checkout step pinned to a commit", ["Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"], "rerun"],
+    ["the checkout step that Guards names", ["Checkout", "Set up Node"], "rerun"],
+    ["only the cleanup step of a checkout", ["Post Run actions/checkout@v7"], "ci-fix"],
+    ["a repository step whose name starts with Checkout", ["Checkout flow tests"], "ci-fix"],
+  ]
+  for (const [label, failedSteps, verdict] of checkoutTable) same(`lib/github.mjs: ${label} gives ${verdict}`, classifyCheckFailure({ name: "Lint", failedSteps }), verdict)
   same("lib/github.mjs: any other failure is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: ["Run Domain Tests"] }), "ci-fix")
   same("lib/github.mjs: another step of Guard Migrations is a fix order", classifyCheckFailure({ name: "Guard Migrations", failedSteps: ["Fail on edits to applied migrations"] }), "ci-fix")
   same("lib/github.mjs: the barrier step under another check name is a fix order", classifyCheckFailure({ name: "Unit Tests", failedSteps: barrierSteps }), "ci-fix")
@@ -646,7 +697,7 @@ const workerLaunchHarness = (name, { logText = "", fingerprint = () => "same", l
 
 const settingsCases = () => {
   const settings = workerSettings({ hotPath: `${HOME}/Developer/brain/hot.md`, skillNames: ["brain", "humanizer", "pdf"] })
-  same("lib/worker.mjs: the settings JSON holds exactly the keys the order names", Object.keys(settings), ["claudeMdExcludes", "autoMemoryEnabled", "outputStyle", "skillOverrides", "permissions"])
+  same("lib/worker.mjs: the settings JSON holds exactly the keys the order names", Object.keys(settings), ["claudeMdExcludes", "autoMemoryEnabled", "outputStyle", "skillOverrides", "permissions", "hooks"])
   same("lib/worker.mjs: the hot file is excluded from loading", settings.claudeMdExcludes, [`${HOME}/Developer/brain/hot.md`])
   same("lib/worker.mjs: auto memory is off and the output style is the default", [settings.autoMemoryEnabled, settings.outputStyle], [false, "default"])
   const ownerSkillsOff = Object.fromEntries(WORKER_SKILLS_OFF.map((name) => [name, "off"]))
@@ -657,8 +708,11 @@ const settingsCases = () => {
     "Edit(**/.github/migration-contracts.json)", "Write(**/.github/migration-contracts.json)", "Edit(**/.github/migration-locks.json)", "Write(**/.github/migration-locks.json)",
     "Bash(render *)", "Bash(terraform *)", "Bash(aws *)", "Bash(stripe *)", "Bash(gh workflow *)", "Bash(gh secret *)", "Bash(gh pr merge*)", "Bash(gh api *merge*)",
     "Bash(gh api * -X *)", "Bash(gh api -X *)", "Bash(gh api * --method *)", "Bash(gh api --method *)", "Bash(gh auth *)", "Bash(env -u GH_TOKEN *)", "Bash(unset GH_TOKEN*)", "Bash(*GH_TOKEN=*)", "Bash(security *)",
+    "Bash(gh pr close*)", "Bash(gh issue close*)", "Bash(gh issue comment*)", "Bash(gh issue edit*)",
   ])
-  T("lib/worker.mjs: the deny list of the settings is a copy, so a caller cannot change the constant", settings.permissions.deny !== WORKER_DENY && Object.isFrozen(WORKER_DENY))
+  T("lib/worker.mjs: no deny rule refuses the edit or the comment of a pull request", !settings.permissions.deny.some((rule) => /gh pr (edit|comment)/.test(rule)))
+  T("lib/worker.mjs: the deny list of the settings is a copy, so a caller cannot change the constant", settings.permissions.deny !== WORKER_DENY && Object.isFrozen(WORKER_DENY) && Object.isFrozen(CODE_WORKER_DENY))
+  T("lib/worker.mjs: a code worker with no branch gets the hook with no target", !settings.hooks.PreToolUse[0].hooks[0].command.includes("--branch"))
   const schema = WORKER_FIXTURE.skillOverridesSchema
   const allowedValues = JSON.parse(/U\((\[[^\]]*\])\)/.exec(schema.schema)[1])
   T("lib/worker.mjs: every skillOverrides value that the worker writes is one the installed CLI accepts", Object.values(settings.skillOverrides).every((value) => allowedValues.includes(value)))
@@ -742,7 +796,10 @@ const skillAndEnvironmentCases = async () => {
   const questionsSettings = JSON.parse(questions.command.args.at(-1))
   same("lib/worker.mjs: the questions run uses the coordinator model at the worker effort and no other argument changes", [questions.command.args.slice(0, 5), questions.command.args.slice(5, -1)], [["-p", "--model", "claude-opus-5-5", "--effort", "high"], invocation.command.args.slice(5, -1)])
   same("lib/worker.mjs: the questions run keeps the questions skill on and turns off the rest", questionsSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "questions").map((name) => [name, "off"])) })
-  same("lib/worker.mjs: the questions run keeps the worker deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [settings.permissions.deny, { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  same("lib/worker.mjs: the questions run keeps the shared deny list and environment, with the owner token", [questionsSettings.permissions.deny, questions.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
+  T("lib/worker.mjs: the questions run writes ticket bodies, so it gets no GitHub hook and no code worker rule", !("hooks" in questionsSettings) && !questionsSettings.permissions.deny.includes("Bash(gh issue edit*)"))
+  const ownSettings = JSON.parse(workerInvocation({ home, parentEnvironment: parent, token: TOKEN, own: { worktree: "/work/tree", branch: "chore/ticket-9" } }).command.args.at(-1))
+  T("lib/worker.mjs: the invocation of a launch names its working tree and branch to the hook", ownSettings.hooks.PreToolUse[0].hooks[0].command.endsWith("--worktree '/work/tree' --branch 'chore/ticket-9' || exit 2"), ownSettings.hooks.PreToolUse[0].hooks[0].command)
   same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
   same("lib/worker.mjs: a parent that sets BRAIN_SESSION_CAPTURE to 0 does not turn the capture back on", workerInvocation({ home, parentEnvironment: { ...parent, BRAIN_SESSION_CAPTURE: "0" }, token: TOKEN }).environment.BRAIN_SESSION_CAPTURE, "1")
   T("lib/worker.mjs: the questions environment holds no worker token", !Object.values(questions.environment).includes(TOKEN))
@@ -1015,9 +1072,10 @@ const orderCases = async () => {
 
   const fix = order("fix", { pull: PULL, review: REVIEW })
   T("lib/order.mjs: a fix order lists every class and every instance of the review", ["src/a.ts:10", "src/b.ts:22", "src/c.ts:3", "src/d.ts:8", "BLOCKING: correctness bug", "BLOCKING: broken contract", "BLOCKING: missed requirement"].every((text) => fix.includes(text)), fix)
-  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Merge `origin\/main`/.test(fix))
+  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Do not merge `origin\/main`/.test(fix))
   const ciFix = order("ci-fix", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a ci-fix order names each failed check, its failed steps and the last 60 log lines", ciFix.includes("### Unit Tests (failed steps: Run Domain Tests)") && ciFix.includes("### Lint\n") && ciFix.includes("log line 79") && ciFix.includes("log line 20") && !ciFix.includes("log line 19\n"))
+  T("lib/order.mjs: a fix order and a ci-fix order never tell the worker to merge origin/main", [fix, ciFix].every((text) => /Do not merge `origin\/main`\. Push once/.test(text) && !/(^|[.] )Merge `origin\/main`/.test(text)))
   const forward = order("merge-forward", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a merge-forward order names the conflicts and asks for one push", forward.includes("in: a.ts, b.ts") && /Merge `origin\/main` into the branch/.test(forward) && /Push once/.test(forward))
   T("lib/order.mjs: a merge-forward order without a conflict list still reads", /conflicts with `origin\/main`\. Merge/.test(order("merge-forward", { pull: PULL, failure: null })))
@@ -1060,7 +1118,7 @@ const orderCases = async () => {
 }
 
 const selfSufficiencyCases = () => {
-  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
+  const files = ["drive.mjs", "__tests__/_drive-tick.mjs", "lib/driver-pin.mjs", "lib/telegram.mjs", "lib/worker.mjs", "lib/worker-gh-hook.mjs", "lib/order.mjs", "lib/github.mjs", "lib/config.mjs", "__tests__/drive.mjs", "__fixtures__/drive-github.json", "__fixtures__/drive-worker.json"]
   for (const file of files) {
     const path = toolPath(file)
     const found = readFileSync(path, "utf8").split("\n").map((line, index) => [index + 1, line]).filter(([, line]) => BANNED_TEXT.test(line))
@@ -1080,7 +1138,12 @@ const skillMarkerCases = () => {
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
   same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
+  // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
+  const listing = questions.split("\n").find((line) => line.startsWith("2. ") && line.includes("pull request")) ?? ""
+  T("skills/questions: step 1 lists a pull request with no open ticket by its needs-owner report", listing.includes("no open ticket") && listing.includes("<!-- orbit-drive:needs-owner -->"), listing)
+  T("skills/questions: section 4 ends the hold of such a pull request with the orbit-drive:owner-answer marker", questions.includes("<!-- orbit-drive:owner-answer -->"), "no step writes the answer marker")
   const drivers = skillText("driver")
+  T("skills/driver: a held report with no label is handled only when its pull request is closed or answered", drivers.includes("orbit-drive:owner-answer"), "the sleep report reads only the label")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
   T("skills/driver: a worktree skill link is deleted only when the pull request of its branch is merged", unlink.includes("--state merged") && unlink.includes("--head"), unlink)
   // Run from a code checkout, gh reads the issues of that repository, so each issue command of a skill names the ticket repository.

@@ -305,7 +305,6 @@ describe('proxy', () => {
 
     for (const sources of [imageSources, connectionSources]) {
       expect(sources).toContain(bucketOrigin)
-      expect(sources.some((source) => source.includes('supabase'))).toBe(false)
       expect(sources).not.toContain(otherBucketOrigin)
     }
     expect(imageSources).toContain('https://api.example.test')

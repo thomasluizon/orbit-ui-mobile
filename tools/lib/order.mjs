@@ -77,9 +77,9 @@ const kindSection = ({ kind, pull, review, failure, partNumber, partTotal }) => 
     case "build part":
       return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
     case "fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`. Push once.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`. Push once.`
     case "merge-forward":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
     case "find":
@@ -138,9 +138,12 @@ const deliverySection = ({ ticket, kind }) => {
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`. The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
+    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
+  const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
-  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. Write to GitHub only with ${pushes ? "`git push`" : "`git push` and `gh pr create`"}.`
+  const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
+  const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."
+  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**PR Metadata.** ${metadata}`
 }
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */

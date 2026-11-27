@@ -923,6 +923,14 @@ select[aria-hidden="true"] {
   transition: background-color var(--dur-fast) var(--ease-standard), box-shadow var(--dur-fast) var(--ease-standard), transform var(--dur-press) var(--ease-out);
 }
 
+/* At 1024 and above the one-question flow draws its option cards at the compact control height. */
+@media (min-width: 1024px) {
+  [data-question-flow] .orbit-option-card {
+    min-height: var(--pill-visible-min);
+    padding-block: var(--orbit-space-8);
+  }
+}
+
 .orbit-option-card[data-selected] {
   box-shadow: inset 0 0 0 2px var(--primary);
 }
