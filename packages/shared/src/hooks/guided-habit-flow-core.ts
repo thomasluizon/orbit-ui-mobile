@@ -169,6 +169,7 @@ interface FlowAnswerInput {
   options: Readonly<GuidedHabitFlowOptions>
   controller: HabitFormController
   deliberateType: DeliberateType
+  step: HabitFlowStepKey
   port: HabitFlowFormPort
   today: string
   supportedLocale: ReturnType<typeof resolveSupportedLocale>
@@ -371,11 +372,15 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     return { current, position: habitFlowPosition(current, steps), advance, back, open, replace }
   }
 
-  function useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
+  function useFlowAnswers({ options, controller, deliberateType, step, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate }: FlowAnswerInput) {
     const { form, mode, locale, timeZone, isOnline, atOrbitLimit, interpretDate } = options
     const dateRead = useRef(0)
     const [interpretingDate, setInterpretingDate] = useState(false)
     useEffect(() => () => { dateRead.current += 1 }, [])
+    useEffect(() => {
+      dateRead.current += 1
+      setInterpretingDate(false)
+    }, [step])
     const answerStep = useCallback((answered: keyof HabitFlowAnswers, withTime = false) => {
       dateRead.current += 1
       setInterpretingDate(false)
@@ -617,7 +622,7 @@ export function createUseGuidedHabitFlow({ useState, useEffect, useMemo, useCall
     const startRepeat = useCallback(() => {
       if (habitRepeatLacksStart(form.getValues())) form.setField('dueDate', today)
     }, [form, today])
-    const { answerWhen, keepProposedWhen, chooseDate, readWhenWords, interpretWhenWords, interpretingDate, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
+    const { answerWhen, keepProposedWhen, chooseDate, readWhenWords, interpretWhenWords, interpretingDate, previewWhenWords, answerTime, answerReminder } = useFlowAnswers({ options, controller, deliberateType, step: current.step, port, today, supportedLocale, readAnswers, setAnswers, setProposals, advance, stepsAfter, startRepeat, releasePhraseDate })
     const markTypeDeliberate = useCallback((type: 'task' | 'habit') => {
       if (form.getValues().itemType !== type) setProposals((value) => (value.schedule ? { ...value, schedule: false } : value))
       setDeliberateType(type)

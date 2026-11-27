@@ -268,6 +268,33 @@ describe('the steps of the shared guided habit flow', () => {
         mounted.unmount()
       }
     })
+
+    it('drops the answer of a request that the person outran by leaving the date question and changing the phrase', async () => {
+      let arrive!: (reply: { date: string | null; referenceDate: string }) => void
+      const interpretDate = vi.fn(() => new Promise<{ date: string | null; referenceDate: string }>((resolve) => { arrive = resolve }))
+      const cases = [
+        { rephrase: 'call John every day', expected: { itemType: 'habit', frequencyUnit: 'Day', dueDate: TODAY } },
+        { rephrase: 'call John tomorrow', expected: { itemType: 'task', dueDate: '2026-11-14' } },
+      ]
+      for (const { rephrase, expected } of cases) {
+        const mounted = mountFlow({ interpretDate })
+        await leavePhraseWith(mounted, 'call John')
+        expect(mounted.flow.current.step).toBe('when')
+        let pending!: ReturnType<Mounted['flow']['interpretWhenWords']>
+        run(() => { pending = mounted.flow.interpretWhenWords(WORDS) })
+        expect(mounted.flow.interpretingDate).toBe(true)
+        run(() => { mounted.flow.back() })
+        expect(mounted.flow.current.step).toBe('what')
+        expect(mounted.flow.interpretingDate).toBe(false)
+        run(() => mounted.flow.changeTitle(rephrase))
+        await act(async () => { arrive({ date: '2026-11-25', referenceDate: TODAY }) })
+        expect(await pending).toEqual({ kind: 'stale' })
+        await act(async () => { await mounted.flow.leavePhrase() })
+        expect(mounted.values).toMatchObject(expected)
+        expect(mounted.flow.answers.when).toBe(false)
+        mounted.unmount()
+      }
+    })
   })
 
   it('gives the repeat of the date question its start day', async () => {
