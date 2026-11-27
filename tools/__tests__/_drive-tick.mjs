@@ -2489,10 +2489,11 @@ const reapOutcomeCases = async () => {
   const factsTickets = [ticket(7)]
   const factsReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: REAL-FINDING" }] })
   let afterExit = false
+  let dirtyTree = false
   // The git directory of the worktree holds the gate record that the `Stop` hook writes.
   const gateDirectory = join(root, "drive-gate-directory")
   mkdirSync(gateDirectory, { recursive: true })
-  const factsScene = scenario({ tickets: factsTickets, pulls: { ui: [pull(30, { reviews: [factsReview] })] }, gitRoutes: [["rev-parse", (args) => (args.includes("--absolute-git-dir") ? `${gateDirectory}\n` : `${afterExit ? NEXT_HEAD : HEAD}\n`)]] })
+  const factsScene = scenario({ tickets: factsTickets, pulls: { ui: [pull(30, { reviews: [factsReview] })] }, gitRoutes: [["rev-parse", (args) => (args.includes("--absolute-git-dir") ? `${gateDirectory}\n` : `${afterExit ? NEXT_HEAD : HEAD}\n`)], ["status", () => (dirtyTree ? "?? apps/web/src/helper.ts\n" : "")]] })
   keepWrites(factsScene, factsTickets)
   // Each launch has its own start time, so each gets its own log name and facts file.
   let factsClock = NOW
@@ -2517,6 +2518,13 @@ const reapOutcomeCases = async () => {
   same("drive: a launch whose gate record belongs to another run reads as gate red", factsOf(secondLog).gate, "gate red")
   const opusOrder = factsScene.launched[2]?.order ?? ""
   T("drive: the Opus order holds the exit, heads and findings that the real facts files of the two earlier launches hold", factsScene.launched.length === 3 && secondLog !== undefined && factsScene.launched[2].invocation.model === "claude-opus-5-5" && opusOrder.includes("## Earlier launches") && opusOrder.includes("Exit: 1, killed: passed its hard ceiling.") && opusOrder.includes(`${HEAD} to ${NEXT_HEAD}`) && opusOrder.includes("tools/a.mjs:3: BLOCKING: REAL-FINDING") && !opusOrder.includes("Exit: unknown"), opusOrder.slice(opusOrder.indexOf("## Earlier launches"), opusOrder.indexOf("## Brief")))
+  // A valid green record for the third launch still reads red while the worktree holds an uncommitted file: the record names a commit, and the gate tested the files.
+  const [, , thirdLog] = logNames()
+  writeFileSync(join(gateDirectory, "orbit-gate.json"), JSON.stringify({ run: thirdLog, head: NEXT_HEAD, green: true, failures: [], blocks: 0, at: "2026-11-27T09:00:00.000Z" }))
+  dirtyTree = true
+  factsClock += MINUTE
+  await factsScene.run()
+  same("drive: a green gate record on the head of a worktree with an uncommitted file reads as gate red", factsOf(thirdLog).gate, "gate red")
 }
 
 const unreadLogCases = async () => {

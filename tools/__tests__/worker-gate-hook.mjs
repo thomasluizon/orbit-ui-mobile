@@ -20,6 +20,10 @@ export const cases = () => {
   T("worker-gate-hook: a failing type check gives decision block with the command and its output, and writes one block", first.decision === "block" && first.reason.includes("Failed command: npm run type-check -w apps/web\nTS2322") && !record().green && record().blocks === 1, first.reason)
   gate(options); gate(options)
   same("worker-gate-hook: the fourth red stop does not block and writes green false", [gate(options), record().green, record().blocks], [null, false, 3])
+  const allGreen = { ...options, run: "d", execute: (top, entry) => ({ command: text(entry), ok: true, tail: "" }) }
+  const dirty = gate(allGreen)
+  T("worker-gate-hook: every command green and an uncommitted file gives decision block and green false", dirty?.decision === "block" && dirty.reason.includes("Failed command: git status --porcelain --untracked-files=all\n?? apps/web/src/a.ts") && !record().green, JSON.stringify(dirty))
+  git("add", "-A"); git("commit", "-q", "-m", "work")
   same("worker-gate-hook: a green gate writes green true and does not block", [gate({ ...options, run: "g", execute: (top, entry) => ({ command: text(entry), ok: true, tail: "" }) }), record().green], [null, true])
   same("worker-gate-hook: a tools diff runs test-tools for its module, and tailOf keeps 40 lines", [gateCommands(dir, ["tools/lib/alpha.mjs"], () => true).map(text), tailOf("x\n".repeat(99)).split("\n").length], [["node tools/test-tools.mjs --only alpha", "node tools/check-dashes.mjs --files tools/lib/alpha.mjs"], 40])
   const modules = (...paths) => gateCommands(dir, paths, () => true).map(text).filter((entry) => entry.includes("test-tools"))

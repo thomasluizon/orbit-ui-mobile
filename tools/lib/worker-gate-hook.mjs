@@ -102,11 +102,10 @@ const writeGate = (gitDir, record) => {
   renameSync(`${recordFile(gitDir)}.${process.pid}`, recordFile(gitDir))
 }
 
+const STATUS = ["status", "--porcelain", "--untracked-files=all"]
+
 /** True when the worktree holds no commit since the launch and no change. `baseline` is the head of the launch, or null. */
-const untouched = (top, head, baseline) => {
-  const from = baseline ?? git(top, ["merge-base", "origin/main", "HEAD"])
-  return head === from && git(top, ["status", "--porcelain", "--untracked-files=all"]) === ""
-}
+const untouched = (top, head, baseline, status) => (head === (baseline ?? git(top, ["merge-base", "origin/main", "HEAD"]))) && status === ""
 
 /** The block reason: each failed command with the last lines of its output. */
 export const blockReason = (failures) =>
@@ -125,11 +124,14 @@ export const gate = ({ cwd, run: runName = null, baseline = null, now = new Date
   const previous = readGate(counted.gitDir)
   const blocks = previous !== null && previous.run === runName ? previous.blocks : 0
   const finish = (record) => writeGate(counted.gitDir, { run: runName, head, ...record, at: now.toISOString() })
-  if (untouched(counted.top, head, baseline)) {
+  // The gate tests the files of the worktree and the record names a commit, so a file that no commit holds is a failure. The driver pushes the commit.
+  const status = git(counted.top, STATUS)
+  if (untouched(counted.top, head, baseline, status)) {
     finish({ green: true, failures: [], blocks })
     return null
   }
-  const failures = gateCommands(counted.top, counted.paths).map((entry) => execute(counted.top, entry)).filter((result) => !result.ok).map(({ command, tail }) => ({ command, tail }))
+  const dirty = status === "" ? [] : [{ command: `git ${STATUS.join(" ")}`, tail: tailOf(status) }]
+  const failures = [...dirty, ...gateCommands(counted.top, counted.paths).map((entry) => execute(counted.top, entry)).filter((result) => !result.ok).map(({ command, tail }) => ({ command, tail }))]
   if (failures.length === 0) {
     finish({ green: true, failures: [], blocks })
     return null

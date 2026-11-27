@@ -1883,8 +1883,8 @@ const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: nu
 
 /**
  * The gate result of a launch: `gate green` or `gate red`, from the record that the `Stop` hook wrote in the git directory of the worktree.
- * A record of another launch, a record for another head and a missing record read as red, because a run that never passed its gate
- * has no green result. A `find` or `replan` run has no gate, so it gives null.
+ * A record of another launch, a record for another head, a missing record and a worktree with an uncommitted file read as red,
+ * because a run that never passed its gate has no green result. A `find` or `replan` run has no gate, so it gives null.
  */
 const gateResultOf = async (env, { kind, worktree, logFile }, headAfter) => {
   if (kind === "find" || kind === "replan") return null
@@ -1892,7 +1892,9 @@ const gateResultOf = async (env, { kind, worktree, logFile }, headAfter) => {
   if (dir.status !== 0) return "gate red"
   const record = readGate(dir.stdout.trim())
   const run = basename(logFile, ".log")
-  return record?.run === run && record.green === true && record.head === headAfter ? "gate green" : "gate red"
+  // The record names a commit and the gate tested the files, so a green record counts only for a worktree that holds no uncommitted file.
+  const status = await env.git(worktree, CLEAN_STATUS_ARGUMENTS)
+  return record?.run === run && record.green === true && record.head === headAfter && status.status === 0 && status.stdout.trim() === "" ? "gate green" : "gate red"
 }
 
 /** Adds the exit of a launch to its facts file: the exit code, the kill reason, the head that the worktree holds now and the gate result. A failed write loses only history. */
