@@ -78,7 +78,9 @@ const PT_RANGE_START_MARKS = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+e\s+(?<st
 const PT_RANGE_END_MARKS = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+e\s+meia\b(?!-))?(?:\s+da\s+(?<endPeriod>${PT_PERIOD_WORD})\b)?`
 const PT_RANGE_END = String.raw`(?<endHour>${PT_RANGE_HOUR})(?::[0-5]\d|h(?:[0-5]\d)?)?${PT_RANGE_END_MARKS}${PT_RANGE_END_WITHOUT_OWN_UNIT}`
 const PT_RANGE_MARKED_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)?\s+(?:${PT_HOUR_UNIT}\b|e\s+meia\b|da\s+(?:${PT_PERIOD_WORD})\b)`
-const PT_RANGE_NOON_END = String.raw`(?:ao|as|ate(?:\s+o)?)\s+(?<endNoon>meio-dia)(?:\s+e\s+meia\b(?!-))?(?:\s+da\s+(?:${PT_PERIOD_WORD})\b)?(?![\w-]|[:.,]\d)`
+const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
+const PT_NOON_OFFSET_TAIL = String.raw`\s+(?:e|menos)\s+(?:\d{1,2}(?![\w:])|um\s+quarto\b|meia\s+hora\b|(?:${[...PT_OFFSET_WORDS].join('|')})\b)`
+const PT_RANGE_NOON_END = String.raw`(?:ao|as|ate(?:\s+o)?)\s+(?<endNoon>meio-dia)(?!${PT_NOON_OFFSET_TAIL})(?:\s+e\s+mei[ao]\b(?!-))?(?:\s+da\s+(?:${PT_PERIOD_WORD})\b)?(?![\w-]|[:.,]\d)`
 const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::([0-5]\d)|h([0-5]\d)?)?${PT_RANGE_START_MARKS}\s+(?:(?:(?:ate\s+as|ate|as)|a(?=\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}|${PT_RANGE_MARKED_END})))\s+${PT_RANGE_END}|${PT_RANGE_NOON_END})`
 const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
 const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
@@ -95,7 +97,6 @@ const MONTH_SCOPE_FILLERS = new Set(['the', 'every', 'each', 'this', 'next', 'la
 const PT_NOON =String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
 const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
 
-const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
 const PT_OFFSET_CONNECTORS = new Set(['para', 'pra', 'pro', 'antes', 'depois'])
 const PT_OFFSET_ARTICLES = new Set(['o', 'do'])
 const EN_OFFSET_WORDS = new Set([
