@@ -17,12 +17,12 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, partProblem, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, partProblem, renderOrder, renderResumeOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -263,6 +263,13 @@ const knownAccounts = (mem) => ACCOUNT_NAMES.filter((name) => stateOf(mem, name)
 
 /** The name of the account that a launch record or a reading names by its key. A key that matches neither belongs to the main account. */
 const nameOfKey = (mem, key) => (key !== null && mem.worker.account?.key === key ? WORKER : MAIN)
+
+/** The account of the newest session of the branch of a fix order, or null for a build order, a launch at a cap, an unknown session or an account of no known login. */
+const sessionAccountOf = (mem, order) => {
+  if (!FIX_KINDS.includes(order.kind) || order.model) return null
+  const saved = recordsOf(order.ticket, "launch-session").findLast((record) => record.branch === (order.branch ?? order.pull.headRef))
+  return knownAccounts(mem).find((name) => stateOf(mem, name).account.key === saved?.account) ?? null
+}
 
 /** A reading counts only for the account that took it: a worker event for the account of its launch, the snapshot for its email. */
 const readingsOfAccount = (env, mem, name) => {
@@ -1344,6 +1351,34 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
   return path
 }
 
+/** Gives a new worktree its dependencies: a clone of the main checkout's, or one `npm ci`. A failure only logs, because the worker installs for itself. */
+const provisionDependencies = async (env, repoKey, ticket, worktree) => {
+  const item = `ticket#${ticket.number}`
+  const result = await env.dependencies(env.config.repos[repoKey], worktree)
+  if (result.action === "clone") log(env, item, "worktree deps clone", `${result.ms} ms, ${result.directories.length} directories`)
+  else if (result.action === "install") log(env, item, "worktree deps install", `${result.ms} ms, ${result.reason}`)
+  else if (result.action === "failed") log(env, item, "worktree deps failed", `${result.ms} ms, ${result.reason}`)
+}
+
+/**
+ * The session that a fix, ci-fix or merge-forward launch resumes, or null for a cold start. The launch must run the worker model: a launch at a
+ * cap starts cold with its failure history. The newest session that a worker of the branch left must belong to the same account, hold at most
+ * `RESUME_TOKEN_LIMIT` tokens and still have its transcript on disk.
+ */
+const resumableSession = (env, ticket, { kind, branch, model, account, invocation, worktree }) => {
+  const item = `ticket#${ticket.number}`
+  const cold = (reason) => { log(env, item, "fix cold start", `${kind}, ${reason}`); return null }
+  if (model !== workerApi.WORKER_MODEL) return cold(`the launch runs ${model}`)
+  const saved = recordsOf(ticket, "launch-session").findLast((record) => record.branch === branch)
+  if (saved === undefined) return cold("no session of the branch is recorded")
+  if (saved.account !== account) return cold("the session belongs to another account")
+  if (!(saved.tokens <= workerApi.RESUME_TOKEN_LIMIT)) return cold(`the session holds ${saved.tokens} tokens`)
+  const configDirectory = invocation.environment.CLAUDE_CONFIG_DIR ?? join(env.home, ".claude")
+  if (!env.worker.sessionExists({ configDirectory, worktree, sessionId: saved.session })) return cold("the session transcript is gone")
+  log(env, item, `fix resume ${saved.session}`, `${kind}, ${saved.tokens} tokens`)
+  return saved.session
+}
+
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
 /** Takes one launch back from a ticket, so it counts toward no cap. */
@@ -1387,18 +1422,23 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
   await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })))
   ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })), createdAt: startedIso })
   const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
+  if (!location.listed) await provisionDependencies(env, repoKey, ticket, worktree)
   const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
-  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: part?.number ?? null })
   const logFile = join(env.stateDir, "logs", `${logName}.log`)
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
-  const invocation = await env.invocation(token, accountName, { worktree, branch }, model)
+  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model)
   const account = stateOf(mem, accountName).account?.key ?? null
   const refusal = blocked()
   if (refusal !== null) {
     await refundLaunch(env, ticket, { kind, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null }, `${kind} on ${branch} starts no worker: ${refusal}`)
     return refusal
   }
+  const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree }) : null
+  const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
+  const text = session === null
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: part?.number ?? null })
+    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
@@ -1519,6 +1559,15 @@ const stopAndRefund = async (env, mem, ticket, exit, result) => {
   await refundLaunch(env, ticket, { kind, partNumber, branch, prNumber }, `${kind} on ${branch} starts again on the other account`)
 }
 
+/** Records the session that a worker leaves and the size of its context on the ticket, so a later fix of the branch can resume it. A log with no usage records nothing. */
+const recordSession = async (env, ticket, { kind, partNumber, branch, prNumber, account, logFile }, sessionId) => {
+  const tokens = env.worker.logContextTokens(logFile)
+  if (tokens === null) return
+  const body = marked("launch-session", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber, session: sessionId, account, tokens }))
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "launch-session", body, createdAt: new Date(env.now()).toISOString() })
+}
+
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
 const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logEvent(logFile), result: workerApi.logFinalResult(logFile) })
 
@@ -1550,6 +1599,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     if (knownAccounts(mem).length > 1 && account !== null) return stopAndRefund(env, mem, ticket, exit, result)
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
+  if (kind !== "find" && result.sessionId) await recordSession(env, ticket, exit, result.sessionId).catch((error) => log(env, item, "error", `the session is not recorded: ${error.message}`))
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
@@ -2170,7 +2220,10 @@ export const tick = async (env, mem) => {
     for (const order of launchable) {
       if (held()) return "the driver is paused"
       if (early && limitSeen.found) return LIMIT_STOP
-      const name = free.worker > 0 ? WORKER : MAIN
+      // A fix order goes to the account of its build session when that account has a free slot, so it resumes. Else the worker account takes a launch when it has a free slot, else the main account.
+      const own = sessionAccountOf(mem, order)
+      // A session on the main account is unusable after a Pullfrog limit, so the order starts cold on the worker account.
+      const name = own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       reached.add(order.ticket.number)
       // A plan can find a limit while a start runs. With a second account, a start on the main account then launches no worker.
@@ -2440,6 +2493,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
     findRepositories,
+    dependencies: installDependencies,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     fetch: globalThis.fetch,
     osascript: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
