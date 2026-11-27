@@ -443,6 +443,18 @@ export const requestTrain = (stateDir) => {
   return null
 }
 
+/**
+ * The hold that a train puts on the merges into the mobile repository, or null. The train ships Android and iOS at the commit that
+ * `prepareMobile` read, and the release workflows build `main`, so `main` must not move until the last mobile step is dispatched.
+ * A skipped, held, verified or failed step and a train that stopped or ended lift the hold.
+ */
+export const mobileMergeHold = (state) => {
+  const train = state?.train
+  if (!train || train.status !== "running" || !train.mobile) return null
+  const waiting = train.steps.some((step) => ["android", "ios"].includes(step.kind) && ["pending", "dispatching"].includes(step.state))
+  return waiting ? { id: train.id, sha: train.mobile.sha } : null
+}
+
 /** One line for `/driver`: the newest train, what it released and where it stopped. */
 export const trainSummary = (stateDir) => {
   const { train } = readTrainState(stateDir)

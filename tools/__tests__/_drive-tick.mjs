@@ -94,7 +94,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
         return chosen === undefined ? { utilization: 0.1, resetsAt: RESETS_AT, status: "allowed" } : chosen
       },
     },
-    invocation: async (token, name = "main") => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) } }),
+    invocation: async (token, name = "main", own = null) => ({ command: { executable: "claude", args: [] }, environment: { ...(name === "worker" ? { CLAUDE_CONFIG_DIR: WORKER_DIRECTORY } : {}), ...(token ? { GH_TOKEN: token } : {}) }, own }),
     git: async (cwd, args) => { calls.push(["git", ...args]); const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" } },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
     osascript: async (message) => { calls.push(["notify", message]) },
@@ -205,6 +205,7 @@ const admissionCases = async () => {
   const partsScene = scenario({ tickets: [ticket(7, { comments: parts })] })
   await partsScene.run()
   T("drive: part 1 starts first on its own branch", partsScene.launched.length === 1 && partsScene.launched[0].worktree.endsWith("chore-ticket-7-part-1"))
+  same("drive: a launch gives the worker invocation its own working tree and branch", partsScene.launched[0].invocation.own, { worktree: partsScene.launched[0].worktree, branch: "chore/ticket-7-part-1" })
   const secondPart = scenario({ tickets: [ticket(7, { comments: parts })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] } })
   await secondPart.run()
   T("drive: a next part with Paths that overlap no open part PR starts while part 1 is open", secondPart.launched.length === 1 && secondPart.launched[0].worktree.endsWith("chore-ticket-7-part-2"))
@@ -605,7 +606,7 @@ const reviewCases = async () => {
   const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
-  same("drive: a COMMENTED review with no BLOCKING gets one re-request", commentsOf(first.calls, 30).map((text) => text.split("\n")[1]), [PLAIN])
+  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and needs:owner", [commentsOf(first.calls, 30).length, only(first.calls, "editLabels").length], [0, 1])
   const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review(CHANGES_REQUESTED, HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
   await second.run()
   same("drive: a second review with no BLOCKING gives needs:owner", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").length], [0, 1])
@@ -670,6 +671,55 @@ const reviewCases = async () => {
   const early = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -3 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: before the request" })] })] } })
   await early.run()
   same("drive: a whole-diff review submitted before the request does not count", only(early.calls, "merge").length, 0)
+}
+
+/** One review per head: a repeat at the same head, a clean merge of the base that keeps the diff, and a fix round. */
+const reviewOnceCases = async () => {
+  const NEW_HEAD = "e".repeat(40)
+  const diffOf = (blob, line, body) => `diff --git a/x b/x\nindex ${blob}..${blob}1 100644\n--- a/x\n+++ b/x\n@@ -${line},1 +${line},1 @@\n-old\n+${body}\n`
+  // The head after a merge of the base: other blob ids and other line numbers, the same change.
+  // The key holds --binary: the own diff of a head is read with the context lines and the content of a binary file.
+  const diffRoute = (approvedDiff, headDiff) => ["--binary", (args) => (args.at(-1).endsWith(NEW_HEAD) ? headDiff : approvedDiff)]
+  const merged = (diffs, extra = {}) => scenario({ tickets: [ticket(7)], gitRoutes: [diffRoute(...diffs)], pulls: { ui: [pull(30, { headSha: NEW_HEAD, commits: [{ sha: HEAD, parents: 1 }, { sha: NEW_HEAD, parents: 2 }], reviews: [review("APPROVED", HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), comment("request", PLAIN, -50 * MINUTE)], ...extra })] } })
+  const skipLines = (scene) => scene.messages.filter((line) => line.includes("review skip"))
+
+  const sameDiff = merged([diffOf("111", 10, "new"), diffOf("222", 42, "new")])
+  await sameDiff.run()
+  same("drive: a clean merge of the base that keeps the diff of the approval asks for no review and merges", [commentsOf(sameDiff.calls, 30).length, only(sameDiff.calls, "merge").length, skipLines(sameDiff).map((line) => line.slice(line.indexOf("ui#30")))], [0, 1, ["ui#30 review skip (same diff)"]])
+  const changed = merged([diffOf("111", 10, "new"), diffOf("222", 10, "other")])
+  await changed.run()
+  same("drive: a merge of the base that changes the diff of the approval asks for a new review", [commentsOf(changed.calls, 30).map((text) => text.split("\n")[1]), only(changed.calls, "merge").length, skipLines(changed).length], [[PLAIN], 0, 0])
+  // A change that moves inside a file keeps its text and its context lines differ; a binary file that changes keeps its marker line and its payload differs.
+  const placed = (context, blob, payload) => `diff --git a/x.txt b/x.txt\nindex ${blob}..${blob}1 100644\n--- a/x.txt\n+++ b/x.txt\n@@ -1,7 +1,8 @@\n ${context}\n+setup()\n ${context}\ndiff --git a/img.bin b/img.bin\nindex ${blob}..${blob}2 100644\nGIT binary patch\nliteral 4\n${payload}\n`
+  const moved = merged([placed("line9", "111", "v1"), placed("line19", "222", "v1")])
+  await moved.run()
+  same("drive: a change that moves inside a file does not carry the approval", [commentsOf(moved.calls, 30).map((text) => text.split("\n")[1]), only(moved.calls, "merge").length, skipLines(moved).length], [[PLAIN], 0, 0])
+  const rebinary = merged([placed("line9", "111", "v1"), placed("line9", "222", "v2")])
+  await rebinary.run()
+  same("drive: a binary file with other content does not carry the approval", [commentsOf(rebinary.calls, 30).map((text) => text.split("\n")[1]), only(rebinary.calls, "merge").length], [[PLAIN], 0])
+  const rebased = merged([placed("line9", "111", "v1"), placed("line9", "222", "v1")])
+  await rebased.run()
+  same("drive: the same change with other blob ids carries the approval", [commentsOf(rebased.calls, 30).length, only(rebased.calls, "merge").length], [0, 1])
+  const diffCalls = sameDiff.calls.filter((call) => call[0] === "git" && call[1] === "diff")
+  same("drive: the own diff is read with the context lines and the binary content", [diffCalls.length > 0, diffCalls.every((call) => call.includes("--binary") && !call.includes("-U0"))], [true, true])
+  const unknown = merged(["", ""])
+  await unknown.run()
+  same("drive: a diff that git cannot show carries no approval", [commentsOf(unknown.calls, 30).map((text) => text.split("\n")[1]), only(unknown.calls, "merge").length], [[PLAIN], 0])
+  const wholeCarried = merged([diffOf("111", 10, "new"), diffOf("222", 42, "new")], { changedFiles: 40, reviews: [review("APPROVED", HEAD, -40 * MINUTE, { body: "Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -50 * MINUTE)] })
+  await wholeCarried.run()
+  same("drive: a whole-diff approval carries to a head with the same diff", [commentsOf(wholeCarried.calls, 30).length, only(wholeCarried.calls, "merge").length], [0, 1])
+
+  const sameHead = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], comments: [comment("ticket", "T")] })] } })
+  await sameHead.run()
+  same("drive: a head that has a review gets no plain request and the driver logs the skip", [commentsOf(sameHead.calls, 30).length, skipLines(sameHead).map((line) => line.slice(line.indexOf("ui#30")).replace(/ \(Pullfrog.*$/, ""))], [0, ["ui#30 review skip (same head)"]])
+
+  const fixLaunch = comment("launch", JSON.stringify({ kind: "fix", part: null, branch: "chore/ticket-7-30" }))
+  const fixRound = scenario({ tickets: [ticket(7, { comments: [fixLaunch] })], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T")] })] } })
+  await fixRound.run()
+  same("drive: the first request at the head of a fix round is one whole-diff request", commentsOf(fixRound.calls, 30).map((text) => text.split("\n")[1]), [`${PLAIN} whole diff`])
+  const fixAnswered = scenario({ tickets: [ticket(7, { comments: [fixLaunch] })], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "> Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -10 * MINUTE)] })] } })
+  await fixAnswered.run()
+  same("drive: the whole-diff review of a fix round answers it with no second request and merges", [commentsOf(fixAnswered.calls, 30).length, only(fixAnswered.calls, "merge").length], [0, 1])
 }
 
 /** The recorded state of ui#2522: approved before a clean base merge made the head, and the head has no pullfrog-approval check run. */
@@ -756,6 +806,43 @@ const stallCases = async () => {
   same("drive: a pull request whose merge throws on every tick still opens one stall issue", [only(refused.calls, "merge").length, created(refused).length], [1, 1])
 }
 
+/** A saved release train with the mobile steps in the given states, as `release-train.json` keeps it. */
+const trainFile = (states, { status = "running", mobile = { appVersion: "1.3.161", sha: "6c925e9c4".padEnd(40, "0"), stagingCode: 1, productionCode: 2 } } = {}) => ({
+  train: { id: "2026-11-26T08:07:24.444Z", status, mobile, steps: [["android", "staging"], ["ios", "staging"], ["android", "production"], ["ios", "production"]].map(([kind, environment], index) => ({ id: `${kind}-${environment}`, kind, service: kind, environment, state: states[index] })) },
+  lastEndedAt: null, lastPlanAt: null, requested: false,
+})
+
+const mobileHoldCases = async () => {
+  const held = async (label, file, { repo = "ui", expectMerges }) => {
+    const pulls = { ui: [], api: [], landing: [] }
+    pulls[repo] = [pull(30)]
+    const scene = scenario({ tickets: [ticket(7, { labels: [`repo:${repo}`, "Improvement"], repoKey: repo })], pulls })
+    if (file !== null) writeFileSync(join(scene.env.stateDir, "release-train.json"), `${JSON.stringify(file)}\n`)
+    await scene.run()
+    const merges = only(scene.calls, "merge").length
+    const lines = scene.messages.filter((line) => line.includes("merge held"))
+    same(`drive: ${label}`, [merges, lines.length], [expectMerges, expectMerges === 1 ? 0 : 1])
+    return lines
+  }
+  const lines = await held("a ui merge is held while the train has mobile steps that are not dispatched", trainFile(["verified", "verified", "dispatched", "pending"]), { expectMerges: 0 })
+  same("drive: the held ui merge logs the pull request, the train id and the sha", lines[0].slice(lines[0].indexOf("ui#30")), "ui#30 merge held (release train 2026-11-26T08:07:24.444Z ships mobile at 6c925e9c40000000000000000000000000000000)")
+  const stalledHold = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30)] }, stateDirectory: join(root, `drive-stall-hold-${++scenarios}`) })
+  writeFileSync(join(stalledHold.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
+  writeFileSync(join(stalledHold.env.stateDir, "release-train.json"), `${JSON.stringify(trainFile(["verified", "verified", "dispatched", "pending"]))}\n`)
+  await stalledHold.run()
+  same("drive: a held ui merge with a 61 minute clock opens no stall issue and sends no notification", [only(stalledHold.calls, "merge").length, only(stalledHold.calls, "createTicket").filter(([, input]) => input.title === STALL).length, only(stalledHold.calls, "notify").length], [0, 0, 0])
+  await held("a ui merge is held while the first mobile step is still pending", trainFile(["pending", "pending", "pending", "pending"]), { expectMerges: 0 })
+  await held("a ui merge is held while a mobile step is dispatching", trainFile(["verified", "verified", "verified", "dispatching"]), { expectMerges: 0 })
+  await held("a ui merge runs when the last mobile production step is dispatched", trainFile(["verified", "verified", "verified", "dispatched"]), { expectMerges: 1 })
+  await held("a ui merge runs when the mobile steps are skipped", trainFile(["skipped", "skipped", "skipped", "skipped"]), { expectMerges: 1 })
+  await held("a ui merge runs when the iOS steps are held for credentials", trainFile(["verified", "held", "verified", "held"]), { expectMerges: 1 })
+  await held("a ui merge runs when the train stopped", trainFile(["verified", "failed", "pending", "pending"], { status: "stopped" }), { expectMerges: 1 })
+  await held("a ui merge runs when the train has no mobile plan yet", trainFile(["pending", "pending", "pending", "pending"], { mobile: null }), { expectMerges: 1 })
+  await held("a ui merge runs when no train state exists", null, { expectMerges: 1 })
+  await held("an api merge runs while the ui hold is on", trainFile(["verified", "verified", "dispatched", "pending"]), { repo: "api", expectMerges: 1 })
+  await held("a landing merge runs while the ui hold is on", trainFile(["verified", "verified", "dispatched", "pending"]), { repo: "landing", expectMerges: 1 })
+}
+
 const mergeCases = async () => {
   const bar = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] } })
   await bar.run()
@@ -828,12 +915,25 @@ const ciCases = async () => {
   const again = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: failing().checks, comments: [comment("ticket", "T"), comment("record", "driver rerun 9001")] })] }, failedSteps: ["Set up job"] })
   await again.run()
   same("drive: a run that was rerun once becomes a ci-fix order", [only(again.calls, "rerunFailed").length, again.launched.length], [0, 1])
-  const gateway = await run(["Install"], [["--log-failed", "error: HTTP 504: Gateway Timeout\n"]])
+  const gateway = await run(["Install"], [["actions/jobs/11/logs", "error: HTTP 504: Gateway Timeout\n"]])
   same("drive: a GitHub 504 gets one rerun", only(gateway.calls, "rerunFailed").length, 1)
   const barrier = await run(["Require deployment barriers for schema contractions"], [], "Guard Migrations", true)
   same("drive: a Guard Migrations barrier failure gives needs:owner and no order", [barrier.launched.length, only(barrier.calls, "editLabels").length], [0, 1])
-  const other = await run(["Unit tests"], [["--log-failed", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
+  const other = await run(["Unit tests"], [["actions/jobs/11/logs", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
   T("drive: any other failure gives one ci-fix order with the failed lines", other.launched.length === 1 && /AssertionError/.test(orderText(other)) && only(other.calls, "rerunFailed").length === 0)
+
+  const recorded = READS.failedJobLog
+  const recordedLog = [["actions/jobs/11/logs", recorded.lines.join("\n")]]
+  const suspects = (scene) => commentsOf(scene.calls, 30).filter((text) => text.includes("driver flake-suspect"))
+  const checkout = await run(recorded.failedSteps, recordedLog, "Layout shard 6")
+  same("drive: a failed checkout step gets one rerun and no flake record", [only(checkout.calls, "rerunFailed"), checkout.launched.length, suspects(checkout).length], [[["rerunFailed", "ui", "9001"]], 0, 0])
+  const stuck = await run(recorded.failedSteps, recordedLog, "Layout shard 6", true)
+  T("drive: a checkout that fails after the rerun gets a ci-fix order whose lines end at the last error of the job", stuck.launched.length === 1 && /exit code 128/.test(orderText(stuck)) && !/Cleaning up orphan processes/.test(orderText(stuck)), orderText(stuck))
+
+  const inJob = (name, jobId) => check(name, "FAILURE", { databaseId: jobId, detailsUrl: `https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/9001/job/${jobId}` })
+  const two = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [inJob("Build", 21), inJob("Lint", 22), approvalCheck()], comments: [comment("ticket", "T")] })] }, failedSteps: ["Run tests"], routes: [["actions/jobs/21/logs", "the build broke\n##[error]build\npost step\n"], ["actions/jobs/22/logs", "the lint broke\n##[error]lint\npost step\n"]] })
+  await two.run()
+  same("drive: each flake record of one run holds the lines of its own job, up to its last error", suspects(two).map((text) => text.split("\n").slice(1)), [["driver flake-suspect 9001 Build", "the build broke", "##[error]build"], ["driver flake-suspect 9001 Lint", "the lint broke", "##[error]lint"]])
   const conflict = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await conflict.run()
   T("drive: a conflict gives a merge-forward order", conflict.launched.length === 1 && /merge-forward/.test(orderText(conflict)))
@@ -1078,7 +1178,7 @@ const baseMergeCases = async () => {
   const capped = (branch) => [launch("fix", branch), launch("ci-fix", branch)]
 
   // landing#150: Build is red after the merge of 8dbc88950, and the branch had used its two fix launches.
-  const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "Error: the page lists the iPhone app twice\n"]] })
+  const landing = merged(LANDING_150, "landing", { checks: build, comments: [comment("ticket", "T"), RERAN], tickets: [ticket(7, { repoKey: "landing", labels: ["repo:landing", "Improvement"], comments: capped("chore/ticket-7-30") })], routes: [["actions/jobs/11/logs", "Error: the page lists the iPhone app twice\n"]] })
   await landing.run()
   const launchRecord = JSON.parse(commentsOf(landing.calls, 7).find((text) => text.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
   same("drive: landing#150, Build red after the merge of 8dbc88950 with the cap spent, gets a ci-fix order that the cap does not count and no needs:owner", [landing.launched.length, only(landing.calls, "editLabels").length, only(landing.calls, "notify").length, launchRecord.kind, launchRecord.baseMerge], [1, 0, 0, "ci-fix", LANDING_150.merge])
@@ -1102,7 +1202,7 @@ const baseMergeCases = async () => {
   same("drive: a review finding on a clean merge head is still counted against the cap", [fix.launched.length, only(fix.calls, "editLabels").length], [0, 1])
 
   // ui#2528: Tool Tests is red only on github-auth at the clean merge 11b42534c.
-  const toolTests = (extra) => merged(UI_2528, "ui", { checks: [check("Tool Tests", "FAILURE"), approvalCheck()], tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], routes: [["--log-failed", "not ok github-auth: the token cache expired before the read\n"]], steps: ["Run tool tests"], ...extra })
+  const toolTests = (extra) => merged(UI_2528, "ui", { checks: [check("Tool Tests", "FAILURE"), approvalCheck()], tickets: [ticket(7, { comments: capped("chore/ticket-7-30") })], routes: [["actions/jobs/11/logs", "not ok github-auth: the token cache expired before the read\n"]], steps: ["Run tool tests"], ...extra })
   const first = toolTests({ comments: [comment("ticket", "T")] })
   await first.run()
   same("drive: ui#2528, Tool Tests red at the clean merge, gets one rerun of the run before any launch, no needs:owner", [only(first.calls, "rerunFailed"), first.launched.length, only(first.calls, "editLabels").length], [[["rerunFailed", "ui", "9001"]], 0, 0])
@@ -1152,7 +1252,7 @@ const blockingClassCases = async () => {
   const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
   const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
   await commented.run()
-  same("drive: a COMMENTED review beside a red pullfrog-approval check gets one re-request and no ci-fix order", [commentsOf(commented.calls, 30).map((text) => text.split("\n")[1]), commented.launched.length], [[PLAIN], 0])
+  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, needs:owner and no ci-fix order", [commentsOf(commented.calls, 30).length, only(commented.calls, "editLabels").length, commented.launched.length], [0, 1, 0])
 
   const merged = { number: 31, body: `Tracks ${REPOSITORY}#8\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-8" }
   const routes = [["--state merged", (args) => (args.join(" ").includes("#8\"") ? JSON.stringify([merged]) : "[]")]]
@@ -1249,7 +1349,7 @@ const laneAndReviewPassCases = async () => {
 
   const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await repliesBeforeChanges.run()
-  same("drive: thread replies before a review with no BLOCKING comment do not count as a second unusable review", [commentsOf(repliesBeforeChanges.calls, 30).map((text) => text.split("\n")[1]), only(repliesBeforeChanges.calls, "editLabels").length], [[PLAIN], 0])
+  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [commentsOf(repliesBeforeChanges.calls, 30).length, only(repliesBeforeChanges.calls, "editLabels").length], [0, 1])
 
   const replyAfterApproval = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -10 * MINUTE), reviewReply(-5 * MINUTE)] })] } })
   await replyAfterApproval.run()
@@ -2525,8 +2625,10 @@ export const driverUnit = async () => {
   await reviewRunCases()
   await worktreeOccupantCases()
   await reviewCases()
+  await reviewOnceCases()
   await ownerAndBodyCases()
   await mergeCases()
+  await mobileHoldCases()
   await updateCases()
   await ciCases()
   await closeCases()

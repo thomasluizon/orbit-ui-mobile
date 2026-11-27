@@ -20,10 +20,10 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
-import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
@@ -816,6 +816,25 @@ const cleanMergesOf = async (env, repoPath, pull) => {
   return clean
 }
 
+/** The own diff of a commit: its change against the base, with the context lines that anchor each hunk and the content of a binary file, and with the blob ids and the line numbers left out. An empty string means the diff is unknown. */
+const ownDiff = async (env, repoPath, base, sha) => {
+  const shown = await env.git(repoPath, ["diff", "--no-color", "--no-ext-diff", "--binary", `origin/${base}...${sha}`])
+  if (shown.status !== 0) return ""
+  return shown.stdout.split("\n").filter((line) => !line.startsWith("index ")).map((line) => (line.startsWith("@@") ? "@@" : line)).join("\n").trim()
+}
+
+/** The commits of an approving review pass whose own diff equals the own diff of the head. A diff that git cannot show never matches. */
+const sameDiffOf = async (env, repoPath, pull, base) => {
+  const approved = [...new Set(pull.reviews.filter((review) => isReviewPass(review) && review.state === "APPROVED" && review.commit !== pull.headSha).map((review) => review.commit))].filter((sha) => pull.commits.some((commit) => commit.sha === sha))
+  if (approved.length === 0) return []
+  if (!env.dryRun) await env.git(repoPath, ["fetch", "origin", base, `refs/pull/${pull.number}/head`])
+  const head = await ownDiff(env, repoPath, base, pull.headSha)
+  if (head === "") return []
+  const same = []
+  for (const sha of approved) if ((await ownDiff(env, repoPath, base, sha)) === head) same.push(sha)
+  return same
+}
+
 /** What the pull request waits on at its head, from the Pullfrog reviews and runs: a plain request, a whole-diff request, a fix, or nothing. */
 const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   const passes = passesOf(pull)
@@ -831,11 +850,19 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     if (!missed) return { wait: "waiting for the Pullfrog review" }
     return sinceReview.length === 1 ? { request: lastRequest.whole ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST, why: "no review after the first request", lastRun } : { owner: "Pullfrog gave no review after two requests", lastRun }
   }
-  const demand = (text, why) => (sinceReview.length === 0 ? { request: text, why } : waiting())
-  if (latest === null) return demand(PLAIN_REQUEST, "no Pullfrog review at this head")
-  if (latest.state === "APPROVED") {
+  // The first pass of a head is one pass: a pull request that owes a whole-diff pass asks for it at once, and never for a plain pass first.
+  const first = needsWholeDiff(pull, { fixLaunches }) ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST
+  // A head that Pullfrog already reviewed gets no second plain request: its next pass is the owner's to ask for.
+  const demand = (text, why) => {
+    if (sinceReview.length > 0) return waiting()
+    if (text === PLAIN_REQUEST && latest !== null) return { owner: "Pullfrog reviewed this head and gave no usable review", skip: "same head" }
+    return { request: text, why }
+  }
+  const carried = latest === null ? carriedApproval(pull) : null
+  if (latest === null && carried === null) return demand(first, "no Pullfrog review at this head")
+  if ((latest ?? carried).state === "APPROVED") {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
-    if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return { approved: true }
+    if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return carried === null ? { approved: true } : { approved: true, skip: "same diff" }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
     if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
@@ -868,10 +895,15 @@ const checkOnlyPlan = ({ pull, runs, now, request }) => {
   return sent.length === 1 ? { ...request(PLAIN_REQUEST), record } : { type: "needs-owner", reason: "Pullfrog gave no pullfrog-approval check after two requests at this head" }
 }
 
-const failedLogLines = async (env, repoKey, runId) => {
+/**
+ * The last lines of the log of one job, up to its last error. The read names the job: the tail of a run log holds only one of
+ * its failed jobs, and after a rerun `gh run view --job` prints the log of the newer attempt.
+ */
+const failedLogLines = async (env, repoKey, jobId) => {
   try {
-    const slug = env.slugOf(repoKey)
-    return (await env.gh(["run", "view", String(runId), "--repo", slug, "--log-failed"])).split("\n").slice(-120)
+    const lines = (await env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/jobs/${jobId}/logs`])).split("\n")
+    const lastError = lines.findLastIndex((line) => line.includes("##[error]"))
+    return lines.slice(0, lastError === -1 ? lines.length : lastError + 1).slice(-120)
   } catch {
     return []
   }
@@ -882,16 +914,17 @@ const checkPlan = async (env, repoKey, pull) => {
   const failed = failedChecks(pull)
   if (failed.length === 0) return null
   const checks = []
-  // One rerun comes before any launch. A check that failed for a test, not for the setup or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
+  // One rerun comes before any launch. A check that failed for a test, not for the setup, the checkout or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
   const rerun = new Map()
   for (const check of failed) {
     const failedSteps = check.runId === null ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
     const verdict = classifyCheckFailure({ name: check.name, failedSteps })
     if (verdict === "needs-owner") return { owner: `${check.name} asks for a deployment barrier, which only the owner writes` }
-    const logLines = verdict === "rerun" || check.runId === null ? [] : await failedLogLines(env, repoKey, check.runId)
-    const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
-    if (check.runId !== null && !already) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
+    const owesRerun = check.runId !== null && !already
+    const logLines = check.runId === null || (owesRerun && verdict === "rerun") ? [] : await failedLogLines(env, repoKey, check.jobId)
+    const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
+    if (owesRerun) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
     else checks.push({ name: check.name, failedSteps, logLines })
   }
   return rerun.size > 0 ? { rerun: [...rerun].map(([runId, suspects]) => ({ runId, suspects })) } : { checks }
@@ -986,6 +1019,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [...actions, { type: "needs-owner", reason: `${item} used its ${MAX_FIX_LAUNCHES} fix launches. Launches: ${counted.length}. Open: ${classes}`, relabel: true }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
+  if (need.skip) log(env, item, `review skip (${need.skip})`)
   if (need.approved) {
     const open = pull.threads.filter((thread) => !thread.resolved && thread.author === "pullfrog")
     if (open.length > 0) {
@@ -1100,13 +1134,23 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
   const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running }
   const orders = []
   const repoPath = env.config.repos[repoKey]
+  // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
+  const hold = repoKey === "ui" ? mobileMergeHold(readTrainState(env.stateDir)) : null
   for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
     const item = `${repoKey}#${pull.number}`
     try {
       const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
+      if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planned = await planPull(env, mem, { ...ctx, runs }, pull)
-      const plan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+      let mergeHeld = false
+      const plan = hold === null ? stoppedPlan : stoppedPlan.map((action) => {
+        if (action.type !== "merge") return action
+        mergeHeld = true
+        log(env, item, "merge held", `release train ${hold.id} ships mobile at ${hold.sha}`)
+        return { type: "none", reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` }
+      })
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
       // A run from before the newest request is settled history: a request that came after it started a new run.
       const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
@@ -1122,7 +1166,8 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
         }
       } finally {
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
-        if (isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+        // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
+        if (!mergeHeld && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
     } catch (error) {
       log(env, item, "error", error.message)
@@ -1225,7 +1270,8 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
   const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
   const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
-  const invocation = await env.invocation(token, accountName)
+  // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
+  const invocation = await env.invocation(token, accountName, { worktree, branch })
   const account = stateOf(mem, accountName).account?.key ?? null
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
@@ -2155,7 +2201,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
     processAlive: workerApi.isWorkerProcess,
-    invocation: async (token, name = MAIN) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null }),
+    invocation: async (token, name = MAIN, own = null) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
 }

@@ -23,7 +23,7 @@ module.exports = {
                 roles: { type: 'array', items: { type: 'string' } },
                 iconOnly: { type: 'boolean' },
                 iconAction: { type: 'boolean' },
-                /** A control with its own documented cap, such as a quick option (4) or the destination action of a result dialog (3). */
+                /** A control with its own documented cap, such as a quick option (4) or the destination action of a result dialog (4). */
                 maxWords: { type: 'integer', minimum: 1 },
               },
               required: ['name'],
