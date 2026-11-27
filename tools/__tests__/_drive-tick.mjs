@@ -996,6 +996,12 @@ const healthCases = async () => {
   same("drive: a tick whose repository reads fail at different times goes on with the repository it read", (await outage.run()).retried, false)
   same("drive: a tick whose repository reads fail at different times lists each failed read in health.json", healthOf(outage).problems.map((problem) => problem.key), ["blind:ui", "blind:api"])
 
+  // When every repository read fails, the class comes from a gh error, not from the wrapped message that holds the query and its pull request numbers.
+  const allBlind = scenario({ tickets: [ticket(7)] })
+  allBlind.env.github.readRepositoryState = async () => { throw new Error("gh api graphql -f query=query { repository { pullRequest(number: 401) { id } } } failed: gh: HTTP 502: Bad Gateway") }
+  same("drive: a tick whose every repository read fails returns retried", (await allBlind.run()).retried, true)
+  same("drive: a tick whose every repository read fails classes the gh error, not the pull request numbers of its query", [healthOf(allBlind).lastErrorClass, healthOf(allBlind).problems.map((problem) => problem.key)], ["server", ["blind:ui", "blind:api", "blind:landing"]])
+
   // The reap reads the world too. Its read is no good tick: only the read of the tick itself, and the bar that follows it, count.
   const reaped = scenario({ tickets: [ticket(7)], pulls: { ui: [] } })
   keepWrites(reaped, [ticket(7)])

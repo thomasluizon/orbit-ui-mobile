@@ -2228,7 +2228,8 @@ const runTick = async (env, mem) => {
     world.states = world.states.filter((state) => !unseen.includes(state.repositoryKey))
   } catch (error) {
     log(env, "tick", "retry", error.message)
-    mem.health.failure = error
+    // The first read error keeps its gh command, so its class comes from its cause. The wrapped error holds the query and its pull request numbers.
+    mem.health.failure ??= error
     // A failed read that the read itself did not note (a failure of the reap) still counts as a failed tick.
     if (mem.readErrors.length === 0) noteReadError(mem, error)
     await settleReads(env, mem, { failed: true })
