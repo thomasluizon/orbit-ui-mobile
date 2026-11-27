@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, partOf, partProblem, renderBrief, renderOrder } from "../lib/order.mjs"
+import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, withTotal } from "../lib/order.mjs"
 import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
@@ -75,7 +75,7 @@ export const cases = async () => {
   same("lib/order.mjs: a broken heading problem quotes the line and names the comment URL once", [fault.includes('"Part 3/4: a"'), fault.match(/https?:\/\/[^\s"]+/g)], [true, ["https://example.test/c1"]])
   same("lib/order.mjs: a dash ban holds in the part problem text", /[\u2013\u2014]/.test(fault), false)
 
-  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find" && name !== "replan")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief fits the byte limit`, Buffer.byteLength(brief) <= 6000)
   }
@@ -89,11 +89,31 @@ export const cases = async () => {
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
 
   const OWN_WRITES = "on the pull request of your own branch, `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`). Start the Bash call with that command, from your working tree, with no `-R`."
-  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find" && name !== "replan")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
     T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
     T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
+
+  const replanBrief = renderBrief({ kind: "replan", place: PLACE, ticket: TICKET })
+  T("lib/order.mjs: a replan brief is read only, fits the byte limit, names no pull request write and no delivery rule", Buffer.byteLength(replanBrief) <= 6000 && replanBrief.includes("This is a read-only order.") && !replanBrief.includes("gh pr ") && !replanBrief.includes("first push") && replanBrief.includes('Your final message is the answer of "This order", with nothing after it.'))
+
+  const stuck = { stuckBranch: "chore/ticket-9-part-2", mergedParts: [1], currentTotal: 2 }
+  const twoParts = [owner("## Part 1 of 2: first\n\nBODY-ONE", "2026-11-10T10:00:00Z"), owner("## Part 2 of 2: second\n\nBODY-TWO", "2026-11-10T10:01:00Z")]
+  const history = [{ kind: "fix", model: "claude-opus-5-5", at: "2026-11-19T10:00:00.000Z", exitCode: 1, killReason: null, headBefore: "a".repeat(40), headAfter: "b".repeat(40), blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }], checks: [], result: "RESULT-TAIL" }]
+  const replan = renderOrder({ kind: "replan", ticket: TICKET, partComments: twoParts, history, place: PLACE, replan: stuck })
+  T("lib/order.mjs: a replan order holds the ticket body, every part in full, the failure history and the answer format", replan.includes("The ticket body.") && replan.includes("BODY-ONE") && replan.includes("BODY-TWO") && replan.includes("## This order (replan)") && replan.includes("## Earlier launches") && replan.includes("fix on claude-opus-5-5") && replan.includes("tools/a.mjs:3: BLOCKING: one") && replan.includes("Plan: fresh") && replan.includes("Plan: split") && replan.includes("Merged parts: 1.") && replan.includes("Total of the part set in force: 2."))
+  T("lib/order.mjs: a replan order for a ticket with no part set says so", renderOrder({ kind: "replan", ticket: TICKET, history, place: PLACE, replan: { stuckBranch: "chore/ticket-9", mergedParts: [], currentTotal: 0 } }).includes("Merged parts: none. Total of the part set in force: 0."))
+  T("lib/order.mjs: a replan order without its facts is refused", await (async () => { try { renderOrder({ kind: "replan", ticket: TICKET, place: PLACE }); return false } catch (error) { return /needs its stuck branch/.test(error.message) } })())
+
+  same("lib/order.mjs: a fresh answer carries its note", parseReplanAnswer("Thinking.\nPlan: fresh\nThe slice is too wide.\nStart with the hook."), { plan: "fresh", note: "The slice is too wide.\nStart with the hook.", parts: [] })
+  same("lib/order.mjs: a missing answer is fresh with no note", [parseReplanAnswer("I could not decide."), parseReplanAnswer(""), parseReplanAnswer(undefined)], Array(3).fill({ plan: "fresh", note: "", parts: [] }))
+  const split = parseReplanAnswer("Plan: split\n## Part 1 of 3: one\nline a\n\n## Part 2 of 3: two\n\n## Part 3 of 3: three\nend")
+  same("lib/order.mjs: a split answer gives one body for each part heading", [split.plan, split.parts], ["split", ["## Part 1 of 3: one\nline a", "## Part 2 of 3: two", "## Part 3 of 3: three\nend"]])
+  same("lib/order.mjs: the last answer line wins", parseReplanAnswer("Plan: split\n## Part 1 of 2: a\nPlan: fresh\nnote").plan, "fresh")
+  same("lib/order.mjs: a split with a usable set has no problem", splitProblem(split.parts, 2), null)
+  T("lib/order.mjs: a split with fewer than 2 parts, a gap, mixed totals or a total that is not higher is refused", [splitProblem(["## Part 1 of 1: a"], 0), splitProblem(["## Part 1 of 2: a", "## Part 3 of 2: b"], 0), splitProblem(["## Part 1 of 2: a", "## Part 2 of 3: b"], 0), splitProblem(["## Part 1 of 2: a", "## Part 2 of 2: b"], 2), splitProblem(["no heading", "## Part 2 of 2: b"], 0)].every((problem) => typeof problem === "string"))
+  same("lib/order.mjs: a merged part keeps its text and takes the new total", [withTotal("## Part 2 of 3: two\nBody that says Part 2 of 3.", 5), withTotal("# #7 Part 1 of 2: x", 4)], ["## Part 2 of 5: two\nBody that says Part 2 of 3.", "# #7 Part 1 of 4: x"])
 }
