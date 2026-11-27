@@ -797,10 +797,13 @@ const mergeCases = async () => {
 
 const updateCases = async () => {
   // A pull request that main passed has no conflict, so no push from the driver reruns its checks.
-  const passed = (number, extra = {}) => pull(number, { mergeState: "CLEAN", ...extra })
+  const passed = (number, extra = {}) => pull(number, { mergeState: "CLEAN", behindBy: 2, ...extra })
   const scene = scenario({ tickets: [ticket(7), ticket(8)], pulls: { ui: [passed(31, { body: "Tracks thomasluizon/orbit-tickets#8", tracks: 8 }), passed(30)] } })
   await scene.run()
   same("drive: a pull request that is behind main with no conflict is merged and never updated", [only(scene.calls, "updateBranch"), only(scene.calls, "merge").map((entry) => entry[2])], [[], [30]])
+  const reportedBehind = scenario({ tickets: [ticket(7)], pulls: { ui: [passed(30, { mergeState: "BEHIND" })] } })
+  await reportedBehind.run()
+  same("drive: a pull request with merge-state BEHIND is never updated by the driver", [only(reportedBehind.calls, "updateBranch"), only(reportedBehind.calls, "merge")], [[], []])
   const conflicted = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await conflicted.run()
   same("drive: a pull request with a conflict gets a merge-forward order and no driver update", [only(conflicted.calls, "updateBranch"), conflicted.launched.map((entry) => entry.order.includes("Merge `origin/main` into the branch and resolve the conflicts"))], [[], [true]])
