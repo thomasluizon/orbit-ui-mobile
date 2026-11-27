@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ORDER_KINDS, brokenPartHeadings, duplicateParts, ownerParts, partOf, partProblem, renderBrief, renderOrder, ticketChanges } from "../lib/order.mjs"
+import { ORDER_KINDS, brokenPartHeadings, duplicateParts, highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, ticketChanges, withTotal } from "../lib/order.mjs"
 import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
@@ -27,7 +27,7 @@ const commentCases = (fixtures) => {
     owner("<!-- orbit-run-note: kind=report -->\nRUN-NOTE", "2026-11-10T10:05:00Z"),
     owner("<!-- orbit-drive:legacy -->\nLEGACY-NOTE", "2026-11-10T10:06:00Z"),
   ]
-  const extras = { "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: OPEN_PULL, review: { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] } }, "ci-fix": { pull: OPEN_PULL, failure: { checks: [{ name: "Unit Tests" }] } }, "merge-forward": { pull: OPEN_PULL }, "apply-comment": { changes: [{ kind: "body", at: "2026-11-10T10:07:00Z", comment: null }] } }
+  const extras = { replan: { replan: { stuckBranch: "chore/ticket-9", mergedParts: [], currentTotal: 2, highestTotal: 2 } }, "apply-comment": { changes: [{ kind: "body", comment: null }] }, "build part": { partNumber: 2 }, find: { partNumber: 2 }, fix: { pull: OPEN_PULL, review: { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] } }, "ci-fix": { pull: OPEN_PULL, failure: { checks: [{ name: "Unit Tests" }] } }, "merge-forward": { pull: OPEN_PULL }, "apply-comment": { changes: [{ kind: "body", at: "2026-11-10T10:07:00Z", comment: null }] } }
   for (const kind of ORDER_KINDS) {
     const order = renderOrder({ kind, ticket: TICKET, comments, place: PLACE, ...extras[kind] })
     const at = (heading) => order.indexOf(heading)
@@ -122,7 +122,7 @@ export const cases = async () => {
 
   commentCases(fixtures)
 
-  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find" && name !== "replan")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief fits the byte limit`, Buffer.byteLength(brief) <= 6000)
   }
@@ -136,11 +136,39 @@ export const cases = async () => {
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
 
   const OWN_WRITES = "on the pull request of your own branch, `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`). Start the Bash call with that command, from your working tree, with no `-R`."
-  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find" && name !== "replan")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
     T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
     T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
     T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
+
+  const replanBrief = renderBrief({ kind: "replan", place: PLACE, ticket: TICKET })
+  T("lib/order.mjs: a replan brief is read only, fits the byte limit, names no pull request write and no delivery rule", Buffer.byteLength(replanBrief) <= 6000 && replanBrief.includes("This is a read-only order.") && !replanBrief.includes("gh pr ") && !replanBrief.includes("first push") && replanBrief.includes('Your final message is the answer of "This order", with nothing after it.'))
+
+  const stuck = { stuckBranch: "chore/ticket-9-part-2", mergedParts: [1], currentTotal: 2, highestTotal: 2 }
+  const twoParts = [owner("## Part 1 of 2: first\n\nBODY-ONE", "2026-11-10T10:00:00Z"), owner("## Part 2 of 2: second\n\nBODY-TWO", "2026-11-10T10:01:00Z")]
+  const history = [{ kind: "fix", model: "claude-opus-5-5", at: "2026-11-19T10:00:00.000Z", exitCode: 1, killReason: null, headBefore: "a".repeat(40), headAfter: "b".repeat(40), blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }], checks: [], result: "RESULT-TAIL" }]
+  const replan = renderOrder({ kind: "replan", ticket: TICKET, comments: twoParts, history, place: PLACE, replan: stuck })
+  T("lib/order.mjs: a replan order holds the ticket body, every part in full, the failure history and the answer format", replan.includes("The ticket body.") && replan.includes("BODY-ONE") && replan.includes("BODY-TWO") && replan.includes("## This order (replan)") && replan.includes("## Earlier launches") && replan.includes("fix on claude-opus-5-5") && replan.includes("tools/a.mjs:3: BLOCKING: one") && replan.includes("Plan: fresh") && replan.includes("Plan: split") && replan.includes("Merged parts: 1.") && replan.includes("Total of the part set in force: 2."))
+  const openOrder = renderOrder({ kind: "replan", ticket: TICKET, comments: twoParts, history, place: PLACE, replan: { ...stuck, openParts: [3] } })
+  T("lib/order.mjs: a replan order names the open parts and asks the run to keep them with their number and title", openOrder.includes("Merged parts: 1.") && openOrder.includes("Open parts: 3.") && openOrder.includes("Write the merged parts and the open parts with their number and title"))
+  T("lib/order.mjs: a replan order with no open part says none", replan.includes("Open parts: none."))
+  T("lib/order.mjs: a replan order for a ticket with no part set says so", renderOrder({ kind: "replan", ticket: TICKET, history, place: PLACE, replan: { stuckBranch: "chore/ticket-9", mergedParts: [], currentTotal: 0, highestTotal: 0 } }).includes("Merged parts: none. Total of the part set in force: 0."))
+  T("lib/order.mjs: a replan order without its facts is refused", await (async () => { try { renderOrder({ kind: "replan", ticket: TICKET, place: PLACE }); return false } catch (error) { return /needs its stuck branch/.test(error.message) } })())
+
+  same("lib/order.mjs: a fresh answer carries its note", parseReplanAnswer("Thinking.\nPlan: fresh\nThe slice is too wide.\nStart with the hook."), { plan: "fresh", note: "The slice is too wide.\nStart with the hook.", parts: [] })
+  same("lib/order.mjs: a missing answer is fresh with no note", [parseReplanAnswer("I could not decide."), parseReplanAnswer(""), parseReplanAnswer(undefined)], Array(3).fill({ plan: "fresh", note: "", parts: [] }))
+  const split = parseReplanAnswer("Plan: split\n## Part 1 of 3: one\nline a\n\n## Part 2 of 3: two\n\n## Part 3 of 3: three\nend")
+  same("lib/order.mjs: a split answer gives one body for each part heading", [split.plan, split.parts], ["split", ["## Part 1 of 3: one\nline a", "## Part 2 of 3: two", "## Part 3 of 3: three\nend"]])
+  same("lib/order.mjs: the last answer line wins", parseReplanAnswer("Plan: split\n## Part 1 of 2: a\nPlan: fresh\nnote").plan, "fresh")
+  same("lib/order.mjs: a split with a usable set has no problem", splitProblem(split.parts, 2), null)
+  T("lib/order.mjs: a split with fewer than 2 parts, a gap, mixed totals or a total that is not higher is refused", [splitProblem(["## Part 1 of 1: a"], 0), splitProblem(["## Part 1 of 2: a", "## Part 3 of 2: b"], 0), splitProblem(["## Part 1 of 2: a", "## Part 2 of 3: b"], 0), splitProblem(["## Part 1 of 2: a", "## Part 2 of 2: b"], 2), splitProblem(["no heading", "## Part 2 of 2: b"], 0)].every((problem) => typeof problem === "string"))
+  const olderLarger = [...Array.from({ length: 4 }, (_, index) => owner(`## Part ${index + 1} of 4: old ${index + 1}`, `2026-11-01T10:0${index}:00Z`)), ...Array.from({ length: 3 }, (_, index) => owner(`## Part ${index + 1} of 3: new ${index + 1}`, `2026-11-10T10:0${index}:00Z`))]
+  same("lib/order.mjs: the highest total reads every part comment, so an older and larger set counts", [highestTotal(olderLarger), highestTotal(olderLarger.slice(4)), highestTotal([owner("A note", "2026-11-01T10:00:00Z")])], [4, 3, 0])
+  same("lib/order.mjs: a split that brings back the total of an older set is refused", [splitProblem(Array.from({ length: 4 }, (_, index) => `## Part ${index + 1} of 4: x`), highestTotal(olderLarger)) !== null, splitProblem(Array.from({ length: 5 }, (_, index) => `## Part ${index + 1} of 5: x`), highestTotal(olderLarger))], [true, null])
+  const largerOrder = renderOrder({ kind: "replan", ticket: TICKET, comments: olderLarger, history: [], place: PLACE, replan: { stuckBranch: "chore/ticket-9", mergedParts: [], currentTotal: 3, highestTotal: 4 } })
+  T("lib/order.mjs: a replan order tells the run to beat the highest total of any set", largerOrder.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerOrder.includes("make m higher than 4."))
+  same("lib/order.mjs: a merged part keeps its text and takes the new total", [withTotal("## Part 2 of 3: two\nBody that says Part 2 of 3.", 5), withTotal("# #7 Part 1 of 2: x", 4)], ["## Part 2 of 5: two\nBody that says Part 2 of 3.", "# #7 Part 1 of 4: x"])
 }

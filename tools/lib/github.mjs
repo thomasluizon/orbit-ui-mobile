@@ -607,6 +607,26 @@ export const editLabels = async (repositoryKey, number, { add = [], remove = [] 
   await api.run([command, "edit", String(number), "--repo", api.slugOf(repositoryKey), ...add.flatMap((label) => ["--add-label", label]), ...remove.flatMap((label) => ["--remove-label", label])])
 }
 
+/** Creates a label in a repository when it has none. The name, the color and the description are the caller's. */
+export const ensureLabel = async (repositoryKey, { name, color, description }, seams = {}) => {
+  const api = bind(seams)
+  if ((await listLabels(api, repositoryKey)).includes(name)) return false
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/labels`, "--method", "POST", "--input", "-"], { input: JSON.stringify({ name, color, description }) })
+  return true
+}
+
+/** Closes a pull request with no merge. */
+export const closePull = async (repositoryKey, number, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/pulls/${number}`, "--method", "PATCH", "--input", "-"], { input: JSON.stringify({ state: "closed" }) })
+}
+
+/** Deletes a remote branch by its name. */
+export const deleteBranch = async (repositoryKey, branch, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["api", `repos/${api.slugOf(repositoryKey)}/git/refs/heads/${nonEmpty(branch, "branch name")}`, "--method", "DELETE"])
+}
+
 const projectItemOf = async (api, number) => {
   const { owner, name } = splitSlug(api.config.tickets.repository)
   const issue = (await graphql(api, PROJECT_ITEMS_QUERY, { owner, name, number })).repository.issue

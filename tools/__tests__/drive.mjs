@@ -18,6 +18,9 @@ import {
   isAncestor,
   merge,
   carriedApproval,
+  closePull,
+  deleteBranch,
+  ensureLabel,
   mergeBar,
   needsWholeDiff,
   pullfrogRuns,
@@ -559,6 +562,20 @@ const writeCases = async (seams) => {
   T("lib/github.mjs: an unknown label is refused before any edit", /Unknown label\(s\): nope/.test(await thrown(() => editLabels("tickets", 12, { add: ["nope"] }, seams(unknownRun.run)))) && unknownRun.calls.every((call) => call.args[1] !== "edit"))
   T("lib/github.mjs: an edit with nothing to change is refused", /at least one label/.test(await thrown(() => editLabels("tickets", 12, {}, seams(unknownRun.run)))))
 
+  const parkedLabel = { name: "parked", color: "FBCA04", description: "A parked item." }
+  const missingLabel = scripted([["label list", () => json(FIXTURE.ticketOperations.labels)], ["labels", () => ""]])
+  same("lib/github.mjs: a label that is missing is created with one POST of a JSON body", [await ensureLabel("ui", parkedLabel, seams(missingLabel.run)), missingLabel.calls.at(-1).args, missingLabel.calls.at(-1).input], [true, ["api", `repos/${UI}/labels`, "--method", "POST", "--input", "-"], json(parkedLabel)])
+  const knownLabel = scripted([["label list", () => json([...FIXTURE.ticketOperations.labels, { name: "parked" }])]])
+  same("lib/github.mjs: a label that exists is not created again", [await ensureLabel("tickets", parkedLabel, seams(knownLabel.run)), knownLabel.calls.length], [false, 1])
+  const closePullRun = scripted([["pulls/", () => ""], ["git/refs", () => ""]])
+  await closePull("ui", 8, seams(closePullRun.run))
+  await deleteBranch("ui", "chore/ticket-7-part-2", seams(closePullRun.run))
+  same("lib/github.mjs: a close is one PATCH of the state and a branch delete is one DELETE of its ref", closePullRun.calls.map((call) => [call.args, call.input]), [
+    [["api", `repos/${UI}/pulls/8`, "--method", "PATCH", "--input", "-"], json({ state: "closed" })],
+    [["api", `repos/${UI}/git/refs/heads/chore/ticket-7-part-2`, "--method", "DELETE"], undefined],
+  ])
+  T("lib/github.mjs: an empty branch name is refused before any call", /non-empty/.test(await thrown(() => deleteBranch("ui", " ", seams(scripted([]).run)))))
+
   const statusRoutes = (items) => [["DriveProjectItems", () => json(items)], ["DriveStatus", () => json(FIXTURE.ticketStatus.update)]]
   const statusRun = scripted(statusRoutes(FIXTURE.ticketStatus.projectItems))
   await setStatus(4, "In Review", seams(statusRun.run))
@@ -1098,7 +1115,7 @@ const FAILURE = { checks: [{ name: "Unit Tests", failedSteps: ["Run Domain Tests
 const order = (kind, extra = {}) => renderOrder({ kind, ticket: TICKET, comments: PART_COMMENTS, place: PLACE, ...extra })
 
 const orderCases = async () => {
-  same("lib/order.mjs: the order kinds are the seven of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find", "apply-comment"])
+  same("lib/order.mjs: the order kinds are the eight of the spec", ORDER_KINDS, ["build", "build part", "fix", "ci-fix", "merge-forward", "find", "apply-comment", "replan"])
   same("lib/order.mjs: a part comment is read with or without its heading marks", [PART_COMMENTS[0], PART_COMMENTS[1], PART_COMMENTS[3]].map(partOf), [{ number: 1, total: 3 }, { number: 2, total: 3 }, null])
   same("lib/order.mjs: a line that only starts like a part is no part", ["Parts of speech", "Part 1 of", "Part 5 is complete", "See Part 1 of 3"].map((body) => partOf({ body })), [null, null, null, null])
   same("lib/order.mjs: two digits and a colon after the total still read as a part", partOf({ body: "Part 12 of 14: a" }), { number: 12, total: 14 })
