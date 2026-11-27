@@ -1100,6 +1100,7 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     { code: '<OptionCard label="Yes, remind me" onSelect={select} />', options: webMaxButtonWordsOptions },
     { code: '<OptionCard label="Sim, me lembre agora" onSelect={select} />', options: mobileMaxButtonWordsOptions },
     { code: '<ResultDialog title="Done!" sentence="The task is set." primaryLabel="View in Calendar" onPrimary={open} onClose={close} />', options: webMaxButtonWordsOptions },
+    { code: '<ResultDialog title="Done!" sentence="The task is set." primaryLabel="View all my habits" onPrimary={open} onClose={close} />', options: mobileMaxButtonWordsOptions },
     { code: '<Button label="Open navigation menu" iconOnly={true} />', options: mobileMaxButtonWordsOptions },
     { code: '<ListRow title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: webMaxButtonWordsOptions },
     { code: '<ListRow key="mobile" title="Settings" action={{ icon: "trash", label: "Remove this account", onPress }} />', options: mobileMaxButtonWordsOptions },
@@ -1157,7 +1158,7 @@ ruleTester.run('max-button-words', rule('max-button-words'), {
     {
       code: '<ResultDialog title="Done!" sentence="Saved." primaryLabel="View it now in Calendar" onPrimary={open} onClose={close} />',
       options: mobileMaxButtonWordsOptions,
-      errors: [maxWordsError('ResultDialog', 'View it now in Calendar', 'source', 5, 3)],
+      errors: [maxWordsError('ResultDialog', 'View it now in Calendar', 'source', 5, 4)],
     },
     {
       code: '<PillButton>Open all insights</PillButton>',

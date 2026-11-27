@@ -102,7 +102,8 @@ jobs:
             --app-version "$APP_VERSION" --sha "$GITHUB_SHA" --platform-only-reason "$PLATFORM_ONLY_REASON" --stage build
           node apps/mobile/scripts/set-app-version.js "$APP_VERSION" '' "$IOS_BUILD_NUMBER"
       - name: Install dependencies
-        run: npm ci --prefer-offline --no-audit --fund=false
+        # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+        run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - name: Install the compiler cache
         run: brew install ccache
       # Device objects differ from the simulator objects of ios-build.yml, so the archive keeps its own entry, saved from main.

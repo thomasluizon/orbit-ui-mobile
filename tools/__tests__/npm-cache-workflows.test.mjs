@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
-import { existsSync, readFileSync, readdirSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { chmodSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
 import { dirname, join, posix, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import test from "node:test"
@@ -108,13 +110,62 @@ test("the runner ban fails each form that installs a package at run time", () =>
     ["/usr/local/bin/npm exec turbo run type-check", /npm exec is not/],
   ]) assert.match(findingsOf(run), reason, run)
   // The Plan step of the same workflow, a value of the step env, and a quoted script of another action are text too.
-  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => step.run === "npm ci --prefer-offline --no-audit --fund=false")), /npx can install/)
+  assert.match(findingsOf("npx turbo run test --dry=json", (job) => job.steps.find((step) => /^npm ci\b/.test(step.run ?? ""))), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ env: { RUNNER: "npx" }, run: "$RUNNER turbo" }] } } }).join("\n"), /npx can install/)
   assert.match(runnerFindings("probe.yml", { jobs: { probe: { steps: [{ uses: "actions/github-script@v8", with: { script: "exec('npx', ['turbo'])" } }] } } }).join("\n"), /npx can install/)
   // The reviewed forms pass: an npm script, a binary by path, the npm cache and config reads, and the pinned npm install.
   for (const run of ["npm run test:smoke --workspace @orbit/web", "./node_modules/.bin/turbo run type-check", 'echo "path=$(npm config get cache)"',
     REVIEWED_NPM_INSTALL, "npm ci --prefer-offline --no-audit --fund=false", 'echo "$npm_config_cache" && ls npm-cache']) {
     assert.equal(findingsOf(run), "", run)
+  }
+})
+
+// A line that runs an install from the npm registry: a run line of a workflow or a local action, or a RUN line of the Dockerfile.
+const INSTALL_LINE = /^(?!#).*(?<![\w.-])npm (?:ci|install)(?![\w-])/
+
+function installLines() {
+  const fromSteps = documents.flatMap(([where, document]) => Object.values(document.jobs ?? { action: document.runs })
+    .flatMap((job) => job.steps ?? [])
+    .flatMap((step) => String(step.run ?? "").split("\n").map((line) => [where, line.trim()])))
+  const fromDockerfile = readFileSync(join(root, "Dockerfile"), "utf8").split("\n")
+    .filter((line) => line.startsWith("RUN ")).map((line) => ["Dockerfile", line.slice("RUN ".length)])
+  return [...fromSteps, ...fromDockerfile].filter(([, line]) => INSTALL_LINE.test(line))
+}
+
+// Runs one install line as a step does, against a stand-in npm whose first calls fail with the error of a measured failed run.
+function runInstall(line, failedCalls) {
+  const directory = mkdtempSync(join(tmpdir(), "npm-install-"))
+  try {
+    const calls = join(directory, "calls.txt")
+    writeFileSync(join(directory, "npm"), `#!/usr/bin/env bash
+echo "$*" >> "${calls}"
+if [ "$(wc -l < "${calls}")" -le ${failedCalls} ]; then echo "npm error code ERR_SSL_CIPHER_OPERATION_FAILED" >&2; exit 1; fi
+`)
+    chmodSync(join(directory, "npm"), 0o755)
+    const result = spawnSync("bash", ["-e", "-c", line], {
+      cwd: root,
+      encoding: "utf8",
+      env: { PATH: `${directory}:${process.env.PATH}`, RUNNER_TEMP: directory },
+    })
+    return { status: result.status, calls: existsSync(calls) ? readFileSync(calls, "utf8").trim().split("\n") : [] }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
+}
+
+// npm 11.19.0 retries only the socket and timeout codes of RETRY_ERRORS in node_modules/make-fetch-happen/lib/remote.js, so one
+// TLS fault in a download ends the install with ERR_SSL_CIPHER_OPERATION_FAILED.
+test("every install from the npm registry passes after one failed attempt and fails after two", () => {
+  const lines = installLines()
+  assert.ok(lines.length >= 29,"the scan reads the installs of the workflows, the local actions and the Dockerfile")
+  for (const [where, line] of lines) {
+    const once = runInstall(line, 1)
+    assert.equal(once.status, 0, `${where}: one failed attempt fails the step: ${line}`)
+    assert.equal(once.calls.length, 2, `${where}: ${line}`)
+    assert.equal(once.calls[1], once.calls[0], `${where}: the second attempt runs the same install`)
+    const always = runInstall(line, 2)
+    assert.notEqual(always.status, 0, `${where}: a fault that stays must fail the step: ${line}`)
+    assert.equal(always.calls.length, 2, `${where}: ${line}`)
   }
 })
 

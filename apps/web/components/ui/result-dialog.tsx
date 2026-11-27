@@ -21,7 +21,7 @@ export function ResultDialogFrame({ label, hint, initialFocus, onClose, children
   return <Sheet centred accessibleTitle={label} accessibleDescription={hint} initialFocus={initialFocus} onClose={onClose}>{children}</Sheet>
 }
 
-/** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action and a ghost action. It asks nothing. */
+/** The result dialog: centred at every width, Orbit at 128, one sentence, a filled action over a ghost action. Both actions share one size and the full width of the panel. It asks nothing. */
 export function ResultDialog({ title, sentence, primaryLabel, onPrimary, secondaryLabel, onSecondary, onClose, orbitState = 'feliz' }: Readonly<ResultDialogProps>) {
   const primaryRef = useRef<HTMLButtonElement>(null)
   return (
@@ -33,8 +33,8 @@ export function ResultDialog({ title, sentence, primaryLabel, onPrimary, seconda
           <p className="text-[17px] leading-[26px] text-[var(--fg-2)]">{sentence}</p>
         </div>
         <ActionRow align="center">
-          <div className="w-full"><PillButton buttonRef={primaryRef} onClick={onPrimary}>{primaryLabel}</PillButton></div>
-          {secondaryLabel && onSecondary ? <PillButton variant="ghost" size="sm" onClick={onSecondary}>{secondaryLabel}</PillButton> : null}
+          <div className="w-full"><PillButton buttonRef={primaryRef} matchedWidth onClick={onPrimary}>{primaryLabel}</PillButton></div>
+          {secondaryLabel && onSecondary ? <div className="w-full"><PillButton variant="ghost" matchedWidth onClick={onSecondary}>{secondaryLabel}</PillButton></div> : null}
         </ActionRow>
       </div>
     </ResultDialogFrame>
