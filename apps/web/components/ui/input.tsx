@@ -6,6 +6,10 @@ import { useEffect, useId, useRef, type ChangeEvent } from 'react'
 
 const CONTROL_STYLE = { width: '100%', minWidth: 0, appearance: 'none', border: 0, background: 'transparent', outline: 'none', fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: '24px', color: 'var(--fg-1)', padding: "var(--orbit-space-12) var(--orbit-space-16)" } as const
 
+function fieldMinHeight(props: InputProps) {
+  return props.radius === 16 ? 56 : 54
+}
+
 function getDescriptionId(error: string | undefined, hint: string | undefined, errorId: string, hintId: string) {
   if (error && hint) return `${errorId} ${hintId}`
   if (error) return errorId
@@ -50,7 +54,7 @@ function Control({ props, controlId, descriptionId }: Readonly<{ props: InputPro
     className: 'block resize-none placeholder:text-[var(--fg-3)]',
   } as const
   if (multiline) return <><TypedTextarea proposed={props.proposed} {...shared} ref={(control) => { inputRef.current = control }} onKeyDown={(event) => { if (!event.nativeEvent.isComposing && event.key === 'Enter' && !event.shiftKey && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} rows={props.rows} style={multilineControlStyle(props.rows, props.proposed, props.mono)} /><Marks value={props.value} marks={marks} label={marksLabel} /></>
-  return <div className="flex items-center"><input {...shared} ref={(control) => { inputRef.current = control }} type={props.kind ?? 'text'} onKeyDown={(event) => { if (event.key === 'Escape' && props.onCancel) { event.preventDefault(); event.stopPropagation(); props.onCancel() } if (!event.nativeEvent.isComposing && event.key === 'Enter' && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: 54, fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} />{props.trailing ? <span className="shrink-0 pr-4">{props.trailing}</span> : null}</div>
+  return <div className="flex items-center"><input {...shared} ref={(control) => { inputRef.current = control }} type={props.kind ?? 'text'} onKeyDown={(event) => { if (event.key === 'Escape' && props.onCancel) { event.preventDefault(); event.stopPropagation(); props.onCancel() } if (!event.nativeEvent.isComposing && event.key === 'Enter' && props.onSubmit) { event.preventDefault(); props.onSubmit() } }} style={{ ...CONTROL_STYLE, color: props.proposed ? 'var(--fg-3)' : CONTROL_STYLE.color, minHeight: fieldMinHeight(props), fontFamily: props.mono ? 'var(--font-mono)' : 'var(--font-sans)' }} />{props.trailing ? <span className="shrink-0 pr-4">{props.trailing}</span> : null}</div>
 }
 
 export function Input(props: Readonly<InputProps>) {
@@ -60,5 +64,5 @@ export function Input(props: Readonly<InputProps>) {
   const descriptionId = getDescriptionId(props.error, props.hint, errorId, hintId)
   // WHY: Autofill paints above the wrapper's background, so the perimeter must paint above the control https://github.com/thomasluizon/orbit-tickets/issues/969
   const controlClass = `orbit-field-hover-overlay relative overflow-hidden ${props.radius === 16 ? 'rounded-[16px]' : 'rounded-[12px]'} bg-[var(--bg-field)] after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] has-[input:focus-visible]:after:shadow-[inset_0_0_0_2px_var(--primary)] has-[textarea:focus-visible]:after:shadow-[inset_0_0_0_2px_var(--primary)] forced-colors:border-2 forced-colors:border-[CanvasText] forced-colors:has-[input:focus-visible]:border-[Highlight] forced-colors:has-[textarea:focus-visible]:border-[Highlight] ${props.error ? 'after:shadow-[inset_0_0_0_2px_var(--status-bad)]' : 'after:shadow-[inset_0_0_0_1px_var(--border-control)]'} ${props.disabled ? 'opacity-60' : ''}`
-  return <div className="flex w-full flex-col gap-2" data-input-root="" data-multiline={props.multiline ? '' : undefined} data-error={props.error ? '' : undefined}><label htmlFor={controlId} className={props.hideLabel ? 'sr-only' : 'flex items-center gap-2 text-sm font-medium text-[var(--fg-2)]'}>{props.labelIcon}{props.label}</label><div data-focus-perimeter="" className={controlClass} style={{ minHeight: 54 }}><Control props={props} controlId={controlId} descriptionId={descriptionId} /></div><Captions error={props.error} errorId={errorId} hint={props.hint} hintId={hintId} /></div>
+  return <div className="flex w-full flex-col gap-2" data-input-root="" data-multiline={props.multiline ? '' : undefined} data-error={props.error ? '' : undefined}><label htmlFor={controlId} className={props.hideLabel ? 'sr-only' : 'flex items-center gap-2 text-sm font-medium text-[var(--fg-2)]'}>{props.labelIcon}{props.label}</label><div data-focus-perimeter="" className={controlClass} style={{ minHeight: fieldMinHeight(props) }}><Control props={props} controlId={controlId} descriptionId={descriptionId} /></div><Captions error={props.error} errorId={errorId} hint={props.hint} hintId={hintId} /></div>
 }

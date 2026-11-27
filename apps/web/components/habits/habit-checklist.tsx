@@ -437,13 +437,13 @@ function ChecklistAddRow({
   )
 }
 
-const SQUARE_BUTTON = 'flex size-14 shrink-0 items-center justify-center rounded-[16px] text-[var(--fg-1)] outline-0 shadow-[inset_0_0_0_1px_var(--border-control)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] focus-visible:shadow-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:opacity-40 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)]'
+const SQUARE_BUTTON = 'press-hit-layer flex size-14 shrink-0 items-center justify-center rounded-[16px] text-[var(--fg-1)] outline-0 shadow-[inset_0_0_0_1px_var(--border-control)] enabled:hover:bg-[var(--bg-hover)] enabled:active:bg-[var(--bg-hover)] motion-safe:enabled:active:scale-[0.96] focus-visible:shadow-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-[var(--fg-1)] focus-visible:-outline-offset-2 disabled:opacity-40 transition-[background-color,scale] [transition-duration:var(--dur-hover-control),var(--dur-press)] [transition-timing-function:var(--ease-standard),var(--ease-out)]'
 
 function FlowAddRow({ value, onChangeText, onAdd, disabled, onClear }: Readonly<{ value: string; onChangeText: (text: string) => void; onAdd: () => void; disabled: boolean; onClear?: () => void }>) {
   const t = useTranslations()
   return (
     <div data-checklist-add-row="" className="flex items-center gap-3">
-      <div className="min-w-0 flex-1 [&_[data-focus-perimeter]]:min-h-14! [&_[data-focus-perimeter]>div]:min-h-14">
+      <div className="min-w-0 flex-1">
         <Input
           label={t('habits.form.checklistPlaceholder')}
           hideLabel
