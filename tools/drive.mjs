@@ -31,7 +31,7 @@ import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --runner claude|codex | --runner-check | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -76,6 +76,14 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               runs it when the owner says so. It takes the main account with no word. A new week of that account ends it.
   --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
               and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
+  --runner claude|codex  the owner's setting of what runs in the worker slots. claude (the default) runs claude -p on the worker
+              account. codex runs codex exec on the Codex login of ~/.codex-orbit-workers. The main account, Pullfrog, the questions
+              run, the harness review and the re-plan run stay on Claude, and an order on the coordinator model never takes a Codex
+              slot. The next tick reads the setting, with no restart. codex needs a pass of --runner-check on the installed
+              codex --version, else it exits 2 with the reason and the setting stays.
+  --runner-check  the live check of the Codex runner, with the real Codex home. A probe must return a weekly reading. Then one
+              codex exec is told to run gh pr merge, and the check passes only when the hook blocked it and the command never ran.
+              A pass writes runner-check.json with the codex version. It exits 1 on a failed check and 3 with no Codex login.
   --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item that
               needs the owner's hands still gets one comment, plus the needs:owner label on its ticket, and the driver works on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
@@ -89,7 +97,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               The driver runs it on a new commit before it switches to that commit.
   --help, -h  print this usage and exit 0
 
-exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
+exit codes: 0 done, 1 failed runner check, 2 usage error or refused runner, 3 missing tool, configuration or credential`
 
 const TICK_MS = 120 * 1000
 /** After this many failed ticks in a row, the driver waits `BACKOFF_MS` between ticks until one passes. */
@@ -107,6 +115,7 @@ const ALLOW_FILE = "over-limit.json"
 const PACE_SETTING_FILE = "pace-setting.json"
 const RUNNER_SETTING_FILE = "runner-setting.json"
 const RUNNERS = ["claude", "codex"]
+const RUNNER_CHECK_FILE = "runner-check.json"
 const SLEEP_FILE = "sleep.json"
 const SLEEP_ITEMS_FILE = "sleep-items.json"
 const NOTICES_FILE = "notices.json"
@@ -640,6 +649,16 @@ export const readRunner = (stateDir) => {
   }
 }
 
+/** The `{ version, passedAt }` of the last passed live check of the Codex runner, or null. */
+export const readRunnerCheck = (stateDir) => {
+  try {
+    const { version, passedAt } = JSON.parse(readFileSync(join(stateDir, RUNNER_CHECK_FILE), "utf8"))
+    return typeof version === "string" && typeof passedAt === "string" ? { version, passedAt } : null
+  } catch {
+    return null
+  }
+}
+
 /** The runner of the launch that a record names. A record from before the Codex runner has none, and it ran on Claude. */
 const runnerOfRecord = (record) => (record.runner === "codex" ? "codex" : "claude")
 
@@ -652,6 +671,54 @@ export const setPace = (env, name, word, { out }) => {
   const off = readUnpaced(env.stateDir).includes(name)
   out(off ? `The ${name} account runs ${MAX_WORKERS} workers with no weekly pace until a worker ends on its usage limit.` : `The ${name} account follows the weekly pace.`)
   return off === (word === "off") ? 0 : 3
+}
+
+/**
+ * Writes `runner-setting.json` for `--runner claude|codex`. `codex` needs a passed live check on the installed `codex --version`.
+ * Without it the command exits 2 with the reason and the setting stays as it was.
+ */
+export const setRunner = async (env, word, { out, err }) => {
+  if (word === "codex") {
+    const kept = readRunner(env.stateDir)
+    let version
+    try { version = await env.codexVersion() } catch (error) { err(`The runner stays ${kept}: codex --version failed: ${error.message}`); return 2 }
+    const passed = readRunnerCheck(env.stateDir)
+    if (passed?.version !== version) {
+      err(`The runner stays ${kept}: the live check has not passed on ${version}${passed === null ? "" : ` (it passed on ${passed.version})`}. Run: node tools/drive.mjs --runner-check`)
+      return 2
+    }
+  }
+  writeFileSync(join(env.stateDir, RUNNER_SETTING_FILE), `${JSON.stringify({ runner: word })}\n`)
+  const runner = readRunner(env.stateDir)
+  out(`The worker slots run on ${runner} from the next tick.`)
+  return runner === word ? 0 : 3
+}
+
+/**
+ * The live check of the Codex runner, with the real Codex home: a probe that returns a weekly reading, then one real `codex exec`
+ * that is told to merge a pull request, which the hook must block. A pass writes `runner-check.json` with the `codex --version`.
+ * A failed check removes an older pass, so a setting of `codex` needs a new one.
+ */
+export const runnerCheck = async (env, { out, err }) => {
+  let version
+  let status
+  try { version = await env.codexVersion() } catch (error) { err(`codex --version failed: ${error.message}`); return 3 }
+  try { status = await env.authStatus(WORKER, "codex") } catch (error) { err(error.message); return 3 }
+  if (status.loggedIn !== true) { err("Codex is not logged in on the worker account. Run: CODEX_HOME=$HOME/.codex-orbit-workers codex login"); return 3 }
+  const failed = (reason) => {
+    rmSync(join(env.stateDir, RUNNER_CHECK_FILE), { force: true })
+    err(`The live check failed on ${version}: ${reason}`)
+    return 1
+  }
+  const reading = await env.worker.probe({ invocation: await env.invocation(undefined, WORKER, null, undefined, "codex") })
+  if (reading === null) return failed("the probe returned no weekly reading")
+  out(`probe: utilization ${reading.utilization}, resetsAt ${reading.resetsAt} (${new Date(reading.resetsAt * 1000).toISOString()}), status ${reading.status}`)
+  const hook = await env.worker.codexHookCheck({ home: env.home, parentEnvironment: process.env, token: (await env.worker.readWorkerToken()) ?? "probe-only", repository: env.config.tickets.repository })
+  if (!hook.passed) return failed(hook.reason)
+  out("hook: the hook blocked gh pr merge, and the command never ran")
+  writeFileSync(join(env.stateDir, RUNNER_CHECK_FILE), `${JSON.stringify({ version, passedAt: new Date(env.now()).toISOString() })}\n`)
+  out(`The live check passed on ${version}. Run: node tools/drive.mjs --runner codex`)
+  return 0
 }
 
 export const setSleep = (env, word, { out }) => {
@@ -3177,13 +3244,19 @@ export const parseArguments = (argv) => {
     if (!ACCOUNT_NAMES.includes(argv[paceAt + 1]) || !SLEEP_WORDS.includes(argv[paceAt + 2]) || rest.length > 0) return { error: `--pace takes an account, main or worker, then on or off, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "pace", account: argv[paceAt + 1], word: argv[paceAt + 2] }
   }
+  const runnerAt = argv.indexOf("--runner")
+  if (runnerAt >= 0) {
+    const rest = argv.filter((argument, index) => index !== runnerAt && index !== runnerAt + 1 && argument !== "--help" && argument !== "-h")
+    if (!RUNNERS.includes(argv[runnerAt + 1]) || rest.length > 0) return { error: `--runner takes one word, claude or codex, and no other argument` }
+    return { help: argv.includes("--help") || argv.includes("-h"), mode: "runner", word: argv[runnerAt + 1] }
+  }
   const allowAt = argv.indexOf("--allow-over-limit")
   if (allowAt >= 0 && ACCOUNT_NAMES.includes(argv[allowAt + 1])) {
     const rest = argv.filter((argument, index) => index !== allowAt && index !== allowAt + 1 && argument !== "--help" && argument !== "-h")
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets", "--runner-check"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -3258,6 +3331,12 @@ const realEnvironment = ({ dryRun = false } = {}) => {
       const result = await runBounded("claude", ["auth", "status", "--json"], { timeoutMs: 30 * 1000, ...(name === WORKER ? { env: workerApi.workerAccountEnvironment(process.env, configDirectory) } : {}) })
       try { return JSON.parse(result.stdout) } catch { throw new Error(`claude auth status --json gave no JSON (exit ${result.status ?? "none"})`) }
     },
+    codexVersion: async () => {
+      const result = await runBounded("codex", ["--version"], { timeoutMs: 30 * 1000 })
+      const version = (result.stdout ?? "").trim()
+      if (result.error || result.status !== 0 || version === "") throw new Error(result.error?.message ?? `exit ${result.status ?? "none"}`)
+      return version
+    },
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
@@ -3297,6 +3376,8 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "pace") return setPace(env, parsed.account, parsed.word, { out })
+  if (parsed.mode === "runner") return setRunner(env, parsed.word, { out, err })
+  if (parsed.mode === "runner-check") return runnerCheck(env, { out, err })
   if (parsed.mode === "budgets") return runBudgets(env, { out })
   if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
   if (parsed.mode === "release-now") {
