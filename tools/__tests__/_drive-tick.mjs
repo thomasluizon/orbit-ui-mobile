@@ -2840,6 +2840,34 @@ const capRestartCases = async () => {
   const askedByPull = scenario({ tickets: [ticket(7, { comments: [...sonnet, comment("needs-owner", `ui#30 at ${HEAD}: Pullfrog gave no review after two requests`, -10 * MINUTE)] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], reviews: [finding] })] } })
   await askedByPull.run()
   same("drive: a pull request label for another reason stays", only(askedByPull.calls, "editLabels").length, 0)
+
+  // A driver that labels no pull request leaves a cap label on the ticket only.
+  const cappedTickets = [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: [...[[null, -90], [null, -80], [OPUS, -60]].map(([model, minutes]) => fixLaunch(model, minutes * MINUTE, "chore/ticket-7")), capReport(-50 * MINUTE)] })]
+  const cappedPulls = [pull(30, { headRef: "chore/ticket-7", labels: ["parity:exempt"], reviews: [finding] })]
+  const ticketOnly = scenario({ tickets: cappedTickets, pulls: { ui: cappedPulls } })
+  keepWrites(ticketOnly, cappedTickets)
+  const relabel = ticketOnly.env.github.editLabels
+  ticketOnly.env.github.editLabels = async (key, number, change) => {
+    await relabel(key, number, change)
+    if (key === "tickets") cappedTickets[0].labels = cappedTickets[0].labels.filter((label) => !(change.remove ?? []).includes(label))
+  }
+  await ticketOnly.run()
+  same("drive: a cap label on the ticket only goes off the ticket, writes no pull request label and the pull request closes", [only(ticketOnly.calls, "editLabels").map((entry) => entry.slice(1)), only(ticketOnly.calls, "closePull").length], [[["tickets", 7, { remove: [OWNER_LABEL] }]], 1])
+  // GitHub lists a closed pull request no more.
+  cappedPulls.splice(0)
+  await ticketOnly.run()
+  same("drive: after the cap label of the ticket goes, the next tick builds the ticket again from main", ticketOnly.launched.map((entry) => entry.worktree), ["/r/orbit-worktrees/ui/chore-ticket-7-r2"])
+
+  const askedByTicket = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: [...sonnet, capReport(-60 * MINUTE), comment("needs-owner", "Raise the price?", -10 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  const asked = await askedByTicket.run()
+  same("drive: a ticket label with a newer owner question and no pull request label changes nothing and plans no removal", [only(askedByTicket.calls, "editLabels").length, asked.lines.some((line) => line.includes("remove the stale needs:owner"))], [0, false])
+
+  const watched = join(root, `drive-cap-watch-${++scenarios}`)
+  mkdirSync(join(watched, "logs"), { recursive: true })
+  writeFileSync(join(watched, "watchdog.json"), `${JSON.stringify({ lastMergeAt: NOW - 3 * 60 * MINUTE, active: {} })}\n`)
+  const heldByTicket = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: [comment("needs-owner", "Raise the price?", -10 * MINUTE)] })], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE) })] }, runs: [runOf("in_progress", 1, 0)], stateDirectory: watched })
+  await heldByTicket.run()
+  same("watchdog: a pull request whose ticket waits on the owner gives no merge alert and no open-24h alert", alertsOf(heldByTicket.calls), [])
 }
 
 const queuedJobs = (count, minutesAgo = 5) => JSON.stringify(Array.from({ length: count }, () => ({ status: "queued", created_at: iso(-minutesAgo * MINUTE), started_at: null, completed_at: null })))
@@ -2928,6 +2956,10 @@ const watchdogCases = async () => {
   const owned = scenario({ tickets: [ticket(7)], pulls: { ui: [withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE), labels: [OWNER_LABEL] })] }, runs: busy(), stateDirectory: directory("owned") })
   await owned.run()
   same("watchdog: a pull request that waits on the owner by its own label is no alert", alertsOf(owned.calls).length, 0)
+  const reportedPull = withoutApprovalCheck({ createdAt: iso(-25 * 60 * MINUTE), tracks: 12, comments: [comment("needs-owner", "No open ticket tracks this pull request.", -10 * MINUTE)] })
+  const reportHeld = scenario({ tickets: [], pulls: { ui: [reportedPull] }, runs: busy(), stateDirectory: directory("report-held", { lastMergeAt: NOW - 3 * 60 * MINUTE, active: {} }) })
+  await reportHeld.run()
+  same("watchdog: a pull request that waits on the owner by its report is no alert", alertsOf(reportHeld.calls), [])
 
   // 4. A pull request is at its fix cap.
   const branch = "chore/ticket-7-30"

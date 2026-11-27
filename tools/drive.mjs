@@ -1055,13 +1055,16 @@ export const failureHistory = ({ item, pull, order, launches }) => {
   return text.length <= HISTORY_LIMIT_CHARS ? text : `${text.slice(0, HISTORY_LIMIT_CHARS)}\n...`
 }
 
-/** True when the newest report about one pull request on its ticket is a fix cap report. Such a label is stale: a cap never waits on the owner. */
+/**
+ * The stale labels of a fix cap, or null: the newest report about one pull request on its ticket is a cap report, and the pull
+ * request or the ticket carries `needs:owner`. A cap never waits on the owner. The report of a cap can label the ticket only.
+ */
 const staleCapLabel = (pull, ticket, item) => {
-  if (ticket === null || !pull.labels.includes(OWNER)) return null
+  if (ticket === null || (!pull.labels.includes(OWNER) && !ticket.labels.includes(OWNER))) return null
   const reports = ticket.comments.filter((entry) => entry.kind === "needs-owner")
   const mine = reports.filter((entry) => bodyAfterMarker(entry).startsWith(`${item} at `)).at(-1)
   if (mine === undefined || !bodyAfterMarker(mine).includes(`used its ${MAX_FIX_LAUNCHES} fix launches.`)) return null
-  return { clearTicket: reports.at(-1) === mine && ticket.labels.includes(OWNER) }
+  return { clearPull: pull.labels.includes(OWNER), clearTicket: reports.at(-1) === mine && ticket.labels.includes(OWNER) }
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. A fix cap label from an earlier driver version goes first. */
@@ -1069,7 +1072,8 @@ const planPull = async (env, mem, context, pull) => {
   const plan = await planPullActions(env, mem, context, pull)
   const ticket = pull.tracks === null ? null : context.ticketMap.get(pull.tracks) ?? null
   const stale = staleCapLabel(pull, ticket, `${context.repoKey}#${pull.number}`)
-  return stale === null ? plan : [{ type: "clear-cap-label", ...stale }, ...plan]
+  // A newer report keeps the ticket label, so a pull request with no label of its own then has nothing to remove.
+  return stale?.clearPull || stale?.clearTicket ? [{ type: "clear-cap-label", ...stale }, ...plan] : plan
 }
 
 const planPullActions = async (env, mem, { repoKey, state, ticketMap, now, runs, running }, pull) => {
@@ -1193,10 +1197,12 @@ const restartPull = async (env, mem, { repoKey }, pull, ticket, action) => {
   repaired(mem, `closed ${item} after its fix cap and rebuilds ticket ${ticket.number} from main`)
 }
 
-/** Takes the `needs:owner` label off a pull request, and off its ticket when the cap report is the newest report there. */
+/** Takes the `needs:owner` label off a pull request that carries it, and off its ticket when the cap report is the newest report there. */
 const clearCapLabel = async (env, ctx, pull, ticket, action) => {
-  await env.github.editLabels(ctx.repoKey, pull.number, { remove: [OWNER] })
-  pull.labels.splice(pull.labels.indexOf(OWNER), 1)
+  if (action.clearPull) {
+    await env.github.editLabels(ctx.repoKey, pull.number, { remove: [OWNER] })
+    pull.labels.splice(pull.labels.indexOf(OWNER), 1)
+  }
   if (action.clearTicket) {
     await env.github.editLabels("tickets", ticket.number, { remove: [OWNER] })
     ticket.labels.splice(ticket.labels.indexOf(OWNER), 1)
@@ -1242,11 +1248,14 @@ const executeAction = async (env, mem, ctx, pull, action) => {
 
 const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type === "restart" ? "close and rebuild from main (fix cap)" : action.type === "clear-cap-label" ? "remove the stale needs:owner of a fix cap" : action.type)
 
-/** True for an open pull request that the driver tracks and that does not wait on the owner: by a label of its own or of its ticket, or by its report. */
-const isWaiting = (env, pull, tickets) => {
+/** True while a pull request waits on the owner: by a label of its own or of its ticket, or by its report. */
+const waitsOnOwner = (env, pull, tickets) => {
   const ticket = tickets.find((entry) => entry.number === pull.tracks)
-  return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !heldByReport(env, pull, ticket)
+  return pull.labels.includes(OWNER) || ticket?.labels.includes(OWNER) === true || heldByReport(env, pull, ticket)
 }
+
+/** True for an open pull request that the driver tracks and that does not wait on the owner. */
+const isWaiting = (env, pull, tickets) => !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !waitsOnOwner(env, pull, tickets)
 
 /** The pull requests of a repository that the plan reads: tracked or not, in number order. */
 const planOrder = (state) => [...state.pulls].sort((left, right) => left.number - right.number)
@@ -2101,14 +2110,15 @@ const durationText = (ms) => {
  * fix cap. Each line names the repairs that the driver did while the problem lasted, from the driver's own record of them. The
  * active problems and the time of the last merge live in `watchdog.json`, so a restart sends no line twice. The clock of the
  * merge alarm resets at each merge, while no pull request is open and while the driver is held on purpose. A problem ends only on a tick
- * that could judge it: a failed queue read and a pull request that this tick did not plan keep their problems open.
+ * that could judge it: a failed queue read and a pull request that this tick did not plan keep their problems open. A pull request
+ * that waits on the owner is not open for the merge alert and the age alert.
  */
-const watchHealth = async (env, mem, { states, queue, held }) => {
+const watchHealth = async (env, mem, { states, tickets, queue, held }) => {
   const path = join(env.stateDir, WATCHDOG_FILE)
   let saved = { lastMergeAt: null, active: {} }
   try { saved = { ...saved, ...JSON.parse(readFileSync(path, "utf8")) } } catch { /* a first start has no file */ }
   const now = env.now()
-  const open = states.flatMap((state) => state.pulls.filter((pull) => !pull.draft && !pull.labels.includes(OWNER)).map((pull) => ({ item: `${state.repositoryKey}#${pull.number}`, pull })))
+  const open = states.flatMap((state) => state.pulls.filter((pull) => !pull.draft && !waitsOnOwner(env, pull, tickets)).map((pull) => ({ item: `${state.repositoryKey}#${pull.number}`, pull })))
   if (mem.mergedAt !== null || open.length === 0 || held || !Number.isFinite(saved.lastMergeAt)) saved.lastMergeAt = mem.mergedAt ?? now
   mem.mergedAt = null
   const current = new Map()
@@ -2300,7 +2310,7 @@ export const tick = async (env, mem) => {
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
     await watchStall(env, tickets, { acted: mem.acted || running.workers.length > 0, held: holdReason !== null || stoppedAll, waiting }).catch((error) => log(env, "stall", "error", error.message))
-    await watchHealth(env, mem, { states, queue, held: holdReason !== null || stoppedAll }).catch((error) => log(env, "watchdog", "error", error.message))
+    await watchHealth(env, mem, { states, tickets, queue, held: holdReason !== null || stoppedAll }).catch((error) => log(env, "watchdog", "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()
