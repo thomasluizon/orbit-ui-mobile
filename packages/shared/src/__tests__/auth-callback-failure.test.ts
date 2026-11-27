@@ -30,7 +30,9 @@ describe.each(['apple', 'google'] as const)('%s callback failure reporting', (pr
     expect(error.message).toBe(reason)
     report(error.reason)
     report('session_changed')
-    expect(capture).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', { level: 'error', tags: { provider, reason } })
+    expect(capture).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
+      level: 'error', tags: { provider, reason }, fingerprint: ['auth_callback_failed', provider, reason],
+    })
     createAuthCallbackFailureReporter(provider, capture)(reason)
     expect(capture).toHaveBeenCalledTimes(2)
   })

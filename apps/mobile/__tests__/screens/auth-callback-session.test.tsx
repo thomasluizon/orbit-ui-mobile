@@ -122,7 +122,7 @@ it.each(['logout', 'replacement login'])('does not install an exchanged account 
   expect(mocks.login).not.toHaveBeenCalled()
   expect(mocks.replace).not.toHaveBeenCalled()
   expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-    level: 'error', tags: { provider: 'google', reason: 'session_changed' },
+    level: 'error', tags: { provider: 'google', reason: 'session_changed' }, fingerprint: ['auth_callback_failed', 'google', 'session_changed'],
   })
 })
 
@@ -132,7 +132,7 @@ it.each([new Error('private-code private-state private@example.test'), new TypeE
   await mountCallback()
   expect(mocks.callbackState).toBe('failed')
   expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' },
+    level: 'error', tags: { provider: 'google', reason: 'exchange_failed' }, fingerprint: ['auth_callback_failed', 'google', 'exchange_failed'],
   })
   expect(mocks.login).not.toHaveBeenCalled()
   expect(mocks.replace).not.toHaveBeenCalled()
@@ -143,7 +143,7 @@ it('reports session hydration failure without sending the rejected error content
   await mountCallback()
   expect(mocks.callbackState).toBe('failed')
   expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-    level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' },
+    level: 'error', tags: { provider: 'google', reason: 'profile_hydration_failed' }, fingerprint: ['auth_callback_failed', 'google', 'profile_hydration_failed'],
   })
   expect(mocks.replace).not.toHaveBeenCalled()
 })
