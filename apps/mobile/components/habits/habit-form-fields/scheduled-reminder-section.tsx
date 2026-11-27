@@ -145,10 +145,13 @@ export function ScheduledReminderSection({
 
           {!atLimit && (
             <View style={sectionStyles.formBody}>
-              <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.scheduledReminder')}</Text><RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
-                {!hideDayBefore ? <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} tokens={tokens} /> : null}
-                <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} tokens={tokens} />
-              </RadioGroup>
+              {hideDayBefore ? null : <>
+                <Text style={{ color: tokens.fg2, fontSize: 14, fontFamily: 'Geist_500Medium' }}>{t('habits.form.scheduledReminder')}</Text>
+                <RadioGroup accessibilityLabel={t("habits.form.scheduledReminder")} style={sectionStyles.whenRow}>
+                  <ReminderWhenOption label={t("habits.form.scheduledReminderDayBefore")} selected={when === "day_before"} onSelect={() => setWhen("day_before")} styles={sectionStyles} tokens={tokens} />
+                  <ReminderWhenOption label={t("habits.form.scheduledReminderSameDay")} selected={when === "same_day"} onSelect={() => setWhen("same_day")} styles={sectionStyles} tokens={tokens} />
+                </RadioGroup>
+              </>}
 
               <View style={sectionStyles.timeRow}>
                 <TimeField disabled={disabled}

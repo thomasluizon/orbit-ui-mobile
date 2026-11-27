@@ -115,6 +115,36 @@ describe('ReferralDrawer (mobile)', () => {
     TestRenderer.act(() => { tree.unmount() })
   })
 
+  it('clears the copied reset timer when the drawer unmounts', async () => {
+    mocks.setStringAsync.mockResolvedValue(true)
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+    const tree = renderDrawer()
+    await pressButton(slot(tree, 'SheetBody'), 'referral.drawer.copyLink')
+    const resetCallIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 2000)
+    expect(resetCallIndex).toBeGreaterThanOrEqual(0)
+    const resetTimer = setTimeoutSpy.mock.results[resetCallIndex]?.value
+    TestRenderer.act(() => { tree.unmount() })
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(resetTimer)
+    setTimeoutSpy.mockRestore()
+    clearTimeoutSpy.mockRestore()
+  })
+
+  it('schedules no copied reset when the copy resolves after the drawer unmounts', async () => {
+    let resolveCopy: (copied: boolean) => void = () => {}
+    mocks.setStringAsync.mockImplementationOnce(() => new Promise<boolean>((resolve) => { resolveCopy = resolve }))
+    const tree = renderDrawer()
+    await pressButton(slot(tree, 'SheetBody'), 'referral.drawer.copyLink')
+    TestRenderer.act(() => { tree.unmount() })
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout')
+    await TestRenderer.act(async () => {
+      resolveCopy(true)
+      await Promise.resolve()
+    })
+    expect(setTimeoutSpy.mock.calls.filter(([, delay]) => delay === 2000)).toEqual([])
+    setTimeoutSpy.mockRestore()
+  })
+
   it('holds no Orbit line and no live mascot with the guided flows on', () => {
     enableTestFlags('orbit_guided_flows')
     const tree = renderDrawer()

@@ -80,7 +80,8 @@ jobs:
           node-version: 22
           package-manager-cache: false
       - uses: ./.github/actions/restore-npm-cache
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - name: Export Android Hermes bundle and source map
         working-directory: apps/mobile
         env:
@@ -135,7 +136,7 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c
-      - run: npm ci --prefer-offline --no-audit --fund=false
+      - run: npm ci --prefer-offline --no-audit --fund=false || npm ci --prefer-offline --no-audit --fund=false
       - name: Validate the startup proof configuration
         run: node tools/test-tools.mjs --only android-boot
       - name: Select the last successful production app version

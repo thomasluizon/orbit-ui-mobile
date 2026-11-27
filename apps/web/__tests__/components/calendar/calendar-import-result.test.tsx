@@ -15,10 +15,10 @@ function renderResult(locale: 'en' | 'pt-BR', count: number | null, onClose = vi
 
 describe('the result dialog of a calendar import', () => {
   it.each([
-    ['en', 1, 'Done!', '1 habit was created from your calendar.', 'View in Today'],
-    ['en', 3, 'Done!', '3 habits were created from your calendar.', 'View in Today'],
-    ['pt-BR', 1, 'Pronto!', '1 hábito foi criado a partir da sua agenda.', 'Ver no Hoje'],
-    ['pt-BR', 3, 'Pronto!', '3 hábitos foram criados a partir da sua agenda.', 'Ver no Hoje'],
+    ['en', 1, 'Done!', '1 habit was created from your calendar.', "View today's habits"],
+    ['en', 3, 'Done!', '3 habits were created from your calendar.', "View today's habits"],
+    ['pt-BR', 1, 'Pronto!', '1 hábito foi criado a partir da sua agenda.', 'Ver hábitos de hoje'],
+    ['pt-BR', 3, 'Pronto!', '3 hábitos foram criados a partir da sua agenda.', 'Ver hábitos de hoje'],
   ] as const)('states the server count in %s (%i)', (locale, count, title, sentence, action) => {
     const onClose = renderResult(locale, count)
     const dialog = screen.getByRole('dialog', { name: title })
