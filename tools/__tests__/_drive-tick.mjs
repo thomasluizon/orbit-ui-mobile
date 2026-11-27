@@ -29,7 +29,7 @@ const SNAPSHOT = join(root, "drive-tick-snapshot.json")
 const iso = (offsetMs) => new Date(NOW + offsetMs).toISOString()
 const MINUTE = 60 * 1000
 
-const comment = (kind, text, offset = -3600 * 1000, extra = {}) => ({ id: `C${Math.abs(offset)}${text.length}`, author: "thomasluizon", body: kind ? marked(kind, text) : text, createdAt: iso(offset), kind, ...extra })
+const comment = (kind, text, offset = -3600 * 1000, extra = {}) => ({ id: `C${Math.abs(offset)}${text.length}`, url: `https://example.test/C${Math.abs(offset)}${text.length}`, author: "thomasluizon", body: kind ? marked(kind, text) : text, createdAt: iso(offset), kind, ...extra })
 
 const check = (name, conclusion = "SUCCESS", extra = {}) => ({ __typename: "CheckRun", databaseId: 11, name, status: "COMPLETED", conclusion, startedAt: iso(-3600 * 1000), detailsUrl: "https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/9001/job/11", checkSuite: { app: { databaseId: 15368 } }, ...extra })
 const approvalCheck = () => check("pullfrog-approval", "SUCCESS", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
@@ -213,6 +213,19 @@ const admissionCases = async () => {
   const overlapping = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2, "Paths: apps/web/"), partComment(2, 2, "Paths: apps/web/a.ts")] })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] } })
   await overlapping.run()
   T("drive: a next part whose Paths sit inside an open part's Paths is held", overlapping.launched.length === 0)
+
+  const doubled = [comment(null, "Part 1 of 2: first\n", -7200 * 1000), comment(null, "Part 2 of 2: second\n", -7100 * 1000), comment(null, "Part 2 of 2: second again\n", -7000 * 1000)]
+  const doubledScene = scenario({ tickets: [ticket(7, { comments: doubled })] })
+  await doubledScene.run()
+  const doubledText = commentsOf(doubledScene.calls, 7).find((text) => text.includes("needs-owner")) ?? ""
+  same("drive: two live comments of one part launch nothing and give needs:owner with both comment URLs", [doubledScene.launched.length, only(doubledScene.calls, "editLabels")[0]?.[3], doubledText.includes(doubled[1].url) && doubledText.includes(doubled[2].url)], [0, { add: [OWNER_LABEL] }, true])
+  const brokenScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), comment(null, "## Part 2 of two: second\n", -7000 * 1000)] })] })
+  await brokenScene.run()
+  const brokenText = commentsOf(brokenScene.calls, 7).find((text) => text.includes("needs-owner")) ?? ""
+  same("drive: a broken part heading launches no part and no build, and the needs:owner comment quotes the line", [brokenScene.launched.length, only(brokenScene.calls, "editLabels").length, brokenText.includes('"## Part 2 of two: second"')], [0, 1, true])
+  const statusScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), partComment(2, 2), comment(null, "## Part 2 is complete (18 November 2026)\n", -7000 * 1000)] })] })
+  await statusScene.run()
+  same("drive: a status note that starts with Part 2 holds nothing and part 1 starts", [statusScene.launched.length, only(statusScene.calls, "editLabels").length], [1, 0])
   const noPaths = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), partComment(2, 2)] })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] } })
   await noPaths.run()
   T("drive: a next part with no Paths line waits for the open part", noPaths.launched.length === 0)
@@ -1741,7 +1754,7 @@ const orderOfApiCases = async () => {
   const edited = [comment(null, "Part 1 of 1: the edited part", -3600 * 1000), comment(null, "Part 1 of 1: the first version\nKind: find", -7200 * 1000)]
   const part = scenario({ tickets: [ticket(7, { comments: edited })] })
   await part.run()
-  same("drive: the newest comment of a part decides its kind when the API lists the comments out of order", only(part.calls, "comment").map((entry) => JSON.parse(entry[3].split("\n")[1]).kind), ["build part"])
+  same("drive: two comments of one part launch nothing, whatever order the API lists them in", [part.launched.length, only(part.calls, "editLabels").length], [0, 1])
 }
 
 const orphanClockCases = async () => {

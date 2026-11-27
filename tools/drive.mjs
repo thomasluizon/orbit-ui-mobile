@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { ownerParts, partOf, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, partProblem, renderOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -159,7 +159,7 @@ export const launchesOf = (ticket) => {
 /** Parts of a ticket, oldest comment first, one entry for each part number. */
 const partsOf = (ticket) => {
   const byNumber = new Map()
-  // The owner's comments are read oldest first, whatever order the API lists them in, so a later comment of a part replaces an earlier one.
+  // Admission refuses a ticket with two live comments of one part, so each part number has one comment here.
   // The newest part set is in force, so an older set with another total is dropped.
   for (const entry of ownerParts(ticket.comments.filter((comment) => comment.kind === null)).sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     const part = partOf(entry)
@@ -1583,6 +1583,8 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
     const unmet = await env.github.unmetDeployFirst(blocker)
     if (unmet.length > 0) return stop(`deploy-first ${unmet.map((hold) => `${hold.environment}/${hold.task}`).join(", ")} of ${blocker.number} is not deployed`)
   }
+  const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
+  if (partFault !== null) return { reason: "a part comment is broken or doubled", owner: partFault }
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
