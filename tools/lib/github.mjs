@@ -304,12 +304,14 @@ export const needsWholeDiff = (pull, { fixLaunches = 0 } = {}) =>
 
 /**
  * An APPROVED whole-diff review submitted after the driver's request for its own commit. It covers the head at that
- * commit, or at a later head when every later commit is a clean base merge (two parents and an empty remerge diff).
+ * commit, or at a later head when every later commit is a clean base merge (two parents and an empty remerge diff) or the
+ * own diff of that commit equals the diff of the head (`pull.sameDiffAs`).
  */
 export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = [] } = {}) =>
   pull.reviews.some((review) => {
     const requestedAt = wholeDiffRequests[review.commit]
     if (review.state !== "APPROVED" || !inWholeDiffWindow(review.body) || requestedAt === undefined || Date.parse(review.submittedAt) <= Date.parse(requestedAt)) return false
+    if ((pull.sameDiffAs ?? []).includes(review.commit)) return true
     const position = pull.commits.findIndex((commit) => commit.sha === review.commit)
     return position >= 0 && pull.commits.slice(position + 1).every((commit) => commit.parents === 2 && cleanMerges.includes(commit.sha))
   })
@@ -318,6 +320,15 @@ export const wholeDiffApproved = (pull, { wholeDiffRequests = {}, cleanMerges = 
 export const isReviewPass = (review) => review.state !== "COMMENTED" || review.body.trim() !== "" || review.blocking.length > 0
 
 const newestReview = (pull) => [...pull.reviews].filter(isReviewPass).sort((first, second) => first.submittedAt.localeCompare(second.submittedAt)).at(-1) ?? null
+
+/**
+ * The newest review pass when it approves an earlier commit whose own diff equals the diff of the head, or null. `pull.sameDiffAs`
+ * lists the commits with that diff. The approval carries to the head, so a clean merge of the base asks for no new review.
+ */
+export const carriedApproval = (pull) => {
+  const review = newestReview(pull)
+  return review !== null && review.state === "APPROVED" && review.commit !== pull.headSha && (pull.sameDiffAs ?? []).includes(review.commit) ? review : null
+}
 
 /** The first of major, minor and patch that differs between two dotted versions, or null when either is not numeric. */
 const semverChange = (from, to) => {
@@ -370,7 +381,7 @@ export const mergeBar = (pull, context = {}) => {
   if (!SHA.test(pull.headSha)) failed.push("head-unknown")
   failed.push(...checkFailures(pull))
   const review = newestReview(pull)
-  if (review === null || review.commit !== pull.headSha || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
+  if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")
   if (!pull.threadsComplete) failed.push("threads-incomplete")
   const unresolved = pull.threads.filter((thread) => !thread.resolved).length

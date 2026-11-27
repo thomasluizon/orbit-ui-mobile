@@ -605,7 +605,7 @@ const reviewCases = async () => {
   const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
-  same("drive: a COMMENTED review with no BLOCKING gets one re-request", commentsOf(first.calls, 30).map((text) => text.split("\n")[1]), [PLAIN])
+  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and needs:owner", [commentsOf(first.calls, 30).length, only(first.calls, "editLabels").length], [0, 2])
   const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review(CHANGES_REQUESTED, HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
   await second.run()
   same("drive: a second review with no BLOCKING gives needs:owner", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").length], [0, 2])
@@ -670,6 +670,55 @@ const reviewCases = async () => {
   const early = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -3 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE), review("APPROVED", HEAD, -5 * MINUTE, { body: "Whole diff: before the request" })] })] } })
   await early.run()
   same("drive: a whole-diff review submitted before the request does not count", only(early.calls, "merge").length, 0)
+}
+
+/** One review per head: a repeat at the same head, a clean merge of the base that keeps the diff, and a fix round. */
+const reviewOnceCases = async () => {
+  const NEW_HEAD = "e".repeat(40)
+  const diffOf = (blob, line, body) => `diff --git a/x b/x\nindex ${blob}..${blob}1 100644\n--- a/x\n+++ b/x\n@@ -${line},1 +${line},1 @@\n-old\n+${body}\n`
+  // The head after a merge of the base: other blob ids and other line numbers, the same change.
+  // The key holds --binary: the own diff of a head is read with the context lines and the content of a binary file.
+  const diffRoute = (approvedDiff, headDiff) => ["--binary", (args) => (args.at(-1).endsWith(NEW_HEAD) ? headDiff : approvedDiff)]
+  const merged = (diffs, extra = {}) => scenario({ tickets: [ticket(7)], gitRoutes: [diffRoute(...diffs)], pulls: { ui: [pull(30, { headSha: NEW_HEAD, commits: [{ sha: HEAD, parents: 1 }, { sha: NEW_HEAD, parents: 2 }], reviews: [review("APPROVED", HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), comment("request", PLAIN, -50 * MINUTE)], ...extra })] } })
+  const skipLines = (scene) => scene.messages.filter((line) => line.includes("review skip"))
+
+  const sameDiff = merged([diffOf("111", 10, "new"), diffOf("222", 42, "new")])
+  await sameDiff.run()
+  same("drive: a clean merge of the base that keeps the diff of the approval asks for no review and merges", [commentsOf(sameDiff.calls, 30).length, only(sameDiff.calls, "merge").length, skipLines(sameDiff).map((line) => line.slice(line.indexOf("ui#30")))], [0, 1, ["ui#30 review skip (same diff)"]])
+  const changed = merged([diffOf("111", 10, "new"), diffOf("222", 10, "other")])
+  await changed.run()
+  same("drive: a merge of the base that changes the diff of the approval asks for a new review", [commentsOf(changed.calls, 30).map((text) => text.split("\n")[1]), only(changed.calls, "merge").length, skipLines(changed).length], [[PLAIN], 0, 0])
+  // A change that moves inside a file keeps its text and its context lines differ; a binary file that changes keeps its marker line and its payload differs.
+  const placed = (context, blob, payload) => `diff --git a/x.txt b/x.txt\nindex ${blob}..${blob}1 100644\n--- a/x.txt\n+++ b/x.txt\n@@ -1,7 +1,8 @@\n ${context}\n+setup()\n ${context}\ndiff --git a/img.bin b/img.bin\nindex ${blob}..${blob}2 100644\nGIT binary patch\nliteral 4\n${payload}\n`
+  const moved = merged([placed("line9", "111", "v1"), placed("line19", "222", "v1")])
+  await moved.run()
+  same("drive: a change that moves inside a file does not carry the approval", [commentsOf(moved.calls, 30).map((text) => text.split("\n")[1]), only(moved.calls, "merge").length, skipLines(moved).length], [[PLAIN], 0, 0])
+  const rebinary = merged([placed("line9", "111", "v1"), placed("line9", "222", "v2")])
+  await rebinary.run()
+  same("drive: a binary file with other content does not carry the approval", [commentsOf(rebinary.calls, 30).map((text) => text.split("\n")[1]), only(rebinary.calls, "merge").length], [[PLAIN], 0])
+  const rebased = merged([placed("line9", "111", "v1"), placed("line9", "222", "v1")])
+  await rebased.run()
+  same("drive: the same change with other blob ids carries the approval", [commentsOf(rebased.calls, 30).length, only(rebased.calls, "merge").length], [0, 1])
+  const diffCalls = sameDiff.calls.filter((call) => call[0] === "git" && call[1] === "diff")
+  same("drive: the own diff is read with the context lines and the binary content", [diffCalls.length > 0, diffCalls.every((call) => call.includes("--binary") && !call.includes("-U0"))], [true, true])
+  const unknown = merged(["", ""])
+  await unknown.run()
+  same("drive: a diff that git cannot show carries no approval", [commentsOf(unknown.calls, 30).map((text) => text.split("\n")[1]), only(unknown.calls, "merge").length], [[PLAIN], 0])
+  const wholeCarried = merged([diffOf("111", 10, "new"), diffOf("222", 42, "new")], { changedFiles: 40, reviews: [review("APPROVED", HEAD, -40 * MINUTE, { body: "Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -50 * MINUTE)] })
+  await wholeCarried.run()
+  same("drive: a whole-diff approval carries to a head with the same diff", [commentsOf(wholeCarried.calls, 30).length, only(wholeCarried.calls, "merge").length], [0, 1])
+
+  const sameHead = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], comments: [comment("ticket", "T")] })] } })
+  await sameHead.run()
+  same("drive: a head that has a review gets no plain request and the driver logs the skip", [commentsOf(sameHead.calls, 30).length, skipLines(sameHead).map((line) => line.slice(line.indexOf("ui#30")).replace(/ \(Pullfrog.*$/, ""))], [0, ["ui#30 review skip (same head)"]])
+
+  const fixLaunch = comment("launch", JSON.stringify({ kind: "fix", part: null, branch: "chore/ticket-7-30" }))
+  const fixRound = scenario({ tickets: [ticket(7, { comments: [fixLaunch] })], pulls: { ui: [pull(30, { reviews: [], comments: [comment("ticket", "T")] })] } })
+  await fixRound.run()
+  same("drive: the first request at the head of a fix round is one whole-diff request", commentsOf(fixRound.calls, 30).map((text) => text.split("\n")[1]), [`${PLAIN} whole diff`])
+  const fixAnswered = scenario({ tickets: [ticket(7, { comments: [fixLaunch] })], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "> Whole diff: clean" })], comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -10 * MINUTE)] })] } })
+  await fixAnswered.run()
+  same("drive: the whole-diff review of a fix round answers it with no second request and merges", [commentsOf(fixAnswered.calls, 30).length, only(fixAnswered.calls, "merge").length], [0, 1])
 }
 
 /** The recorded state of ui#2522: approved before a clean base merge made the head, and the head has no pullfrog-approval check run. */
@@ -1179,7 +1228,7 @@ const blockingClassCases = async () => {
   const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
   const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
   await commented.run()
-  same("drive: a COMMENTED review beside a red pullfrog-approval check gets one re-request and no ci-fix order", [commentsOf(commented.calls, 30).map((text) => text.split("\n")[1]), commented.launched.length], [[PLAIN], 0])
+  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, needs:owner and no ci-fix order", [commentsOf(commented.calls, 30).length, only(commented.calls, "editLabels").length, commented.launched.length], [0, 2, 0])
 
   const merged = { number: 31, body: `Tracks ${REPOSITORY}#8\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-8" }
   const routes = [["--state merged", (args) => (args.join(" ").includes("#8\"") ? JSON.stringify([merged]) : "[]")]]
@@ -1245,7 +1294,7 @@ const laneAndReviewPassCases = async () => {
 
   const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await repliesBeforeChanges.run()
-  same("drive: thread replies before a review with no BLOCKING comment do not count as a second unusable review", [commentsOf(repliesBeforeChanges.calls, 30).map((text) => text.split("\n")[1]), only(repliesBeforeChanges.calls, "editLabels").length], [[PLAIN], 0])
+  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [commentsOf(repliesBeforeChanges.calls, 30).length, only(repliesBeforeChanges.calls, "editLabels").length], [0, 2])
 
   const replyAfterApproval = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -10 * MINUTE), reviewReply(-5 * MINUTE)] })] } })
   await replyAfterApproval.run()
@@ -2520,6 +2569,7 @@ export const driverUnit = async () => {
   await reviewRunCases()
   await worktreeOccupantCases()
   await reviewCases()
+  await reviewOnceCases()
   await ownerAndBodyCases()
   await mergeCases()
   await mobileHoldCases()
