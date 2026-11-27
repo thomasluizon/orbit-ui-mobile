@@ -63,7 +63,7 @@ Every tick, good or failed, writes `health.json` in the state directory (`$S` of
 
 - All times are ISO strings.
 - `since` is the time that the problem started. It stays the same while the problem lasts.
-- A tick whose read fails keeps `openPulls`, `oldestGreenApprovedAt` and each `unmerged:` problem of the last good read.
+- A tick whose read fails, or whose plan of a pull request fails, keeps `openPulls`, `oldestGreenApprovedAt` and each `unmerged:` problem of the last good read.
 - A merge that the release train holds, and a merge that fails, both stay in `problems` as `unmerged:`.
 
 ## What the owner session does

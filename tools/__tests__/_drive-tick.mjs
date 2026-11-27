@@ -891,6 +891,32 @@ const healthCases = async () => {
   await refused.run()
   same("drive: a pull request whose merge throws stays unmerged in health.json", [healthOf(refused).oldestGreenApprovedAt, healthOf(refused).problems.map((problem) => problem.key), healthOf(refused).lastMergeAt], [iso(-90 * MINUTE), ["unmerged:ui#30"], null])
 
+  // A pull request whose plan throws is no good read: the record names the error and keeps the last good values.
+  const missedTwiceForHealth = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
+  const keptHealth = (scene) => { const record = healthOf(scene); return [record.lastGoodTickAt, record.openPulls, record.oldestGreenApprovedAt, record.lastErrorClass, record.rateLimitedUntil, record.problems.map((problem) => problem.key)] }
+  const planThrows = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [green(30, -90 * MINUTE)] }, routes: [["api rate_limit", rateLimitResponse(Math.floor(NOW / 1000) + 1800)]] })
+  planThrows.env.github.merge = async () => { throw new Error("gh pr merge failed: a repository rule refuses the merge") }
+  await planThrows.run()
+  same("drive: a tick whose merge is refused is a good tick that lists the pull request as unmerged", keptHealth(planThrows), [iso(0), 1, iso(-90 * MINUTE), null, null, ["unmerged:ui#30"]])
+  planThrows.env.now = () => NOW + 2 * MINUTE
+  planThrows.env.github.pullfrogRuns = async () => { throw new Error("gh run list --repo thomasluizon/orbit-ui-mobile failed: gh: API rate limit exceeded for user ID 1. (HTTP 403)") }
+  await planThrows.run()
+  same("drive: a tick whose pull request plans throw is no good tick, names the error and keeps the last good values", keptHealth(planThrows), [iso(0), 1, iso(-90 * MINUTE), "rate-limit", iso(30 * MINUTE), ["unmerged:ui#30", "error:tick"]])
+
+  const againThrows = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwiceForHealth }), pull(31, { headRef: "chore/ticket-7-31" })] } })
+  const againPull = againThrows.env.github.readRepositoryState
+  againThrows.env.github.readRepositoryState = async (...args) => {
+    const state = await againPull(...args)
+    const later = state.pulls.find((entry) => entry.number === 31)
+    if (later) {
+      const comments = later.comments
+      Object.defineProperty(later, "comments", { get: () => { if (only(againThrows.calls, "editLabels").length > 0) throw new Error("gh api graphql failed: gh: HTTP 502: Bad Gateway"); return comments } })
+    }
+    return state
+  }
+  await againThrows.run()
+  same("drive: a pull request whose second plan throws is no good tick and names the error class", [healthOf(againThrows).lastGoodTickAt, healthOf(againThrows).lastErrorClass], [null, "server"])
+
   const waiting = scenario({ tickets: [ticket(7)], runs: [], pulls: { ui: [pull(30, { reviews: [] })] } })
   writeFileSync(join(waiting.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
   await waiting.run()

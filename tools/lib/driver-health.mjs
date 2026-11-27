@@ -15,7 +15,7 @@ const COMMAND_END = /^(?:gh|GitHub read) [\s\S]*? (?:failed: |(?=timed out after
 const ERROR_CLASSES = [
   ["rate-limit", /rate.?limit|abuse detection/i],
   ["auth", /\b401\b|bad credentials|authentication|gh auth login|not logged in/i],
-  ["network", /could not resolve|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|dial tcp|network is unreachable/i],
+  ["network", /could not resolve|ENOTFOUND|ECONNRESET|ECONNREFUSED|ETIMEDOUT|dial tcp|network is unreachable|error connecting to|check your internet connection/i],
   ["server", /\bHTTP 5\d\d\b|\b50[0-4]\b|bad gateway|service unavailable|gateway time-?out/i],
   ["timeout", /timed out|timeout|deadline exceeded|read ceiling/i],
 ]

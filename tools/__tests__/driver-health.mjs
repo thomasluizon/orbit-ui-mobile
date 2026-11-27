@@ -18,7 +18,9 @@ export const cases = async () => {
     ["gh api graphql returned errors: [{\"type\":\"RATE_LIMITED\"}]", "rate-limit"],
     ["gh api graphql failed: You have exceeded a secondary rate limit", "rate-limit"],
     ["gh api graphql failed: gh: Bad credentials (HTTP 401)", "auth"],
-    ["gh api graphql failed: dial tcp: lookup api.github.com: no such host ECONNREFUSED", "network"],
+    ["gh api graphql -f query=query { x } failed: error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com", "network"],
+    ["GitHub read api graphql -f query=query { x } failed: error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com", "network"],
+    ["error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com", "network"],
     ["gh api graphql failed: gh: HTTP 502: Bad Gateway", "server"],
     ["gh api graphql failed: gh: HTTP 504: Gateway Timeout", "server"],
     ["GitHub read ceiling reached", "timeout"],
@@ -40,6 +42,9 @@ export const cases = async () => {
     }
     throw new Error("the stubbed read did not fail")
   }
+  // The stderr that gh prints for an unreachable host (printError in internal/ghcmd/cmd.go), read from a real run with GH_HOST=nonexistent.invalid.
+  const offline = await realMessage("error connecting to api.github.com\ncheck your internet connection or https://githubstatus.com", [30])
+  same(`${UNIT}: a read that fails with the real gh offline stderr has the class network and names the host`, [errorClassOf(new Error(offline)), detailOf(new Error(offline))], ["network", "error connecting to api.github.com"])
   for (const number of [401, 500, 502, 503, 504]) {
     const failed = await realMessage("gh: ECONNRESET", [number])
     same(`${UNIT}: a failed read with pull request #${number} in its query has the class network`, [errorClassOf(new Error(failed)), detailOf(new Error(failed))], ["network", "gh: ECONNRESET"])

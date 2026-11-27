@@ -1200,6 +1200,8 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
   for (const { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain } of planned) {
     if (error) {
       log(env, item, "error", error.message)
+      // A pull request that no plan reached is no good read: the record keeps the last good values and names the error.
+      mem.health.failure ??= error
       continue
     }
     try {
@@ -1208,7 +1210,7 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
       // The first plan marked the threads resolved in memory, so its resolve step stays.
       const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
-      const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain().catch((again) => { mem.health.failure ??= again; throw again })] : planned1
       const mergeHeld = plan.some((action) => action.held)
       // A pull request whose plan has a merge, held or not, meets the bar: `mem.health.green` keeps it until its merge runs.
       if (mergeHeld || plan.some((action) => action.type === "merge")) mem.health.green.push({ key: item, approvedAt: approvalTime(pull) })
@@ -2100,8 +2102,8 @@ const runTick = async (env, mem) => {
     await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
-  // The read of this tick and the bar that follows it make a good tick. The read of the reap is no good tick, and a throw before the bar leaves no green list.
-  mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
+  // The read of this tick and the bar that follows it make a good tick. The read of the reap is no good tick, a throw before the bar leaves no green list, and a plan that threw leaves the bar unchecked.
+  if (mem.health.failure === null) mem.health.read = { openPulls: states.reduce((total, state) => total + state.pulls.length, 0) }
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
