@@ -331,9 +331,13 @@ const refusalCases = async () => {
   same("release-train: a Tests run that waits 180 minutes in the runner queue does not stop the train", [waiting.state().train.status, releaseDispatches(waiting.events).length], ["complete", 3])
   const stuck = await queuedTests(() => ({ status: "in_progress", conclusion: null }))
   same("release-train: a Tests run that runs for more than 90 minutes stops the train", [stuck.state().train.status, stuck.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the test.yml run did not finish in 90 minutes of run time"])
+  const requeued = await queuedTests((minutes) => minutes < 5 ? { status: "in_progress", conclusion: null } : minutes < 125 ? { status: "queued", conclusion: null } : minutes < 155 ? { status: "in_progress", conclusion: null } : { status: "completed", conclusion: "success" })
+  same("release-train: a Tests run that goes back to the runner queue between job waves does not count the queue time", [requeued.state().train.status, releaseDispatches(requeued.events).length], ["complete", 3])
+  const waves = await queuedTests((minutes) => minutes < 50 ? { status: "in_progress", conclusion: null } : minutes < 110 ? { status: "queued", conclusion: null } : { status: "in_progress", conclusion: null })
+  same("release-train: the run time of every job wave adds up to the 90 minute ceiling", [waves.state().train.status, waves.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the test.yml run did not finish in 90 minutes of run time"])
   const stalled = await queuedTests(() => ({ status: "queued", conclusion: null }))
   same("release-train: a Tests run that never leaves the runner queue stops the train at the wait ceiling", [stalled.state().train.status, stalled.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the Tests and Guards runs did not finish before the wait ceiling of 360 minutes"])
-  same("release-train: the run time clock of a Tests run is saved in the train state", Object.keys(stuck.state().train.steps.find((step) => step.state === "failed").tests.startedAt), ["test.yml"])
+  same("release-train: the run time clock of a Tests run is saved in the train state", Object.keys(stuck.state().train.steps.find((step) => step.state === "failed").tests.ran), ["test.yml"])
 
   const apiOnly = { web: { needs: false }, landing: { needs: false }, android: { needs: false } }
   const sha40 = NEW.api
@@ -512,7 +516,13 @@ const portCases = async () => {
     if (args[0]?.endsWith("wait-release.mjs")) return { status: 0, stdout: `${JSON.stringify({ reason: "SUCCESS" })}\n`, stderr: "" }
     if (args[0]?.endsWith("release-plan.mjs")) return { status: 0, stdout: JSON.stringify(planOf()), stderr: "" }
     if (text.includes("workflow run")) return { status: 0, stdout: "", stderr: "" }
-    if (text.includes("run list")) return { status: 0, stdout: JSON.stringify([{ displayTitle: "Android Release 1.4.0 (812) to open on main" }, { displayTitle: "Android Release 1.4.1 (815) to internal on main" }, { displayTitle: "other" }]), stderr: "" }
+    if (text.includes("run list")) {
+      // The newest 30 runs of test.yml are pull request runs. Only the `--event workflow_dispatch` filter reaches the dispatched runs behind them.
+      const dispatched = args[args.indexOf("--event") + 1] === "workflow_dispatch"
+      const pulls = Array.from({ length: 30 }, (_, index) => ({ databaseId: 100 + index, event: "pull_request", displayTitle: "other" }))
+      const dispatchedRuns = [{ databaseId: 7001, event: "workflow_dispatch", displayTitle: "Android Release 1.4.0 (812) to open on main" }, { databaseId: 7002, event: "workflow_dispatch", displayTitle: "Android Release 1.4.1 (815) to internal on main" }]
+      return { status: 0, stdout: JSON.stringify(dispatched ? dispatchedRuns : pulls), stderr: "" }
+    }
     return { status: 1, stdout: "", stderr: "unexpected" }
   }
   const ports = realPorts({ run, toolsDirectory: "/r/tools", environment: {}, fetchText: async () => "" })
@@ -520,6 +530,7 @@ const portCases = async () => {
   const files = await ports.changedFiles("web", OLD.web, NEW.web)
   same("release-train: the real port reads the compare files with one request on the first page", [files.length, calls.filter((entry) => entry.some((part) => part.includes?.("compare/"))).length], [120, 1])
   same("release-train: the real port returns null for a compare that lists 300 files, which is incomplete", await ports.changedFiles("web", OLD.web, "c".repeat(40)), null)
+  same("release-train: the real run list read returns the dispatched run behind 30 pull request runs", (await ports.listRuns("ui", "test.yml")).map((entry) => entry.databaseId), [7001, 7002])
   same("release-train: the newest Android code is the highest code of the run titles", await ports.newestAndroidCode(), 815)
   await ports.dispatch(["workflow", "run", "release.yml", "--repo", "thomasluizon/orbit-api"])
   await ports.waitRelease({ repo: "api", workflow: "release", run: 5, sha: NEW.api, workflowSha: NEW.api, serviceUrl: "https://api.useorbit.org" })
