@@ -1,7 +1,7 @@
 /** Table tests of the delivery driver's tick: the fake seams, the scenarios and their exact writes. */
 
 import { spawnSync } from "node:child_process"
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
@@ -2619,6 +2619,51 @@ const reapOutcomeCases = async () => {
   T("drive: the Opus order holds the exit, heads and findings that the real facts files of the two earlier launches hold", factsScene.launched.length === 3 && secondLog !== undefined && factsScene.launched[2].invocation.model === "claude-opus-5-5" && opusOrder.includes("## Earlier launches") && opusOrder.includes("Exit: 1, killed: passed its hard ceiling.") && opusOrder.includes(`${HEAD} to ${NEXT_HEAD}`) && opusOrder.includes("tools/a.mjs:3: BLOCKING: REAL-FINDING") && !opusOrder.includes("Exit: unknown"), opusOrder.slice(opusOrder.indexOf("## Earlier launches"), opusOrder.indexOf("## Brief")))
 }
 
+/**
+ * The gate result of a reaped launch comes from the record of the `Stop` hook and the status of a real worktree. A scene reaps the
+ * record of a launch that ended while the driver was stopped, with one real repository that holds the new head.
+ */
+const gateFactsCases = async () => {
+  const repo = join(root, "drive-gate-repo")
+  mkdirSync(repo, { recursive: true })
+  const git = (...args) => spawnSync("git", ["-c", "user.email=g@o.test", "-c", "user.name=G", "-c", "commit.gpgsign=false", ...args], { cwd: repo, encoding: "utf8" }).stdout.trim()
+  for (const args of [["init", "-q", "--initial-branch=main"], ["commit", "-q", "--allow-empty", "-m", "base"], ["commit", "-q", "--allow-empty", "-m", "work"]]) git(...args)
+  const head = git("rev-parse", "HEAD")
+  const gitDirectory = git("rev-parse", "--absolute-git-dir")
+  const excludes = join(root, "drive-gate-excludes")
+  writeFileSync(excludes, "hidden.ts\n")
+  const facts = (scene, name) => JSON.parse(readFileSync(join(scene.env.stateDir, "logs", `${name}.facts.json`), "utf8"))
+  const reapedFacts = async (record, extra = {}) => {
+    const scene = scenario({ tickets: [ticket(7)], gitRoutes: [["--absolute-git-dir", `${gitDirectory}\n`], ["rev-parse", `${head}\n`], ["ls-remote", `${head}\trefs/heads/chore/ticket-7\n`]] })
+    keepWrites(scene, [ticket(7)])
+    leftBehind(scene, { worktree: repo, ...extra }, resultLine("Done."))
+    const logFile = join(scene.env.stateDir, "logs", "chore-ticket-7-left.log")
+    writeFileSync(logFile.replace(/\.log$/, ".facts.json"), JSON.stringify({ kind: extra.kind ?? "build", model: "claude-sonnet-5-5", at: iso(0), headBefore: HEAD, blocking: [], checks: [], ...(extra.runner === "codex" ? { runner: "codex" } : {}) }))
+    if (record !== null) writeFileSync(join(gitDirectory, "orbit-gate.json"), JSON.stringify({ head, green: true, failures: [], blocks: 0, at: iso(0), ...record }))
+    await scene.run()
+    return facts(scene, "chore-ticket-7-left")
+  }
+  const gateOf = async (record, extra) => (await reapedFacts(record, extra)).gate
+  same("drive: a green gate record on the new head gives gate green in the facts of the launch", await gateOf({ run: "chore-ticket-7-left" }), "gate green")
+  same("drive: a gate record of another run gives gate red", await gateOf({ run: "chore-ticket-7-other" }), "gate red")
+  same("drive: a gate record for another head gives gate red", await gateOf({ run: "chore-ticket-7-left", head: HEAD }), "gate red")
+  same("drive: a red gate record gives gate red", await gateOf({ run: "chore-ticket-7-left", green: false }), "gate red")
+  rmSync(join(gitDirectory, "orbit-gate.json"), { force: true })
+  same("drive: a missing gate record gives gate red", await gateOf(null), "gate red")
+  writeFileSync(join(repo, "helper.ts"), "export {}\n")
+  same("drive: a green gate record on a worktree with an uncommitted file gives gate red", await gateOf({ run: "chore-ticket-7-left" }), "gate red")
+  rmSync(join(repo, "helper.ts"), { force: true })
+  // A file that only a global exclude file ignores is clean for a plain `git status`. The driver reads the status the way the hook does, so the file is still a change.
+  git("config", "core.excludesFile", excludes)
+  writeFileSync(join(repo, "hidden.ts"), "export {}\n")
+  same("drive: an untracked file that only a global exclude file ignores gives gate red", [git("status", "--porcelain"), await gateOf({ run: "chore-ticket-7-left" })], ["", "gate red"])
+  rmSync(join(repo, "hidden.ts"), { force: true })
+  git("config", "--unset", "core.excludesFile")
+  const codex = await reapedFacts({ run: "chore-ticket-7-left" }, { runner: "codex" })
+  const finder = await reapedFacts({ run: "chore-ticket-7-left" }, { kind: "find", partNumber: 1, branch: "chore/ticket-7-part-1" })
+  same("drive: a reaped Codex launch and a find launch have no gate field in their facts", ["gate" in codex, "gate" in finder, codex.headAfter], [false, false, head])
+}
+
 const unreadLogCases = async () => {
   const failedRun = { databaseId: 79, displayTitle: "Respond to mention on #7 [abc]", status: "completed", conclusion: "failure", createdAt: iso(-10 * MINUTE), updatedAt: iso(-5 * MINUTE) }
   let reads = 0
@@ -4694,6 +4739,7 @@ export const driverUnit = async () => {
   await gatedReportCases()
   await branchKeyCases()
   await restartCases()
+  await gateFactsCases()
   await echoedLimitCases()
   await reasonKeyCases()
   await quietLogCases()
