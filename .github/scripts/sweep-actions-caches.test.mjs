@@ -194,19 +194,16 @@ const CACHE_BUDGET = readFileSync(resolve(here, "../workflows/cache-budget.yml")
 const CODEQL = readFileSync(resolve(here, "../workflows/codeql.yml"), "utf8")
 function checkCacheBudget(text) {
   const workflow = yaml.load(text)
-  assert.deepEqual(workflow.on.pull_request, { types: ["closed"] })
+  assert.equal(workflow.on.pull_request, undefined, "a pull request close starts no sweep: the hourly run deletes the entries of its merge ref")
   assert.ok(workflow.on.schedule.length === 1 && "workflow_dispatch" in workflow.on)
   // https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run:
   // the branches filter names the branch that the triggering workflow ran on.
   assert.deepEqual(workflow.on.workflow_run, { workflows: ["CodeQL"], types: ["completed"], branches: ["main"] },
-    "a main push saves its CodeQL overlay base database after the close run of its merge, so the end of that CodeQL run starts a sweep")
+    "a CodeQL run on main saves its overlay base database, so the end of that CodeQL run starts a sweep")
   assert.equal(yaml.load(CODEQL).name, "CodeQL", "workflow_run names the CodeQL workflow by its name")
   assert.deepEqual(workflow.permissions, {})
   const job = workflow.jobs.sweep
-  // https://docs.github.com/en/code-security/dependabot/troubleshooting-dependabot/troubleshooting-dependabot-on-github-actions:
-  // a pull_request run that Dependabot triggers is treated as a run from a fork and receives a read-only GITHUB_TOKEN.
-  assert.equal(job.if, "github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')",
-    "a fork pull request and a close by Dependabot have a read-only token, so neither starts the sweep; the hourly run deletes their entries")
+  assert.equal(job.if, undefined, "no event gives the sweep a read-only token, so the job has no condition")
   assert.deepEqual(job.permissions, { actions: "write", contents: "read", "pull-requests": "read" })
   assert.deepEqual(workflow.concurrency, { group: "cache-budget", "cancel-in-progress": false })
   const checkout = job.steps.find((step) => step.uses?.startsWith("actions/checkout@"))
@@ -217,7 +214,7 @@ function checkCacheBudget(text) {
   assert.ok(job.steps.every((step) => !/^actions\/(cache|setup-node)/.test(step.uses ?? "")), "the sweep saves and restores no cache")
 }
 
-test("the Cache Budget workflow sweeps on a closed pull request, after a CodeQL run on main, on a schedule and on a dispatch, from main code only", () => {
+test("the Cache Budget workflow sweeps after a CodeQL run on main, on a schedule and on a dispatch, from main code only", () => {
   checkCacheBudget(CACHE_BUDGET)
 })
 
@@ -227,9 +224,8 @@ test("the Cache Budget check fails when no sweep runs after a CodeQL run on main
   assert.throws(() => checkCacheBudget(yaml.dump(workflow)), /the end of that CodeQL run starts a sweep/)
 })
 
-test("the Cache Budget check fails on M12, the condition that a close by Dependabot passes", () => {
-  const condition = "(github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')"
-  assert.ok(CACHE_BUDGET.includes(condition))
-  const changed = CACHE_BUDGET.replace(condition, "github.event.pull_request.head.repo.full_name == github.repository")
-  assert.throws(() => checkCacheBudget(changed), /a close by Dependabot have a read-only token/)
+test("the Cache Budget check fails when a pull request close starts a sweep again", () => {
+  const workflow = yaml.load(CACHE_BUDGET)
+  workflow.on.pull_request = { types: ["closed"] }
+  assert.throws(() => checkCacheBudget(yaml.dump(workflow)), /a pull request close starts no sweep/)
 })

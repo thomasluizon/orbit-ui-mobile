@@ -12,18 +12,18 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..")
 const load = (name) => yaml.load(readFileSync(join(root, `.github/workflows/${name}.yml`), "utf8"))
 const metadata = load("pr-metadata")
 
-test("text edits and label changes have their own check without restarting Guards", () => {
+test("text edits have their own check without restarting Guards", () => {
   assert.deepEqual(load("guards").on.pull_request.types, ["opened", "synchronize", "reopened"])
   assert.deepEqual(load("test").on.pull_request.types, ["opened", "synchronize", "reopened"])
-  assert.deepEqual(metadata.on.pull_request.types, ["opened", "synchronize", "reopened", "edited", "labeled", "unlabeled"])
+  assert.deepEqual(metadata.on.pull_request.types, ["opened", "synchronize", "reopened", "edited"])
   assert.equal(metadata.jobs.metadata.name, "PR Metadata")
   assert.ok(metadata.jobs.metadata.steps.every((step) => !step.run?.includes("npm ci")))
   assert.doesNotMatch(JSON.stringify(load("guards")), /gh api.*pulls/)
   assert.doesNotMatch(JSON.stringify(load("guards")), /parity:exempt/,
-    "label changes must be resolved entirely by metadata, without a stale full guard failure")
+    "the exemption label is resolved entirely by metadata, without a stale full guard failure")
 })
 
-test("only PR Metadata subscribes to label changes across all workflows", () => {
+test("no workflow subscribes to label changes: a label starts no run", () => {
   const workflows = readdirSync(join(root, ".github/workflows"))
     .filter((file) => /\.ya?ml$/.test(file))
     .map((file) => yaml.load(readFileSync(join(root, ".github/workflows", file), "utf8")))
@@ -32,7 +32,7 @@ test("only PR Metadata subscribes to label changes across all workflows", () => 
       const trigger = workflow.on?.pull_request
       return trigger?.types?.includes(action)
     })
-    assert.deepEqual(subscribers.map((workflow) => workflow.name), ["PR Metadata"], action)
+    assert.deepEqual(subscribers.map((workflow) => workflow.name), [], action)
   }
 })
 

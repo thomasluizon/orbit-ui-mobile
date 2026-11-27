@@ -2,65 +2,28 @@ name: CodeQL
 
 # Default setup does not publish Analyze checks on Dependabot pull requests.
 # Advanced setup runs as a standard workflow and gives the analysis token the
-# permission it needs to upload results. Keep these job names and languages in
-# sync with the required checks on main. Each language is its own job: a job
-# that a job-level if skips reports success under its literal name, while a
-# skipped matrix job reports its unexpanded name and the required check never
-# arrives.
+# permission it needs to upload results. The analysis runs once each day on main
+# and on a dispatch, never on a pull request or on a push: in 50 pull requests
+# the pull request check never failed, and every alert came from main. Each
+# language is its own job so that each alert category keeps its own run.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: "23 3 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: codeql-${{ github.event.pull_request.number || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: codeql-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
-  changes:
-    name: Select CodeQL languages
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    outputs:
-      javascript: ${{ steps.languages.outputs.javascript }}
-      actions: ${{ steps.languages.outputs.actions }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      # The patterns are the default inputs of the CodeQL javascript extractor
-      # (FileExtractor.java, AutoBuild.java) and the actions extractor
-      # (actions/extractor/tools/baseline-config.json) in github/codeql.
-      - name: Select the languages that the pull request changes
-        id: languages
-        run: |
-          set -euo pipefail
-          git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/codeql-paths.txt"
-          select_language() {
-            if grep -Eiq "$2" "$RUNNER_TEMP/codeql-paths.txt"; then
-              echo "$1=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "$1=false" >> "$GITHUB_OUTPUT"
-            fi
-          }
-          select_language javascript '\.(js|jsx|mjs|cjs|es6|es|xsjs|xsjslib|ts|tsx|mts|cts|htm|html|xhtm|xhtml|vue|hbs|ejs|njk|erb|jsp|dot|json|lock|raml|yaml|yml)$|(^|/)[^./]+$|(^|/)\.(eslintrc[^/]*|xsaccess)$'
-          select_language actions '^\.github/workflows/[^/]+\.ya?ml$|^\.github/reusable_workflows/.+\.ya?ml$|(^|/)action\.ya?ml$|(^|/)actions\.lock$'
-
   analyze-javascript-typescript:
     name: Analyze (javascript-typescript)
-    needs: changes
-    # A push to main always analyzes. A failed selection analyzes instead of skipping.
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.javascript == 'true') }}
     runs-on: ubuntu-latest
-    # A push to main analyzes the whole tree: 1072 s at worst in 12 measured runs. The limit is 1.5 times that.
+    # Each run analyzes the whole tree: 1072 s at worst in 12 measured runs. The limit is 1.5 times that.
     timeout-minutes: 27
     permissions:
       security-events: write
@@ -82,9 +45,6 @@ jobs:
 
   analyze-actions:
     name: Analyze (actions)
-    needs: changes
-    # A push to main always analyzes. A failed selection analyzes instead of skipping.
-    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.actions == 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

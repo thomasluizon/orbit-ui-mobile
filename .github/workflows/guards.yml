@@ -187,6 +187,24 @@ jobs:
         name: "Dependency Audit: Require one copy of each native module"
         if: ${{ !cancelled() }}
         run: node tools/check-native-module-copies.mjs
+      - id: dependency-review__1
+        name: "Dependency Review: Decide whether a dependency input changed"
+        if: ${{ !cancelled() && (github.event_name == 'pull_request') }}
+        run: |
+          if grep -Eq '(^|/)package(-lock)?\.json$|^\.github/(workflows|actions)/' "$RUNNER_TEMP/changed-paths.txt"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Dependency Review skipped: no dependency input changed."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - id: dependency-review__2
+        name: "Dependency Review: Block a new dependency with a high severity advisory"
+        if: ${{ !cancelled() && steps.dependency-review__1.outputs.run == 'true' }}
+        timeout-minutes: 3
+        # The action compares the dependency graph of the base and head through the API and reads no repository file.
+        uses: actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec # v5.0.1
+        with:
+          fail-on-severity: high
       - id: contract-drift__1
         name: "Contract Drift: Regenerate Zod contract snapshot from the pinned orbit-api commit"
         working-directory: packages/shared
