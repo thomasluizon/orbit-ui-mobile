@@ -1679,11 +1679,11 @@ const onlyOwnerItems = (line) => {
   return items.length > 0 && items.every((item) => OWNER_ITEM.test(item))
 }
 
-/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. */
-const rebuildStopReason = (history) => {
+/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. An owner decision after the last merge lifts the stop: the owner decided what the next build does. */
+const rebuildStopReason = (history, decidedAt = 0) => {
   const last = history.at(-1)
   const line = last === undefined ? null : remainingLineOf(last)
-  if (line === null) return null
+  if (line === null || decidedAt > Date.parse(last.mergedAt)) return null
   if (onlyOwnerItems(line)) return `${line} (only owner items are left)`
   const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
   return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
@@ -1724,7 +1724,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const stopReason = rebuildStopReason(history)
+    const stopReason = rebuildStopReason(history, ownerDecisionAt(env, ticket))
     if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
