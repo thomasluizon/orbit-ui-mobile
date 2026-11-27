@@ -2030,6 +2030,66 @@ const ticketChangeCases = async () => {
   await unmerged.run()
   same("drive: a change on a ticket with no pull request goes into the next build order", unmerged.launched.map((entry) => [/## This order \(([a-z -]+)\)/.exec(entry.order)[1], entry.order.includes("Show no spinner anywhere.")]), [["build", true]])
 }
+
+/** A change counts as read only for the branch whose launch or apply-comment run read it. */
+const unreadWorkCases = async () => {
+  const late = decision("Show no spinner anywhere.", -30 * MINUTE)
+  const parts = [partComment(1, 2, "Paths: apps/web/a.ts"), partComment(2, 2, "Paths: apps/mobile/b.ts")]
+  const branchOf = (part) => `chore/ticket-7-part-${part}`
+  const worktreeOf = (part) => `/r/orbit-worktrees/ui/chore-ticket-7-part-${part}`
+  const built = (part, offset = -120 * MINUTE, extra = {}) => launchComment("build part", branchOf(part), offset, part, extra)
+  const appliedOn = (part) => [
+    launchComment("apply-comment", branchOf(part), -25 * MINUTE, null, { seen: late.createdAt }),
+    comment("applied", JSON.stringify({ branch: branchOf(part), seen: late.createdAt }), -20 * MINUTE),
+  ]
+  const partPull = (number, part, extra = {}) => pull(number, { headRef: branchOf(part), ...extra })
+  const outcome = (scene) => [scene.launched.map((entry) => entry.worktree), only(scene.calls, "merge").map((entry) => entry[2])]
+  const mergedPart = (part) => [mergedRoute(7, [mergedPull(7, branchOf(part), "Remaining: the other part")])]
+
+  const withRunningPart = async (comments) => {
+    const scene = scenario({ tickets: [ticket(7, { comments })] })
+    leftBehind(scene, { kind: "build part", partNumber: 1, branch: branchOf(1), worktree: worktreeOf(1) }, "", "chore-ticket-7-part-1")
+    writeFileSync(join(scene.env.stateDir, "chore-ticket-7-part-1.pid"), `${JSON.stringify({ pid: process.pid, worktree: worktreeOf(1), startedAt: iso(-MINUTE) })}\n`)
+    await scene.run()
+    return scene
+  }
+  const waits = await withRunningPart([...parts, built(1), late])
+  same("drive: a running part and a newer decision launch no next part", waits.launched.map((entry) => entry.worktree), [])
+  const unchanged = await withRunningPart([...parts, built(1)])
+  same("drive: a running part with no newer change leaves the next part free to start", unchanged.launched.map((entry) => entry.worktree), [worktreeOf(2)])
+
+  const passedOver = scenario({ tickets: [ticket(7, { comments: [...parts, built(1), late, built(2, -20 * MINUTE, { seen: late.createdAt })] })], pulls: { ui: [partPull(30, 1), partPull(31, 2, { mergeState: "BLOCKED" })] } })
+  await passedOver.run()
+  same("drive: a launch of another part that read a decision does not apply it to the pull request that never read it", outcome(passedOver), [[worktreeOf(1)], []])
+
+  // The first pull request waits on its merge state, so each tick reaches the second one.
+  const pair = [ticket(7, { comments: [...parts, built(1), built(2, -100 * MINUTE), late] })]
+  const both = scenario({ tickets: pair, pulls: { ui: [partPull(30, 1, { mergeState: "BLOCKED" }), partPull(31, 2)] } })
+  keepWrites(both, pair)
+  both.env.worker.launch = (options) => { both.launched.push(options); writeFileSync(options.logFile, resultLine("The change is in.")); return Promise.resolve(clean) }
+  await both.run()
+  await both.run()
+  same("drive: an apply-comment run on one pull request leaves the change due on the other one, which gets its own order and does not merge", outcome(both), [[worktreeOf(1), worktreeOf(2)], []])
+  await both.run()
+  same("drive: the second pull request merges after its own apply-comment run", outcome(both), [[worktreeOf(1), worktreeOf(2)], [31]])
+
+  const secondTry = scenario({ tickets: [ticket(7, { comments: [...parts, built(1), built(2, -100 * MINUTE), late, ...appliedOn(1), launchComment("apply-comment", branchOf(2), -10 * MINUTE, null, { seen: late.createdAt })] })], pulls: { ui: [partPull(31, 2)] }, routes: mergedPart(1) })
+  await secondTry.run()
+  same("drive: each branch has its own count of apply-comment launches, so a second branch gets its second launch", [secondTry.launched.map((entry) => entry.worktree), needsOwnerComments(secondTry.calls, 7).length], [[worktreeOf(2)], 0])
+
+  const edited = [parts[0], { ...parts[1], editedAt: late.createdAt }]
+  const missedEdit = scenario({ tickets: [ticket(7, { comments: [...edited, built(1), built(2, -100 * MINUTE), ...appliedOn(1)] })], pulls: { ui: [partPull(31, 2)] }, routes: mergedPart(1) })
+  await missedEdit.run()
+  same("drive: an edit of a part that another branch applied is still due on the pull request of that part", outcome(missedEdit), [[worktreeOf(2)], []])
+  const otherPart = scenario({ tickets: [ticket(7, { comments: [...edited, built(1), built(2, -100 * MINUTE), ...appliedOn(2)] })], pulls: { ui: [partPull(30, 1)] }, routes: mergedPart(2) })
+  await otherPart.run()
+  same("drive: an edit of one part does not hold the pull request of another part after its own branch applied it", outcome(otherPart), [[], [30]])
+
+  const refund = comment("launch-refund", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7-30", pr: null }), -100 * MINUTE)
+  const refunded = scenario({ tickets: [ticket(7, { comments: [launchComment("build", "chore/ticket-7-30", -120 * MINUTE), refund, late] })], pulls: { ui: [pull(30)] } })
+  await refunded.run()
+  same("drive: a pull request that a refunded launch built holds a newer decision until an order applies it", outcome(refunded), [["/r/orbit-worktrees/ui/chore-ticket-7-30"], []])
+}
 const mergedPull = (number, branch, remaining) => ({ number: 40, body: `Tracks ${REPOSITORY}#${number}\n\n${remaining}`, mergedAt: iso(-60 * 1000), headRefName: branch })
 const mergedRoute = (number, history) => ["--state merged", (args) => (args.join(" ").includes(`#${number}"`) ? JSON.stringify(history) : "[]")]
 const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
@@ -3167,6 +3227,7 @@ export const driverUnit = async () => {
   await ciCases()
   await closeCases()
   await ticketChangeCases()
+  await unreadWorkCases()
   await sweepCases()
   await intakeCases()
   await accountCases()

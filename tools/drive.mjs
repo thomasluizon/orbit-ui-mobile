@@ -154,12 +154,13 @@ const recordsOf = (ticket, kind) => (ticket?.comments ?? []).filter((entry) => e
 /**
  * The launch records on a ticket, read in comment order, each with the time of its comment. A `launch-refund` comment takes back
  * the newest launch of its branch and kind that comes before it: a worker that ended on a usage limit did no work, so its
- * launch counts toward no cap. A launch comment at or before `since` (epoch milliseconds) is not read.
+ * launch counts toward no cap. A launch comment at or before `since` (epoch milliseconds) is not read. `keepRefunded` keeps
+ * the launches that a refund took back.
  */
-const launchEntriesOf = (ticket, since = 0) => {
+const launchEntriesOf = (ticket, since = 0, { keepRefunded = false } = {}) => {
   const launches = []
   for (const entry of ticket?.comments ?? []) {
-    if (entry.kind !== "launch" && entry.kind !== "launch-refund") continue
+    if (entry.kind !== "launch" && (keepRefunded || entry.kind !== "launch-refund")) continue
     if (Date.parse(entry.createdAt) <= since) continue
     let record
     try { record = JSON.parse(bodyAfterMarker(entry)) } catch { continue }
@@ -179,14 +180,34 @@ const carriedBy = ({ record, createdAt }) => (record.seen === null ? 0 : Date.pa
 const newestChangeAt = (ticket) => ticketChanges(ticket).map((change) => change.at).sort((left, right) => Date.parse(left) - Date.parse(right)).at(-1) ?? null
 
 /**
- * The changes of a ticket that no launch applied yet; a ticket with no launch has none. A launch carries what its read of the
- * ticket held. An apply-comment launch counts only after its `applied` record, so a run with no result applies nothing.
+ * What each piece of work of a ticket read, with its branch. A launch reads what its read of the ticket held. An apply-comment
+ * launch counts only after its `applied` record, so a run with no result applies nothing.
  */
+const readsOf = (ticket, launches) => [
+  ...launches.filter((entry) => entry.record.kind !== APPLY).map((entry) => ({ branch: entry.record.branch, at: carriedBy(entry) })),
+  ...recordsOf(ticket, "applied").map((record) => ({ branch: record.branch, at: Date.parse(record.seen) })),
+]
+
+const changesAfter = (ticket, reads) => {
+  const newest = Math.max(0, ...reads.map((read) => read.at))
+  return ticketChanges(ticket).filter((change) => Date.parse(change.at) > newest)
+}
+
+/** The changes of a ticket that no work of it read yet; a ticket with no launch has none. */
 const pendingChanges = (ticket) => {
   const launches = launchEntriesOf(ticket)
-  if (launches.length === 0) return []
-  const carried = Math.max(0, ...launches.filter((entry) => entry.record.kind !== APPLY).map(carriedBy), ...recordsOf(ticket, "applied").map((record) => Date.parse(record.seen)))
-  return ticketChanges(ticket).filter((change) => Date.parse(change.at) > carried)
+  return launches.length === 0 ? [] : changesAfter(ticket, readsOf(ticket, launches))
+}
+
+/**
+ * The changes that the work on one branch never read, whatever another branch read. A refunded launch counts as a read,
+ * because its worker can open the pull request before its usage limit. A part comment concerns the branch of its part only.
+ * A branch with no read gives none, so only the due changes of the ticket hold it.
+ */
+const unreadOn = (ticket, branch) => {
+  const reads = readsOf(ticket, launchEntriesOf(ticket, 0, { keepRefunded: true })).filter((read) => read.branch === branch)
+  if (reads.length === 0) return []
+  return changesAfter(ticket, reads).filter((change) => change.kind !== "part" || partBranch(ticket.number, partOf(change.comment).number).test(branch))
 }
 
 /**
@@ -198,10 +219,16 @@ const dueChanges = (ticket, { finished = false } = {}) => {
   return pendingChanges(ticket).filter((change) => finished || change.kind !== "part" || started.has(partOf(change.comment).number))
 }
 
-/** The apply-comment launches after `since` that carried the newest of these changes. */
-const applyAttempts = (ticket, changes, since) => {
+/** The changes that one open pull request holds: each due change of the ticket, and each change that its branch never read. */
+const pullChanges = (ticket, branch) => {
+  const due = dueChanges(ticket)
+  return [...due, ...unreadOn(ticket, branch).filter((change) => !due.some((other) => other.comment === change.comment))]
+}
+
+/** The apply-comment launches of a branch after `since` that carried the newest of these changes. */
+const applyAttempts = (ticket, branch, changes, since) => {
   const newest = Math.max(...changes.map((change) => Date.parse(change.at)))
-  return launchEntriesOf(ticket, since).filter((entry) => entry.record.kind === APPLY && carriedBy(entry) >= newest).length
+  return launchEntriesOf(ticket, since).filter((entry) => entry.record.kind === APPLY && entry.record.branch === branch && carriedBy(entry) >= newest).length
 }
 
 const applyCapReason = (ticket, branch, attempts) => `The ${APPLY} order of ${branch} launched ${attempts} times without a result for the change of ${newestChangeAt(ticket)}`
@@ -1059,19 +1086,19 @@ export const failureHistory = (env, launches) => [...launches].reverse().map((en
   return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : resultText(tailOf(logFile)) }
 })
 
-/** The open pull request that takes the apply-comment order: the one of a changed part, else the lowest number. */
-const applyTarget = (state, ticket, changes) => {
-  const open = state.pulls.filter((pull) => pull.tracks === ticket.number && !pull.draft).sort((left, right) => left.number - right.number)
-  const parts = changes.filter((change) => change.kind === "part").map((change) => partOf(change.comment).number)
-  return open.find((pull) => parts.some((number) => partBranch(ticket.number, number).test(pull.headRef))) ?? open[0]
+/** The open pull request that takes the next apply-comment order, of those that hold a change: the one of a changed part, else the lowest number. */
+const applyTarget = (state, ticket) => {
+  const holding = state.pulls.filter((pull) => pull.tracks === ticket.number && !pull.draft && pullChanges(ticket, pull.headRef).length > 0).sort((left, right) => left.number - right.number)
+  const parts = dueChanges(ticket).filter((change) => change.kind === "part").map((change) => partOf(change.comment).number)
+  return holding.find((pull) => parts.some((number) => partBranch(ticket.number, number).test(pull.headRef))) ?? holding[0]
 }
 
-/** What an open pull request does while its ticket holds a change to apply: one of them takes the order, and none merges. */
+/** What an open pull request does while it holds a change to apply: one such pull request of the ticket takes the order at a time, and none of them merges. */
 const changePlan = ({ repoKey, state, ticket, pull, changes, decidedAt }) => {
   if ([...pull.labels, ...ticket.labels].some((label) => HOLD_LABELS.includes(label))) return { type: "none", reason: "the ticket changed and waits on the owner" }
-  const target = applyTarget(state, ticket, changes)
+  const target = applyTarget(state, ticket)
   if (target.number !== pull.number) return { type: "none", reason: `the ${APPLY} order of ${repoKey}#${target.number} goes first` }
-  const attempts = applyAttempts(ticket, changes, decidedAt)
+  const attempts = applyAttempts(ticket, pull.headRef, changes, decidedAt)
   if (attempts >= MAX_ORDER_LAUNCHES) return { type: "needs-owner", reason: applyCapReason(ticket, pull.headRef, attempts), relabel: true }
   return { type: "order", kind: APPLY, repoKey, pull, ticket, changes }
 }
@@ -1099,7 +1126,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const counted = launches.filter((entry) => !entry.baseMerge)
   const actions = flakeActions(pull)
   // Another order would carry the change without the work to apply it, and a merge would pass over it, so the change goes first.
-  const changes = ticket === null ? [] : dueChanges(ticket)
+  const changes = ticket === null ? [] : pullChanges(ticket, pull.headRef)
   if (changes.length > 0) return [...actions, changePlan({ repoKey, state, ticket, pull, changes, decidedAt: ownerDecisionAt(env, ticket) })]
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
   const orderOrWait = (order) => {
@@ -1775,9 +1802,10 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
-  if (tracking.length > 0 && dueChanges(ticket).length > 0) return stop("an open pull request applies the ticket change first")
-  if (settled !== null) return stop(settled)
   const working = running.workers.filter(({ record }) => record.ticketNumber === ticket.number)
+  // The open work gets the change first: another launch would read it, and the ticket would count it as read while that work lacks it.
+  if ((tracking.length > 0 || working.length > 0) && dueChanges(ticket).length > 0) return stop("the open work of the ticket gets the ticket change first")
+  if (settled !== null) return stop(settled)
   if (parts.length === 0 && working.length > 0) return stop("a worker runs on its branch")
   const history = await mergedHistory(env, mem, ticket, { fresh: true })
   const finished = history.some((pull) => REMAINING_NONE.test(pull.body))
@@ -1896,7 +1924,7 @@ const admit = async (env, mem, tickets, states, { running, room, full, skip = ne
     const launches = launchesOf(ticket, decidedAt).filter((entry) => entry.branch === branch && entry.kind === kind)
     // An apply-comment order has its own count of launches since its changes, and it asks the owner at the cap.
     if (kind === APPLY) {
-      const attempts = applyAttempts(ticket, changes, decidedAt)
+      const attempts = applyAttempts(ticket, branch, changes, decidedAt)
       if (attempts >= MAX_ORDER_LAUNCHES) {
         decisions.set(ticket.number, "needs:owner: the order used its launches")
         await needsOwner(env, mem, { ticket, reason: applyCapReason(ticket, branch, attempts), relabel: true })
