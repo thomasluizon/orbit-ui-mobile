@@ -804,6 +804,9 @@ const capCases = async () => {
   const healthy = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [fixReview] })] } })
   await healthy.run()
   T("drive: before the first launch a fix launch runs on the worker model and its order holds no earlier launches", healthy.launched[0]?.invocation.model === "claude-sonnet-5-5" && !healthy.launched[0].order.includes("## Earlier launches"))
+  const secondFix = scenario({ tickets: [ticket(7, { comments: launched("fix", 1, "chore/ticket-7-30") })], pulls: { ui: [pull(30, { reviews: [fixReview] })] } })
+  await secondFix.run()
+  same("drive: the second fix launch of a pull request runs on the coordinator model and its record names it", [secondFix.launched[0]?.invocation.model, launchRecordOf(secondFix).map((entry) => entry.model), secondFix.launched[0]?.order.includes("## Earlier launches")], ["claude-opus-5-5", ["claude-opus-5-5"], true])
   // The history of the Opus order comes from the facts files that the earlier launches wrote.
   const earlier = (name, extra) => ({ kind: "fix", part: null, branch: "chore/ticket-7-30", model: "claude-sonnet-5-5", log: name, ...extra })
   const history = scenario({ tickets: [ticket(7, { comments: [comment("launch", JSON.stringify(earlier("fix-old", { at: "2026-11-19T09:00:00.000Z" }))), comment("launch", JSON.stringify(earlier("ci-new", { kind: "ci-fix", at: "2026-11-19T10:00:00.000Z" })))] })], pulls: { ui: [pull(30, { reviews: [fixReview] })] } })
@@ -1234,6 +1237,9 @@ const updateCases = async () => {
   await uncounted.run()
   const uncountedMark = JSON.parse(commentsOf(uncounted.calls, 7).find((entry) => entry.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
   same("drive: a merge-forward launch with no base-merge mark does not count toward the cap of a fix launch", [uncounted.launched.length, uncountedMark.kind, uncountedMark.model], [1, "fix", "claude-sonnet-5-5"])
+  const baseMergeFix = scenario({ tickets: [ticket(7, { comments: [launchComment("ci-fix", "chore/ticket-7-30", -80 * MINUTE, null, { baseMerge: HEAD })] })], pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
+  await baseMergeFix.run()
+  same("drive: a ci-fix launch for a base merge does not count toward the cap of a fix launch", [baseMergeFix.launched.length, baseMergeFix.launched[0]?.invocation.model], [1, "claude-sonnet-5-5"])
   const otherMark = (extra) => launchComment("merge-forward", "chore/ticket-7-30", -70 * MINUTE, null, { baseMerge: HEAD, ...extra })
   for (const [label, mark] of [["a merge-forward launch of another branch", otherMark({ branch: "chore/ticket-7-29" })], ["a ci-fix launch for a base merge", otherMark({ kind: "ci-fix" })]]) {
     const scene = scenario({ tickets: [ticket(7, { comments: [mark] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
