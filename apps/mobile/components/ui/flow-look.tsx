@@ -13,9 +13,11 @@ interface FlowLook {
 
 const NO_LOOK: Pick<FlowLook, 'lookAtControl' | 'lookAway'> = { lookAtControl: () => {}, lookAway: () => {} }
 
-const FlowLookContext = createContext<Pick<FlowLook, 'lookAtControl' | 'lookAway'>>(NO_LOOK)
+type FlowLookControls = Pick<FlowLook, 'lookAtControl' | 'lookAway'> & { wide?: boolean }
 
-/** Orbit looks at the control in focus. A control reports its focus through `useFlowLook`. */
+const FlowLookContext = createContext<FlowLookControls>(NO_LOOK)
+
+/** Orbit looks at the control in focus. A control reports its focus through `useFlowLook`. `wide` is true when the flow draws at 1024 and above. */
 export function useFlowLook() {
   return useContext(FlowLookContext)
 }
@@ -37,6 +39,6 @@ export function useFlowLookState(): FlowLook {
   return { lookAt, mascotRef, lookAtControl, lookAway }
 }
 
-export function FlowLookProvider({ look, children }: Readonly<{ look: Pick<FlowLook, 'lookAtControl' | 'lookAway'>; children: ReactNode }>) {
+export function FlowLookProvider({ look, children }: Readonly<{ look: FlowLookControls; children: ReactNode }>) {
   return <FlowLookContext value={look}>{children}</FlowLookContext>
 }

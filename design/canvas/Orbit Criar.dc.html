@@ -443,7 +443,7 @@ class Component extends DCLogic {
         } else advance();
       },
       doneText,
-      doneAction: today ? 'Ver no Hoje' : 'Ver no Calendário',
+      doneAction: today ? 'Ver hábitos de hoje' : 'Ver no Calendário',
       reset: () => {
         this.spinAt = this.clock;
         this.setState({ text: '', when: null, whenText: '', calendarOpen: false, timeChoice: null, timeText: '', reminder: null, stepId: 'phrase', created: false });

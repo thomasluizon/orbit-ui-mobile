@@ -90,7 +90,7 @@ interface PillBoxInput {
 }
 
 function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, hasLeadingIcon, signIn }: PillBoxInput): ViewStyle {
-  if (iconOnly) return iconOnlyStyle(Math.max(minimumHeight ?? sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
+  if (iconOnly) return iconOnlyStyle(minimumHeight ?? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN), edge)
   return {
     height: minimumHeight === undefined && !signIn ? Math.max(sizeSpec.height, SMALL_PILL_VISIBLE_MIN) : undefined,
     minHeight: Math.max(minimumHeight ?? 0, SMALL_PILL_VISIBLE_MIN),
@@ -100,6 +100,10 @@ function pillBoxStyle({ sizeSpec, iconOnly, minimumHeight, edge, matchedWidth, h
     paddingStart: hasLeadingIcon ? sizeSpec.paddingX - 2 : sizeSpec.paddingX,
     gap: sizeSpec.gap,
   }
+}
+
+function iconOnlyHitPadding(iconOnly: boolean | undefined, minimumHeight: number | undefined): number {
+  return iconOnly && minimumHeight !== undefined ? (TOUCH_TARGET_MIN - minimumHeight) / 2 : SMALL_PILL_HIT_PADDING
 }
 
 function buttonFocusStyle(variant: ButtonVariant, outlineColor: string): ViewStyle {
@@ -182,7 +186,7 @@ export function ThemedButton({
       ref={composedRef}
       tokens={tokens}
       static={loading}
-      hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? SMALL_PILL_HIT_PADDING : undefined}
+      hitSlop={size === 'sm' && (!iconOnly || (minimumHeight ?? 0) < TOUCH_TARGET_MIN) ? iconOnlyHitPadding(iconOnly, minimumHeight) : undefined}
       onPress={loading ? undefined : onPress ?? onClick}
       onFocus={() => { setFocused(true); onFocus?.() }}
       onBlur={() => { setFocused(false); onBlur?.() }}

@@ -158,9 +158,20 @@ describe('ScheduledReminderSection', () => {
     expect(props.onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'same_day', time: '09:30' }])
   })
 
+  it('shows the day heading and both day options when day-before is allowed', () => {
+    renderSection()
+    expect(screen.getByRole('heading', { name: 'habits.form.scheduledReminder' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'habits.form.scheduledReminder' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'habits.form.scheduledReminderDayBefore' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })).toBeInTheDocument()
+  })
+
   it('hides day-before when the item is due today and keeps existing reminders removable', () => {
     const props = renderSection({ hideDayBefore: true, scheduledReminders: [{ when: 'day_before', time: '20:00' }] })
     expect(screen.queryByRole('radio', { name: 'habits.form.scheduledReminderDayBefore' })).toBeNull()
+    expect(screen.queryByRole('radiogroup', { name: 'habits.form.scheduledReminder' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: 'habits.form.scheduledReminderSameDay' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'habits.form.scheduledReminder' })).toBeNull()
     fireEvent.change(screen.getByLabelText('habits.form.scheduledReminderTime'), { target: { value: '09:30' } })
     expect(props.onSetScheduledReminders).toHaveBeenCalledWith([{ when: 'day_before', time: '20:00' }, { when: 'same_day', time: '09:30' }])
     fireEvent.click(screen.getByLabelText('habits.form.removeScheduledReminder'))

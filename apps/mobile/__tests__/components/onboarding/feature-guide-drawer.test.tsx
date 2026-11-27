@@ -143,19 +143,19 @@ describe('FeatureGuideDrawer (mobile)', () => {
 
   it('states that the Android widget opens Orbit and never logs', () => {
     expect(en.onboarding.featureGuide.widgetSection.opensDesc).toBe(
-      'The widget never logs a habit. A tap anywhere on it opens Orbit, and refresh only updates the widget.',
+      'The widget never logs a habit, and a tap anywhere on it opens Orbit.',
     )
     expect(ptBR.onboarding.featureGuide.widgetSection.opensDesc).toBe(
-      'O widget nunca registra um hábito. Um toque em qualquer lugar abre o Orbit, e atualizar apenas renova o widget.',
+      'O widget nunca registra um hábito, e um toque em qualquer lugar dele abre o Orbit.',
     )
   })
 
   it('describes the bell as the inbox for everything Orbit sends', () => {
     expect(en.onboarding.featureGuide.remindersSection.bellDesc).toBe(
-      'The bell opens everything Orbit sends you: reminders that fired, streak and level updates, friend activity, calendar results, and goal deadlines. Its badge counts the unread ones.',
+      'The bell opens everything Orbit sends you, with a badge that counts the unread ones.',
     )
     expect(ptBR.onboarding.featureGuide.remindersSection.bellDesc).toBe(
-      'O sino abre tudo o que o Orbit envia: lembretes que dispararam, atualizações de sequência e de nível, atividade de amigos, resultados do calendário e prazos de metas. O número no sino mostra quantos você ainda não leu.',
+      'O sino abre tudo o que o Orbit envia, com um número que mostra quantos você ainda não leu.',
     )
   })
 
