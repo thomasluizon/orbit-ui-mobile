@@ -42,6 +42,22 @@ export const cases = () => {
   check(TOOL, "an unknown label refuses before issue creation", argv(bodyFile), { status: 1, stderr: /Unknown ticket label\(s\): Improvement/ }, { env: orcaEnv(unknownLabel.plan) })
   T(`${TOOL}: the unknown-label refusal wrote nothing`, existsSync(unknownLabel.markers.created))
 
+  const bugLabels = [...RECORDED.ticketOperations.labels, { name: "Bug" }]
+  const bugArgv = (file) => ["--title", "Repair the harness", "--body-file", file, "--label", "repo:ui", "--label", "Bug"]
+  const noClass = createPlan("bug-no-class", { labels: bugLabels })
+  check(TOOL, "refuses a Bug ticket with no Class line", bugArgv(stage("create-ticket/bug-no-class.md", "Problem\n\n## Permanent fix\n\neslint-rules/x.cjs\n")), { status: 1, stderr: /ticket check refuses[\s\S]*Class: <name>/ }, { env: orcaEnv(noClass.plan) })
+  T(`${TOOL}: the refusal of a Bug ticket with no Class line made no GitHub write`, Object.values(noClass.markers).every((marker) => existsSync(marker)))
+
+  const noFix = createPlan("bug-no-fix", { labels: bugLabels })
+  noFix.plan.unshift({ match: "issue list --repo thomasluizon/orbit-tickets", stdout: "[]" })
+  check(TOOL, "refuses a Bug ticket with no Permanent fix section", bugArgv(stage("create-ticket/bug-no-fix.md", "Class: Clipped label\n")), { status: 1, stderr: /## Permanent fix/ }, { env: orcaEnv(noFix.plan) })
+  T(`${TOOL}: the refusal of a Bug ticket with no Permanent fix section made no GitHub write`, Object.values(noFix.markers).every((marker) => existsSync(marker)))
+
+  const sound = createPlan("bug-sound", { labels: bugLabels })
+  sound.plan.unshift({ match: "issue list --repo thomasluizon/orbit-tickets", stdout: "[]" })
+  check(TOOL, "creates a sound Bug ticket after it reads the class board", bugArgv(stage("create-ticket/bug-sound.md", "Class: Clipped label\n\n## Permanent fix\n\neslint-rules/label-fit.cjs\n")), { status: 0, stdout: /"number": 900/ }, { env: orcaEnv(sound.plan), cwd: REPO_ROOT })
+  T(`${TOOL}: a sound Bug ticket ran every creation write`, Object.values(sound.markers).every((marker) => !existsSync(marker)))
+
   const boardFailure = createPlan("board-failure", { boardExit: 1 })
   check(TOOL, "a failed board add stops the creation sequence", argv(bodyFile), { status: 1, stderr: /DriveAddItem[\s\S]* failed/ }, { env: orcaEnv(boardFailure.plan) })
   T(`${TOOL}: a failed board add writes no Status afterward`, existsSync(boardFailure.markers.status))
