@@ -18,6 +18,7 @@ export const GENERATED = Object.freeze([
   /(?:^|\/)Cargo\.lock$/,
   /(?:^|\/)Migrations\/[^/]+\.Designer\.cs$/,
   /(?:^|\/)Migrations\/[^/]+ModelSnapshot\.cs$/,
+  /^src\/Orbit\.Api\/openapi[^/]*\.json$/,
   /^packages\/shared\/src\/types\/__generated__\//,
   /\.generated\.[^/]+$/,
   /^apps\/mobile\/modules\/orbit-widget\/android\/src\/main\/res\/values(?:-night)?\/widget_colors\.xml$/,
