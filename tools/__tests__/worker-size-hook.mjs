@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path"
 
 import { workerSettings } from "../lib/worker.mjs"
-import { blockOutput, denyOutput, preDenial } from "../lib/worker-size-hook.mjs"
+import { argumentOf, blockOutput, denyOutput, patchPaths, preDenial } from "../lib/worker-size-hook.mjs"
 import { T, root, same, toolPath } from "./_harness.mjs"
 
 const HOOK = toolPath("lib/worker-size-hook.mjs")
@@ -219,6 +219,50 @@ const entryCases = () => {
   same("worker-size-hook: preDenial ignores a tool that it does not check", preDenial({ tool_name: "Read", cwd: directory, tool_input: { file_path: "a" } }, { lines: 900, files: 90, top: directory, paths: [] }), null)
 }
 
+/** The patch text of the Codex `apply_patch` tool, in the shape that the installed codex 0.172.0 sent to a hook: `tool_input.command`. */
+const patch = (...hunks) => `*** Begin Patch\n${hunks.join("\n")}\n*** End Patch`
+const addFile = (path) => `*** Add File: ${path}\n+x`
+const updateFile = (path, to = null) => `*** Update File: ${path}\n${to === null ? "" : `*** Move to: ${to}\n`}@@\n-a\n+b`
+const deleteFile = (path) => `*** Delete File: ${path}`
+
+const patchCases = () => {
+  same("worker-size-hook: the paths of a patch are the files of its hunks and the target of a move, in order", patchPaths(patch(addFile("a.ts"), updateFile("b.ts", "c/d.ts"), deleteFile("e e.ts"))), ["a.ts", "b.ts", "c/d.ts", "e e.ts"])
+  same("worker-size-hook: a patch line that holds a header text after a plus sign names no path", patchPaths(patch("*** Update File: a.ts\n@@\n+*** Add File: fake.ts")), ["a.ts"])
+  const { write, pre } = worktree("patch")
+  const apply = (...hunks) => denied(pre("apply_patch", { command: patch(...hunks) }))
+  write("a.ts", lines(299))
+  T("worker-size-hook: at 299 lines an apply_patch of a new file is allowed", apply(addFile("new.ts")) === null)
+  write("a.ts", lines(300))
+  same("worker-size-hook: at 300 lines an apply_patch of a new file is denied with the cap text", apply(addFile("new.ts")), capText(300, 1))
+  same("worker-size-hook: at 300 lines an apply_patch that moves a file to a new path is denied", apply(updateFile("a.ts", "moved.ts")), capText(300, 1))
+  same("worker-size-hook: at 300 lines an apply_patch of a file that the diff holds and of a new file is denied", apply(updateFile("a.ts"), addFile("new.ts")), capText(300, 1))
+  T("worker-size-hook: at 300 lines an apply_patch of a file that the diff holds is allowed", apply(updateFile("a.ts")) === null)
+  T("worker-size-hook: at 300 lines an apply_patch of a committed file that the diff does not hold is denied", apply(deleteFile("kept.ts")) !== null)
+  T("worker-size-hook: at 300 lines an apply_patch outside the worktree is allowed", apply(addFile(join(root, "size-hook", "outside.mjs"))) === null)
+  write("a.ts", lines(400))
+  same("worker-size-hook: at 400 lines an apply_patch of a file in the diff is denied", apply(updateFile("a.ts")), capText(400, 1))
+  T("worker-size-hook: at 400 lines an apply_patch outside the worktree is allowed", apply(addFile(join(root, "size-hook", "outside.mjs"))) === null)
+  T("worker-size-hook: a patch with no path and a call with no patch text give no denial", apply() === null && denied(pre("apply_patch", {})) === null)
+  T("worker-size-hook: a Bash call at 400 lines still follows the shell rule beside the patch tool", denied(pre("Bash", { command: "git status" })) === null && denied(pre("Bash", { command: "apply_patch" })) !== null)
+}
+
+const worktreeArgumentCases = () => {
+  const { directory, write, git } = worktree("argument")
+  const outside = join(root, "size-hook")
+  const at = (event, args, input) => spawnSync(process.execPath, [HOOK, event, ...args], { cwd: outside, encoding: "utf8", input: JSON.stringify({ cwd: outside, ...input }) })
+  same("worker-size-hook: argumentOf reads a value, and a missing flag, a missing value and an empty value give null", [argumentOf(["pre", "--worktree", "/w"], "--worktree"), argumentOf(["pre"], "--worktree"), argumentOf(["pre", "--worktree"], "--worktree"), argumentOf(["pre", "--worktree", ""], "--worktree")], ["/w", null, null, null])
+  write("a.ts", lines(400))
+  const bash = { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "echo x > a.ts" } }
+  same("worker-size-hook: a call with a cwd outside the worktree measures the worktree of --worktree", denied(at("pre", ["--worktree", directory], bash)), capText(400, 1))
+  const blind = at("pre", [], bash)
+  T("worker-size-hook: the same call with no --worktree cannot measure its cwd and exits 2", blind.status === 2, `${blind.status}`)
+  const empty = at("pre", ["--worktree", ""], bash)
+  T("worker-size-hook: an empty --worktree falls back to the cwd of the call", empty.status === 2, `${empty.status}`)
+  const recorded = at("post", ["--worktree", directory], { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "git status" }, tool_response: "" })
+  const file = join(directory, git("rev-parse", "--git-dir").trim(), "orbit-size.json")
+  T("worker-size-hook: a post call with a cwd outside the worktree records the count in the git directory of --worktree", recorded.status === 0 && JSON.parse(readFileSync(file, "utf8")).lines === 400, `${recorded.status} ${recorded.stderr}`)
+}
+
 const settingsCases = () => {
   const { directory, write } = worktree("settings")
   const settings = workerSettings({ hotPath: "/home/driver/hot.md", skillNames: [] })
@@ -244,5 +288,7 @@ export const cases = async () => {
   returnCases()
   generatedCases()
   entryCases()
+  patchCases()
+  worktreeArgumentCases()
   settingsCases()
 }

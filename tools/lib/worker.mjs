@@ -10,6 +10,7 @@ import { runBounded } from "./bounded-process.mjs"
 import { agentSkillFolders, blockLogFile, codexAccountOf, codexCommand, codexEnvironment, codexEvent, codexFinalResult, codexHomeDirectory, codexLogEvent, codexLogFinalResult, plainPrefixes, writeCodexHome } from "./codex-runner.mjs"
 import { workerEnvironment } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
+import { GATE_TIMEOUT_SECONDS } from "./gate-commands.mjs"
 
 /** The model of every worker launch, except the launch at a cap, which runs the coordinator model. */
 export const WORKER_MODEL = "claude-sonnet-5-5"
@@ -85,8 +86,6 @@ export const CODE_WORKER_DENY = Object.freeze([
 const GH_HOOK = fileURLToPath(new URL("./worker-gh-hook.mjs", import.meta.url))
 const SIZE_HOOK = fileURLToPath(new URL("./worker-size-hook.mjs", import.meta.url))
 const GATE_HOOK = fileURLToPath(new URL("./worker-gate-hook.mjs", import.meta.url))
-/** The time that the `Stop` hook may take, in seconds: one gate run of every touched workspace. */
-const GATE_TIMEOUT_SECONDS = 1500
 /** The tools that run a shell command in claude 2.1.332. */
 const SHELL_TOOLS = "Bash|Monitor"
 /** The tools that the size hook checks before they run. */
@@ -237,13 +236,14 @@ export const workerInvocation = ({ home, parentEnvironment, token, configDirecto
 
 /**
  * The command and the environment of a Codex run: a launch with its `own` worktree and branch, or a probe in `cwd` with none.
+ * `gate` is `{ run, head }` of a launch that writes code, and the `Stop` hook reads it from the environment.
  * Its `codex` member makes `probe` and `launch` write the worker home and read the Codex events.
  */
-export const codexInvocation = ({ home, parentEnvironment, token, own = null, cwd = tmpdir() }) => {
+export const codexInvocation = ({ home, parentEnvironment, token, own = null, cwd = tmpdir(), gate = null }) => {
   const codexHome = codexHomeDirectory(home)
   return {
     command: codexCommand({ worktree: own?.worktree ?? cwd, skipGitCheck: own === null }),
-    environment: codexEnvironment(workerEnvironmentFor(parentEnvironment, token), codexHome, own),
+    environment: codexEnvironment(workerEnvironmentFor(parentEnvironment, token), codexHome, own, gate),
     codex: { home: codexHome, skillsRoot: join(home, ".agents", "skills") },
   }
 }
@@ -266,7 +266,7 @@ export const codexLoginStatus = async ({ home, parentEnvironment, run = runBound
 
 /** Writes the files of the Codex worker home, which a launch and a probe do first. */
 export const prepareCodexHome = ({ codex }) =>
-  writeCodexHome({ codexHome: codex.home, hookPath: GH_HOOK, skillFolders: agentSkillFolders(codex.skillsRoot), denyPrefixes: plainPrefixes(WORKER_DENY) })
+  writeCodexHome({ codexHome: codex.home, hookPath: GH_HOOK, sizeHookPath: SIZE_HOOK, gateHookPath: GATE_HOOK, skillFolders: agentSkillFolders(codex.skillsRoot), denyPrefixes: plainPrefixes(WORKER_DENY) })
 
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])
