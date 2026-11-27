@@ -26,10 +26,11 @@ import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, clas
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail } from "./lib/stage-budgets.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -80,6 +81,7 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
               It starts only when a service has unreleased work. The owner session runs it for /release.
   --release-status  print the newest release train: what it released and where it stopped
+  --budgets         print the median of each stage time against its budget, then RESULT: PASS or RESULT: FAIL. It exits 0.
   --reviewer-token  read a Claude OAuth token on stdin and set CLAUDE_CODE_OAUTH_TOKEN in the three repositories;
               print each repository's result and never the token
   --preflight  run the checks that a loop start runs before the first tick (the tools on PATH and the configuration), then exit 0.
@@ -359,7 +361,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
 /** What one tick tells `health.json`: its good read, the pull requests at the bar, a merge, each blind part, its first error, a hold and the rate limit reset. */
 const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null, held: false, resetAt: null })
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, lastJudgeAt: 0, slow: null, stageTimesFailed: false, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1390,6 +1392,70 @@ const mergePull = async (env, mem, repoKey, pull) => {
   await applyRequiredChecks(env, repoKey, { before }).catch((error) => requiredChecksError(env, mem, repoKey, error))
 }
 
+const STAGE_TIMES_FILE = "stage-times.jsonl"
+
+const readStageTimes = (env) => {
+  try {
+    return readFileSync(join(env.stateDir, STAGE_TIMES_FILE), "utf8").split("\n").filter((line) => line !== "").flatMap((line) => { try { return [JSON.parse(line)] } catch { return [] } })
+  } catch (error) {
+    if (error.code === "ENOENT") return []
+    throw error
+  }
+}
+
+/** Appends samples to `stage-times.jsonl` and keeps the newest `SAMPLES_KEPT` lines. A failed read or write logs once, until a write works, and never stops the tick. */
+const appendStageTimes = (env, mem, samples) => {
+  if (env.dryRun || samples.length === 0) return
+  try {
+    const lines = [...readStageTimes(env), ...samples].slice(-SAMPLES_KEPT).map((sample) => JSON.stringify(sample))
+    writeFileSync(join(env.stateDir, STAGE_TIMES_FILE), `${lines.join("\n")}\n`)
+    mem.stageTimesFailed = false
+  } catch (error) {
+    if (!mem.stageTimesFailed) log(env, "stage-times", "error", error.message)
+    mem.stageTimesFailed = true
+  }
+}
+
+/** The workflow runs of the checks at the head of a merged pull request, each with its jobs. A failed read of a run gives no jobs for it. */
+const readRunJobs = async (env, repoKey, pull) => {
+  const jobs = []
+  for (const runId of new Set(passedChecks(pull).map((entry) => entry.runId).filter((id) => id !== null))) {
+    try { jobs.push(...(JSON.parse(await env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/runs/${runId}/jobs?per_page=100`])).jobs ?? [])) } catch (error) { log(env, "stage-times", "jobs-error", `run ${runId}: ${error.message}`) }
+  }
+  return jobs
+}
+
+/** After a merge: one sample for each stage of the merged pull request. A failure here never fails the merge. */
+export const recordMergeSamples = async (env, mem, { repoKey, pull, ticket }) => {
+  try {
+    const mergedAt = new Date(env.now()).toISOString()
+    appendStageTimes(env, mem, mergeSamples({ repoKey, item: `${repoKey}#${pull.number}`, pull, launches: launchesOf(ticket), approvedAt: approvalTime(pull), mergedAt, jobs: await readRunJobs(env, repoKey, pull) }))
+  } catch (error) {
+    log(env, "stage-times", "error", error.message)
+  }
+}
+
+/**
+ * The hourly judge of the stage budgets. A key that turns slow logs one `SLOW` line, and `mem.slow` holds each slow key for `health.json`.
+ * It changes nothing else: no hold, no failure, no order and no rank.
+ */
+export const judgeStages = (env, mem) => {
+  mem.lastJudgeAt = env.now()
+  let verdicts
+  try { verdicts = judge(readStageTimes(env)) } catch (error) { return log(env, "stage-times", "error", error.message) }
+  const slow = new Map(verdicts.filter((verdict) => verdict.judged && verdict.slow).map((verdict) => [verdict.key, { key: verdict.key, detail: slowDetail(verdict), samples: verdict.samples }]))
+  for (const [key, entry] of slow) if (!mem.slow?.has(key)) env.log(`${new Date(env.now()).toISOString()} SLOW ${key}: ${entry.detail}, ${entry.samples.length} samples`)
+  mem.slow = slow
+}
+
+/** `--budgets`: one line for each key, then the result. It always exits 0. */
+export const runBudgets = (env, { out }) => {
+  const verdicts = judge(readStageTimes(env)).sort((left, right) => left.key.localeCompare(right.key))
+  for (const verdict of verdicts) out(budgetLine(verdict))
+  out(budgetResult(verdicts))
+  return 0
+}
+
 const executeAction = async (env, mem, ctx, pull, action) => {
   const { repoKey, ticketMap } = ctx
   const ticket = pull.tracks === null ? null : ticketMap.get(pull.tracks) ?? null
@@ -1416,6 +1482,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
     case "merge":
       await mergePull(env, mem, repoKey, pull)
       mem.health.merged = true
+      await recordMergeSamples(env, mem, { repoKey, pull, ticket })
       mem.merged.delete(pull.tracks)
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
       // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
@@ -2669,6 +2736,7 @@ const writeTickHealth = async (env, mem) => {
     writeHealth(env.stateDir, healthRecord({
       previous, now: env.now(), merged, blind,
       read: read === null ? null : { ...read, green },
+      slow: mem.slow === null ? null : [...mem.slow.values()],
       failure: failure === null ? null : { errorClass, detail: detailOf(failure), rateLimitedUntil: resetAt === 0 ? null : new Date(resetAt).toISOString() },
     }))
   } catch (error) {
@@ -2829,8 +2897,10 @@ const runTick = async (env, mem) => {
     mem.lastIntakeAt = env.now()
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
+  if (!env.dryRun && env.now() - mem.lastJudgeAt >= HOUR_MS) judgeStages(env, mem)
   if (env.releasePorts) await runReleaseTrain(env).catch((error) => log(env, "release", "error", error.message))
   logPace(env, paces, startedAt)
+  appendStageTimes(env, mem, [{ at: new Date(env.now()).toISOString(), key: "tick", ms: env.clock() - startedAt, item: "tick" }])
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
   forgetUnseen(mem)
@@ -2985,7 +3055,7 @@ export const parseArguments = (argv) => {
     if (rest.length > 0) return { error: `unknown or conflicting argument: ${rest[0]}` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "allow-over-limit", account: argv[allowAt + 1] }
   }
-  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status"])
+  const modes = new Set(["--dry-run", "--once", "--probe", "--allow-over-limit", "--reviewer-token", "--preflight", "--release-now", "--release-status", "--budgets"])
   const given = argv.filter((argument) => argument !== "--help" && argument !== "-h")
   const unknown = given.filter((argument) => !modes.has(argument))
   if (unknown.length > 0 || given.length > 1) return { error: `unknown or conflicting argument: ${(unknown[0] ?? given[1])}` }
@@ -3093,6 +3163,7 @@ export const main = async (argv, { out = console.log, err = console.error, stdin
   if (parsed.mode === "allow-over-limit") return allowOverLimit(env, { out, err }, parsed.account)
   if (parsed.mode === "sleep") return setSleep(env, parsed.word, { out })
   if (parsed.mode === "pace") return setPace(env, parsed.account, parsed.word, { out })
+  if (parsed.mode === "budgets") return runBudgets(env, { out })
   if (parsed.mode === "release-status") { out(trainSummary(env.stateDir)); return 0 }
   if (parsed.mode === "release-now") {
     const running = requestTrain(env.stateDir)

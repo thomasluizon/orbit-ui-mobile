@@ -30,7 +30,7 @@ const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 const GATE_STEPS = new Set(["Require the plan", "Require every test job or its cached result", "Require the build and every shard"])
 const OWNER_LABEL = "needs:owner"
 
-const PULL_FIELDS = `number state isDraft headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
+const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
   labels(first: 50) { nodes { name } }
   mergeCommit { oid }
@@ -217,6 +217,7 @@ const normalizePull = (raw, ticketRepository) => {
     number: raw.number,
     state: raw.state,
     draft: raw.isDraft,
+    createdAt: raw.createdAt ?? null,
     author: botLogin(raw.author),
     labels: labelNames(raw.labels),
     headRef: raw.headRefName,
