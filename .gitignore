@@ -45,6 +45,8 @@ coverage-*/
 .stryker-tmp/
 packages/shared/.stryker-tmp/
 packages/shared/reports/
+# Deleted test guard: the generated Stryker and Vitest configs and the temporary folders of its runs
+.stryker-guard*
 
 # Playwright smoke (apps/web/e2e)
 apps/web/e2e/.auth/
