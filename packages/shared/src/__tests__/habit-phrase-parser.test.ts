@@ -1419,3 +1419,41 @@ describe('a das hour range whose end day part has a connector other than da', ()
     expect(read.days).toEqual(['Monday'])
   })
 })
+
+describe('a de hour range', () => {
+  it.each([
+    ['Estudar de 9 às 11', '09:00'],
+    ['Estudar de 9 até as 11', '09:00'],
+    ['Estudar de 9 horas às 11 horas', '09:00'],
+    ['Estudar de 9:30 às 11:30', '09:30'],
+    ['Estudar de 9 às 11 toda segunda', '09:00'],
+  ] as const)('reads the start hour and leaves the title bare in %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe('Estudar')
+  })
+
+  it.each([
+    ['Academia de 2 a 3 vezes por semana', '03:00', 'Academia'],
+    ['Academia de 2 até 3 vezes por semana', null, 'Academia de 2 até'],
+    ['Academia de 2 às 3 vezes por semana', '03:00', 'Academia'],
+    ['Meditar de 10 até 20 minutos', null, 'Meditar de 10 até 20 minutos'],
+    ['Correr de 5 até 10 km toda segunda', null, 'Correr de 5 até 10 km'],
+    ['Estudar de 9 a 11', '11:00', 'Estudar de 9'],
+    ['Estudar de 9 até 11', null, 'Estudar de 9 até 11'],
+    ['Curso de 3 horas às 19h toda quarta', '19:00', 'Curso de 3 horas'],
+    ['Corrida de 1 hora às 7 da manhã', '07:00', 'Corrida de 1 hora'],
+    ['Aula de 2 hrs às 9', '09:00', 'Aula de 2 hrs'],
+  ] as const)('does not read a count or a duration as a range in %s', (input, time, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
+
+  it.each([
+    ['Academia de 2 a 3 vezes por semana', 2],
+    ['Academia de 2 até 3 vezes por semana', 3],
+  ] as const)('keeps the flexible cadence of the weekly count in %s', (input, quantity) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.cadence).toBe('flexible')
+    expect(read.frequencyQuantity).toBe(quantity)
+  })
+})
