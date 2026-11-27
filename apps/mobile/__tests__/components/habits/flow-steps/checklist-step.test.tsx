@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   create: vi.fn(),
   remove: vi.fn(),
   items: [] as ChecklistItem[],
+  view: null as FlowStepView | null,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -38,14 +39,16 @@ const noop = () => {}
 
 function StepFlow({ view }: Readonly<{ view: FlowStepView }>) {
   return <QuestionFlow flow="habit_create" stepKey={view.stepKey ?? 'optional:checklist'} question={view.question} line={view.line}
-    options={view.options} primary={view.primary} position={5} total={5} progressLabel="Passo 5 de 5" backLabel="Voltar" closeLabel="Fechar"
+    options={view.options} primary={view.primary} secondary={view.secondary} position={5} total={5} progressLabel="Passo 5 de 5" backLabel="Voltar" closeLabel="Fechar"
     direction={1} onBack={view.onBack ?? noop} onClose={noop}>{view.free}</QuestionFlow>
 }
 
 function Harness({ initial = [], proposedItemCount, onContinue = noop }: Readonly<{ initial?: ChecklistItem[]; proposedItemCount?: number; onContinue?: () => void }>) {
   const [items, setItems] = useState(initial)
   useEffect(() => { state.items = items })
-  return <StepFlow view={useChecklistStepView({ items, onItemsChange: setItems, proposedItemCount, onContinue })} />
+  const view = useChecklistStepView({ items, onItemsChange: setItems, proposedItemCount, onContinue })
+  useEffect(() => { state.view = view })
+  return <StepFlow view={view} />
 }
 
 type Tree = ReturnType<typeof renderNavigation>
@@ -266,6 +269,44 @@ describe('the template question inside the checklist step on Android', () => {
       expect(exiting.definitions[100]!.transform[0]!.translateY).toBe(reduced ? 0 : exit.shift)
       tree.unmount()
     }
+  })
+})
+
+describe('the action row and the add row of the checklist step on Android', () => {
+  it.each(['pt-BR', 'en'] as const)('passes the save action as the secondary action in %s', async (locale) => {
+    await i18n.changeLanguage(locale)
+    const tree = renderNavigation(<Harness initial={items('Separar a roupa', 'Lavar a louça')} />)
+    expect(state.view?.secondary?.label).toBe(i18n.t('habits.form.saveAsTemplate'))
+    expect(control(tree, i18n.t('habits.form.saveAsTemplate'))).toBeDefined()
+    expect(control(tree, i18n.t('habits.flow.continue'))).toBeDefined()
+    tree.unmount()
+  })
+
+  it('has no secondary action while the list is empty', () => {
+    const tree = renderNavigation(<Harness />)
+    expect(state.view?.secondary).toBeUndefined()
+    tree.unmount()
+  })
+
+  it('puts the clear action in the add row after the add button, never in a row of its own', async () => {
+    const tree = renderNavigation(<Harness initial={items('Separar a roupa', 'Lavar a louça')} />)
+    const row = tree.hosts().find((node) => node.props.testID === 'checklist-add-row')!
+    const inRow = (label: string) => (row as unknown as { findAll: (match: (child: { props: { accessibilityLabel?: string; onPress?: unknown } }) => boolean) => unknown[] }).findAll((child) => child.props.accessibilityLabel === label && child.props.onPress !== undefined).length > 0
+    expect(inRow(i18n.t('common.add'))).toBe(true)
+    expect(inRow(i18n.t('habits.form.clearChecklist'))).toBe(true)
+    const labels = (row as unknown as { findAll: (match: (child: { props: { accessibilityLabel?: string; onPress?: unknown } }) => boolean) => { props: { accessibilityLabel?: string } }[] }).findAll((child) => child.props.onPress !== undefined && child.props.accessibilityLabel !== undefined).map((child) => child.props.accessibilityLabel)
+    expect(labels.indexOf(i18n.t('common.add'))).toBeLessThan(labels.indexOf(i18n.t('habits.form.clearChecklist')))
+    await tap(tree, i18n.t('habits.form.clearChecklist'))
+    expect(state.items).toEqual([])
+    expect(named(tree, i18n.t('habits.form.clearChecklist'))).toHaveLength(0)
+    tree.unmount()
+  })
+
+  it('draws the add button as a 56 square with a 16 radius', () => {
+    const tree = renderNavigation(<Harness />)
+    expect(isDisabled(control(tree, i18n.t('common.add')))).toBe(true)
+    expect(named(tree, i18n.t('habits.form.clearChecklist'))).toHaveLength(0)
+    tree.unmount()
   })
 })
 

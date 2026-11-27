@@ -20,6 +20,7 @@ const state = vi.hoisted(() => ({
   create: vi.fn(),
   remove: vi.fn(),
   items: [] as ChecklistItem[],
+  view: null as FlowStepView | null,
 }))
 
 vi.mock('next-intl', async (importOriginal) => {
@@ -38,14 +39,16 @@ const noop = () => {}
 
 function StepFlow({ view }: Readonly<{ view: FlowStepView }>) {
   return <QuestionFlow flow="habit_create" stepKey={view.stepKey ?? 'optional:checklist'} question={view.question} line={view.line}
-    options={view.options} primary={view.primary} position={5} total={5} progressLabel="Passo 5 de 5" backLabel="Voltar" closeLabel="Fechar"
+    options={view.options} primary={view.primary} secondary={view.secondary} position={5} total={5} progressLabel="Passo 5 de 5" backLabel="Voltar" closeLabel="Fechar"
     direction={1} onBack={view.onBack ?? noop} onClose={noop}>{view.free}</QuestionFlow>
 }
 
 function Harness({ initial = [], proposedItemCount, onContinue = noop }: Readonly<{ initial?: ChecklistItem[]; proposedItemCount?: number; onContinue?: () => void }>) {
   const [items, setItems] = useState(initial)
   useEffect(() => { state.items = items })
-  return <StepFlow view={useChecklistStepView({ items, onItemsChange: setItems, proposedItemCount, onContinue })} />
+  const view = useChecklistStepView({ items, onItemsChange: setItems, proposedItemCount, onContinue })
+  useEffect(() => { state.view = view })
+  return <StepFlow view={view} />
 }
 
 const heading = () => screen.getByRole('heading', { level: 1 })
@@ -125,6 +128,44 @@ describe('the checklist step', () => {
   it('keeps the steps the AI read in the proposed state', () => {
     const { container } = render(<Harness initial={items('Separar a roupa', 'Lavar a louça')} proposedItemCount={1} />)
     expect(container.querySelectorAll('[data-proposed]')).toHaveLength(1)
+  })
+})
+
+describe('the action row and the add row of the checklist step', () => {
+  it.each(['pt-BR', 'en'] as const)('passes the save action as the secondary action and keeps it out of the free path in %s', async (locale) => {
+    state.locale = locale
+    const t = copy(locale)
+    const { container } = render(<Harness initial={items('Separar a roupa', 'Lavar a louça')} />)
+    expect(state.view?.secondary?.label).toBe(t('habits.form.saveAsTemplate'))
+    const save = screen.getByRole('button', { name: t('habits.form.saveAsTemplate') })
+    expect(container.querySelector('[data-flow-action-row]')).toContainElement(save)
+    expect(container.querySelector('[data-flow-action-row]')).toContainElement(screen.getByRole('button', { name: t('habits.flow.continue') }))
+    expect(screen.getByRole('button', { name: t('common.add') }).closest('[data-checklist-add-row]')).not.toContainElement(save)
+  })
+
+  it('has no secondary action while the list is empty', () => {
+    render(<Harness />)
+    expect(state.view?.secondary).toBeUndefined()
+  })
+
+  it('puts the clear action in the add row after the add button, never in a row of its own', async () => {
+    render(<Harness initial={items('Separar a roupa', 'Lavar a louça')} />)
+    const add = screen.getByRole('button', { name: 'Adicionar' })
+    const clear = screen.getByRole('button', { name: 'Limpar checklist' })
+    const row = add.closest('[data-checklist-add-row]')!
+    expect(row).toContainElement(clear)
+    expect(row).toContainElement(screen.getByRole('textbox', { name: 'Adicionar item' }))
+    expect(add.compareDocumentPosition(clear) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await press('Limpar checklist')
+    expect(state.items).toEqual([])
+    expect(screen.queryByRole('button', { name: 'Limpar checklist' })).not.toBeInTheDocument()
+  })
+
+  it('draws the add button as a square of the field height and keeps the clear action out of a list with no steps', () => {
+    render(<Harness />)
+    const add = screen.getByRole('button', { name: 'Adicionar' })
+    expect(add).toHaveAttribute('data-checklist-add-button')
+    expect(screen.queryByRole('button', { name: 'Limpar checklist' })).not.toBeInTheDocument()
   })
 })
 
