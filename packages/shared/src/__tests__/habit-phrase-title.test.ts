@@ -172,3 +172,32 @@ describe('a title beside a spoken hour', () => {
     expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
   })
 })
+
+describe('a title at the end of a sentence', () => {
+  it.each([
+    ['Ler toda segunda.', 'pt-BR', 'Ler'],
+    ['Ler todo dia.', 'pt-BR', 'Ler'],
+    ['Ler às 9.', 'pt-BR', 'Ler'],
+    ['Read every monday.', 'en', 'Read'],
+    ['Read every monday!', 'en', 'Read'],
+    ['Ler toda segunda ...', 'pt-BR', 'Ler'],
+  ] as const)('leaves no end mark after a removed span: %s', (phrase, locale, title) => {
+    expect(getHabitPhraseTitle(phrase, locale)).toBe(title)
+  })
+
+  it('keeps an end mark that follows a title word', () => {
+    expect(getHabitPhraseTitle('Ler o cap. 3. toda segunda', 'pt-BR')).toBe('Ler o cap. 3.')
+    expect(getHabitPhraseTitle('Read ch. 3. every monday', 'en')).toBe('Read ch. 3.')
+  })
+})
+
+describe('a title beside a range of hours', () => {
+  it.each([
+    ['Estudar das 9 às 11 toda segunda', 'Estudar'],
+    ['Aula de segunda a sexta das 8 às 12', 'Aula'],
+    ['Estudar das 9h às 11h toda segunda', 'Estudar'],
+    ['Estudar de 9 às 11 toda segunda', 'Estudar'],
+  ] as const)('removes the whole range: %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})

@@ -77,6 +77,13 @@ const WEEKDAY_RANGE_WORDS = new Set([
 ])
 const MONTH_SCOPE_LEADS = new Set(['of', 'in', 'on', 'every', 'each', 'this', 'next', 'last'])
 const MONTH_SCOPE_FILLERS = new Set(['the', 'every', 'each', 'this', 'next', 'last', 'odd', 'even'])
+const PT_HOUR_RANGE_CLOCK = String.raw`(?::[0-5]\d|h(?:[0-5]\d)?)?`
+function ptHourRange(opener: string, joiner: string): RegExp {
+  return new RegExp(
+    String.raw`\b${opener}\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?)?\s+${joiner}\s+(?:[01]?\d|2[0-3])${PT_HOUR_RANGE_CLOCK}\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`,
+    'gu',
+  )
+}
 const PT_NOON =String.raw`\b(?:(?:ao|as|a)\s+)?meio-dia(?:\s+e\s+mei[ao]\b(?!-))?\b`
 const EN_NOON = String.raw`\b(?:at\s+)?noon\b`
 
@@ -164,6 +171,8 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
       new RegExp(String.raw`\b(?:todo|cada|a cada)\s+mes,?\s+(?:(?:no|nos|em)\s+)?dias?\s+${PT_MONTH_DAY_LIST}(?![\w:])`, 'gu'),
     ],
     times: [
+      ptHourRange('das', String.raw`(?:as|a|ate(?:\s+as)?)`),
+      ptHourRange('de', String.raw`(?:as|ate(?:\s+as)?)`),
       new RegExp(String.raw`\b(?:as|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),

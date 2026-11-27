@@ -1214,3 +1214,15 @@ describe('the dot and the feira word of a day name', () => {
     expect(readHabitPhrase(input, locale).days).toEqual(days)
   })
 })
+
+describe('a pt-BR range of hours', () => {
+  it.each([
+    ['Estudar das 9 às 11 toda segunda', '09:00'],
+    ['Aula de segunda a sexta das 8 às 12', '08:00'],
+    ['Estudar das 9:30 às 11:00', '09:30'],
+    ['Estudar das 2 às 4 da tarde', '14:00'],
+    ['Estudar de 9 até as 11', '09:00'],
+  ] as const)('reads the start hour as the due time: %s', (phrase, dueTime) => {
+    expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
+  })
+})
