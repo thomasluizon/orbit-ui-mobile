@@ -145,21 +145,44 @@ it('shows the MCP endpoint for the selected API environment', () => {
   expect(within(screen.getByRole('dialog', { name: en.orbitMcp.claudeWeb })).getByText('https://api-staging.useorbit.org/mcp')).toBeInTheDocument()
 })
 
-async function revealAccountAKey() {
+async function startAccountAKey() {
   useAuthStore.getState().setAuth({ userId: 'user-1', name: 'Ada', email: 'ada@example.com' })
   render(
     <QueryClientProvider client={queryClient}>
       <ProfileApiKeys profile={proProfile()} unlocked />
     </QueryClientProvider>,
   )
-  await act(async () => {
-    await chooseApiKeyCreation('Create key', en.profile.apiKeys.create)
-  })
-  fireEvent.change(screen.getByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.profile.apiKeys.scopeAction })) })
-  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
-  expectSmallSheetActions()
+  await chooseApiKeyCreation('Create key', en.profile.apiKeys.create)
+  fireEvent.change(await screen.findByRole('textbox', { name: en.orbitMcp.keyName }), { target: { value: 'Personal key' } })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.common.continue })) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.orbitMcp.permReadOnly })) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: en.common.never })) })
 }
+
+async function revealAccountAKey() {
+  await startAccountAKey()
+  expect(screen.getByText(ACCOUNT_A_KEY)).toBeInTheDocument()
+}
+
+it('takes the revealed API key off the screen when another account replaces the tab', async () => {
+  await revealAccountAKey()
+  respondWithAccount('user-2')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+  expect(screen.queryByText(ACCOUNT_A_KEY)).not.toBeInTheDocument()
+})
+
+it('does not reveal an old key when creation resolves after replacement', async () => {
+  let releaseCreate!: (value: object) => void
+  management.handleCreateKey.mockImplementationOnce(() => new Promise((resolve) => { releaseCreate = resolve }))
+  await startAccountAKey()
+  respondWithAccount('user-2')
+  await act(async () => { await useAuthStore.getState().checkSession() })
+  await act(async () => {
+    releaseCreate({ id: 'key-1', name: 'Orbit key', key: ACCOUNT_A_KEY })
+    await Promise.resolve()
+  })
+  expect(screen.queryByText(ACCOUNT_A_KEY)).not.toBeInTheDocument()
+})
 
 it('does not route the next account after an old key challenge resolves', async () => {
   let releaseChallenge!: () => void

@@ -672,6 +672,38 @@ describe('GoalDetailDrawer', () => {
     expect(deleteMutateAsync).not.toHaveBeenCalled()
   })
 
+  it('sends one delete write for the confirmed goal and keeps the drawer for the result', async () => {
+    const onOpenChange = vi.fn()
+    deleteMutateAsync.mockResolvedValueOnce(undefined)
+    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
+    expect(deleteMutateAsync).not.toHaveBeenCalled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
+    await waitFor(() => expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1'))
+  })
+
+  it('keeps the drawer open and states the failure when a confirmed deletion fails', async () => {
+    deleteMutateAsync.mockRejectedValueOnce(new Error('Delete failed'))
+    const onOpenChange = vi.fn()
+    render(<GoalDetailDrawer open onOpenChange={onOpenChange} goalId="1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.detail.delete' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'goals.detail.delete' }).at(-1)!)
+    await waitFor(() => expect(JSON.stringify(useAppToastStore.getState())).toContain('goals.errors.delete'))
+    expect(deleteMutateAsync).toHaveBeenCalledExactlyOnceWith('1')
+    expect(onOpenChange).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toHaveAttribute('data-open')
+  })
+
+  it('opens an accepted progress deep link after the goal finishes loading', () => {
+    detailAvailable = false
+    listAvailable = false
+    const view = render(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.queryAllByLabelText('goals.form.progressQuestion')).toHaveLength(0)
+    detailAvailable = true
+    view.rerender(<GoalDetailDrawer inline open initialAction="progress" onOpenChange={vi.fn()} goalId="1" />)
+    expect(screen.getAllByLabelText('goals.form.progressQuestion').find((node) => node.tagName === 'INPUT')).toHaveValue('3')
+  })
+
   it('stage 5 bounds the stepper and blocks duplicate pending writes', async () => {
     detailGoal = { ...listGoal, currentValue: 0, progressPercentage: 0, progressHistory: [] }
     let resolve: () => void = () => {}
