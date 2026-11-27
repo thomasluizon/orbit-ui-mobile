@@ -9,6 +9,7 @@ Run the tests with `node tools/test-tools.mjs [--only <module>]`. Read `tools/CO
 - `lib/driver-pin.mjs`: the commit that the driver worktree holds, and the crash count of a new version.
 - `lib/release-train.mjs`: the release train of the driver. Every 4 hours, when a service has unreleased work, it releases API, web, landing and mobile, staging first and then production. It reuses `release-plan.mjs` and `wait-release.mjs`. `drive.mjs --release-now` starts a train at once and `--release-status` prints the newest one.
 - `lib/worker.mjs`: starts and watches one headless worker.
+- `lib/worker-gh-hook.mjs`: the hook of a code worker. It blocks each `gh` write except `gh pr create` and an edit or a comment on the pull request of the worker's branch.
 - `lib/worker-gate.cjs`: the child process that starts the worker after the driver sends its release message.
 - `lib/order.mjs`: writes the order that a worker receives from a ticket.
 - `lib/github.mjs`: the one GitHub adapter of the driver: reads, the merge bar and every write.

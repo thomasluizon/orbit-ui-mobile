@@ -44,5 +44,24 @@
       "apiKeySource": "none"
     },
     "result": "Not logged in · Please run /login"
+  },
+  "preToolUseHook": {
+    "provenance": "node script that ran the worker command of tools/lib/worker.mjs (workerInvocation of a code worker, claude 2.1.332) in a throwaway repository on 2026-11-26 with an invalid token: the hook blocked gh calls of the Bash and Monitor tools with its stderr in the tool result, cwd followed a cd of an earlier call, and with the hook removed the deny rules refused gh issue edit, comment and close and gh pr close, in a compound command too. The input is one recorded line, with its ids and paths replaced",
+    "input": {
+      "session_id": "fixture-session",
+      "transcript_path": "/transcripts/fixture-session.jsonl",
+      "cwd": "/work/tree",
+      "prompt_id": "fixture-prompt",
+      "permission_mode": "bypassPermissions",
+      "effort": {
+        "level": "high"
+      },
+      "hook_event_name": "PreToolUse",
+      "tool_name": "Bash",
+      "tool_input": {
+        "command": "gh issue edit 1 --body probe"
+      },
+      "tool_use_id": "toolu_fixture"
+    }
   }
 }
