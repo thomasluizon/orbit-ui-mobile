@@ -14,8 +14,8 @@ export const MAX_RUNS_READ = 40
 const QUEUED = ["queued", "waiting", "pending", "requested"]
 const MINUTE_MS = 60 * 1000
 
-/** The runs of one repository that wait or run: their ids, one array for each status. */
-const runIdsOf = async (gh, slug, status) => JSON.parse(await gh(["api", `repos/${slug}/actions/runs?status=${status}&per_page=100`, "--jq", ".workflow_runs | map(.id)"]))
+/** The ids of every run of one repository with one status. `--paginate` reads each page of 100, and `--jq` gives one id on each line. */
+const runIdsOf = async (gh, slug, status) => (await gh(["api", `repos/${slug}/actions/runs?status=${status}&per_page=100`, "--paginate", "--jq", ".workflow_runs[].id"])).split("\n").filter((line) => line.trim() !== "").map(Number)
 
 /** The jobs of one run with the fields that the pace reads. */
 const jobsOf = async (gh, slug, runId) => JSON.parse(await gh(["api", `repos/${slug}/actions/runs/${runId}/jobs?per_page=100`, "--jq", "[.jobs[] | {status, created_at, started_at, completed_at}]"]))
@@ -40,9 +40,13 @@ export const summarizeJobs = (jobs, now) => {
   }
 }
 
-/** Reads the queued and in-progress runs of one repository and sums their jobs. `gh(args)` returns the text of one `gh` call. */
+/**
+ * Reads the queued and in-progress runs of one repository and sums their jobs. `gh(args)` returns the text of one `gh` call.
+ * GitHub lists runs newest first. A run id rises with its creation time, so the ids go oldest first before the cut: the oldest runs hold
+ * most of the queued jobs and the oldest queued check.
+ */
 export const readCiQueue = async ({ gh, slug, now }) => {
-  const ids = [...new Set([...await runIdsOf(gh, slug, "queued"), ...await runIdsOf(gh, slug, "in_progress")])]
+  const ids = [...new Set([...await runIdsOf(gh, slug, "queued"), ...await runIdsOf(gh, slug, "in_progress")])].sort((left, right) => left - right)
   const read = ids.slice(0, MAX_RUNS_READ)
   const jobs = []
   for (const id of read) jobs.push(...await jobsOf(gh, slug, id))

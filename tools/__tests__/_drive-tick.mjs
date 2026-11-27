@@ -2871,6 +2871,19 @@ const capRestartCases = async () => {
   const asked = await askedByTicket.run()
   same("drive: a ticket label with a newer owner question and no pull request label changes nothing and plans no removal", [only(askedByTicket.calls, "editLabels").length, asked.lines.some((line) => line.includes("remove the stale needs:owner"))], [0, false])
 
+  // An old driver wrote the question of the last fix launch on the ticket first and the cap report on the next tick.
+  const question = comment("needs-owner", `${branch}: NEEDS_DECISION: Which label?`, -70 * MINUTE)
+  const questionFirst = (pullLabels) => scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: [...sonnet, question, capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { labels: pullLabels, reviews: [finding] })] } })
+  const questionLabelled = questionFirst([OWNER_LABEL])
+  await questionLabelled.run()
+  same("drive: an open owner question before the cap report keeps the ticket label while the stale pull request label goes", only(questionLabelled.calls, "editLabels").map((entry) => entry.slice(1)), [["ui", 30, { remove: [OWNER_LABEL] }]])
+  const questionTicketOnly = questionFirst([])
+  await questionTicketOnly.run()
+  same("drive: an open owner question before the cap report keeps the label of the ticket only", only(questionTicketOnly.calls, "editLabels").length, 0)
+  const answered = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", OWNER_LABEL], comments: [...sonnet, question, comment("owner-answer", "Use repo:ui.", -65 * MINUTE), capReport(-60 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [finding] })] } })
+  await answered.run()
+  same("drive: a question that the owner answered before the cap report lets the cap label go off the ticket", only(answered.calls, "editLabels").map((entry) => entry.slice(1)), [["tickets", 7, { remove: [OWNER_LABEL] }]])
+
   const watched = join(root, `drive-cap-watch-${++scenarios}`)
   mkdirSync(join(watched, "logs"), { recursive: true })
   writeFileSync(join(watched, "watchdog.json"), `${JSON.stringify({ lastMergeAt: NOW - 3 * 60 * MINUTE, active: {} })}\n`)
@@ -2883,7 +2896,7 @@ const queuedJobs = (count, minutesAgo = 5) => JSON.stringify(Array.from({ length
 const finishedJobs = (count, minutes) => JSON.stringify(Array.from({ length: count }, () => ({ status: "completed", created_at: iso(-60 * MINUTE), started_at: iso(-30 * MINUTE), completed_at: iso((minutes - 30) * MINUTE) })))
 /** The routes of one CI queue: one queued run with `queued` jobs and one running run with finished jobs of `minutes` each. */
 const queueRoutes = (queued, { minutes = 8, minutesAgo = 5 } = {}) => [
-  ["runs?status=queued", "[101]"], ["runs?status=in_progress", "[102]"],
+  ["runs?status=queued", "101\n"], ["runs?status=in_progress", "102\n"],
   ["runs/101/jobs", queuedJobs(queued, minutesAgo)], ["runs/102/jobs", finishedJobs(4, minutes)],
 ]
 

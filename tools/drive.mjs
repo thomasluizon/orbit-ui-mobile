@@ -1059,21 +1059,25 @@ export const failureHistory = ({ item, pull, order, launches }) => {
 
 /**
  * The stale labels of a fix cap, or null: the newest report about one pull request on its ticket is a cap report, and the pull
- * request or the ticket carries `needs:owner`. A cap never waits on the owner. The report of a cap can label the ticket only.
+ * request or the ticket carries `needs:owner`. A cap never waits on the owner. The ticket label goes only when every report after the
+ * last owner decision is a cap report: an open question holds the ticket by its label.
  */
-const staleCapLabel = (pull, ticket, item) => {
+const staleCapLabel = (env, pull, ticket, item) => {
   if (ticket === null || (!pull.labels.includes(OWNER) && !ticket.labels.includes(OWNER))) return null
   const reports = ticket.comments.filter((entry) => entry.kind === "needs-owner")
+  const isCapReport = (entry) => bodyAfterMarker(entry).includes(`used its ${MAX_FIX_LAUNCHES} fix launches.`)
   const mine = reports.filter((entry) => bodyAfterMarker(entry).startsWith(`${item} at `)).at(-1)
-  if (mine === undefined || !bodyAfterMarker(mine).includes(`used its ${MAX_FIX_LAUNCHES} fix launches.`)) return null
-  return { clearPull: pull.labels.includes(OWNER), clearTicket: reports.at(-1) === mine && ticket.labels.includes(OWNER) }
+  if (mine === undefined || !isCapReport(mine)) return null
+  const decidedAt = ownerDecisionAt(env, ticket)
+  const open = reports.filter((entry) => !(Date.parse(entry.createdAt) <= decidedAt))
+  return { clearPull: pull.labels.includes(OWNER), clearTicket: open.every(isCapReport) && ticket.labels.includes(OWNER) }
 }
 
 /** The ordered actions for one pull request. The plan writes nothing. A fix cap label from an earlier driver version goes first. */
 const planPull = async (env, mem, context, pull) => {
   const plan = await planPullActions(env, mem, context, pull)
   const ticket = pull.tracks === null ? null : context.ticketMap.get(pull.tracks) ?? null
-  const stale = staleCapLabel(pull, ticket, `${context.repoKey}#${pull.number}`)
+  const stale = staleCapLabel(env, pull, ticket, `${context.repoKey}#${pull.number}`)
   // A newer report keeps the ticket label, so a pull request with no label of its own then has nothing to remove.
   return stale?.clearPull || stale?.clearTicket ? [{ type: "clear-cap-label", ...stale }, ...plan] : plan
 }

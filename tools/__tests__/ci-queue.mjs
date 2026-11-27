@@ -28,8 +28,8 @@ export const cases = async () => {
   const jobsByRun = { 101: queued(2, 90), 102: finished(2, 12) }
   const gh = async (args) => {
     calls.push(args[1])
-    if (args[1].includes("status=queued")) return "[101]"
-    if (args[1].includes("status=in_progress")) return "[102, 101]"
+    if (args[1].includes("status=queued")) return "101\n"
+    if (args[1].includes("status=in_progress")) return "102\n101\n"
     return JSON.stringify(jobsByRun[/runs\/(\d+)\/jobs/.exec(args[1])[1]])
   }
   const queue = await readCiQueue({ gh, slug: "thomasluizon/orbit-ui-mobile", now: NOW })
@@ -40,8 +40,25 @@ export const cases = async () => {
     "repos/thomasluizon/orbit-ui-mobile/actions/runs/102/jobs?per_page=100",
   ])
   same(`${UNIT}: the read sums the jobs of the runs and names the runs it read`, [queue.queued, queue.meanJobMinutes, queue.runs, queue.runsRead], [2, 12, 2, 2])
+  const listings = []
+  await readCiQueue({ gh: async (args) => { if (!args[1].includes("/jobs")) listings.push(args.slice(2)); return args[1].includes("/jobs") ? "[]" : "" }, slug: "x/y", now: NOW })
+  same(`${UNIT}: the read pages through each run listing and gets one run id on each line`, listings, [["--paginate", "--jq", ".workflow_runs[].id"], ["--paginate", "--jq", ".workflow_runs[].id"]])
 
-  const many = Array.from({ length: MAX_RUNS_READ + 7 }, (_, index) => index + 1)
-  const wide = await readCiQueue({ gh: async (args) => (args[1].includes("status=queued") ? JSON.stringify(many) : args[1].includes("status=in_progress") ? "[]" : "[]"), slug: "x/y", now: NOW })
-  same(`${UNIT}: a read of more runs than the limit names the runs it left out`, [wide.runs, wide.runsRead], [MAX_RUNS_READ + 7, MAX_RUNS_READ])
+  // GitHub lists runs newest first, and a run id rises with its creation time. The pages of the queued listing give 147 to 101, then the running listing gives 100 to 1.
+  const newestFirst = (from, to) => Array.from({ length: from - to + 1 }, (_, index) => from - index).join("\n")
+  const read = []
+  const wide = await readCiQueue({
+    gh: async (args) => {
+      if (args[1].includes("status=queued")) return `${newestFirst(147, 101)}\n`
+      if (args[1].includes("status=in_progress")) return `${newestFirst(100, 1)}\n`
+      const id = Number(/runs\/(\d+)\/jobs/.exec(args[1])[1])
+      read.push(id)
+      return JSON.stringify(id <= 3 ? queued(5, 70) : [])
+    },
+    slug: "x/y",
+    now: NOW,
+  })
+  same(`${UNIT}: a read of more runs than the limit names the runs it left out`, [wide.runs, wide.runsRead], [147, MAX_RUNS_READ])
+  same(`${UNIT}: a read of more runs than the limit keeps the oldest runs, oldest first`, read, Array.from({ length: MAX_RUNS_READ }, (_, index) => index + 1))
+  same(`${UNIT}: the oldest runs give the queued jobs and the age of the oldest queued check`, [wide.queued, wide.oldestQueuedMinutes], [15, 70])
 }
