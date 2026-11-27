@@ -21,7 +21,7 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
-/** The checks that read only the pull request, so a rerun at the same head gives the same result. */
+/** The checks that read only the pull request, so a rerun at the same head, text and labels gives the same result. */
 const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/

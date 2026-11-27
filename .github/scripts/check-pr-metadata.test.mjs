@@ -36,9 +36,17 @@ test("no workflow subscribes to label changes", () => {
   }
 })
 
+test("no note says that a label change reruns PR Metadata", () => {
+  const reference = readFileSync(join(root, ".claude/skills/release/reference.md"), "utf8")
+  assert.doesNotMatch(reference, /body edit or a label change re-runs/)
+  assert.match(reference, /A label change starts no run\./)
+  assert.doesNotMatch(readFileSync(join(root, ".github/workflows/pr-metadata.yml"), "utf8"), /label events/)
+  assert.match(readFileSync(join(root, "tools/lib/github.mjs"), "utf8"), /same head, text and labels/)
+})
+
 test("metadata events can complete without cancelling a sibling required check", () => {
   assert.equal(metadata.concurrency, undefined,
-    "a shared group can cancel running siblings or replace pending label events")
+    "a shared group can cancel running siblings or replace pending edit events")
   for (const job of Object.values(metadata.jobs)) assert.equal(job.concurrency, undefined)
   const reader = metadata.jobs.metadata.steps.find((step) => step.name === "Read current pull request text")
   assert.match(reader.run, /gh api/,
