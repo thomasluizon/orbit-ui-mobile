@@ -22,7 +22,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -1255,6 +1255,52 @@ const outsideTicket = async (env, repoKey, pull) => {
   await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, labels: [`repo:${repoKey}`, "Bug"] })
 }
 
+const classBody = ({ key, repoKey, check, at, sentence, slug, number, closed }) => {
+  const earlier = closed.length === 0 ? "none" : closed.map((ticket) => `#${ticket.number} ${ticket.title}`).join("\n")
+  const said = sentence.replace(/[.!?]+$/, "")
+  return `Class: ${key}
+Filed by: driver
+Finding: class ${repoKey} ${key}
+
+## Problem and why
+
+Pullfrog named the class \`${key}\` in ${slug}#${number} at \`${at}\`: ${said}. The fix round fixed only that instance. The owner rule is to fix the class of a defect, not the instance, and a class that a tool can catch gets a deterministic check.
+
+## Permanent fix
+
+Add one ${check} that fails on every instance of this class in the repository. Fix every instance it finds in the same pull request, and keep the check on. Prefer a type or a test. A lint rule under \`eslint-rules/\` or a change of an \`eslint.config.*\` file needs the owner's \`design-system\` label. When a rule of \`CODING_STANDARDS.md\` names the class, add the name of the check to that rule.
+
+## Acceptance criteria
+
+- The check fails at the base commit on \`${at}\`, or on a copy of that instance in a fixture.
+- The check passes after the fix, and no instance is left.
+
+## Earlier tickets of this class
+
+${earlier}`
+}
+
+/** True when an open ticket of the repository holds the class key in a `Class: <key>` line. */
+const classHeld = (tickets, repoKey, key) => tickets.some((ticket) => ticket.labels.includes(`repo:${repoKey}`) && (ticket.body ?? "").split("\n").some((line) => line.trim().toLowerCase() === `class: ${key}`))
+
+/** Files one Improvement ticket for each class that the `## Class checks` sections of the reviews name, unless an open ticket of the repository holds the key. */
+const classTickets = async (env, ctx, pull) => {
+  const { repoKey } = ctx
+  for (const line of classLines(pull.reviews)) {
+    if (classHeld(ctx.tickets, repoKey, line.key) || ctx.classes.has(`${repoKey} ${line.key}`)) {
+      log(env, "class-ticket", `held ${line.key}`)
+      continue
+    }
+    ctx.classes.add(`${repoKey} ${line.key}`)
+    let closed = []
+    try { closed = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "closed", "--search", `"Class: ${line.key}" in:body`, "--json", "number,title", "--limit", "20"])) } catch (error) { log(env, "class-ticket", "closed-unread", `${line.key}: ${error.message}`) }
+    const slug = env.slugOf(repoKey)
+    const title = `A ${line.check} finds every case of: ${line.sentence}`.slice(0, 100)
+    await env.github.createTicket({ title, body: classBody({ ...line, repoKey, slug, number: pull.number, closed }), labels: [`repo:${repoKey}`, "Improvement", ...(repoKey === "ui" ? ["parity:no"] : [])] })
+    log(env, "class-ticket", `${line.key} ${repoKey}`)
+  }
+}
+
 /** Merges the base branch into a pull request and records the merge commit that this makes. */
 const updateBranch = async (env, repoKey, pull) => {
   await env.github.updateBranch(repoKey, pull.number)
@@ -1375,6 +1421,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
       ctx.mergedPulls.add(pull)
       await outsideTicket(env, repoKey, pull)
+      await classTickets(env, ctx, pull)
       return undefined
     default: return undefined
   }
@@ -1395,7 +1442,7 @@ const planOrder = (state) => [...state.pulls].sort((left, right) => left.number 
  */
 const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), mergedPulls: new Set(), now: env.now(), running }
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), classes: new Set(), mergedPulls: new Set(), now: env.now(), running }
   const repoPath = env.config.repos[repoKey]
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
