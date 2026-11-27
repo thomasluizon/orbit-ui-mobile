@@ -148,15 +148,15 @@ const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/m
 const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, replan }) => {
   switch (kind) {
     case "build":
-      return "Build the ticket. Rebase on `origin/main` before the first push."
+      return "Build the ticket. Rebase on `origin/main` before your first commit."
     case "build part":
-      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
+      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before your first commit. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
     case "fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`.`
     case "ci-fix":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. These checks failed.\n\n${failure.baseMerge ? baseMergeSection(failure.baseMerge) : ""}${failure.checks.map((check) => checkSection(check)).join("\n\n")}\n\n${CLASS_RULE} Do not merge \`origin/main\`.`
     case "merge-forward":
-      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks. Push once.`
+      return `The pull request ${pull.number} has the head \`${pull.headSha}\`. It conflicts with \`origin/main\`${failure?.conflicts?.length > 0 ? ` in: ${failure.conflicts.join(", ")}` : ""}. Merge \`origin/main\` into the branch and resolve the conflicts. Run the focused checks.`
     case "find":
       return `Read only the slice that the part names. Your final message is the area list, then the findings table with one row per finding as \`path:line | class | fix\`, and nothing after the table. Commit nothing, push nothing and open no pull request.`
     case "replan": {
@@ -210,21 +210,24 @@ const earlierLaunchesSection = (history) => {
   return `\n\n## Earlier launches\n\n${sections.join("\n\n")}\n\nThe launches above failed. Find why before you change code.`
 }
 
-/** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
-const pushesToOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+/** A fix, ci-fix or merge-forward order commits to the branch of an open pull request. The driver pushes it and opens no other pull request. */
+const fixesOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
 
-/** The delivery rules. A find order has no delivery, so it does not get them. */
+/** The delivery rules. A worker commits and exits: the driver pushes, and it opens the pull request of a new branch from `orbit-pull.md`. A find order has no delivery, so it does not get them. */
 const deliverySection = ({ ticket, kind }) => {
   const repository = ticket.repository
-  const pushes = pushesToOpenPull(kind)
-  const pullRequest = pushes
-    ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start an item with \`owner:\` only for a step that needs the owner's hands, as section 6 of \`.claude/skills/questions/SKILL.md\` lists them. Start an item that waits on another ticket or on a release with \`blocked by #<ticket>\`. Write a technical step that stays open as a plain item.`
+  const fixes = fixesOpenPull(kind)
+  const pullRequest = fixes
+    ? "Commit the fix to the branch of the open pull request. Push nothing and open no pull request. The driver pushes your commits."
+    : `Push nothing and open no pull request. The driver pushes your commits and opens one non-draft pull request. Write the pull request text to the file \`orbit-pull.md\` in the directory that \`git rev-parse --absolute-git-dir\` prints. The first line is the title. The body follows it and holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start an item with \`owner:\` only for a step that needs the owner's hands, as section 6 of \`.claude/skills/questions/SKILL.md\` lists them. Start an item that waits on another ticket or on a release with \`blocked by #<ticket>\`. Write a technical step that stays open as a plain item.`
   const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
-  const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
-  const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
-  const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."
-  return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**Size.** ${SIZE_LINE}\n\n**PR Metadata.** ${metadata}`
+  const writes = fixes
+    ? "Write to GitHub only with `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`), on the pull request of your own branch. Start the Bash call with that command, from your working tree, with no `-R`."
+    : "Write nothing to GitHub."
+  const metadata = fixes
+    ? "When the failing check is `PR Metadata`, fix the body or the label yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file`. Never end with `NEEDS_DECISION` for a pull request body or label."
+    : "The driver reads the `PR Metadata` check after it pushes. Write a body that passes it, because a failure comes back to a later run."
+  return `**Delivery.** Commit after each coherent piece. ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**Size.** ${SIZE_LINE}\n\n**PR Metadata.** ${metadata}`
 }
 
 /** The words of the brief that name a tool of one runner. Codex loads no `.claude` skill and has no Grep tool. */
@@ -247,7 +250,7 @@ export const renderBrief = ({ kind, place, ticket, runner = "claude" }) => {
   if (!Object.hasOwn(RUNNER_WORDS, runner)) throw new Error(`unknown runner: ${runner}`)
   const words = RUNNER_WORDS[runner]
   const reads = kind === "find" || kind === "replan"
-  const pushes = pushesToOpenPull(kind)
+  const pushes = fixesOpenPull(kind)
   const brief = `## Brief
 
 **Place.** Repository \`${place.repoKey}\` at \`${place.repoPath}\`. Working tree \`${place.worktree}\`. Branch \`${place.branch}\` is checked out. Base branch \`${place.base}\`. Work in this repository only, and create no other branch.
@@ -260,7 +263,7 @@ export const renderBrief = ({ kind, place, ticket, runner = "claude" }) => {
 ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command with its exit code.\n"}- Open no browser. Start no dev server. Run no production CLI.
 - Never write a deployment barrier: \`.github/migration-contracts.json\` and \`.github/migration-locks.json\`.
 
-**Decisions.** Nobody answers a question. Decide every choice with the recommended option. ${reads ? "Never wait on a prompt." : `Write the choice and its evidence in the ${pushes ? "commit message" : "pull request body"}. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.`}
+**Decisions.** Nobody answers a question. Decide every choice with the recommended option. ${reads ? "Never wait on a prompt." : `Write the choice and its evidence in the ${pushes ? "commit message" : "pull request text"}. Never wait on a prompt. End with the line \`NEEDS_DECISION: <question>\` only for money, a change of model or effort, a change to a standing owner order, or an irreversible act in production.`}
 
 **Copy.** ${words.copy}
 
@@ -282,13 +285,13 @@ const assertFixInputs = ({ kind, pull, review, failure }) => {
 
 /**
  * The order text for a worker that resumes its own session. The session already holds the ticket, the parts and the brief,
- * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker pushes
- * to the branch of the open pull request and opens no other pull request. Every other rule of the brief holds.
+ * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker commits
+ * to the branch of the open pull request, pushes nothing and opens no pull request. The driver pushes. Every other rule of the brief holds.
  */
 export const renderResumeOrder = ({ kind, pull, review = null, failure = null }) => {
   if (kind !== "fix" && kind !== "ci-fix" && kind !== "merge-forward") throw new Error(`a ${kind} order does not resume a session`)
   assertFixInputs({ kind, pull, review, failure })
-  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
+  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}\n\nYour first order and its brief still hold. One delivery rule changes: commit the fix to the branch of the open pull request, push nothing and open no pull request. The driver pushes your commits. Write the choice and its evidence in the commit message.\n`
 }
 
 /**

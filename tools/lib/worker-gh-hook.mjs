@@ -1,6 +1,6 @@
 /**
- * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except `gh pr create` and an edit
- * or a comment on the pull request of the worker's own branch. A permission pattern cannot say "my own pull request".
+ * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except an edit
+ * or a comment on the pull request of the worker's own branch. The driver opens each pull request, so `gh pr create` is blocked. A permission pattern cannot say "my own pull request".
  * It reads the command text, so it does not see a `gh` call that a script or a `bash -c` string makes.
  */
 
@@ -13,12 +13,12 @@ import { parseArgs } from "node:util"
 const PREFIX_WORDS = new Set(["!", "{", "builtin", "command", "do", "elif", "else", "env", "exec", "if", "nice", "nohup", "sudo", "then", "time", "timeout", "until", "while", "xargs"])
 const ASSIGNMENT = /^[A-Za-z_]\w*\+?=/
 
-/** The `gh` commands that a code worker may run in each group: the reads, `gh pr create` and the local checkout. */
+/** The `gh` commands that a code worker may run in each group: the reads and the local checkout. */
 const GH_ALLOWED = Object.freeze({
   cache: ["list", "ls"],
   issue: ["list", "ls", "status", "view"],
   label: ["list", "ls"],
-  pr: ["checkout", "checks", "create", "diff", "list", "ls", "new", "status", "view"],
+  pr: ["checkout", "checks", "diff", "list", "ls", "status", "view"],
   release: ["download", "list", "ls", "verify", "verify-asset", "view"],
   repo: ["clone", "list", "ls", "read-dir", "read-file", "view"],
   ruleset: ["check", "list", "ls", "view"],

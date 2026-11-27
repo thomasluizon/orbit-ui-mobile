@@ -113,7 +113,7 @@ const untouched = (top, head, baseline, status) => (head === (baseline ?? git(to
 
 /** The block reason: each failed command with the last lines of its output. */
 export const blockReason = (failures) =>
-  `The gate failed. Fix each failure, commit the fix, push it and end the run.\n\n${failures.map(({ command, tail }) => `Failed command: ${command}\n${tail}`).join("\n\n")}`
+  `The gate failed. Fix each failure, commit the fix and end the run. The driver pushes the commit.\n\n${failures.map(({ command, tail }) => `Failed command: ${command}\n${tail}`).join("\n\n")}`
 
 /** The Stop output that blocks. `decision: "block"` and `reason` are the top-level fields of claude 2.1.332. */
 export const blockOutput = (reason) => ({ decision: "block", reason })

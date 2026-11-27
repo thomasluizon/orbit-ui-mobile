@@ -34,7 +34,7 @@ export const cases = () => {
   git("config", "--unset", "core.excludesFile")
   rmSync(join(dir, "apps/web/src/hidden.ts"), { force: true })
   T("worker-gate-hook: a file that only core.excludesFile ignores gives decision block and green false", hidden?.decision === "block" && hidden.reason.includes("?? apps/web/src/hidden.ts") && !record().green, JSON.stringify(hidden))
-  T("worker-gate-hook: the block reason tells the worker to commit and push the fix", first.reason.includes("Fix each failure, commit the fix, push it and end the run."), first.reason)
+  T("worker-gate-hook: the block reason tells the worker to commit the fix and names the driver as the one that pushes", first.reason.includes("Fix each failure, commit the fix and end the run. The driver pushes the commit.") && !/push it/.test(first.reason), first.reason)
   same("worker-gate-hook: a tools diff runs test-tools for its module, and tailOf keeps 40 lines", [gateCommands(dir, ["tools/lib/alpha.mjs"], () => true).map(text), tailOf("x\n".repeat(99)).split("\n").length], [["node tools/test-tools.mjs --only alpha", "node tools/check-dashes.mjs --files tools/lib/alpha.mjs"], 40])
   const modules = (...paths) => gateCommands(dir, paths, () => true).map(text).filter((entry) => entry.includes("test-tools"))
   same("worker-gate-hook: a .claude file and a non-mjs file of tools select the module that names them", [modules(".claude/skills/x/SKILL.md"), modules("tools/replay-scripts.json")], [["node tools/test-tools.mjs --only skills"], ["node tools/test-tools.mjs --only skills"]])

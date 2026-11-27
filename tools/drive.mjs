@@ -9,7 +9,7 @@
 
 import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
@@ -2042,41 +2042,97 @@ const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = ()
 
 const FORBIDDEN_PUSH = /The requested URL returned error: 403|remote: Permission to .* denied/
 
-const GIT_PUSH = /\bgit\b[^|;&\n]*\bpush\b/
+const PUSHES_FILE = "pushes.json"
 
-const toolText = (content) => (typeof content === "string" ? content : Array.isArray(content) ? content.map((block) => (typeof block?.text === "string" ? block.text : "")).join("\n") : "")
+/** The branches that wait for a push, from `pushes.json` in the state directory. A missing or unreadable file holds none. */
+const readPushes = (env) => {
+  try {
+    const list = JSON.parse(readFileSync(join(env.stateDir, PUSHES_FILE), "utf8"))
+    return Array.isArray(list) ? list : []
+  } catch { return [] }
+}
 
-/** The output of every `git push` command in a stream-json log. Text that the worker read or wrote elsewhere never counts. */
-export const pushOutputs = (logText) => {
-  const pushes = new Set()
-  const outputs = []
-  for (const line of logText.split("\n")) {
-    if (!line.startsWith("{")) continue
-    let record
-    try { record = JSON.parse(line) } catch { continue }
-    for (const block of Array.isArray(record.message?.content) ? record.message.content : []) {
-      if (block.type === "tool_use" && block.name === "Bash" && GIT_PUSH.test(block.input?.command ?? "")) pushes.add(block.id)
-      if (block.type === "tool_result" && pushes.has(block.tool_use_id)) outputs.push(toolText(block.content))
+const writePushes = (env, list) => {
+  const path = join(env.stateDir, PUSHES_FILE)
+  writeFileSync(`${path}.tmp`, `${JSON.stringify(list)}\n`)
+  renameSync(`${path}.tmp`, path)
+}
+
+/** Adds a finished branch to `pushes.json`. A branch that waits already keeps its commit list, because one push sends them all. */
+const queuePush = (env, entry) => {
+  const list = readPushes(env)
+  const earlier = list.find((other) => other.repoKey === entry.repoKey && other.branch === entry.branch)
+  writePushes(env, [...list.filter((other) => other !== earlier), { ...entry, shas: [...(earlier?.shas ?? []), ...entry.shas] }])
+}
+
+/** The pull request text that the worker wrote in the git directory of its worktree: the first line is the title and the rest is the body. Null when it is missing or has no title. */
+const pullText = async (env, worktree) => {
+  const dir = await env.git(worktree, ["rev-parse", "--absolute-git-dir"])
+  if (dir.status !== 0) return null
+  let written
+  try { written = readFileSync(join(dir.stdout.trim(), "orbit-pull.md"), "utf8") } catch { return null }
+  const [first, ...rest] = written.split("\n")
+  const title = first.replace(/^#+\s*/, "").trim()
+  return title === "" ? null : { title, body: rest.join("\n").trim() }
+}
+
+/**
+ * Pushes the branch of a finished worker once, opens its pull request when it has none, and writes the record comments of its commits.
+ * The push runs from the worktree with the worker token. A branch that the remote holds at the same head gets no push.
+ * Returns "forbidden" for HTTP 403, and throws for any other failure, so the entry stays for the next tick.
+ */
+const pushOne = async (env, entry) => {
+  const { repoKey, branch, worktree, head } = entry
+  const remote = await env.git(worktree, ["ls-remote", "origin", `refs/heads/${branch}`])
+  if (remote.status !== 0) throw new Error(`git ls-remote failed: ${remote.stderr.trim()}`)
+  if (remote.stdout.split(/\s/)[0] !== head) {
+    const pushed = await env.workerRun(worktree, "git", ["push", "origin", branch])
+    if (pushed.status !== 0) {
+      const output = `${pushed.stdout}\n${pushed.stderr}`
+      if (FORBIDDEN_PUSH.test(output)) return "forbidden"
+      throw new Error(`git push failed: ${pushed.stderr.trim()}`)
     }
   }
-  return outputs
+  let number = entry.prNumber
+  if (number === null) number = Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
+  if (!(Number.isInteger(number) && number > 0)) number = null
+  if (number === null && !FIX_KINDS.includes(entry.kind)) {
+    const pull = await pullText(env, worktree)
+    if (pull === null) {
+      log(env, `ticket#${entry.ticketNumber}`, "push-no-text", `${branch} is pushed, and the worker wrote no orbit-pull.md with a title, so no pull request opens`)
+    } else {
+      const bodyFile = join(env.stateDir, "pull-body.md")
+      writeFileSync(bodyFile, `${pull.body}\n`)
+      const created = await env.workerRun(worktree, "gh", ["pr", "create", "--base", "main", "--head", branch, "--title", pull.title, "--body-file", bodyFile])
+      rmSync(bodyFile, { force: true })
+      if (created.status !== 0) throw new Error(`gh pr create failed: ${created.stderr.trim()}`)
+      number = Number(/\/pull\/(\d+)/.exec(created.stdout)?.[1])
+    }
+  }
+  if (entry.shas.length > 0 && Number.isInteger(number) && number > 0 && entry.sessionId) await recordCommits(env, repoKey, number, entry.sessionId, entry.shas)
+  return null
 }
 
-/** True when the worktree holds commits since the launch that the remote branch lacks. Only such a push can have failed. */
-const hasUnpushedCommits = async (env, worktree, branch, headBefore) => {
-  const head = await gitText(env, worktree, ["rev-parse", "HEAD"])
-  if (head === headBefore) return false
-  const remote = await env.git(worktree, ["ls-remote", "origin", `refs/heads/${branch}`])
-  if (remote.status !== 0) return false
-  const remoteHead = remote.stdout.split(/\s/)[0]
-  if (remoteHead === "") return true
-  if (remoteHead === head) return false
-  await env.git(worktree, ["fetch", "origin", branch])
-  return (await env.git(worktree, ["merge-base", "--is-ancestor", head, `origin/${branch}`])).status !== 0
+/**
+ * Pushes each branch in `pushes.json`, in `finishedAt` order: the branches of open pull requests first, then the new branches.
+ * An entry leaves the file after its push. A failed step keeps it for the next tick, and a restart keeps it too.
+ */
+const pushFinished = async (env, mem, tickets) => {
+  const opens = (entry) => entry.prNumber !== null || FIX_KINDS.includes(entry.kind)
+  const entries = readPushes(env).sort((left, right) => Number(!opens(left)) - Number(!opens(right)) || left.finishedAt.localeCompare(right.finishedAt))
+  for (const entry of entries) {
+    try {
+      if (await pushOne(env, entry) === "forbidden") {
+        await needsOwner(env, mem, { ticket: ticketFor(tickets, entry.ticketNumber), reason: `The driver push with the worker token failed with HTTP 403 on ${entry.branch}` })
+        continue
+      }
+      writePushes(env, readPushes(env).filter((other) => !(other.repoKey === entry.repoKey && other.branch === entry.branch)))
+    } catch (error) { log(env, `ticket#${entry.ticketNumber}`, "push-failed", `${entry.branch}: ${error.message}`) }
+  }
 }
 
-/** A push failed with HTTP 403 when a `git push` command printed the message and its commits are not on the remote branch. */
-const pushForbidden = async (env, tail, worktree, branch, headBefore) => pushOutputs(tail).some((text) => FORBIDDEN_PUSH.test(text)) && await hasUnpushedCommits(env, worktree, branch, headBefore)
+/** The ticket as this read holds it, so a label that the owner wrote is seen. A ticket that is closed by now keeps a bare stand-in. */
+const ticketFor = (tickets, number) => tickets.find((entry) => entry.number === number) ?? { number, title: "", body: "", labels: [], comments: [], blockedBy: [] }
 
 const launchRecordPath = (env, stem) => join(env.stateDir, `${stem}.launch.json`)
 const RECORD_SUFFIX = ".launch.json"
@@ -2190,16 +2246,22 @@ export const gateResultOf = async (env, { kind, worktree, logFile, runner }, hea
   return record?.run === basename(logFile, ".log") && record.green === true && headAfter !== null && record.head === headAfter && status === "" ? "gate green" : "gate red"
 }
 
-/** Adds the exit of a launch to its facts file: the exit code, the kill reason, the head that the worktree holds now and the gate result. A failed write loses only history. */
+/**
+ * Adds the exit of a launch to its facts file: the exit code, the kill reason, the head that the worktree holds now and the gate result.
+ * A failed write loses only history. It returns the head and the gate result, or nulls when git could not read them.
+ */
 const recordExit = async (env, exit, result) => {
+  let outcome = { headAfter: null, gate: null }
   try {
-    const file = factsFileOf(exit.logFile)
-    const facts = JSON.parse(readFileSync(file, "utf8"))
     const head = await env.git(exit.worktree, ["rev-parse", "HEAD"])
     const headAfter = head.status === 0 ? head.stdout.trim() : null
     const gate = await gateResultOf(env, exit, headAfter)
+    outcome = { headAfter, gate }
+    const file = factsFileOf(exit.logFile)
+    const facts = JSON.parse(readFileSync(file, "utf8"))
     writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter, ...(gate === null ? {} : { gate }) })}\n`)
   } catch { /* no facts file means a launch from before the facts files */ }
+  return outcome
 }
 
 /** Closes the pull request that a re-plan replaces, with a marked `replan` comment, and deletes its remote branch. The branch name stays used through the `replan` record. */
@@ -2350,14 +2412,13 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const { kind, repoKey, branch, partNumber, prNumber, headBefore, worktree, logFile, account, startedAt, result } = exit
   const codex = runnerOfRecord(exit) === "codex"
   const textOf = codex ? codexResultText : resultText
-  // The ticket as this read holds it, so a label that the owner wrote is seen. A ticket that is closed by now keeps a bare stand-in.
-  const ticket = tickets.find((entry) => entry.number === exit.ticketNumber) ?? { number: exit.ticketNumber, title: "", body: "", labels: [], comments: [], blockedBy: [] }
+  const ticket = ticketFor(tickets, exit.ticketNumber)
   const item = `ticket#${ticket.number}`
   const owner = nameOfKey(mem, account)
   const newerReading = owner !== null && stateOf(mem, owner).reading?.account === account && stateOf(mem, owner).reading.at > startedAt
   if (result.utilization !== null && account !== null && owner !== null && !newerReading) setReading(env, mem, { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account })
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
-  await recordExit(env, exit, result)
+  const { headAfter, gate } = await recordExit(env, exit, result)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
@@ -2367,8 +2428,6 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   }
   // A Codex order starts cold, so its session is no resume point.
   if (kind !== "find" && result.sessionId && !codex) await recordSession(env, ticket, exit, result.sessionId).catch((error) => log(env, item, "error", `the session is not recorded: ${error.message}`))
-  // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
-  if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
   if (kind === "replan") {
     await applyReplan(env, mem, states, exit, ticket, textOf(tail))
@@ -2382,8 +2441,8 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   }
   const shas = (await gitText(env, worktree, ["log", "--format=%H", `${headBefore}..HEAD`])).split("\n").filter(Boolean).reverse()
   const found = findPullByBranch(states, branch)
-  const number = prNumber ?? found?.pull.number ?? Number((await env.gh(["pr", "list", "--repo", env.slugOf(repoKey), "--head", branch, "--json", "number", "--jq", ".[0].number"])).trim())
-  if (shas.length > 0 && Number.isInteger(number) && number > 0 && result.sessionId) await recordCommits(env, repoKey, number, result.sessionId, shas)
+  // A worker commits and exits. The branch waits in `pushes.json` for the push of the driver, which opens the pull request of a new branch.
+  if (shas.length > 0 && headAfter !== null) queuePush(env, { repoKey, branch, kind, ticketNumber: ticket.number, partNumber: partNumber ?? null, prNumber: prNumber ?? found?.pull.number ?? null, head: headAfter, finishedAt: new Date(env.now()).toISOString(), gate, worktree, sessionId: result.sessionId ?? null, shas })
 }
 
 /**
@@ -2899,7 +2958,8 @@ const reapExits = async (env, mem) => {
   // belongs to no account, so the records wait for the tick that reads it.
   if (env.dryRun || mem.account === null) return []
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
-  if (gone.length === 0) return []
+  // A branch that a restart left in `pushes.json` gets its push in this tick too.
+  if (gone.length === 0 && readPushes(env).length === 0) return []
   const { tickets, states, unknown } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
     // The record of a repository that this read could not see waits for the next tick.
@@ -2914,6 +2974,7 @@ const reapExits = async (env, mem) => {
     mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
+  await pushFinished(env, mem, tickets)
   return unknown
 }
 
@@ -3402,6 +3463,12 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     log: (line) => console.log(line),
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
+    // The push and the `gh pr create` of the driver run with the worker token, so the pull request has the author that the worker had.
+    workerRun: async (cwd, file, args) => {
+      const token = await workerApi.readWorkerToken()
+      if (token === null) return { status: 1, stdout: "", stderr: "the worker token is missing from the Keychain" }
+      return runBounded(file, args, { cwd, env: { ...workerApi.workerEnvironmentFor(process.env, token), GIT_TERMINAL_PROMPT: "0" }, timeoutMs: 300 * 1000 })
+    },
     findRepositories,
     dependencies: installDependencies,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),

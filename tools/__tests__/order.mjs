@@ -88,20 +88,23 @@ export const cases = async () => {
   const sized = renderOrder({ kind: "build part", ticket: TICKET, partComments: fiveParts, place: PLACE, partNumber: 2 })
   same("lib/order.mjs: a build part order holds the size line once", sized.split(SIZE).length - 1, 1)
   const build = renderBrief({ kind: "build", place: PLACE, ticket: TICKET })
-  T("lib/order.mjs: a build brief says to commit and push after each finished step and to open the pull request after the first push", build.includes("Commit and push after each finished step, and open the pull request after the first push."))
+  T("lib/order.mjs: a build brief says to commit, push nothing and write the pull request text for the driver", build.includes("Commit after each coherent piece. Push nothing and open no pull request. The driver pushes your commits and opens one non-draft pull request.") && !build.includes("Commit and push after each finished step"))
   const fix = renderBrief({ kind: "fix", place: PLACE, ticket: TICKET })
-  T("lib/order.mjs: a fix brief says to push to the open pull request and does not say to open one", !fix.includes("open the pull request after the first push") && fix.includes("Push to the branch of the open pull request."))
+  T("lib/order.mjs: a fix brief says to commit to the open pull request, push nothing and write no pull request text", fix.includes("Commit the fix to the branch of the open pull request. Push nothing and open no pull request. The driver pushes your commits.") && !fix.includes("orbit-pull.md"))
   const stated = ["never \`Closes\`", "--no-verify", "CI runs every full suite", "Never start Vitest without a file name", "Never run the complete tools suite", "node tools/test-tools.mjs", "against \`BRAND.md\`", "needs the label \`parity:exempt\`"]
   T("lib/order.mjs: a brief holds no line that CLAUDE.md already states", ORDER_KINDS.every((kind) => { const brief = renderBrief({ kind, place: PLACE, ticket: TICKET }); return stated.every((line) => !brief.includes(line)) }))
   T("lib/order.mjs: a build brief keeps the facts that CLAUDE.md does not state", build.includes("Tracks owner/tickets#9") && build.includes("Remaining: none") && build.includes("Start Vitest with `--run` and a file name.") && build.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
 
-  const OWN_WRITES = "on the pull request of your own branch, `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`). Start the Bash call with that command, from your working tree, with no `-R`."
+  const OWN_WRITES = "`gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`), on the pull request of your own branch. Start the Bash call with that command, from your working tree, with no `-R`."
   for (const kind of ORDER_KINDS.filter((name) => name !== "find" && name !== "replan")) {
     const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
-    T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
+    const fixes = kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
+    T(`lib/order.mjs: the ${kind} brief ${fixes ? "allows the edit and the comment of its own pull request" : "writes nothing to GitHub"}`, fixes ? brief.includes(OWN_WRITES) : brief.includes("Write nothing to GitHub.") && !brief.includes("gh pr edit"))
     T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
-    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."))
+    T(`lib/order.mjs: the ${kind} brief ${fixes ? "tells the worker to fix a PR Metadata failure and never to ask the owner for it" : "says that the driver reads the PR Metadata check after the push"}`, fixes
+      ? brief.includes("When the failing check is `PR Metadata`, fix the body or the label yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file`. Never end with `NEEDS_DECISION` for a pull request body or label.")
+      : brief.includes("The driver reads the `PR Metadata` check after it pushes."))
   }
   T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 
