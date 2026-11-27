@@ -157,6 +157,38 @@ const postCases = () => {
   same("worker-size-hook: a new file at 30 files gets a block", JSON.parse(thirtieth.stdout).reason, "The diff is at 30 lines and 30 files. Undo the change to f29.ts. Change only files that are already in the diff.")
 }
 
+/** A path that leaves the diff for a call and comes back is not new scope: a stash and its pop, or a checkout of another commit and back. */
+const returnCases = () => {
+  const { directory, write, git, pre, post } = worktree("return")
+  write("kept.ts", lines(10))
+  write("a.ts", lines(5))
+  post("Edit")
+  write("a.ts", lines(290))
+  git("add", "a.ts")
+  git("commit", "-q", "-m", "work")
+  T("worker-size-hook: a commit that brings a held file to 301 lines blocks nothing", post("Bash", { command: "git commit" }).stdout === "")
+  git("stash", "push", "-q", "-m", "size-hook-return")
+  T("worker-size-hook: a stash at 301 lines blocks nothing", post("Bash", { command: "git stash" }).stdout === "")
+  git("stash", "pop", "-q")
+  const popped = post("Bash", { command: "git stash pop" })
+  T("worker-size-hook: a stash pop that brings back a held file at 301 lines blocks nothing", popped.status === 0 && popped.stdout === "", popped.stdout)
+  T("worker-size-hook: the next call after the stash pop blocks nothing", post("Read").stdout === "")
+  git("commit", "-q", "-am", "kept")
+  git("checkout", "-q", "origin/main")
+  T("worker-size-hook: a checkout of the base commit blocks nothing", post("Bash", { command: "git checkout origin/main" }).stdout === "")
+  git("checkout", "-q", "work")
+  const back = post("Bash", { command: "git checkout work" })
+  T("worker-size-hook: a checkout back to the branch at 301 lines blocks nothing", back.status === 0 && back.stdout === "", back.stdout)
+  write("a.ts", lines(300))
+  post("Edit")
+  git("checkout", "origin/main", "--", "kept.ts")
+  T("worker-size-hook: a restore of a held file to the base blocks nothing", post("Bash", { command: "git checkout origin/main -- kept.ts" }).stdout === "")
+  T("worker-size-hook: at 300 lines an Edit of a held file that the restore took out of the diff is allowed", denied(pre("Edit", { file_path: join(directory, "kept.ts"), old_string: "a", new_string: "b" })) === null)
+  same("worker-size-hook: at 300 lines a Write of a path that the worktree never held is still denied", denied(pre("Write", { file_path: join(directory, "new.ts"), content: "x" })), capText(300, 1))
+  write("new.ts", lines(5))
+  same("worker-size-hook: a path that the worktree never held still gets a block after the return", JSON.parse(post("Write").stdout || "{}").reason, "The diff is at 305 lines and 2 files. Undo the change to new.ts. Change only files that are already in the diff.")
+}
+
 /** An EF Core migration, a model snapshot and an OpenAPI document are written by a tool in the api repository, so they count 0. */
 const generatedCases = () => {
   const { directory, write, pre, post } = worktree("generated")
@@ -209,6 +241,7 @@ export const cases = async () => {
   fileCapCases()
   hardCapCases()
   postCases()
+  returnCases()
   generatedCases()
   entryCases()
   settingsCases()

@@ -114,10 +114,10 @@ const shellAllowedAtCap = (command) => {
 }
 
 /**
- * Why the call may not run, or null. `input` is the PreToolUse input and `counted` is the measure of its worktree. A new path
- * is a path that the diff does not hold. At the soft cap or at the file cap no new path is allowed. At the hard cap no file
- * in the worktree changes, and only `git`, a gate command and a `gh pr` delivery call run. A file outside the worktree adds
- * nothing to the diff, so a worker can still write the text of its pull request there.
+ * Why the call may not run, or null. `input` is the PreToolUse input and `counted` is the measure of its worktree, with
+ * every path that it held. A new path is a path that the worktree never held. At the soft cap or at the file cap no new path
+ * is allowed. At the hard cap no file in the worktree changes, and only `git`, a gate command and a `gh pr` delivery call run.
+ * A file outside the worktree adds nothing to the diff, so a worker can still write the text of its pull request there.
  */
 export const preDenial = (input, counted) => {
   const tool = input.tool_name
@@ -143,9 +143,12 @@ const readRecord = (counted) => {
   }
 }
 
+/** Every path that this worktree held in the diff: the paths of the record and the paths of the diff now. */
+const heldPaths = (previous, counted) => [...new Set([...(previous?.paths ?? []), ...counted.paths])]
+
 /**
- * The block reason of a PostToolUse call, or null. `before` is the paths that the last record held. A call that added a path
- * at the soft cap or at the file cap gets the reason that names each added path.
+ * The block reason of a PostToolUse call, or null. `before` is every path that this worktree held in the diff before the call.
+ * A call that added a path at the soft cap or at the file cap gets the reason that names each added path.
  */
 export const postReason = (counted, before) => {
   if (before === null) return null
@@ -156,14 +159,16 @@ export const postReason = (counted, before) => {
 
 /**
  * Writes the count to `<git dir>/orbit-size.json` (`{ lines, files, head, at, paths }`) and returns the block reason, or null.
- * After a block the record keeps the paths of the earlier record, so each later call blocks until the worker undoes the new path.
+ * The record keeps every path that the diff held, so a path that leaves the diff for a call (a stash, a checkout of another
+ * commit) and comes back is not new scope. After a block the record keeps the earlier paths, so each later call blocks until
+ * the worker undoes the new path.
  * The rename is atomic, so a hook that runs at the same time never reads half a file.
  */
 export const recordCount = (counted, now = new Date()) => {
   const previous = readRecord(counted)
   const reason = postReason(counted, previous?.paths ?? null)
   const head = git(counted.top, ["rev-parse", "HEAD"])
-  const record = { lines: counted.lines, files: counted.files, head, at: now.toISOString(), paths: reason === null ? counted.paths : previous.paths }
+  const record = { lines: counted.lines, files: counted.files, head, at: now.toISOString(), paths: reason === null ? heldPaths(previous, counted) : previous.paths }
   writeFileSync(`${recordFile(counted)}.${process.pid}`, JSON.stringify(record))
   renameSync(`${recordFile(counted)}.${process.pid}`, recordFile(counted))
   return reason
@@ -182,7 +187,8 @@ const main = () => {
     if (event !== "pre" && event !== "post") throw new Error(`the first argument is pre or post, not ${event}`)
     const input = JSON.parse(readFileSync(0, "utf8"))
     const counted = measure(input.cwd)
-    const reason = event === "pre" ? preDenial(input, counted) : recordCount(counted)
+    // A path that this worktree held is not new scope, also when a stash or a restore took it out of the diff for now.
+    const reason = event === "pre" ? preDenial(input, { ...counted, paths: heldPaths(readRecord(counted), counted) }) : recordCount(counted)
     if (reason !== null) process.stdout.write(`${JSON.stringify(event === "pre" ? denyOutput(reason) : blockOutput(reason))}\n`)
     return
   } catch (error) {
