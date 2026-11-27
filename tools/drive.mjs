@@ -106,6 +106,10 @@ const FLAKE_LOG_LINES = 40
 const BASE_COMMIT_LIMIT = 30
 const MERGED_TTL_MS = 10 * 60 * 1000
 const MERGED_READS_PER_TICK = 10
+/** The pull requests of one tick that the plan reads at the same time. */
+const PLAN_PARALLEL = 4
+/** How long a tick waits for the pull request plan before a free slot takes an admitted build order. */
+const PLAN_WINDOW_MS = 15 * 1000
 const REMAINING_NONE = /^Remaining: none\s*$/m
 const REMAINING_LINE = /^Remaining:.*$/m
 /** A Remaining item that only the owner, another ticket or a release can meet starts with `owner:` or `blocked by` and a ticket reference. */
@@ -895,13 +899,25 @@ const checkOnlyPlan = ({ pull, runs, now, request }) => {
   return sent.length === 1 ? { ...request(PLAIN_REQUEST), record } : { type: "needs-owner", reason: "Pullfrog gave no pullfrog-approval check after two requests at this head" }
 }
 
+/** One read for each key in a tick: every caller of a key shares the first read. `env.reads` is new at the start of each tick. */
+const readOnce = (env, key, read) => {
+  if (!env.reads.has(key)) env.reads.set(key, read())
+  return env.reads.get(key)
+}
+
+/** The failed log of a workflow run, read once for each run in a tick. */
+const failedLogText = (env, repoKey, runId) => readOnce(env, `log ${repoKey} ${runId}`, () => env.gh(["run", "view", String(runId), "--repo", env.slugOf(repoKey), "--log-failed"]))
+
+/** The log of one job, read once for each job in a tick. */
+const jobLogText = (env, repoKey, jobId) => readOnce(env, `job log ${repoKey} ${jobId}`, () => env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/jobs/${jobId}/logs`]))
+
 /**
  * The last lines of the log of one job, up to its last error. The read names the job: the tail of a run log holds only one of
  * its failed jobs, and after a rerun `gh run view --job` prints the log of the newer attempt.
  */
 const failedLogLines = async (env, repoKey, jobId) => {
   try {
-    const lines = (await env.gh(["api", `repos/${env.slugOf(repoKey)}/actions/jobs/${jobId}/logs`])).split("\n")
+    const lines = (await jobLogText(env, repoKey, jobId)).split("\n")
     const lastError = lines.findLastIndex((line) => line.includes("##[error]"))
     return lines.slice(0, lastError === -1 ? lines.length : lastError + 1).slice(-120)
   } catch {
@@ -1128,33 +1144,65 @@ const isWaiting = (env, pull, tickets) => {
   return !pull.draft && (pull.tracks !== null || pull.author === "dependabot") && !pull.labels.includes(OWNER) && !ticket?.labels.includes(OWNER) && !heldByReport(env, pull, ticket)
 }
 
-/** Plans and runs the actions of every open pull request of one repository. Returns the order candidates. While the weekly stop holds, a Pullfrog request waits. */
-const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped }) => {
+/** The pull requests of a repository that the plan reads: tracked or not, in number order. */
+const planOrder = (state) => [...state.pulls].sort((left, right) => left.number - right.number)
+
+/**
+ * Plans every open pull request of one repository, up to `PLAN_PARALLEL` of the tick at once, and writes nothing. The
+ * repository's Pullfrog runs come from one list for all its pull requests. Returns one entry for each pull request, in
+ * number order: its plan and whether its failed Pullfrog runs name a usage limit, or the error that the plan met.
+ */
+const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running }
-  const orders = []
-  const repoPath = env.config.repos[repoKey]
   // The release train builds mobile from main, so a ui merge waits while the train holds its mobile steps.
   const hold = repoKey === "ui" ? mobileMergeHold(readTrainState(env.stateDir)) : null
-  for (const pull of [...state.pulls].sort((left, right) => left.number - right.number)) {
+  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), now: env.now(), merged: false, running, hold }
+  const repoPath = env.config.repos[repoKey]
+  const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
     try {
-      const runs = pull.draft ? [] : await env.github.pullfrogRunsFor(repoKey, pull.number)
+      // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
+      const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey)), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
-      const planned = await planPull(env, mem, { ...ctx, runs }, pull)
-      const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
-      let mergeHeld = false
-      const plan = hold === null ? stoppedPlan : stoppedPlan.map((action) => {
-        if (action.type !== "merge") return action
-        mergeHeld = true
-        log(env, item, "merge held", `release train ${hold.id} ships mobile at ${hold.sha}`)
-        return { type: "none", reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` }
-      })
+      const planAgain = async () => {
+        const planned = await planPull(env, mem, { ...ctx, runs }, pull)
+        const stoppedPlan = stopped ? planned.map((action) => (action.type === "request" ? { type: "none", reason: "the weekly usage stop holds Pullfrog requests" } : action)) : planned
+        return hold === null ? stoppedPlan : stoppedPlan.map((action) => (action.type === "merge" ? { type: "none", held: true, reason: `merge held, release train ${hold.id} ships mobile at ${hold.sha}` } : action))
+      }
+      const plan = await planAgain()
       const newestRequest = requestsOf(pull).reduce((newest, entry) => (entry.createdAt > newest ? entry.createdAt : newest), "")
       // A run from before the newest request is settled history: a request that came after it started a new run.
-      const pausedByLog = await pullfrogLimit(env, mem, tickets, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
-      env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${pausedByLog ? " (Pullfrog hit a usage limit)" : ""}`)
+      const limit = await readPullfrogLimit(env, mem, repoKey, runs.filter((run) => Date.parse(run.createdAt) >= Date.parse(newestRequest)))
+      // The act step applies the limit only after every plan ends. This flag tells the early launch at once.
+      if (limit.found) limitSeen.found = true
+      return { pull, item, plan, limit, ownerAtPlan, planAgain }
+    } catch (error) {
+      return { pull, item, error }
+    }
+  }
+  return { ctx, planned: Promise.all(planOrder(state).map((pull) => gate(() => planOne(pull)))) }
+}
+
+/** Runs the plans of one repository in number order. Returns the order candidates. The first merge ends the repository's turn. */
+const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
+  const orders = []
+  for (const { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain } of planned) {
+    if (error) {
+      log(env, item, "error", error.message)
+      continue
+    }
+    try {
+      for (const id of limit.read) mem.checkedRuns.add(id)
+      if (limit.found) await applyPullfrogLimit(env, mem, tickets, ctx.repoKey, limit.found)
+      // A plan writes nothing, so a second plan against the label that an earlier pull request set is safe.
+      // The first plan marked the threads resolved in memory, so its resolve step stays.
+      const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
+      const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
+      const mergeHeld = plan.some((action) => action.held)
+      if (mergeHeld) log(env, item, "merge held", `release train ${ctx.hold.id} ships mobile at ${ctx.hold.sha}`)
+      env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
       try {
         for (const action of plan) {
           if (action.type === "order") orders.push(action)
@@ -1169,38 +1217,73 @@ const pullActions = async (env, mem, repoKey, state, tickets, { running, stopped
         // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
         if (!mergeHeld && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
-    } catch (error) {
-      log(env, item, "error", error.message)
+    } catch (failure) {
+      log(env, item, "error", failure.message)
     }
     if (ctx.merged) break
   }
   return orders
 }
 
-/** A failed Pullfrog run is read once: a usage-limit message pauses the driver. */
-const pullfrogLimit = async (env, mem, tickets, repoKey, runs) => {
+/** Plans the pull requests of every repository at the same time, then runs their actions one repository after another. Never rejects. */
+const pullActions = async (env, mem, states, tickets, { running, stopped, limitSeen }) => {
+  const gate = createGate(PLAN_PARALLEL)
+  const plans = states.map((state) => ({ ...planPullRequests(env, mem, state.repositoryKey, state, tickets, { running, stopped, gate, limitSeen }), tickets }))
+  const orders = []
+  for (const plan of plans) orders.push(...await actOnPlans(env, mem, { ...plan, planned: await plan.planned }))
+  return orders
+}
+
+/** A function that runs at most `limit` tasks at once and queues the rest in order. */
+const createGate = (limit) => {
+  let active = 0
+  const queue = []
+  const next = () => {
+    if (active >= limit || queue.length === 0) return
+    active += 1
+    const { task, resolve, reject } = queue.shift()
+    task().then(resolve, reject).finally(() => { active -= 1; next() })
+  }
+  return (task) => new Promise((resolve, reject) => { queue.push({ task, resolve, reject }); next() })
+}
+
+/** True when the promise settles within `ms`. */
+const settledWithin = async (promise, ms) => {
+  let timer
+  const timeout = new Promise((resolve) => { timer = setTimeout(() => resolve(false), ms) })
+  try { return await Promise.race([promise.then(() => true, () => true), timeout]) } finally { clearTimeout(timer) }
+}
+
+/**
+ * Reads the failed Pullfrog runs that no earlier tick read, until one log names a usage limit. Writes nothing: `read` lists the
+ * run ids that were read and `found` is the limit that a log named, or null. The act step marks the runs and pauses.
+ */
+const readPullfrogLimit = async (env, mem, repoKey, runs) => {
+  const read = []
   for (const run of runs.filter((entry) => entry.status === "completed" && entry.conclusion === "failure" && !mem.checkedRuns.has(entry.databaseId))) {
     let logText
     try {
-      logText = await env.gh(["run", "view", String(run.databaseId), "--repo", env.slugOf(repoKey), "--log-failed"])
+      logText = await failedLogText(env, repoKey, run.databaseId)
     } catch (error) {
       // A log that was not read is read again on the next tick: only a read log marks its run as checked.
       log(env, repoKey, "pullfrog-log-unread", error.message)
       continue
     }
-    mem.checkedRuns.add(run.databaseId)
+    read.push(run.databaseId)
     // A run that stops at a limit ends on the message. Text that the run only read or echoed sits far before the end.
     const found = workerApi.usageLimitIn(logText.split("\n").slice(-PULLFROG_LOG_END_LINES).join("\n"))
-    if (found) {
-      // Pullfrog runs on the main account. With a second account only the main account stops, and the worker account keeps its slots.
-      if (knownAccounts(mem).length > 1) {
-        log(env, repoKey, "pullfrog-limit", found.message)
-        if (!env.dryRun) await stopAccount(env, mem, MAIN, limitEnd(env, mem, MAIN), "Pullfrog hit a usage limit")
-      } else await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
-      return true
-    }
+    if (found) return { read, found }
   }
-  return false
+  return { read, found: null }
+}
+
+/** A usage limit in a Pullfrog log stops the account that Pullfrog runs on, or pauses the driver. */
+const applyPullfrogLimit = async (env, mem, tickets, repoKey, found) => {
+  // Pullfrog runs on the main account. With a second account only the main account stops, and the worker account keeps its slots.
+  if (knownAccounts(mem).length > 1) {
+    log(env, repoKey, "pullfrog-limit", found.message)
+    if (!env.dryRun) await stopAccount(env, mem, MAIN, limitEnd(env, mem, MAIN), "Pullfrog hit a usage limit")
+  } else await pauseDriver(env, mem, tickets, { source: "Pullfrog", ...found })
 }
 
 const gitText = async (env, cwd, args) => {
@@ -1671,12 +1754,14 @@ const ownerWorkNotices = async (env, mem, tickets) => {
 /**
  * Walks the open tickets in rank order and returns the build and find orders that fit `room`, the free worker slots, with
  * the decision for each ticket. `full` is the reason that a ticket waits once the room is used. A ticket whose worker runs
- * on its branch, or whose launches are spent, never gets a second order.
+ * on its branch, or whose launches are spent, never gets a second order. A ticket in `skip` gets no order and no decision,
+ * and it stays in `tickets`, so a `runs-last` ticket still waits for it.
  */
-const admit = async (env, mem, tickets, states, { running, room, full }) => {
+const admit = async (env, mem, tickets, states, { running, room, full, skip = new Set() }) => {
   const decisions = new Map()
   const chosen = []
   for (const ticket of rankTickets(tickets)) {
+    if (skip.has(ticket.number)) continue
     const verdict = await ticketVerdict(env, mem, states, tickets, ticket, { settled: chosen.length >= room ? full : null, running })
     if (verdict.reason) {
       decisions.set(ticket.number, verdict.owner ? `needs:owner: ${verdict.reason}` : `wait: ${verdict.reason}`)
@@ -1731,13 +1816,13 @@ const decidePace = (env, mem, running, allowances, name, unpaced = []) => {
   return { ...pace, name, key: state.account?.key ?? null, weekly: pace.stopped, limitedUntil: state.stoppedUntil, stopped, running: busy, free: stopped ? 0 : Math.max(0, pace.slots - busy) }
 }
 
-/** One log line with both accounts: each by its key, with its utilization, line, slots, running and free workers and stop state. */
-const logPace = (env, paces) => {
+/** One log line with both accounts: each by its key, with its utilization, line, slots, running and free workers and stop state, and the seconds that the tick took. */
+const logPace = (env, paces, startedAt) => {
   const figure = (value) => (value === null ? "unknown" : value.toFixed(3))
   const describeAccount = (pace) => (pace.state === "absent"
     ? `${pace.name} none`
     : `${pace.name} ${pace.key ?? "unknown"}: utilization ${figure(pace.utilization)}, line ${figure(pace.line)}, slots ${pace.slots}, running ${pace.running}, free ${pace.free}, stop ${pace.stopped ? "yes" : "no"}${pace.limitedUntil === null ? "" : ` (usage limit until ${new Date(pace.limitedUntil).toISOString()})`}`)
-  log(env, "pace", paces.main.state, ACCOUNT_NAMES.map((name) => describeAccount(paces[name])).join("; "))
+  log(env, "pace", paces.main.state, `${ACCOUNT_NAMES.map((name) => describeAccount(paces[name])).join("; ")}; tick ${Math.round((env.clock() - startedAt) / 1000)}s`)
 }
 
 /** The allow file of the owner session: for each account, the week (its `resetsAt`) in which the driver continues over 90%. The main account fills the top level, the worker account `worker`. */
@@ -1821,8 +1906,7 @@ const intake = async (env, mem) => {
 /** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
 const readWorld = async (env, mem) => {
   const tickets = await env.github.readTickets()
-  const states = []
-  for (const key of REPOSITORY_KEYS) states.push(await env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }))
+  const states = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] })))
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
   return { tickets, states }
 }
@@ -1918,7 +2002,9 @@ const startQuestions = async (env, mem, { tickets, states, blocked }) => {
 }
 
 export const tick = async (env, mem) => {
+  const startedAt = env.clock()
   env.lines = []
+  env.reads = new Map()
   mem.acted = false
   mem.waiting = []
   await sendPending(env)
@@ -1956,35 +2042,65 @@ export const tick = async (env, mem) => {
   }
   // The weekly stop of the main account holds Pullfrog requests, and its issue is the owner's to lift.
   if (account.ok) await syncStop(env, tickets, paces.main)
-  logPace(env, paces)
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
-  const orders = []
-  for (const state of states) orders.push(...await pullActions(env, mem, state.repositoryKey, state, tickets, { running, stopped: paces.main.stopped }))
+  const free = { main: paces.main.free, worker: paces.worker.free }
+  const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
+  const unstarted = []
+  // The plan of this tick can open the pause issue, so each launch reads the hold again.
+  const held = () => paused || pauseIssue(tickets) || !account.ok
+  // The worker account takes a launch when it has a free slot, else the main account.
+  // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
+  const limitSeen = { found: false }
+  // The tickets whose order reached `startWorker`. An early order that never got there goes back to the late admission.
+  const reached = new Set()
+  const LIMIT_STOP = "a Pullfrog limit stops the main account"
+  // Returns the reason that the launches stopped before the end of the list, or null.
+  const launchAll = async (launchable, { early = false } = {}) => {
+    for (const order of launchable) {
+      if (held()) return "the driver is paused"
+      if (early && limitSeen.found) return LIMIT_STOP
+      const name = free.worker > 0 ? WORKER : MAIN
+      if (limitSeen.found && name === MAIN) return LIMIT_STOP
+      reached.add(order.ticket.number)
+      const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      if (reason === null) { mem.acted = true; free[name] -= 1 }
+      else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
+    }
+    return null
+  }
+  const planning = pullActions(env, mem, states, tickets, { running, stopped: paces.main.stopped, limitSeen })
+  planning.catch(() => {})
+  // A fix order of an open pull request goes first. While the plan is slow, a free slot takes an admitted build order, so no slot waits for the plan.
+  const admitted = { chosen: [], decisions: new Map() }
+  const slotsAtStart = free.main + free.worker
+  if (!env.dryRun && !held() && slotsAtStart > 0 && !await settledWithin(planning, env.planWindowMs ?? PLAN_WINDOW_MS) && !held() && !limitSeen.found) {
+    log(env, "tick", "early-launch", `the pull request plan runs, ${slotsAtStart} free slot(s) take build orders first`)
+    // A tick that ends before its plan lets the next tick act on the same pull requests again, so this failure never ends the tick.
+    Object.assign(admitted, await admit(env, mem, tickets, states, { running, room: slotsAtStart, full }).catch((error) => (log(env, "tick", "early-launch-error", error.message), {})))
+    await launchAll(admitted.chosen, { early: true })
+  }
+  const orders = await planning
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
   const closed = await closeFinishedTickets(env, mem, tickets, states)
   const holdReason = paused || pauseIssue(tickets) ? "the driver is paused" : account.ok ? null : account.reason
-  const free = { main: paces.main.free, worker: paces.worker.free }
   const room = holdReason ? 0 : free.main + free.worker
   const fixOrders = room === 0 ? [] : orders.filter((order) => !running.branches.has(order.pull.headRef)).sort((left, right) => left.pull.number - right.pull.number).slice(0, room)
-  const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
   const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
-  const { chosen, decisions } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full })
+  const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached })
+  const decisions = new Map([...admitted.decisions, ...later])
   for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
   if (env.dryRun) env.lines.push(await nextTicketLine(env, mem, stillOpen, states, running))
-  const launchable = [...fixOrders, ...chosen]
-  const unstarted = []
   if (!env.dryRun) {
-    for (const order of launchable) {
-      // The worker account takes a launch when it has a free slot, else the main account.
-      const name = free.worker > 0 ? WORKER : MAIN
-      const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
-      if (reason === null) { mem.acted = true; free[name] -= 1 }
-      else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
+    const stoppedBy = await launchAll([...fixOrders, ...chosen])
+    // A ticket line never says admit for an order that no launch reached.
+    for (const { ticket } of chosen.filter((order) => !reached.has(order.ticket.number))) {
+      const prefix = `ticket ${env.config.tickets.repository}#${ticket.number}: `
+      env.lines[env.lines.findIndex((line) => line.startsWith(prefix))] = `${prefix}wait: ${stoppedBy}`
     }
     await sweepWorktrees(env, mem).catch((error) => log(env, "worktrees", "error", error.message))
-    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : null)
+    const questionsBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
     await startQuestions(env, mem, { tickets, states, blocked: questionsBlock }).catch((error) => log(env, "questions", "error", error.message))
     // While the main account is stopped, its Pullfrog-bound items are a chosen hold. A failed launch stays on the clock.
     const waiting = [...(paces.main.stopped ? [] : mem.waiting), ...unstarted]
@@ -1995,6 +2111,7 @@ export const tick = async (env, mem) => {
     await intake(env, mem).catch((error) => log(env, "intake", "error", error.message))
   }
   if (env.releasePorts) await runReleaseTrain(env).catch((error) => log(env, "release", "error", error.message))
+  logPace(env, paces, startedAt)
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
   const switched = await switchDriver(env, mem).catch((error) => (log(env, "driver", "switch-error", error.message), false))
@@ -2198,7 +2315,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
   mkdirSync(join(stateDir, "logs"), { recursive: true })
   const home = homedir()
   return {
-    config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), lines: [],
+    config, dryRun, stateDir, home, github: githubApi, worker: workerApi, now: () => Date.now(), clock: () => performance.now(), lines: [],
     driverWorktree: dirname(dirname(fileURLToPath(import.meta.url))), selfUpdate: false,
     releasePorts: realPorts({ run: runBounded, toolsDirectory: dirname(fileURLToPath(import.meta.url)) }),
     smoke: async (worktree) => { const [file, ...args] = smokeArguments(worktree); return (await runBounded(file, args, { timeoutMs: 60 * 1000 })).status === 0 },
