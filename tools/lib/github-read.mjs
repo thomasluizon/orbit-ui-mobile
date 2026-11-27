@@ -93,6 +93,43 @@ const retryRead = async (operation, options) => {
 export const readGithub = (path, environment, options = {}) =>
   retryRead((settings) => attempt(["api", path, "--include"], environment, settings), options)
 
+export const REQUIRED_CHECKS_FILE = ".github/required-checks.json"
+
+/**
+ * The required status checks `{ strict, checks: [{ context, app_id }] }`, the shape of the branch protection endpoint
+ * `required_status_checks`. A null `app_id` accepts every app, and GitHub writes that as -1. Null for another shape.
+ */
+export const requiredChecksOf = (value) => {
+  if (typeof value?.strict !== "boolean" || !Array.isArray(value.checks) || value.checks.length === 0) return null
+  const valid = value.checks.every((check) => typeof check?.context === "string" && check.context !== "" &&
+    (check.app_id === null || check.app_id === -1 || (Number.isInteger(check.app_id) && check.app_id > 0)))
+  if (!valid) return null
+  return { strict: value.strict, checks: value.checks.map((check) => ({ context: check.context, app_id: check.app_id === -1 ? null : check.app_id })) }
+}
+
+/**
+ * The required checks file at a ref, read through the gh runner `run`. Null when the ref holds no file. `required` is null
+ * when the file holds another shape.
+ */
+export const readRequiredChecksAt = async (slug, ref, run) => {
+  const path = `repos/${slug}/contents/${REQUIRED_CHECKS_FILE}?ref=${encodeURIComponent(ref)}`
+  let output
+  try {
+    output = await run(["api", path])
+  } catch (error) {
+    if (/\bHTTP 404\b/.test(error.message)) return null
+    throw error
+  }
+  const file = JSON.parse(output)
+  if (file.encoding !== "base64") throw new Error(`GitHub read ${path} returned no base64 content`)
+  try {
+    return { required: requiredChecksOf(JSON.parse(Buffer.from(file.content, "base64").toString("utf8"))) }
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error
+    return { required: null }
+  }
+}
+
 export const readGithubPull = (slug, number, environment, options = {}) => retryRead(async (settings) => {
   try {
     return await attempt(["api", `repos/${slug}/pulls/${number}`, "--include"], environment, settings)
