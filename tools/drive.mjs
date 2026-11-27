@@ -142,11 +142,13 @@ const recordsOf = (ticket, kind) => (ticket?.comments ?? []).filter((entry) => e
 /**
  * The launch records on a ticket, read in comment order. A `launch-refund` comment takes back the newest launch of its branch and
  * kind that comes before it: a worker that ended on a usage limit did no work, so its launch counts toward no cap.
+ * A launch comment at or before `since` (epoch milliseconds) is not read.
  */
-export const launchesOf = (ticket) => {
+export const launchesOf = (ticket, since = 0) => {
   const launches = []
   for (const entry of ticket?.comments ?? []) {
     if (entry.kind !== "launch" && entry.kind !== "launch-refund") continue
+    if (Date.parse(entry.createdAt) <= since) continue
     let record
     try { record = JSON.parse(bodyAfterMarker(entry)) } catch { continue }
     if (entry.kind === "launch") { launches.push(record); continue }
@@ -336,6 +338,15 @@ const readQuestionsStart = (stateDir) => {
 
 /** The time of the newest comment of a kind in epoch milliseconds, or 0 when no comment has that kind. */
 const newestOf = (comments, kind) => Math.max(0, ...comments.filter((entry) => entry.kind === kind).map((entry) => Date.parse(entry.createdAt)).filter(Number.isFinite))
+
+/**
+ * The time of the newest `owner-answer` comment of the owner on a ticket, in epoch milliseconds, or 0 when the owner gave none.
+ * An order that used its launches starts again after this time: the owner decided what to change.
+ */
+const ownerDecisionAt = (env, ticket) => {
+  const owner = env.config.tickets.repository.split("/")[0]
+  return newestOf(ticket.comments.filter((entry) => entry.author === owner), "owner-answer")
+}
 
 /**
  * True while a pull request with no open ticket waits on the owner: no `owner-answer` comment of the owner follows its newest
@@ -551,7 +562,9 @@ const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reaso
   const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
   log(env, item, "needs-owner", reason)
   const comments = ticket ? ticket.comments : pull.comments
-  const reported = comments.some((entry) => entry.kind === "needs-owner" && (ticket === null || bodyAfterMarker(entry).trim() === reason))
+  // A report from before the owner decision is answered, so the same reason after the decision is a new report.
+  const decidedAt = ticket ? ownerDecisionAt(env, ticket) : 0
+  const reported = comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (ticket === null || bodyAfterMarker(entry).trim() === reason))
   if (env.dryRun || (reported && !relabel)) return
   if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
@@ -1681,7 +1694,8 @@ const admit = async (env, mem, tickets, states, { running, room, full }) => {
       if (verdict.owner) await needsOwner(env, mem, { ticket, reason: verdict.owner })
       continue
     }
-    const launches = launchesOf(ticket).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
+    // The launches before the newest owner decision are answered, so a decided order gets its full count again.
+    const launches = launchesOf(ticket, ownerDecisionAt(env, ticket)).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
     if (launches.length >= MAX_ORDER_LAUNCHES) {
       decisions.set(ticket.number, "needs:owner: the order used its launches")
       await needsOwner(env, mem, { ticket, reason: `The ${verdict.order.kind} order of ${verdict.order.branch} launched ${launches.length} times without a result`, relabel: true })

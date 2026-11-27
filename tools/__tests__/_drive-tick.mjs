@@ -1447,6 +1447,20 @@ const runningWorkCases = async () => {
   await restored.run()
   same("drive: a launch-capped order whose needs:owner label the owner removed gets the label back with no new comment and no notification", [restored.launched.length, only(restored.calls, "editLabels").length, needsOwnerComments(restored.calls, 7).length, only(restored.calls, "notify").length], [0, 1, 0, 0])
 
+  // The owner decision (an owner-answer comment on the ticket) answers the launches before it, so a decided order gets its full count again.
+  const launchAt = (offset) => comment("launch", JSON.stringify({ kind: "build", part: null, branch: "chore/ticket-7" }), offset)
+  const spentOrder = [launchAt(-5 * 60 * MINUTE), launchAt(-4 * 60 * MINUTE), comment("needs-owner", "The build order of chore/ticket-7 launched 2 times without a result", -3 * 60 * MINUTE)]
+  const decision = comment("owner-answer", "Decided: fix the driver.", -2 * 60 * MINUTE)
+  const decided = scenario({ tickets: [ticket(7, { comments: [...spentOrder, decision] })] })
+  await decided.run()
+  same("drive: a build order with 2 launches before an owner decision gets 1 launch and no needs-owner action", [decided.launched.length, only(decided.calls, "editLabels").length, needsOwnerComments(decided.calls, 7).length, only(decided.calls, "notify").length], [1, 0, 0, 0])
+  const failedAgain = scenario({ tickets: [ticket(7, { comments: [...spentOrder, decision, launchAt(-90 * MINUTE), launchAt(-80 * MINUTE)] })] })
+  await failedAgain.run()
+  same("drive: a decided order with 2 more failed launches gets needs:owner and a new needs-owner comment", [failedAgain.launched.length, only(failedAgain.calls, "editLabels").length, needsOwnerComments(failedAgain.calls, 7).length, only(failedAgain.calls, "notify").length], [0, 1, 1, 1])
+  const strangerAnswer = scenario({ tickets: [ticket(7, { comments: [...spentOrder, { ...decision, author: "someone-else" }] })] })
+  await strangerAnswer.run()
+  same("drive: an owner-answer comment of another account does not start a spent order again", [strangerAnswer.launched.length, only(strangerAnswer.calls, "editLabels").length], [0, 1])
+
   // A build worker opens its pull request after the first push and keeps working, so no action of the driver may touch a pull request while a worker runs on its branch.
   const BRANCH = "chore/ticket-7-30"
   const acting = (extra, withWorker) => {
