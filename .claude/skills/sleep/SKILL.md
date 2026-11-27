@@ -7,7 +7,7 @@ argument-hint: "[off]"
 # /sleep
 
 1. Run `node tools/drive.mjs --sleep on` for `/sleep`, or `node tools/drive.mjs --sleep off` for `/sleep off`, in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive`.
-2. For `/sleep`, run `/questions --auto` next. Every held decision gets answered or decided now, so the driver has work all night.
+2. For `/sleep`, run `/questions --auto` next. Every held decision gets answered or decided now, so the driver has work all night. Record each sleep decision on its ticket with `node tools/update-ticket.mjs note --decision`, as `/questions` section 4 says.
 3. For `/sleep off`, run `/questions`. It asks the owner the questions that were queued for him.
 4. Say the state that the command printed, in one line.
 
