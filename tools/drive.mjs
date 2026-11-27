@@ -160,6 +160,8 @@ const RESTART_TITLE = "Driver restarted three times in ten minutes"
 const CHECK_SETTLE_MS = 5 * 60 * 1000
 const LOGIN_TITLE = "Driver stopped: Claude is not logged in"
 const OWNER = "needs:owner"
+/** The labels of a driver problem that needs no owner step. The harness works the ticket like any other Bug. */
+const HARNESS_BUG_LABELS = ["repo:ui", "Bug", "harness"]
 const CHANGES_REQUESTED = "CHANGES_REQUESTED"
 const PLAIN_REQUEST = "@pullfrog review"
 const CHECK_REQUEST_RECORD = "driver check request"
@@ -552,6 +554,21 @@ const openProblem = async (env, { title, body, notice }) => {
     return created
   } finally {
     await say(env, { ...notice, link })
+  }
+}
+
+/**
+ * Opens a Bug ticket for a driver problem that needs no owner step, then sends its notice with the link. It carries no
+ * `needs:owner` label and no sleep item, so the driver builds it like every other ticket. `notice` is optional.
+ */
+const openBug = async (env, { title, body, notice = null }) => {
+  let link = null
+  try {
+    const created = await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS })
+    link = issueLink(env, created.number)
+    return created
+  } finally {
+    if (notice !== null) await say(env, { ...notice, link })
   }
 }
 
@@ -2961,21 +2978,19 @@ const runTick = async (env, mem) => {
 
 const shortSha = (sha) => sha.slice(0, 9)
 
-/** The ticket writes of the release train: a held step gets one `needs:owner` ticket and one comment, a stopped train one Bug ticket. */
+/** The ticket writes of the release train: a held step and a stopped train each get one harness Bug ticket. */
 const releaseTickets = (env) => ({
   bug: async ({ title, body, repoKey }) => {
     const created = await env.github.createTicket({ title, body, labels: [`repo:${repoKey}`, "Bug"] })
     await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release stopped.", cut(title, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
-  hold: async ({ title, reason, repoKey }) => {
-    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", OWNER, "--json", "number,title", "--limit", "100"]))
+  hold: async ({ title, reason }) => {
+    const open = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--label", "harness", "--json", "number,title", "--limit", "100"]))
     const known = open.find((ticket) => ticket.title === title)
     if (known) return known.number
-    const created = await env.github.createTicket({ title, body: reason, labels: [`repo:${repoKey}`, OWNER] })
-    await env.github.comment("tickets", created.number, marked("needs-owner", reason))
-    holdItem(env, { link: issueLink(env, created.number), reason })
-    await say(env, { key: `issue ${created.number}`, lines: ["Orbit needs you: a release is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
+    const created = await openBug(env, { title, body: reason })
+    await say(env, { key: `issue ${created.number}`, lines: ["An Orbit release step is on hold.", cut(reason, DETAIL_LIMIT)], link: issueLink(env, created.number) })
     return created.number
   },
 })
@@ -3017,7 +3032,7 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
   log(env, "driver", "rollback", `from ${shortSha(failedSha)} to ${shortSha(previousSha)}: ${error}`)
   const title = `Driver rolled back to ${shortSha(previousSha)}`
   try {
-    await openProblem(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
+    await openBug(env, { title, body: `The driver went back from ${failedSha} to ${previousSha}. ${reason}\n\nLast error: ${error}\n\nThe driver does not switch to ${failedSha} again. A later commit of main that changes the driver is tried.`, notice: { key: `rollback ${failedSha}`, lines: ["The Orbit driver went back to its previous version because the new one failed.", cut(error, DETAIL_LIMIT)] } })
   } catch (reportError) {
     log(env, "driver", "rollback-report-failed", reportError.message)
   }
@@ -3077,7 +3092,7 @@ export const recordStart = async (env, tickets = []) => {
     forget(env, "restart")
     return false
   }
-  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openProblem(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
+  if (!tickets.some((ticket) => ticket.title === RESTART_TITLE)) await openBug(env, { title: RESTART_TITLE, body: "The driver started three times in ten minutes. Read ~/Library/Logs/brain-automations/orbit-drive.log.", notice: { key: "restart", lines: ["The Orbit driver restarted three times in ten minutes."] } })
   return true
 }
 

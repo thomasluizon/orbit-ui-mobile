@@ -280,6 +280,7 @@ const admissionCases = async () => {
 }
 
 const OWNER_LABEL = "needs:owner"
+const BUG_LABELS = ["repo:ui", "Bug", "harness"]
 
 const STOP_ISSUE_TITLE = "Driver stopped: weekly usage reached 90%"
 const pending = () => new Promise(() => {})
@@ -1820,7 +1821,7 @@ const robustnessCases = async () => {
   starts.env.stateDir = dir
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-9 * MINUTE), iso(-4 * MINUTE)]))
   const tripped = await recordStart(starts.env, [])
-  same("drive: three starts in ten minutes give one notification and one issue", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").length], [true, 1, 1])
+  same("drive: three starts in ten minutes give one notification and one harness Bug issue with no needs:owner label", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").map((entry) => entry[1].labels)], [true, 1, [BUG_LABELS]])
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-60 * MINUTE)]))
   same("drive: a start long after the last one gives no alarm", await recordStart(starts.env, []), false)
   same("drive: the start log keeps the new start", JSON.parse(readFileSync(join(dir, "starts.json"), "utf8")).length, 2)
@@ -3300,7 +3301,7 @@ const rollbackCases = async () => {
   const outcomes = []
   for (let crash = 0; crash < 3; crash++) outcomes.push(await crashOnce(rolled))
   outcomes.push(await guardStart(rolled.env))
-  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one needs:owner issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, [OWNER_LABEL]])
+  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one harness Bug issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, BUG_LABELS])
   const issue = only(rolled.calls, "createTicket")[0][1]
   T("drive: the rollback issue names both commits and the last error line", [OLD_PIN, NEW_PIN, "boom: cannot read x"].every((part) => issue.body.includes(part)), issue.body)
   same("drive: the rollback logs one line", driverLines(rolled).length, 1)
@@ -3646,7 +3647,11 @@ const releaseCases = async () => {
   const held = scenario({ releasePorts: fakePorts([], { migration: true }) })
   await held.run()
   const created = only(held.calls, "createTicket")
-  same("drive: a held API step files one needs:owner ticket for the API with one comment that names the step", [created.length, created[0]?.[1].labels, only(held.calls, "comment").length, only(held.calls, "comment")[0]?.[3].includes("api-staging")], [1, ["repo:api", "needs:owner"], 1, true])
+  same("drive: a held API step files one harness Bug ticket that names the step, with no needs:owner comment and no needs:owner label", [created.length, created[0]?.[1].labels, created[0]?.[1].body.includes("api-staging"), only(held.calls, "comment").length], [1, BUG_LABELS, true, 0])
+  same("drive: a held release step looks for an open ticket by the harness label", only(held.calls, "gh").filter((entry) => entry[1].startsWith("issue list")).map((entry) => entry[1].includes("--label harness") && !entry[1].includes(OWNER_LABEL)), [true])
+  const heldAsleep = scenario({ releasePorts: fakePorts([], { migration: true }), sleeping: true })
+  await heldAsleep.run()
+  same("drive: while sleep is on, a held release step opens a Bug ticket and writes no sleep item", [only(heldAsleep.calls, "createTicket").map((entry) => entry[1].labels), existsSync(join(heldAsleep.env.stateDir, "sleep-items.json")) ? JSON.parse(readFileSync(join(heldAsleep.env.stateDir, "sleep-items.json"), "utf8")) : []], [[BUG_LABELS], []])
   await held.run()
   same("drive: the next tick of a train with a held step files no second ticket", only(held.calls, "createTicket").length, 1)
 
