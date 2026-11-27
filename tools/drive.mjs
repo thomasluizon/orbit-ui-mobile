@@ -917,8 +917,10 @@ const checkPlan = async (env, repoKey, pull) => {
   // One rerun comes before any launch. A check that failed for a test, not for the setup, the checkout or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
   const rerun = new Map()
   for (const check of failed) {
-    const failedSteps = check.runId === null ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
-    const verdict = classifyCheckFailure({ name: check.name, failedSteps })
+    // A cancelled job never ran a failing step, so it has no failed lines to read: it gets a rerun and is no flake suspect.
+    const cancelled = check.conclusion === "CANCELLED"
+    const failedSteps = check.runId === null || cancelled ? [] : await env.github.readFailedSteps(repoKey, check.runId, check.jobId)
+    const verdict = cancelled ? "rerun" : classifyCheckFailure({ name: check.name, failedSteps })
     if (verdict === "needs-owner") return { owner: `${check.name} asks for a deployment barrier, which only the owner writes` }
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
     const owesRerun = check.runId !== null && !already
