@@ -61,12 +61,17 @@ const nextConfig: NextConfig = {
 
 const intlConfig = withNextIntl(nextConfig)
 
+// WHY: The Docker release build has no CI variable, so the plugin hid its source map upload result. A build with the token shows it.
+export function isSentryBuildSilent(env: Record<string, string | undefined>) {
+  return !env.CI && !env.SENTRY_AUTH_TOKEN
+}
+
 export default process.env.NODE_ENV === 'development'
   ? intlConfig
   : withSentryConfig(intlConfig, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
-      silent: !process.env.CI,
+      silent: isSentryBuildSilent(process.env),
       widenClientFileUpload: true,
       release: { name: process.env.NEXT_PUBLIC_WEB_COMMIT_SHA || undefined },
     })
