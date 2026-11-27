@@ -910,6 +910,7 @@ const reviewCases = async () => {
   same("drive: a pull request with a fix launch gets the whole-diff request", await owed("fix", {}, true), [`${PLAIN} whole diff`])
   same("drive: a pull request with 31 changed files gets the whole-diff request", await owed("files", { changedFiles: 31 }), [`${PLAIN} whole diff`])
   same("drive: a pull request that changes package-lock.json gets the whole-diff request", await owed("lock", { files: ["package-lock.json"] }), [`${PLAIN} whole diff`])
+  same("drive: a pull request that changes Cargo.lock gets the whole-diff request", await owed("cargo", { files: ["apps/desktop/src-tauri/Cargo.lock"] }), [`${PLAIN} whole diff`])
   same("drive: a three-file pull request with no fix round gets no whole-diff request", await owed("plain", {}), [])
   const asked = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { changedFiles: 40, comments: [comment("ticket", "T"), comment("request", `${PLAIN} whole diff`, -2 * MINUTE)], reviews: [review("APPROVED", HEAD, -10 * MINUTE)] })] } })
   await asked.run()

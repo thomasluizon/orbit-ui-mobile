@@ -34,7 +34,7 @@ Facts for `/release`, `/android-release` and `/ios-release`. The skills own the 
 ## CI facts
 
 - Read test results by exit code, never by summary text. With the locale unset, the summary prints in Portuguese.
-- In this repository, a body edit or a label change re-runs only `PR Metadata`. `Guards` and `PR Tests` run on `opened`, `synchronize` and `reopened`.
+- In this repository, a body edit re-runs only `PR Metadata`. A label change starts no run. `Guards` and `PR Tests` run on `opened`, `synchronize` and `reopened`.
 - In `orbit-api` and `orbit-landing-page`, a title or body edit re-runs `PR Text`. Its concurrency group cancels the older run.
 - A cancelled run stays on the head as a `cancelled` check run. Read only the newest check run of each check name and app.
 - A `cancelled` check run that no newer run replaced is failing. Run `gh run list --commit <sha>`, then rerun it.
