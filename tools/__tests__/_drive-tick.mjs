@@ -88,6 +88,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
+      harnessReviewInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5", "harness-review"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       logContextTokens, sessionExists: (options) => (calls.push(["sessionExists", options]), sessions),
       processDirectories: () => (calls.push(["directories"]), directories),
@@ -2878,6 +2879,107 @@ const questionsCases = async () => {
   same("drive: questions: an adopted run inside its ceiling is left alone", only(young.calls, "kill"), [])
 }
 
+const REVIEW_ORDER = "/ticket --auto --parked"
+const REVIEW_WORKTREE = "/r/orbit-worktrees/ui/harness-review"
+const HOUR = 60 * MINUTE
+const reviewRuns = (scene) => scene.launched.filter((entry) => entry.order === REVIEW_ORDER)
+const reviewLines = (scene) => scene.messages.filter((line) => / harness-review (launch|exit|wait|refused|kill)/.test(line)).map((line) => line.slice(line.indexOf(" harness-review ") + 1))
+const reviewStart = (scene) => { try { return JSON.parse(readFileSync(join(scene.env.stateDir, "harness-review.json"), "utf8")).startedAt } catch { return null } }
+const startedReviewAt = (scene, offset) => writeFileSync(join(scene.env.stateDir, "harness-review.json"), `${JSON.stringify({ startedAt: iso(offset) })}\n`)
+const reviewPidFile = (scene, offset = -MINUTE) => writeFileSync(join(scene.env.stateDir, "harness-review.pid"), `${JSON.stringify({ pid: process.pid, worktree: REVIEW_WORKTREE, startedAt: iso(offset) })}\n`)
+const parkedTicket = (number = 8, extra = {}) => ticket(number, { labels: ["repo:ui", "Improvement", "parked"], ...extra })
+
+/** The daily harness review of parked items: when it starts, how it runs, and the new branch of an item that it takes back. */
+const harnessReviewCases = async () => {
+  const reviewed = async (label, expected, options, before = () => {}) => {
+    const scene = scenario({ driver: {}, ...options })
+    before(scene)
+    await scene.run()
+    await scene.mem.harnessReview
+    same(`drive: harness review: ${label}`, reviewRuns(scene).length, expected)
+    return scene
+  }
+
+  const first = scenario({ driver: {}, tickets: [parkedTicket()], sleeping: true })
+  let finish
+  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => resolve({ exitCode: 0 }) }) }
+  await first.run()
+  const [run] = reviewRuns(first)
+  same("drive: harness review: a parked item and no review in 24 hours start exactly one run", first.launched.length, 1)
+  same("drive: harness review: the run is headless in its own worktree, with its order, pid file and log", [run.worktree, run.order, run.pidFile, run.logFile.startsWith(join(first.env.stateDir, "logs", "harness-review-"))], [REVIEW_WORKTREE, REVIEW_ORDER, join(first.env.stateDir, "harness-review.pid"), true])
+  same("drive: harness review: the run uses its own invocation on the coordinator model and the owner login", [run.invocation.command.args, run.invocation.environment.GH_TOKEN], [["--model", "claude-opus-5-5", "harness-review"], "owner-token"])
+  same("drive: harness review: the start is kept in harness-review.json and the launch is logged", [reviewStart(first), reviewLines(first)], [iso(0), ["harness-review launch"]])
+  await first.run()
+  same("drive: harness review: the next tick starts none while the run is live", reviewRuns(first).length, 1)
+  finish()
+  await first.mem.harnessReview
+  await first.run()
+  same("drive: harness review: a second tick inside 24 hours starts none after the exit, and the exit is logged", [reviewRuns(first).length, reviewLines(first)], [1, ["harness-review launch", "harness-review exit (0)"]])
+  const sleepFile = join(first.env.stateDir, "sleep-items.json")
+  same("drive: harness review: the driver sends no notice, writes no sleep item and writes nothing to GitHub for the run", [only(first.calls, "notify").length, existsSync(sleepFile), first.messages.filter((line) => line.includes("sleep held")).length, only(first.calls, "comment").length, only(first.calls, "editLabels").length], [0, false, 0, 0, 0])
+
+  await reviewed("no parked item means no run", 0, { tickets: [ticket(8)] })
+  await reviewed("a needs:owner item alone means no run", 0, { tickets: [heldTicket(8)] })
+  await reviewed("a parked pull request alone starts one run", 1, { tickets: [ticket(7)], pulls: { ui: [pull(30, { labels: ["parked"] })] } })
+  await reviewed("a start 23 hours old starts none, as after a restart", 0, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -23 * HOUR))
+  await reviewed("a start exactly 24 hours old starts none", 0, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -24 * HOUR))
+  const daily = await reviewed("a start more than 24 hours old starts one", 1, { tickets: [parkedTicket()] }, (scene) => startedReviewAt(scene, -24 * HOUR - MINUTE))
+  same("drive: harness review: the new start replaces the old one", reviewStart(daily), iso(0))
+  await reviewed("the dry run starts none", 0, { tickets: [parkedTicket()], dryRun: true })
+  const plain = scenario({ tickets: [parkedTicket()] })
+  await plain.run()
+  same("drive: harness review: a tick with no driver worktree starts none", reviewRuns(plain).length, 0)
+
+  const both = scenario({ driver: {}, tickets: [ticket(7), parkedTicket()], token: "worker-token" })
+  await both.run()
+  await both.mem.harnessReview
+  same("drive: harness review: the run takes no worker slot, so the admissible ticket starts on the worker token", both.launched.map((entry) => [entry.order === REVIEW_ORDER ? "review" : entry.worktree.split("/").at(-1), entry.invocation.environment.GH_TOKEN]).sort(), [["chore-ticket-7", "worker-token"], ["review", "owner-token"]])
+
+  const stopped = await reviewed("the main account at 90% with no allowance starts none", 0, { tickets: [parkedTicket()], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
+  await stopped.run()
+  same("drive: harness review: the stop is logged once with the parked item and the start stays unwritten", [reviewLines(stopped), reviewStart(stopped)], [["harness-review wait (the main account is stopped: ticket#8)"], null])
+  await reviewed("the main account at 90% with the allowance starts one", 1, { tickets: [parkedTicket()], reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE }, allowance: { resetsAt: RESETS_AT } })
+  await reviewed("a signed-out login starts none", 0, { tickets: [parkedTicket()], auth: { ...AUTH, loggedIn: false } })
+  const noLogin = await reviewed("a missing owner login starts none, also with a worker token", 0, { tickets: [parkedTicket()], ownerToken: null, token: "worker-token" })
+  same("drive: harness review: a missing owner login is logged and the start stays unwritten", [reviewLines(noLogin), reviewStart(noLogin)], [["harness-review refused (no owner gh login: run gh auth login)"], null])
+  await reviewed("a live run of an earlier driver process holds the next one back", 0, { tickets: [parkedTicket()] }, (scene) => reviewPidFile(scene))
+
+  const switching = driverScene({ tickets: [parkedTicket()] })
+  let leave = () => {}
+  switching.env.worker.launch = (options) => { switching.launched.push(options); reviewPidFile(switching); return new Promise((resolve) => { leave = () => resolve({ exitCode: 0 }) }) }
+  const switchTick = await switching.run()
+  same("drive: harness review: a live run with its pid file does not hold the driver switch", [switchTick.switched, reviewRuns(switching).length], [true, 1])
+  leave()
+  await switching.mem.harnessReview
+  const unadopted = driverScene({ tickets: [parkedTicket()] })
+  unadopted.env.worker.launch = (options) => { unadopted.launched.push(options); return new Promise(() => {}) }
+  const unadoptedResult = await unadopted.run()
+  same("drive: harness review: a launch with no live pid file holds the switch, as a worker does", [unadoptedResult.switched, unadopted.checkouts()], [false, []])
+
+  const overdue = driverScene({ driver: {}, tickets: [] })
+  reviewPidFile(overdue, -WORKER_LIMITS.hardCeilingMs - MINUTE)
+  await overdue.run()
+  await overdue.run()
+  same("drive: harness review: an adopted run past its hard ceiling gets SIGTERM, then SIGKILL on the next tick", [only(overdue.calls, "kill"), reviewLines(overdue).length], [[["kill", process.pid, "SIGTERM"], ["kill", process.pid, "SIGKILL"]], 1])
+
+  // The review removes `parked`. Each branch that launched before the park counts as used, so the new plan has its own launches.
+  const OPUS = "claude-opus-5-5"
+  const ladder = (branch, kind = "build", part = null) => [launchComment(kind, branch, -50 * HOUR, part), launchComment(kind, branch, -49 * HOUR, part), launchComment(kind, branch, -48 * HOUR, part, { model: OPUS })]
+  const park = comment("parked", "Parked by the driver.", -40 * HOUR)
+  const replanned = (branch, offset) => [comment("replan", JSON.stringify({ plan: "fresh", branch, pr: null, part: null, count: 1, at: iso(offset) }), offset), launchComment("replan", "chore/ticket-7-replan", offset - MINUTE, null, { model: OPUS })]
+  const takenBack = async (label, comments, expected, extra = {}) => {
+    const scene = scenario({ tickets: [ticket(7, { comments })], ...extra })
+    await scene.run()
+    const record = commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("launch", ""))).map((text) => JSON.parse(text.split("\n").slice(1).join("\n")))[0]
+    same(`drive: harness review: ${label}`, [record?.kind, record?.branch, record?.model, commentsOf(scene.calls, 7).filter((text) => text.startsWith(marked("parked", ""))).length], [...expected, 0])
+  }
+  await takenBack("a ticket that the review took back builds on a new branch on the worker model", [...ladder("chore/ticket-7"), park], ["build", "chore/ticket-7-r2", "claude-sonnet-5-5"])
+  await takenBack("a ticket that parked after its re-plans skips every left branch", [...ladder("chore/ticket-7"), ...replanned("chore/ticket-7", -47 * HOUR), ...ladder("chore/ticket-7-r2"), park], ["build", "chore/ticket-7-r3", "claude-sonnet-5-5"])
+  const newSet = [1, 2].map((number) => comment(null, `## Part ${number} of 3: new ${number}`, -(39 * HOUR) + number))
+  await takenBack("a new part set of the review builds its open part on a new branch and keeps the merged part", [...ladder("chore/ticket-7-part-2", "build part", 2), park, ...newSet, comment(null, "## Part 3 of 3: new 3", -39 * HOUR + 3)], ["build part", "chore/ticket-7-part-2-r2", "claude-sonnet-5-5"], { routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1", "Remaining: part 2")])] })
+  await takenBack("a branch with a launch only after the park keeps its name and its count", [...ladder("chore/ticket-7"), park, launchComment("build", "chore/ticket-7-r2", -30 * HOUR), launchComment("build", "chore/ticket-7-r2", -29 * HOUR)], ["build", "chore/ticket-7-r2", OPUS])
+}
+
 const OLD_PIN = "1".repeat(40)
 const NEW_PIN = "2".repeat(40)
 const LATER_PIN = "3".repeat(40)
@@ -3870,6 +3972,7 @@ export const driverUnit = async () => {
   await paceCases()
   await sleepCases()
   await questionsCases()
+  await harnessReviewCases()
   await usageLimitCases()
   await workerCases()
   await resumeCases()
