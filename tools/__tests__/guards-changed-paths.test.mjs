@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { execFileSync, spawnSync } from "node:child_process"
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -180,52 +180,48 @@ test("each diff reader resolves paths before using them", () => {
   assert.doesNotMatch(readFileSync(join(repositoryRoot, ".github/workflows/guards.yml"), "utf8"), /git diff --name-only/)
 })
 
-test("CodeQL analyzes a language only when its inputs change", () => {
+test("CodeQL runs once a day on main and on a dispatch, and never on a pull request or a push", () => {
   const codeql = yaml.load(readFileSync(join(repositoryRoot, ".github/workflows/codeql.yml"), "utf8"))
-  const selection = codeql.jobs.changes.steps.find((step) => step.id === "languages")
-  const select = (change) => {
-    const directory = mkdtempSync(join(tmpdir(), "codeql-languages-"))
-    const repository = join(directory, "repository")
+  assert.deepEqual(Object.keys(codeql.on).sort(), ["schedule", "workflow_dispatch"])
+  assert.equal(codeql.on.schedule.length, 1)
+  assert.match(codeql.on.schedule[0].cron, /^\d+ \d+ \* \* \*$/, "one run each day")
+  assert.deepEqual(Object.keys(codeql.jobs).sort(), ["analyze-actions", "analyze-javascript-typescript"])
+  for (const [id, language] of [["analyze-javascript-typescript", "javascript-typescript"], ["analyze-actions", "actions"]]) {
+    const job = codeql.jobs[id]
+    assert.equal(job.needs, undefined, `${id} needs no selection job`)
+    assert.equal(job.if, undefined, `${id} always analyzes its language`)
+    assert.equal(job.steps.find((step) => step.uses?.startsWith("github/codeql-action/init@")).with.languages, language)
+  }
+})
+
+test("Dependency Review runs inside Guards only when a dependency input changes", () => {
+  assert.equal(existsSync(join(repositoryRoot, ".github/workflows/dependency-review.yml")), false,
+    "the Dependency Review workflow folds into Guards")
+  const { steps } = guardGroups(workflow)["dependency-review"]
+  const select = steps.find((step) => step.name === "Select the pull requests that change a dependency input")
+  const review = steps.find((step) => step.uses?.startsWith("actions/dependency-review-action@"))
+  assert.equal(review.uses, "actions/dependency-review-action@bbc44d14a204704ccc493733616cd1e93a0321ec")
+  assert.deepEqual(review.with, { "fail-on-severity": "high" })
+  assert.equal(review.if, "${{ !cancelled() && (github.event_name == 'pull_request') && steps.dependency-review__1.outputs.changed == 'true' }}")
+  const selected = (paths) => {
+    const directory = mkdtempSync(join(tmpdir(), "dependency-review-"))
     try {
-      mkdirSync(join(repository, "apps/web"), { recursive: true })
-      git(repository, "init", "-q")
-      git(repository, "config", "user.email", "test@example.invalid")
-      git(repository, "config", "user.name", "Test")
-      writeFileSync(join(repository, "README.md"), "base\n")
-      writeFileSync(join(repository, "apps/web/old.ts"), "export const old = 1\n")
-      git(repository, "add", ".")
-      git(repository, "commit", "-qm", "base")
-      change(repository)
-      git(repository, "add", "-A")
-      git(repository, "commit", "-qm", "change")
+      writeFileSync(join(directory, "changed-paths.txt"), `${paths.join("\n")}\n`)
       const output = join(directory, "output")
-      const result = spawnSync("bash", ["-e", "-c", selection.run], {
-        cwd: repository, env: { ...process.env, RUNNER_TEMP: directory, GITHUB_OUTPUT: output }, encoding: "utf8",
+      const result = spawnSync("bash", ["-e", "-c", select.run], {
+        env: { ...process.env, RUNNER_TEMP: directory, GITHUB_OUTPUT: output }, encoding: "utf8",
       })
       assert.equal(result.status, 0, result.stderr)
-      return Object.fromEntries(readFileSync(output, "utf8").trim().split("\n").map((line) => line.split("=")))
+      return readFileSync(output, "utf8").trim()
     } finally {
       rmSync(directory, { recursive: true, force: true })
     }
   }
-  const add = (...paths) => (repository) => {
-    for (const path of paths) {
-      mkdirSync(dirname(join(repository, path)), { recursive: true })
-      writeFileSync(join(repository, path), "changed\n")
-    }
+  for (const path of ["package.json", "package-lock.json", "apps/web/package.json", ".github/react-doctor/package-lock.json",
+    ".github/workflows/test.yml", ".github/actions/setup/action.yml"]) {
+    assert.equal(selected(["README.md", path]), "changed=true", path)
   }
-  const neither = { javascript: "false", actions: "false" }
-  const javascript = { javascript: "true", actions: "false" }
-  const both = { javascript: "true", actions: "true" }
-  assert.deepEqual(select(add("docs/plan.md", "design/canvas/screen.png", ".claude/specs/run.md")), neither)
-  assert.deepEqual(select(add("apps/web/app/page.tsx")), javascript)
-  assert.deepEqual(select(add("packages/shared/package.json")), javascript)
-  assert.deepEqual(select(add("apps/mobile/android/gradlew")), javascript, "the extractor reads extension-less files")
-  assert.deepEqual(select(add(".github/workflows/test.yml")), both)
-  assert.deepEqual(select(add(".github/actions/android-boot/action.yml")), both)
-  assert.deepEqual(select((repository) => rmSync(join(repository, "apps/web/old.ts"))), javascript, "a deleted source file closes its alerts")
-  assert.deepEqual(select((repository) => {
-    mkdirSync(join(repository, "docs"))
-    git(repository, "mv", "apps/web/old.ts", "docs/old.md")
-  }), javascript, "a rename out of a language still analyzes the old path")
+  for (const path of ["README.md", "apps/web/app/page.tsx", ".github/scripts/plan-test-jobs.mjs", "docs/package.json.md", "tools/package-lock.json.bak"]) {
+    assert.equal(selected([path]), "changed=false", path)
+  }
 })
