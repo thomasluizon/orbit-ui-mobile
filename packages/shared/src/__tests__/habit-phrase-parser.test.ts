@@ -1332,6 +1332,54 @@ describe('a das hour range that ends at noon', () => {
   })
 })
 
+describe('a das hour range that ends before a minute tail', () => {
+  it.each([
+    ['Estudar das 9 às 11 e quinze', '09:00'],
+    ['Estudar das 9 às 11 e 15', '09:00'],
+    ['Estudar das 9 às 11 menos quinze', '09:00'],
+    ['Estudar das 9 às 11 e um quarto', '09:00'],
+    ['Estudar das 9 às 11 e quinze minutos', '09:00'],
+    ['Estudar das 9 às 11 e quinze da manhã', '09:00'],
+    ['Estudar das 9 às 11 e 2 vezes por semana', '09:00'],
+    ['Estudar das 9 às 11 e 2x por semana', '09:00'],
+  ] as const)('reads the start hour of %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+
+  it('keeps the count that follows a range end', () => {
+    const read = readHabitPhrase('Estudar das 9 às 11 e 2 vezes por semana', 'pt-BR')
+    expect(read.cadence).toBe('flexible')
+    expect(read.frequencyQuantity).toBe(2)
+  })
+})
+
+describe('a noon before a count', () => {
+  it.each([
+    'Almoçar ao meio-dia e 2 vezes por semana',
+    'Almoçar ao meio-dia e 2x por semana',
+    'Almoçar ao meio-dia e 2 x por semana',
+    'Almoçar ao meio-dia e cinco vezes por semana',
+  ] as const)('reads noon and the count of %s', (input) => {
+    const read = readHabitPhrase(input, 'pt-BR')
+    expect(read.dueTime).toBe('12:00')
+    expect(read.cadence).toBe('flexible')
+  })
+
+  it('reads the start hour of a noon end before a count', () => {
+    const read = readHabitPhrase('Almoçar das 11 ao meio-dia e 2 vezes por semana', 'pt-BR')
+    expect(read.dueTime).toBe('11:00')
+    expect(read.frequencyQuantity).toBe(2)
+  })
+
+  it.each([
+    'Almoçar ao meio-dia e quinze',
+    'Almoçar ao meio-dia e 15',
+    'Almoçar ao meio-dia e 2 minutos',
+  ] as const)('still refuses noon before an offset: %s', (input) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBeNull()
+  })
+})
+
 describe('a das hour range with a day part, e meia or an hour unit', () => {
   it.each([
     ['Estudar das 2 às 4 da tarde', '14:00'],

@@ -274,3 +274,18 @@ describe('a title beside a das hour range that ends at noon', () => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(phrase)
   })
 })
+
+describe('a title beside a minute tail of a das range or a count after noon', () => {
+  it.each([
+    ['Estudar das 9 às 11 e quinze', 'Estudar'],
+    ['Estudar das 9 às 11 e 15', 'Estudar'],
+    ['Estudar das 9 às 11 menos quinze', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze minutos', 'Estudar'],
+    ['Estudar das 9 às 11 e 2 vezes por semana', 'Estudar'],
+    ['Almoçar ao meio-dia e 2 vezes por semana', 'Almoçar'],
+    ['Almoçar ao meio-dia e 2x por semana', 'Almoçar'],
+    ['Almoçar das 11 ao meio-dia e 2 vezes por semana', 'Almoçar'],
+  ] as const)('keeps only the verb of %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
