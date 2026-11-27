@@ -274,3 +274,37 @@ describe('a title beside a das hour range that ends at noon', () => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(phrase)
   })
 })
+
+describe('a title beside a minute tail of a das range or a count after noon', () => {
+  it.each([
+    ['Estudar das 9 às 11 e quinze', 'Estudar'],
+    ['Estudar das 9 às 11 e 15', 'Estudar'],
+    ['Estudar das 9 às 11 menos quinze', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze minutos', 'Estudar'],
+    ['Estudar das 9 às 11 e 2 vezes por semana', 'Estudar'],
+    ['Almoçar ao meio-dia e 2 vezes por semana', 'Almoçar'],
+    ['Almoçar ao meio-dia e 2x por semana', 'Almoçar'],
+    ['Almoçar das 11 ao meio-dia e 2 vezes por semana', 'Almoçar'],
+  ] as const)('keeps only the verb of %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
+
+describe('a title beside a das range and a quantity with its own unit', () => {
+  it.each([
+    ['Tomar remédio das 8 às 20 e 2 comprimidos', 'Tomar remédio e 2 comprimidos'],
+    ['Fazer das 6 às 7 e dez flexões', 'Fazer e dez flexões'],
+    ['Correr das 6 às 7 e 5 km toda segunda', 'Correr e 5 km'],
+    ['Beber água das 8 às 20 e 2 litros', 'Beber água e 2 litros'],
+    ['Estudar das 9 às 11 e quinze às segundas', 'Estudar'],
+    ['Estudar das 9 às 11 e 15 toda segunda', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze da noite', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de segunda a sexta', 'Estudar'],
+    ['Estudar das 9 às 11 e 15 de segunda a sexta', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de seg a sex', 'Estudar'],
+    ['Estudar das 9 às 11 e quinze de segunda', 'Estudar'],
+    ['Tomar remédio das 8 às 20 e 2 de xarope', 'Tomar remédio e 2 de xarope'],
+  ] as const)('keeps the words of %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
