@@ -205,6 +205,9 @@ describe('a title beside a range of hours', () => {
     ['Estudar das 10 da manhã às 2 da tarde', 'Estudar'],
     ['Estudar das 11 às 2 da tarde', 'Estudar'],
     ['Estudar das 9 ao meio-dia', 'Estudar'],
+    ['Ler 20 páginas das 9 às 10 toda segunda', 'Ler 20 páginas'],
+    ['Correr 5 km das 6 às 7 toda segunda', 'Correr 5 km'],
+    ['Meditar 10 minutos das 7 às 8', 'Meditar 10 minutos'],
   ] as const)('removes the whole range: %s', (phrase, title) => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
   })

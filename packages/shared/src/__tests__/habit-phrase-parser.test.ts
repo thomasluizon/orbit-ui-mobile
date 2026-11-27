@@ -1227,6 +1227,10 @@ describe('a pt-BR range of hours', () => {
     ['Estudar das 10 da manhã às 2 da tarde', '10:00'],
     ['Estudar das 9 horas às 11 horas', '09:00'],
     ['Estudar das 9 ao meio-dia', '09:00'],
+    ['Ler 20 páginas das 9 às 10 toda segunda', '09:00'],
+    ['Correr 5 km das 6 às 7 toda segunda', '06:00'],
+    ['Meditar 10 minutos das 7 às 8', '07:00'],
+    ['Fazer 3 séries das 10 às 7', '10:00'],
   ] as const)('reads the start hour as the due time: %s', (phrase, dueTime) => {
     expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
   })
@@ -1249,7 +1253,6 @@ describe('a pt-BR range of hours', () => {
     ['Flexões 3x de 12 às 7', '07:00'],
     ['Tomar 1 dose de 5 às 8', '08:00'],
     ['Fazer quatro séries de 12 às 7', '07:00'],
-    ['Fazer 3 séries das 10 às 7', '07:00'],
   ] as const)('reads a count before the opener as a count, not a range: %s', (phrase, dueTime) => {
     expect(readHabitPhrase(phrase, 'pt-BR').dueTime).toBe(dueTime)
   })
