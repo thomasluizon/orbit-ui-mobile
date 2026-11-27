@@ -20,7 +20,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, partProblem, renderOrder, renderResumeOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -77,6 +77,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
 
 const TICK_MS = 120 * 1000
+/** After this many failed ticks in a row, the driver waits `BACKOFF_MS` between ticks until one passes. */
+const FAILED_TICKS_BEFORE_BACKOFF = 3
+const BACKOFF_MS = 10 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 const WEEK_MS = 7 * 24 * HOUR_MS
 const WEEKLY_CAP = 0.9
@@ -337,7 +340,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map() })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -1187,7 +1190,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
     try {
       // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
       const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
-      const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey)), pull.number)
+      const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planAgain = async () => {
@@ -1378,8 +1381,20 @@ const resumableSession = (env, ticket, { kind, branch, model, account, invocatio
 
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
-/** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. Returns null when the worker started, else the reason it did not. */
-const startWorker = async (env, mem, candidate, accountName = MAIN) => {
+/** Takes one launch back from a ticket, so it counts toward no cap. */
+const refundLaunch = async (env, ticket, { kind, partNumber, branch, prNumber }, why) => {
+  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
+  log(env, `ticket#${ticket.number}`, "launch-refund", why)
+}
+
+/**
+ * Starts one worker for an order and records its launch on the ticket first, so a crash still counts. `blocked` is read after
+ * the last wait of the start: a reason takes the launch back and starts no worker. Returns null when the worker started, else
+ * the reason it did not.
+ */
+const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = () => null) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
   const token = await env.worker.readWorkerToken()
@@ -1414,6 +1429,11 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
   const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model)
   const account = stateOf(mem, accountName).account?.key ?? null
+  const refusal = blocked()
+  if (refusal !== null) {
+    await refundLaunch(env, ticket, { kind, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null }, `${kind} on ${branch} starts no worker: ${refusal}`)
+    return refusal
+  }
   const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree }) : null
   const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
   const text = session === null
@@ -1536,10 +1556,7 @@ const stopAndRefund = async (env, mem, ticket, exit, result) => {
   const name = nameOfKey(mem, account)
   const until = result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS
   await stopAccount(env, mem, name, until, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
-  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
-  await env.github.comment("tickets", ticket.number, body)
-  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
-  log(env, `ticket#${ticket.number}`, "launch-refund", `${kind} on ${branch} starts again on the other account`)
+  await refundLaunch(env, ticket, { kind, partNumber, branch, prNumber }, `${kind} on ${branch} starts again on the other account`)
 }
 
 /** Records the session that a worker leaves and the size of its context on the ticket, so a later fix of the branch can resume it. A log with no usage records nothing. */
@@ -1726,11 +1743,11 @@ const onlyOwnerItems = (line) => {
   return items.length > 0 && items.every((item) => OWNER_ITEM.test(item))
 }
 
-/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. */
-const rebuildStopReason = (history) => {
+/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. An owner decision after the last merge lifts the stop: the owner decided what the next build does. */
+const rebuildStopReason = (history, decidedAt = 0) => {
   const last = history.at(-1)
   const line = last === undefined ? null : remainingLineOf(last)
-  if (line === null) return null
+  if (line === null || decidedAt > Date.parse(last.mergedAt)) return null
   if (onlyOwnerItems(line)) return `${line} (only owner items are left)`
   const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
   return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
@@ -1754,6 +1771,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
   if (partFault !== null) return { reason: "a part comment is broken or doubled", owner: partFault }
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
+  if (state === undefined) return stop(`the ${ticket.repoKey} repository could not be read this tick`)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
@@ -1770,7 +1788,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const stopReason = rebuildStopReason(history)
+    const stopReason = rebuildStopReason(history, ownerDecisionAt(env, ticket))
     if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: remaining } }
@@ -1994,11 +2012,52 @@ const intake = async (env, mem) => {
 }
 
 /** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
+const noteReadError = (mem, error) => { mem.readErrors.push(error) }
+
+/**
+ * The tickets and the state of each repository. A repository that cannot be read after its half-size retry is `unknown` for this
+ * tick, and the other repositories go on. The read fails when the tickets cannot be read or when no repository can.
+ */
 const readWorld = async (env, mem) => {
-  const tickets = await env.github.readTickets()
-  const states = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] })))
+  let tickets
+  try { tickets = await env.github.readTickets() } catch (error) { noteReadError(mem, error); throw error }
+  const reads = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).then((state) => ({ state }), (error) => ({ key, error }))))
+  const states = reads.flatMap((read) => (read.state ? [read.state] : []))
+  const unknown = []
+  for (const { key, error } of reads.filter((read) => read.error)) {
+    noteReadError(mem, error)
+    log(env, key, "repository-unknown", error.message)
+    unknown.push(key)
+  }
+  if (states.length === 0) throw new Error(`no repository could be read: ${mem.readErrors.at(-1).message}`)
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
-  return { tickets, states }
+  return { tickets, states, unknown }
+}
+
+/** The epoch milliseconds at which a rate limit resets: the latest reset of the exhausted core and GraphQL limits of `gh api rate_limit`, or 0 when neither is exhausted. */
+const rateLimitReset = async (env) => {
+  try {
+    const { resources } = JSON.parse(await env.gh(["api", "rate_limit"]))
+    const exhausted = ["core", "graphql"].map((name) => resources[name]).filter((limit) => limit?.remaining === 0)
+    return exhausted.length === 0 ? 0 : Math.max(...exhausted.map((limit) => limit.reset)) * 1000
+  } catch (error) {
+    log(env, "tick", "rate-limit-unread", error.message)
+    return 0
+  }
+}
+
+/**
+ * Closes the reads of one tick. A rate limit holds the next tick until the reset. A third failed tick in a row holds each next tick
+ * for 10 minutes, until one tick passes. A held tick reads nothing from GitHub.
+ */
+const settleReads = async (env, mem, { failed }) => {
+  const errors = mem.readErrors
+  mem.readErrors = []
+  mem.failedTicks = failed ? mem.failedTicks + 1 : 0
+  let until = errors.some(isRateLimited) ? await rateLimitReset(env) : 0
+  if (mem.failedTicks >= FAILED_TICKS_BEFORE_BACKOFF) until = Math.max(until, env.now() + BACKOFF_MS)
+  mem.holdUntil = until
+  if (until > env.now()) log(env, "tick", "hold", `GitHub reads wait until ${new Date(until).toISOString()}`)
 }
 
 /**
@@ -2016,16 +2075,19 @@ const killLeftoverGroup = (env, stem) => {
 /**
  * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
  * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
- * read, and it takes one only when a record waits.
+ * read, and it takes one only when a record waits. It returns the repositories that its read could not see. The record of each
+ * waits for the next tick, so the tick treats each of them as unknown for the whole tick.
  */
 const reapExits = async (env, mem) => {
   // A dry run writes nothing, so it leaves every record for the driver that runs. Until the account is known, a reading of a worker
   // belongs to no account, so the records wait for the tick that reads it.
-  if (env.dryRun || mem.account === null) return
+  if (env.dryRun || mem.account === null) return []
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
-  if (gone.length === 0) return
-  const { tickets, states } = await readWorld(env, mem)
+  if (gone.length === 0) return []
+  const { tickets, states, unknown } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
+    // The record of a repository that this read could not see waits for the next tick.
+    if (unknown.includes(record.repoKey)) continue
     rmSync(launchRecordPath(env, stem), { force: true })
     // A worker that this process did not wait for has no `finish` here to end the children it left in its group, and its pid file is still there.
     if (!mem.results.has(stem)) killLeftoverGroup(env, stem)
@@ -2036,6 +2098,7 @@ const reapExits = async (env, mem) => {
     mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
+  return unknown
 }
 
 /**
@@ -2100,16 +2163,24 @@ export const tick = async (env, mem) => {
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
+  if (env.now() < mem.holdUntil) {
+    log(env, "tick", "held", `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}`)
+    return { retried: true, held: true }
+  }
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
   const running = runningWorkers(env, mem)
   const status = await readAccount(env, mem)
   await readWorkerAccount(env, mem)
   let world
   try {
-    await reapExits(env, mem)
+    const unseen = await reapExits(env, mem)
     world = await readWorld(env, mem)
+    world.states = world.states.filter((state) => !unseen.includes(state.repositoryKey))
   } catch (error) {
     log(env, "tick", "retry", error.message)
+    // A failed read that the read itself did not note (a failure of the reap) still counts as a failed tick.
+    if (mem.readErrors.length === 0) noteReadError(mem, error)
+    await settleReads(env, mem, { failed: true })
     return { retried: true }
   }
   const { tickets, states } = world
@@ -2141,7 +2212,7 @@ export const tick = async (env, mem) => {
   // The worker account takes a launch when it has a free slot, else the main account.
   // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
   const limitSeen = { found: false }
-  // The tickets whose order reached `startWorker`. An early order that never got there goes back to the late admission.
+  // The tickets whose order reached `startWorker` and kept its launch. Each other early order goes back to the late admission.
   const reached = new Set()
   const LIMIT_STOP = "a Pullfrog limit stops the main account"
   // Returns the reason that the launches stopped before the end of the list, or null.
@@ -2155,7 +2226,12 @@ export const tick = async (env, mem) => {
       const name = own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       reached.add(order.ticket.number)
-      const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A plan can find a limit while a start runs. With a second account, a start on the main account then launches no worker.
+      let refused = null
+      const refusal = () => (refused = limitSeen.found && name === MAIN && knownAccounts(mem).length > 1 ? LIMIT_STOP : null)
+      const reason = await startWorker(env, mem, order, name, refusal).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A refused start is a chosen hold, so it stays off the stall clock.
+      if (refused !== null) { reached.delete(order.ticket.number); return refused }
       if (reason === null) { mem.acted = true; free[name] -= 1 }
       else unstarted.push(`ticket#${order.ticket.number}: ${reason}`)
     }
@@ -2173,6 +2249,7 @@ export const tick = async (env, mem) => {
     await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
+  await settleReads(env, mem, { failed: false })
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
