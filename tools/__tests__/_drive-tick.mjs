@@ -774,6 +774,13 @@ const reviewCases = async () => {
   const edited = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(5, -16 * MINUTE, -12 * MINUTE)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1)] })], comments: [comment("ticket", "T")] })] } })
   await edited.run()
   T("drive: a review that gets its BLOCKING line by an edit in its run gives a fix order and no needs:owner", edited.launched.length === 1 && only(edited.calls, "editLabels").length === 0)
+  const findingPull = (run) => scenario({ tickets: [ticket(7)], runs: [run], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1)] })], comments: [comment("ticket", "T")] })] } })
+  const findingInProgress = findingPull(pullfrogRun(5, -6 * MINUTE, -1 * MINUTE, "in_progress"))
+  await findingInProgress.run()
+  same("drive: a CHANGES_REQUESTED review with a finding whose run is in progress gives no fix order", [findingInProgress.launched.length, only(findingInProgress.calls, "editLabels").length], [0, 0])
+  const findingJustDone = findingPull(pullfrogRun(5, -6 * MINUTE, -2 * MINUTE))
+  await findingJustDone.run()
+  same("drive: a CHANGES_REQUESTED review with a finding whose run completed less than the settle time ago gives no fix order", [findingJustDone.launched.length, only(findingJustDone.calls, "editLabels").length], [0, 0])
 
   const fresh = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: [] })] } })
   await fresh.run()
