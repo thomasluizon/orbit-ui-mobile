@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, findNodeHandle, Keyboard, StyleShe
 import type { QuestionFlowProps } from '@orbit/shared/contracts/flow'
 import { createQuestionFlowHooks } from '@orbit/shared/hooks/question-flow-core'
 import { createUseStepChange } from '@orbit/shared/hooks/step-change-core'
-import { motionDurations, motionEasings } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, TOUCH_TARGET_MIN } from '@orbit/shared/theme'
 import { ArrowLeft, X } from '@/components/ui/icons'
 import { FlowLookProvider, useFlowLookState } from '@/components/ui/flow-look'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -16,6 +16,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { captureGuidedFlowEvent } from '@/lib/posthog'
 
 const WIDE_SHIFT = 12
+const COMPACT_HEADER_CONTROL = 40
 const WIDE_WIDTH = 1024
 const SM_WIDTH = 640
 const KEYBOARD_LOOK = { x: 0, y: 1 } as const
@@ -24,18 +25,19 @@ const { useFlowAnnouncement, useLineAfterArrival, useGuidedFlowTracking } = crea
 
 export { useFlowAnnouncement, useLineAfterArrival }
 
-function FlowHeader({ props }: Readonly<{ props: QuestionFlowProps }>) {
+function FlowHeader({ props, wide }: Readonly<{ props: QuestionFlowProps; wide: boolean }>) {
   const { position, total, progressLabel, backLabel, closeLabel, onBack, onClose } = props
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const control = wide ? COMPACT_HEADER_CONTROL : TOUCH_TARGET_MIN
   return (
     <View style={styles.header}>
       <View style={styles.slot}>
-        {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={48} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
+        {onBack ? <PillButton variant="ghost" iconOnly label={backLabel} minimumHeight={control} onClick={onBack}><ArrowLeft color={tokens.fg1} size={24} /></PillButton> : null}
       </View>
       <View style={styles.progress}><PagerSegments count={total} index={position - 1} label={progressLabel} /></View>
       <View style={styles.slot}>
-        {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={48} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
+        {onClose && closeLabel ? <PillButton variant="ghost" iconOnly label={closeLabel} minimumHeight={control} onClick={onClose}><X color={tokens.fg1} size={24} /></PillButton> : null}
       </View>
     </View>
   )
@@ -110,7 +112,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   const { width } = useWindowDimensions()
   const wide = width >= WIDE_WIDTH
   const { lookAt, mascotRef, lookAtControl, lookAway } = useFlowLookState()
-  const lookControls = useMemo(() => ({ lookAtControl, lookAway }), [lookAtControl, lookAway])
+  const lookControls = useMemo(() => ({ lookAtControl, lookAway, wide }), [lookAtControl, lookAway, wide])
   const keyboardOpen = useKeyboardOpen()
   const headingRef = useQuestionFocus(stepKey, lookAway)
   const announcement = useFlowAnnouncement(line, stepKey)
@@ -126,7 +128,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
   return (
     <FlowLookProvider look={lookControls}>
       <View testID="question-flow" style={styles.root} accessibilityElementsHidden={false}>
-        <FlowHeader props={props} />
+        <FlowHeader props={props} wide={wide} />
         <KeyboardAwareScrollView testID="question-flow-scroll" keyboardShouldPersistTaps="handled" contentContainerStyle={scrollContentStyle(keyboardOpen)} showsVerticalScrollIndicator={false}>
           <Animated.View key={stepKey} testID={`question-flow-step-${stepKey}`} style={[styles.block, travel]}>
             {showOrbit ? (
@@ -135,7 +137,7 @@ export function QuestionFlow(props: Readonly<QuestionFlowProps>) {
               </View>
             ) : null}
             {line ? <FlowLine line={line} lineKey={lineKey} color={tokens.fg2} /> : null}
-            <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, wide ? styles.questionWide : null, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
+            <Text ref={headingRef} accessibilityRole="header" accessibilityHint={line ?? undefined} style={[styles.question, { color: tokens.fg1 }]} textBreakStrategy="balanced">{question}</Text>
             {options ? <View style={styles.options}>{options}</View> : null}
             {children ? <View style={styles.freePath}>{children}</View> : null}
             {wide ? primaryAction : null}
@@ -159,7 +161,6 @@ const styles = StyleSheet.create({
   block: { width: '100%', maxWidth: 592, alignItems: 'center', gap: 24 },
   line: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24, textAlign: 'center' },
   question: { fontFamily: 'SpaceGrotesk_500Medium', fontSize: 28, lineHeight: 33, textAlign: 'center' },
-  questionWide: { fontSize: 34, lineHeight: 39 },
   options: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   freePath: { width: '100%', gap: 12 },
   status: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', color: 'transparent' },

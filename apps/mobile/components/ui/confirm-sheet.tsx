@@ -23,7 +23,6 @@ interface ConfirmSheetProps {
   destructive?: boolean
   inlineActions?: boolean
   quickOptions?: boolean
-  freePathLabel?: string
   confirmImmediately?: boolean
   loading?: boolean
   onCloseComplete?: () => void
@@ -47,7 +46,6 @@ export function ConfirmSheet({
   destructive = false,
   inlineActions = false,
   quickOptions = false,
-  freePathLabel,
   confirmImmediately = false,
   loading = false,
   onCloseComplete,
@@ -147,7 +145,7 @@ export function ConfirmSheet({
       )}
     >
       {quickOptions ? (
-        <QuestionBody message={message} messageColor={tokens.fg2} freePathLabel={freePathLabel} confirmDisabled={actionsDisabled || confirmDisabled} onConfirm={confirm}>{children}</QuestionBody>
+        <QuestionBody message={message} messageColor={tokens.fg2}>{children}</QuestionBody>
       ) : (
         <>
           {message ? <Text style={[styles.message, { color: tokens.fg2 }]}>{message}</Text> : null}
@@ -161,19 +159,15 @@ export function ConfirmSheet({
 interface QuestionBodyProps {
   message: string
   messageColor: string
-  freePathLabel?: string
-  confirmDisabled: boolean
-  onConfirm: () => void
   children?: ReactNode
 }
 
-function QuestionBody({ message, messageColor, freePathLabel, confirmDisabled, onConfirm, children }: Readonly<QuestionBodyProps>) {
-  if (!message && !children && !freePathLabel) return null
+function QuestionBody({ message, messageColor, children }: Readonly<QuestionBodyProps>) {
+  if (!message && !children) return null
   return (
     <View style={styles.question}>
       {message ? <Text style={[styles.message, { color: messageColor }]}>{message}</Text> : null}
       {children}
-      {freePathLabel ? <View style={styles.freePathAction}><PillButton variant="secondary" size="sm" disabled={confirmDisabled} onClick={onConfirm}>{freePathLabel}</PillButton></View> : null}
     </View>
   )
 }
@@ -181,5 +175,4 @@ function QuestionBody({ message, messageColor, freePathLabel, confirmDisabled, o
 const styles = StyleSheet.create({
   message: { fontFamily: 'Geist_400Regular', fontSize: 16, lineHeight: 24.8 },
   question: { gap: 24 },
-  freePathAction: { alignItems: 'flex-end' },
 })

@@ -87,4 +87,13 @@ export const cases = async () => {
   T("lib/order.mjs: a brief holds no line that CLAUDE.md already states", ORDER_KINDS.every((kind) => { const brief = renderBrief({ kind, place: PLACE, ticket: TICKET }); return stated.every((line) => !brief.includes(line)) }))
   T("lib/order.mjs: a build brief keeps the facts that CLAUDE.md does not state", build.includes("Tracks owner/tickets#9") && build.includes("Remaining: none") && build.includes("Start Vitest with `--run` and a file name.") && build.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
   T("lib/order.mjs: a find brief has no delivery rule", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("first push"))
+
+  const OWN_WRITES = "on the pull request of your own branch, `gh pr edit` (only `--body-file`, `--add-label`, `--remove-label`) and `gh pr comment` (only `--body`, `--body-file`). Start the Bash call with that command, from your working tree, with no `-R`."
+  for (const kind of ORDER_KINDS.filter((name) => name !== "find")) {
+    const brief = renderBrief({ kind, place: PLACE, ticket: TICKET })
+    T(`lib/order.mjs: the ${kind} brief allows the edit and the comment of its own pull request`, brief.includes(OWN_WRITES))
+    T(`lib/order.mjs: the ${kind} brief ties the parity:exempt label to the ## Parity line`, brief.includes("The `## Parity` line of a `parity:exempt` pull request names one of these terms: BFF"))
+    T(`lib/order.mjs: the ${kind} brief tells the worker to fix a PR Metadata failure and never to ask the owner for it`, brief.includes("read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. Never end with `NEEDS_DECISION` for a pull request body or label."))
+  }
+  T("lib/order.mjs: a find brief names no pull request write", !renderBrief({ kind: "find", place: PLACE, ticket: TICKET }).includes("gh pr "))
 }

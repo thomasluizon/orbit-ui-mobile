@@ -531,7 +531,8 @@ jobs:
           done
       - name: Install staging smoke dependencies
         working-directory: staging-smoke-source
-        run: npm ci
+        # WHY: npm does not retry a TLS cipher error, so each install from the registry gets a second attempt.
+        run: npm ci || npm ci
       - name: Install staging smoke browser
         working-directory: staging-smoke-source
         run: ./node_modules/.bin/playwright install chromium
@@ -661,7 +662,7 @@ jobs:
           key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             npm-${{ runner.os }}-${{ runner.arch }}-
-      - run: npm ci
+      - run: npm ci || npm ci
       - name: Install Playwright chromium
         run: ./node_modules/.bin/playwright install chromium
       - name: Run production smoke suite

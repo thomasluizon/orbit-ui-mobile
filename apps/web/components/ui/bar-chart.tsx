@@ -68,7 +68,7 @@ export function BarChart({ points, label, onSelectPoint }: Readonly<{
   function describePoint(point: BarChartPoint) {
     return point.scheduled === 0
       ? t('unscheduledDay', { date: point.readoutDateLabel })
-      : t('selectedDay', { date: point.readoutDateLabel, rate: point.rate ?? 0, done: point.completed, scheduled: point.scheduled })
+      : t('selectedDay', { date: point.readoutDateLabel, done: point.completed, scheduled: point.scheduled })
   }
 
   if (!hasPoints) return null
