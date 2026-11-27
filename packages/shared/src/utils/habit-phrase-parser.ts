@@ -71,7 +71,9 @@ const PERIOD_OF_DAILY_WORD: Readonly<Record<string, DayPeriod>> = {
 const PT_RANGE_HOUR = String.raw`(?:[01]?\d|2[0-3])`
 const PT_RANGE_END_WITHOUT_OWN_UNIT = String.raw`\b(?![:\dh]|[.,]\d)(?!\s+(?:${PT_HOUR_UNIT}\b|${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})\b|e\s+mei[ao]\b|(?:(?:ao|as|a)\s+)?meio-dia\b))`
 const PT_RANGE_UNIT_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)${PT_RANGE_END_WITHOUT_OWN_UNIT}`
-const PT_RANGE_BARE_END_BEFORE_CADENCE = String.raw`${PT_RANGE_HOUR}${PT_RANGE_END_WITHOUT_OWN_UNIT}(?=\s*(?:[,.;!?…]|$)|\s+(?:toda|todo|todas|todos|diariamente|de|nas|nos|aos|(?:seg|ter|qua|qui|sex|sab|dom)\w*)\b)`
+const PT_RANGE_DAY_NAME = String.raw`(?:segundas?|segs?|tercas?|ter|quartas?|quas?|quintas?|quis?|sextas?|sexs?|sabados?|sabs?|domingos?|doms?)`
+const PT_RANGE_CADENCE_WORD = String.raw`(?:toda|todo|todas|todos|diariamente|(?:a\s+)?cada|dias?\s+\d{1,2}|${PT_NUMBER}\s*(?:vez|vezes|x)|${PT_RANGE_DAY_NAME})`
+const PT_RANGE_BARE_END_BEFORE_CADENCE = String.raw`${PT_RANGE_HOUR}${PT_RANGE_END_WITHOUT_OWN_UNIT}(?=\s*(?:[,.;!?…]|$)|\s+(?:(?:as|aos|no|nos|na|nas|em)\s+)?${PT_RANGE_CADENCE_WORD}\b|\s+(?:de|nas|nos|aos)\b)`
 const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::([0-5]\d)|h([0-5]\d)?)?\s+(?:(?:ate\s+as|ate|as)\s+${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)?${PT_RANGE_END_WITHOUT_OWN_UNIT}|a\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}))`
 const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
 const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u

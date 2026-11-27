@@ -1252,6 +1252,15 @@ describe('a bare das hour range', () => {
     ['Estudar das 9 a 11 toda segunda', '09:00', ['Monday']],
     ['Estudar das 9:30 até as 11:45 todo dia', '09:30', []],
     ['Estudar das 9h30 às 11h toda segunda', '09:30', ['Monday']],
+    ['Estudar das 9 a 11 às segundas', '09:00', ['Monday']],
+    ['Estudar das 9 a 11 as segundas', '09:00', ['Monday']],
+    ['Estudar das 9 a 11 na segunda', '09:00', ['Monday']],
+    ['Estudar das 9 a 11 cada segunda', '09:00', ['Monday']],
+    ['Estudar das 9 a 11 a cada 2 semanas', '09:00', []],
+    ['Estudar das 9 a 11 3 vezes por semana', '09:00', []],
+    ['Estudar das 9 a 11 duas vezes por semana', '09:00', []],
+    ['Estudar das 9 a 11 em todo dia', '09:00', []],
+    ['Estudar das 9 a 11 dia 5 de cada mês', '09:00', []],
   ] as const)('reads the start hour of %s', (input, time, days) => {
     const read = readHabitPhrase(input, 'pt-BR')
     expect(read.dueTime).toBe(time)
@@ -1263,6 +1272,10 @@ describe('a bare das hour range', () => {
     ['Academia de 2 até 3 vezes por semana', null],
     ['Curso de 3 horas às 19h toda quarta', '19:00'],
     ['Ler das 5 a 7 páginas', '07:00'],
+    ['Andar das 3 a 5 quadras', '05:00'],
+    ['Correr das 5 a 8 quilômetros', '08:00'],
+    ['Meditar das 5 a 10 segundos', '10:00'],
+    ['Correr das 3 a 5 dias por semana', '05:00'],
     ['Ler das 9 as 11 horas toda segunda', '11:00'],
     ['Estudar das 7 às 9 à noite', '21:00'],
     ['Estudar das 2 às 5 à tarde', '17:00'],
