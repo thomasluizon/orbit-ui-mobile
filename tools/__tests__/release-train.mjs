@@ -305,6 +305,36 @@ const refusalCases = async () => {
   same("release-train: the Tests and Guards dispatch runs on main of the repository", testsDispatched.map((event) => event.replace(" --ref main", "")), ["dispatch test.yml --repo thomasluizon/orbit-ui-mobile", "dispatch guards.yml --repo thomasluizon/orbit-ui-mobile"])
   same("release-train: the train completes after the second release dispatch", w.state().train.status, "complete")
 
+  /** A refused web release whose test.yml run has the status that `statusAt` gives for the minutes since the run was listed first. Guards is green at once. */
+  const queuedTests = async (statusAt) => {
+    let queuedRefused = false
+    const queued = world({ plan: planOf({ api: { needs: false }, landing: { needs: false }, android: { needs: false } }), files: { ui: ["apps/web/a.ts"] }, outcomes: { failedLog: refusal } })
+    queued.ports().waitRelease = async (options) => {
+      queued.events.push(`verify ${options.repo} ${options.workflow}`)
+      if (!queuedRefused) { queuedRefused = true; return { code: 1, result: { reason: "FAILED" } } }
+      return { code: 0, result: { reason: "SUCCESS" } }
+    }
+    const queuedStatus = queued.ports().runStatus
+    queued.ports().runStatus = async (key, runId) => { const status = await queuedStatus(key, runId); return status.url.endsWith("5001") ? { ...status, conclusion: "failure" } : status }
+    const listed = queued.ports().listRuns
+    let firstSeen = null
+    queued.ports().listRuns = async (key, workflow) => {
+      const list = await listed(key, workflow)
+      if (workflow !== "test.yml" || list.length === 0) return list
+      firstSeen ??= queued.clock.now
+      return list.map((run) => ({ ...run, ...statusAt((queued.clock.now - firstSeen) / 60000) }))
+    }
+    await queued.drain(260)
+    return queued
+  }
+  const waiting = await queuedTests((minutes) => minutes < 180 ? { status: "queued", conclusion: null } : minutes < 210 ? { status: "in_progress", conclusion: null } : { status: "completed", conclusion: "success" })
+  same("release-train: a Tests run that waits 180 minutes in the runner queue does not stop the train", [waiting.state().train.status, releaseDispatches(waiting.events).length], ["complete", 3])
+  const stuck = await queuedTests(() => ({ status: "in_progress", conclusion: null }))
+  same("release-train: a Tests run that runs for more than 90 minutes stops the train", [stuck.state().train.status, stuck.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the test.yml run did not finish in 90 minutes of run time"])
+  const stalled = await queuedTests(() => ({ status: "queued", conclusion: null }))
+  same("release-train: a Tests run that never leaves the runner queue stops the train at the wait ceiling", [stalled.state().train.status, stalled.state().train.steps.find((step) => step.state === "failed")?.reason], ["stopped", "the Tests and Guards runs did not finish before the wait ceiling of 360 minutes"])
+  same("release-train: the run time clock of a Tests run is saved in the train state", Object.keys(stuck.state().train.steps.find((step) => step.state === "failed").tests.startedAt), ["test.yml"])
+
   const apiOnly = { web: { needs: false }, landing: { needs: false }, android: { needs: false } }
   const sha40 = NEW.api
   const apiRefusals = [

@@ -19,7 +19,8 @@ const MINUTE = 60 * 1000
 const PLAN_EVERY_MS = 10 * MINUTE
 const RUN_FIND_MS = 10 * MINUTE
 const RUN_CEILING_MS = 360 * MINUTE
-const TESTS_CEILING_MS = 90 * MINUTE
+const TESTS_CEILING_MS = 90 * MINUTE // the run time of one Tests or Guards run, counted from the first poll that sees it started
+const NOT_STARTED = new Set(["queued", "waiting", "pending", "requested"])
 const CLOCK_SKEW_MS = 2 * MINUTE
 const VERIFY_ATTEMPTS = 3
 const SHA = /^[a-f0-9]{40}$/
@@ -300,18 +301,20 @@ const startTests = async (ctx, state, step) => {
   step.state = "testing"
   step.previousRunId = step.runId
   step.runId = null
-  step.tests = { dispatchedAt: ctx.now() }
+  step.tests = { dispatchedAt: ctx.now(), startedAt: {} }
   step.retried = true
   save(ctx, state)
   stepLine(ctx, step, "refused for a missing green Tests or Guards run: dispatched test.yml and guards.yml")
 }
 
+/** A Tests or Guards run waits in the runner queue behind the pull request runs, so the run ceiling counts the run time and the queue has its own ceiling. */
 const checkTests = async (ctx, state, step) => {
   const repoKey = SERVICES[step.service].repoKey
+  const workflows = ["test.yml", "guards.yml"]
   const newest = async (workflow) => (await ctx.ports.listRuns(repoKey, workflow))
     .filter((run) => run.headSha === step.plannedSha && Date.parse(run.createdAt) >= step.tests.dispatchedAt - CLOCK_SKEW_MS)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null
-  const runs = [await newest("test.yml"), await newest("guards.yml")]
+  const runs = [await newest(workflows[0]), await newest(workflows[1])]
   if (runs.some((run) => run?.status === "completed" && run.conclusion !== "success")) return stopTrain(ctx, state, step, "the Tests or Guards run at the planned SHA failed")
   if (runs.every((run) => run?.status === "completed")) {
     step.url = null
@@ -319,7 +322,15 @@ const checkTests = async (ctx, state, step) => {
     save(ctx, state)
     return stepLine(ctx, step, "Tests and Guards are green: the release dispatches again")
   }
-  if (ctx.now() - step.tests.dispatchedAt > TESTS_CEILING_MS) stopTrain(ctx, state, step, "the Tests and Guards runs did not finish in 90 minutes")
+  step.tests.startedAt ??= {} // a train state written before the run time clock has no map
+  workflows.forEach((workflow, index) => {
+    const run = runs[index]
+    if (run && run.status !== "completed" && !NOT_STARTED.has(run.status)) step.tests.startedAt[workflow] ??= ctx.now()
+  })
+  save(ctx, state)
+  const slow = workflows.find((workflow) => step.tests.startedAt[workflow] !== undefined && runs[workflows.indexOf(workflow)]?.status !== "completed" && ctx.now() - step.tests.startedAt[workflow] > TESTS_CEILING_MS)
+  if (slow) return stopTrain(ctx, state, step, `the ${slow} run did not finish in 90 minutes of run time`)
+  if (ctx.now() - step.tests.dispatchedAt > RUN_CEILING_MS) stopTrain(ctx, state, step, "the Tests and Guards runs did not finish before the wait ceiling of 360 minutes")
 }
 
 const verifyExtra = async (ctx, step) => {
@@ -522,7 +533,7 @@ export const realPorts = ({ run, toolsDirectory, environment = process.env, appS
       return found
     },
     dispatch: async (args) => { await gh(args) },
-    listRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
+    listRuns: async (key, workflow) => parseJson("gh run list", await gh(["run", "list", "--repo", repoOf(key), "--workflow", workflow, "--event", "workflow_dispatch", "--limit", "30", "--json", "databaseId,headSha,createdAt,event,status,conclusion,url,displayTitle,headBranch"])),
     runStatus: async (key, runId) => parseJson("gh api run", await gh(["api", `repos/${repoOf(key)}/actions/runs/${runId}`, "--jq", "{status,conclusion,url:.html_url,headSha:.head_sha}"])),
     failedLog: async (key, runId) => (await gh(["run", "view", String(runId), "--repo", repoOf(key), "--log-failed"])).slice(-20000),
     waitRelease: async ({ repo, workflow, run: runId, sha, workflowSha, serviceUrl }) => {
