@@ -142,6 +142,13 @@ test("every recorded web test duration names a test file that exists", () => {
   assert.deepEqual(absentFiles, [], "delete the recorded duration of a test file that was deleted or moved")
 })
 
+test("the two habit list scroll files hold measured durations, not a share of the file they were split from", () => {
+  const { durationMsByFile: { chromium } } = JSON.parse(readFileSync(join(root, "apps/web/vitest/shard-timings.json"), "utf8"))
+  const measuredBeforeSplit = 221_512
+  const total = chromium["__tests__/components/habits/habit-list-scroll-geometry.test.tsx"] + chromium["__tests__/components/habits/habit-list-bulk-skip-geometry.test.tsx"]
+  assert.notEqual(total, measuredBeforeSplit, "record the durations of the two files from a run, never split the old duration by case count")
+})
+
 test("an unrecorded file counts as the project median and equal durations still spread by count", async () => {
   const webRoot = join(root, "apps/web")
   const files = Array.from({ length: 12 }, (_, index) => ({ moduleId: join(webRoot, `__tests__/new-${index}.test.tsx`), project: { name: "unrecorded" } }))

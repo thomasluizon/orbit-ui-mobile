@@ -128,8 +128,10 @@ async function inspectDiscoveredControls(page: Page, scope: Locator, assert: typ
   return inspected
 }
 
-export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' | '/profile', locale: 'en' | 'pt-BR', registerLaunch: typeof registerChromeLaunchHook) {
-  const cases = [320, 480, 840, 1100, 1440].flatMap(width =>
+const sweepWidths =[320, 480, 840, 1100, 1440] as const
+
+export function interactionSurfaceSweep(route: '/' | '/calendar' | '/progress' | '/profile', locale: 'en' | 'pt-BR', registerLaunch: typeof registerChromeLaunchHook, widths: readonly number[] = sweepWidths) {
+  const cases = widths.flatMap(width =>
     (width >= 1024 ? [false, true] : [false]).map(collapsed => ({ width, locale, collapsed, route })))
   describe('destination and sheet interaction surface sweep', () => {
     let browser: Browser

@@ -50,7 +50,7 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
   const { maximized, run } = useWindowCommands()
   const maximizeHovered = useNativeMaximizeHover()
   const keyboardMenu = useRef(false)
-  const windowControls = useRef<HTMLDivElement>(null)
+  const windowControls = useRef<HTMLFieldSetElement>(null)
   useEffect(() => holdDesktopWindowBar(captureException), [])
   const onDragAreaMouseDown = (event: MouseEvent<HTMLDivElement>) => {
     if (event.button !== 0 || event.target !== event.currentTarget || event.detail > 2) return
@@ -89,7 +89,7 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
       )}
       <div role="presentation" className="min-w-0 flex-1" onMouseDown={onDragAreaMouseDown} />
       {platform === 'windows' && (
-        <div ref={windowControls} role="group" aria-label={t('controls')} className="flex items-center">
+        <fieldset ref={windowControls} aria-label={t('controls')} className="flex items-center min-w-0">
           <IconButton label={t('minimize')} data-window-action="minimize" onClick={() => run('minimize')}>
             <Minus size={20} strokeWidth={1.5} aria-hidden="true" />
           </IconButton>
@@ -99,7 +99,7 @@ function WindowBar({ platform }: Readonly<{ platform: DesktopWindowPlatform }>) 
           <IconButton label={t('close')} data-window-action="close" onClick={() => run('close')}>
             <X size={20} strokeWidth={1.5} aria-hidden="true" />
           </IconButton>
-        </div>
+        </fieldset>
       )}
     </div>
   )

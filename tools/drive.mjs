@@ -17,13 +17,13 @@ import { fileURLToPath, pathToFileURL } from "node:url"
 import { readDriveConfig } from "./lib/config.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, lastLine, readPin, rolledBackFrom, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
-import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "./lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import * as ciQueue from "./lib/ci-queue.mjs"
-import { ownerParts, partOf, partProblem, renderOrder } from "./lib/order.mjs"
+import { ownerParts, partOf, partProblem, renderOrder, renderResumeOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -43,6 +43,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   releases API, web, landing and mobile (Android, then iOS), staging first and then production. Each tick makes at most one
   dispatch or one check. --dry-run prints the steps. The train state is the file release-train.json in the state directory.
 
+  A pull request or an order that used its 2 launches gets one more launch on claude-opus-5-5. Its order holds the failure
+  history of every earlier launch, from the driver's own records. No label, no notice and no sleep hold follows a launch cap.
   The driver reads the queued and running jobs of the ui repository (at most once in 5 minutes). While the queued jobs hold more
   than 60 minutes of work at 40 jobs at a time, it starts no new build and finishes the open pull requests first. A pull request
   that used its 2 fix launches never gets needs:owner: after one launch on claude-opus-5-5 the driver closes it and builds the
@@ -67,8 +69,8 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
               runs it when the owner says so. It takes the main account with no word. A new week of that account ends it.
   --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
               and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
-  --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item for
-              the owner still gets one comment, plus the needs:owner label on its ticket, and the driver works on every other item.
+  --sleep on|off  sleep mode of the owner. While it is on the driver sends no notification and asks nothing: each item that
+              needs the owner's hands still gets one comment, plus the needs:owner label on its ticket, and the driver works on every other item.
               --sleep off makes the driver send one notification that lists the items held, each with its link.
   --release-now  ask the driver to start a release train on its next tick, at once, whatever the 4 hour cadence and the last stop.
               It starts only when a service has unreleased work. The owner session runs it for /release.
@@ -82,6 +84,9 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
 exit codes: 0 done, 2 usage error, 3 missing tool, configuration or credential`
 
 const TICK_MS = 120 * 1000
+/** After this many failed ticks in a row, the driver waits `BACKOFF_MS` between ticks until one passes. */
+const FAILED_TICKS_BEFORE_BACKOFF = 3
+const BACKOFF_MS = 10 * 60 * 1000
 const HOUR_MS = 60 * 60 * 1000
 const WEEK_MS = 7 * 24 * HOUR_MS
 const WEEKLY_CAP = 0.9
@@ -114,7 +119,6 @@ const MAX_ORDER_LAUNCHES = 2
 const MAX_FIX_LAUNCHES = 2
 /** The closes and rebuilds from main that one piece of work gets after its fix launches fail. */
 const MAX_RESTARTS = 2
-const WAITS_FOR_OPUS = "waits for the Opus launch at the fix cap"
 const WAITS_FOR_BOUND = "the restart bound is reached: the pull request stays open and the watchdog reports it"
 const CI_QUEUE_TTL_MS = 5 * 60 * 1000
 const WATCHDOG_FILE = "watchdog.json"
@@ -122,6 +126,7 @@ const NO_MERGE_MS = 2 * HOUR_MS
 const OPEN_PULL_MS = 24 * HOUR_MS
 const HISTORY_LIMIT_CHARS = 6000
 const CHECK_LOG_LINES = 20
+const WAITS_FOR_REPLAN = "waits for the re-plan"
 const FLAKE_LOG_LINES = 40
 const BASE_COMMIT_LIMIT = 30
 const MERGED_TTL_MS = 10 * 60 * 1000
@@ -277,6 +282,13 @@ const knownAccounts = (mem) => ACCOUNT_NAMES.filter((name) => stateOf(mem, name)
 /** The name of the account that a launch record or a reading names by its key. A key that matches neither belongs to the main account. */
 const nameOfKey = (mem, key) => (key !== null && mem.worker.account?.key === key ? WORKER : MAIN)
 
+/** The account of the newest session of the branch of a fix order, or null for a build order, a launch at a cap, an unknown session or an account of no known login. */
+const sessionAccountOf = (mem, order) => {
+  if (!FIX_KINDS.includes(order.kind) || order.model) return null
+  const saved = recordsOf(order.ticket, "launch-session").findLast((record) => record.branch === (order.branch ?? order.pull.headRef))
+  return knownAccounts(mem).find((name) => stateOf(mem, name).account.key === saved?.account) ?? null
+}
+
 /** A reading counts only for the account that took it: a worker event for the account of its launch, the snapshot for its email. */
 const readingsOfAccount = (env, mem, name) => {
   const state = stateOf(mem, name)
@@ -346,7 +358,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), ci: null, repairs: [], capped: new Set(), planned: new Set(), mergedAt: null })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0, ci: null, repairs: [], capped: new Set(), planned: new Set(), mergedAt: null })
 
 /** Notes one repair that the driver did this tick. The watchdog names it in its lines. */
 const repaired = (mem, text) => { if (!mem.repairs.includes(text)) mem.repairs.push(text) }
@@ -892,6 +904,13 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
   }
   // The first pass of a head is one pass: a pull request that owes a whole-diff pass asks for it at once, and never for a plain pass first.
   const first = needsWholeDiff(pull, { fixLaunches }) ? WHOLE_DIFF_REQUEST : PLAIN_REQUEST
+  // Pullfrog edits the body of a review after it submits the review, so a review is final only when its run is complete and the settle time passed.
+  const settling = (review) => {
+    const run = review === null ? null : runOfReview(runs, review)
+    if (run === null) return null
+    if (run.status !== "completed") return { wait: "a Pullfrog run is in progress" }
+    return now - Date.parse(run.updatedAt) < CHECK_SETTLE_MS ? { wait: "the Pullfrog review is not yet final" } : null
+  }
   // A head that Pullfrog already reviewed gets no second plain request: its next pass is the owner's to ask for.
   const demand = (text, why) => {
     if (sinceReview.length > 0) return waiting()
@@ -904,9 +923,14 @@ const reviewNeed = ({ pull, ticket, fixLaunches, now, runs }) => {
     const context = { wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [] }
     if (!needsWholeDiff(pull, { fixLaunches }) || wholeDiffApproved(pull, context)) return carried === null ? { approved: true } : { approved: true, skip: "same diff" }
     // A whole-diff pass that lacks its "Whole diff:" line gets one re-request, then the owner.
+    const unsettled = settling(latest)
+    if (unsettled) return unsettled
     if (answeredWholeDiffRequests(pull, runs) >= 2) return { owner: "Pullfrog answered two whole-diff requests at this head with no whole-diff review" }
     return demand(WHOLE_DIFF_REQUEST, "an approval-head pass is owed")
   }
+  // A fix order reads the review, so it waits until Pullfrog stops editing the body: a late edit adds findings that the inline comments lack.
+  const unsettled = settling(latest)
+  if (unsettled) return unsettled
   if (latest.state === CHANGES_REQUESTED && latest.blocking.length > 0) return { fix: latest }
   const unusable = atHead.filter((review) => review.state === "COMMENTED" || (review.state === CHANGES_REQUESTED && review.blocking.length === 0))
   if (unusable.length >= 2) return { owner: "Pullfrog gave a review with no BLOCKING comment twice at the same head" }
@@ -1019,8 +1043,22 @@ const flakeActions = (pull) => {
   })
 }
 
+/** The facts file of a launch sits beside its log. */
+const factsFileOf = (logFile) => logFile.replace(/\.log$/, ".facts.json")
+
 /** True when a launch record names the coordinator model: the launch at a cap runs it once. */
 const ranOpus = (entry) => entry.model === workerApi.COORDINATOR_MODEL
+
+/**
+ * The launch facts of one plan, newest first. A launch writes its facts file when it starts and adds its exit when it ends, so
+ * every field comes from the driver and none from a worker's own summary. A launch with no facts file shows only its record.
+ */
+export const failureHistory = (env, launches) => [...launches].reverse().map((entry) => {
+  const logFile = entry.log ? join(env.stateDir, "logs", `${entry.log}.log`) : null
+  let facts = {}
+  try { facts = JSON.parse(readFileSync(factsFileOf(logFile), "utf8")) } catch { /* a launch from before the facts files has none */ }
+  return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : resultText(tailOf(logFile)) }
+})
 
 /** The restart records of a ticket: each names the pull request that the driver closed and its branch. A closed branch counts as used. */
 const restartsOf = (ticket) => (ticket?.comments ?? []).filter((entry) => entry.kind === "restart").flatMap((entry) => {
@@ -1046,7 +1084,7 @@ const cutLine = (text, limit = 600) => {
 }
 
 /** The failure history of a capped pull request, from the driver's own facts: its launches, and what stayed open at its head. */
-export const failureHistory = ({ item, pull, order, launches }) => {
+export const restartHistory = ({ item, pull, order, launches }) => {
   const lines = [`${item} used its ${MAX_FIX_LAUNCHES} fix launches and one launch on the coordinator model. The driver closed it at \`${pull.headSha}\`.`, "", "Launches:"]
   for (const entry of launches) lines.push(`- ${entry.kind} on ${entry.model ?? workerApi.WORKER_MODEL}${entry.at ? `, started ${entry.at}` : ""}`)
   lines.push("", "Open at the head:")
@@ -1104,17 +1142,18 @@ const planPullActions = async (env, mem, { repoKey, state, ticketMap, now, runs,
   const counted = launches.filter((entry) => !entry.baseMerge)
   const actions = flakeActions(pull)
   const owner = (reason) => [...actions, { type: "needs-owner", reason }]
-  const orderOrOwner = (order, classes) => {
+  const orderOrWait = (order) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
-    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it. Open: ${classes}`)
+    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it.`)
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
-    // A fix cap never waits on the owner. The launch on the coordinator model comes first; when it fails too, the driver closes the pull request and builds the ticket again from main.
-    if (!counted.some(ranOpus)) return [...actions, { type: "none", reason: WAITS_FOR_OPUS, capped: true }]
+    // A fix cap never waits on the owner. The driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
+    if (!counted.some(ranOpus)) return [...actions, { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches), capped: true }]
+    // When the Opus launch fails too, the driver closes the pull request and builds the ticket again from main.
     const bound = restartsOf(ticket).filter((entry) => entry.pr !== pull.number && branchBase(entry.branch) === branchBase(pull.headRef)).length
     if (bound >= MAX_RESTARTS) return [...actions, { type: "none", reason: WAITS_FOR_BOUND, capped: true }]
-    return [...actions, { type: "restart", capped: true, history: failureHistory({ item, pull, order, launches }) }]
+    return [...actions, { type: "restart", capped: true, history: restartHistory({ item, pull, order, launches }) }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
   if (need.skip) log(env, item, `review skip (${need.skip})`)
@@ -1125,15 +1164,15 @@ const planPullActions = async (env, mem, { repoKey, state, ticketMap, now, runs,
       for (const thread of open) thread.resolved = true
     }
   }
-  if (need.fix) return orderOrOwner({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix }, need.fix.blocking.map((entry) => (entry.path === null ? "the review body" : `${entry.path}:${entry.line}`)).join(", "))
+  if (need.fix) return orderOrWait({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix })
   const checks = await checkPlan(env, repoKey, pull)
   if (checks?.owner) return owner(checks.owner)
   if (checks?.rerun) return [...actions, ...checks.rerun.map(({ runId, suspects }) => ({ type: "rerun", runId, suspects }))]
   if (checks?.checks) {
     const baseMerge = await baseMergeOf(env, env.config.repos[repoKey], pull)
-    return orderOrOwner({ type: "order", kind: "ci-fix", repoKey, pull, ticket, failure: { checks: checks.checks, ...(baseMerge === null ? {} : { baseMerge }) } }, checks.checks.map((check) => check.name).join(", "))
+    return orderOrWait({ type: "order", kind: "ci-fix", repoKey, pull, ticket, failure: { checks: checks.checks, ...(baseMerge === null ? {} : { baseMerge }) } })
   }
-  if (pull.mergeState === "DIRTY") return orderOrOwner({ type: "order", kind: "merge-forward", repoKey, pull, ticket, failure: {} }, "merge conflict with the base branch")
+  if (pull.mergeState === "DIRTY") return orderOrWait({ type: "order", kind: "merge-forward", repoKey, pull, ticket, failure: {} })
   if (need.owner) return owner(need.owner)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
@@ -1252,7 +1291,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type === "restart" ? "close and rebuild from main (fix cap)" : action.type === "clear-cap-label" ? "remove the stale needs:owner of a fix cap" : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "needs-owner" ? `needs:owner: ${action.reason}` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? "update branch (retargeted child)" : action.type === "restart" ? "close and rebuild from main (fix cap)" : action.type === "clear-cap-label" ? "remove the stale needs:owner of a fix cap" : action.type)
 
 /** True while a pull request waits on the owner: by a label of its own or of its ticket, or by its report. */
 const waitsOnOwner = (env, pull, tickets) => {
@@ -1282,7 +1321,7 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
     try {
       // An earlier pull request of the ticket can label it in the act step, so the act step plans again when the label is new.
       const ownerAtPlan = pull.tracks !== null && ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
-      const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey)), pull.number)
+      const runs = pull.draft ? [] : env.github.runsNaming(await readOnce(env, `runs ${repoKey}`, () => env.github.pullfrogRuns(repoKey).catch((error) => { noteReadError(mem, error); throw error })), pull.number)
       if (!pull.draft && (pull.reviews.some((review) => review.state === "APPROVED") || failedChecks(pull).length > 0)) pull.cleanMerges = await cleanMergesOf(env, repoPath, pull)
       if (!pull.draft) pull.sameDiffAs = await sameDiffOf(env, repoPath, pull, state.defaultBranch)
       const planAgain = async () => {
@@ -1336,7 +1375,9 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       } finally {
         // Read after the actions, so a hold that this tick wrote counts. The finally block keeps a pull request whose action throws on the stall clock.
         // A merge that the release train holds on purpose is a chosen hold, so it stays off the stall clock.
-        if (!mergeHeld && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
+        // A hold that the driver chose for a re-plan is no stall: the next re-plan run ends it.
+        const waitsForReplan = plan.some((action) => action.reason === WAITS_FOR_REPLAN)
+        if (!mergeHeld && !waitsForReplan && isWaiting(env, pull, tickets)) mem.waiting.push(`${item}: ${plan.map(describe).join("; ")}`)
       }
     } catch (failure) {
       log(env, item, "error", failure.message)
@@ -1443,10 +1484,50 @@ const prepareWorktree = async (env, repoKey, branch, fresh, place) => {
   return path
 }
 
+/** Gives a new worktree its dependencies: a clone of the main checkout's, or one `npm ci`. A failure only logs, because the worker installs for itself. */
+const provisionDependencies = async (env, repoKey, ticket, worktree) => {
+  const item = `ticket#${ticket.number}`
+  const result = await env.dependencies(env.config.repos[repoKey], worktree)
+  if (result.action === "clone") log(env, item, "worktree deps clone", `${result.ms} ms, ${result.directories.length} directories`)
+  else if (result.action === "install") log(env, item, "worktree deps install", `${result.ms} ms, ${result.reason}`)
+  else if (result.action === "failed") log(env, item, "worktree deps failed", `${result.ms} ms, ${result.reason}`)
+}
+
+/**
+ * The session that a fix, ci-fix or merge-forward launch resumes, or null for a cold start. The launch must run the worker model: a launch at a
+ * cap starts cold with its failure history. The newest session that a worker of the branch left must belong to the same account, hold at most
+ * `RESUME_TOKEN_LIMIT` tokens and still have its transcript on disk.
+ */
+const resumableSession = (env, ticket, { kind, branch, model, account, invocation, worktree }) => {
+  const item = `ticket#${ticket.number}`
+  const cold = (reason) => { log(env, item, "fix cold start", `${kind}, ${reason}`); return null }
+  if (model !== workerApi.WORKER_MODEL) return cold(`the launch runs ${model}`)
+  const saved = recordsOf(ticket, "launch-session").findLast((record) => record.branch === branch)
+  if (saved === undefined) return cold("no session of the branch is recorded")
+  if (saved.account !== account) return cold("the session belongs to another account")
+  if (!(saved.tokens <= workerApi.RESUME_TOKEN_LIMIT)) return cold(`the session holds ${saved.tokens} tokens`)
+  const configDirectory = invocation.environment.CLAUDE_CONFIG_DIR ?? join(env.home, ".claude")
+  if (!env.worker.sessionExists({ configDirectory, worktree, sessionId: saved.session })) return cold("the session transcript is gone")
+  log(env, item, `fix resume ${saved.session}`, `${kind}, ${saved.tokens} tokens`)
+  return saved.session
+}
+
 const ticketForOrder = (env, ticket, extra = "") => ({ number: ticket.number, title: ticket.title, body: extra === "" ? ticket.body : `${ticket.body.trim()}\n\n${extra}`, repository: env.config.tickets.repository })
 
-/** Starts one worker for an order and records its launch on the ticket first, so a crash still counts. Returns null when the worker started, else the reason it did not. */
-const startWorker = async (env, mem, candidate, accountName = MAIN) => {
+/** Takes one launch back from a ticket, so it counts toward no cap. */
+const refundLaunch = async (env, ticket, { kind, partNumber, branch, prNumber }, why) => {
+  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
+  await env.github.comment("tickets", ticket.number, body)
+  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
+  log(env, `ticket#${ticket.number}`, "launch-refund", why)
+}
+
+/**
+ * Starts one worker for an order and records its launch on the ticket first, so a crash still counts. `blocked` is read after
+ * the last wait of the start: a reason takes the launch back and starts no worker. Returns null when the worker started, else
+ * the reason it did not.
+ */
+const startWorker = async (env, mem, candidate, accountName = MAIN, blocked = () => null) => {
   const order = { ...candidate, branch: candidate.branch ?? candidate.pull.headRef }
   const { kind, repoKey, ticket, pull = null, part = null, branch, extra = "" } = order
   const token = await env.worker.readWorkerToken()
@@ -1465,24 +1546,39 @@ const startWorker = async (env, mem, candidate, accountName = MAIN) => {
     return reason
   }
   const baseMergeMark = order.baseMergeHead ? { baseMerge: order.baseMergeHead } : {}
-  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, at: new Date(env.now()).toISOString() })))
-  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark })), createdAt: new Date(env.now()).toISOString() })
-  const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
-  const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
+  const model = order.model ?? workerApi.WORKER_MODEL
+  const startedIso = new Date(env.now()).toISOString()
   const stem = branch.replaceAll("/", "-")
+  // The log name goes into the launch record, so the next order at a cap finds the facts and the log of this launch.
+  const logName = `${stem}-${startedIso.replace(/[:.]/g, "-")}`
+  const launchRecord = { kind, part: part?.number ?? null, branch, pr: pull?.number ?? null, ...baseMergeMark, model, log: logName }
+  await env.github.comment("tickets", ticket.number, marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })))
+  ticket.comments.push({ kind: "launch", body: marked("launch", JSON.stringify({ ...launchRecord, at: startedIso })), createdAt: startedIso })
+  const worktree = await prepareWorktree(env, repoKey, branch, pull === null, location)
+  if (!location.listed) await provisionDependencies(env, repoKey, ticket, worktree)
+  const headBefore = await gitText(env, worktree, ["rev-parse", "HEAD"])
   const place = { repoKey, repoPath: env.config.repos[repoKey], worktree, branch, base: "main" }
-  const text = renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, ownerNote: order.ownerNote ?? null, place, partNumber: part?.number ?? null })
-  const stamp = new Date(env.now()).toISOString().replace(/[:.]/g, "-")
-  const logFile = join(env.stateDir, "logs", `${stem}-${stamp}.log`)
+  const logFile = join(env.stateDir, "logs", `${logName}.log`)
   // The GitHub hook of the worker lets it edit only the pull request of this branch, from this worktree.
-  const invocation = await env.invocation(token, accountName, { worktree, branch })
+  const baseInvocation = await env.invocation(token, accountName, { worktree, branch }, model)
   const account = stateOf(mem, accountName).account?.key ?? null
+  const refusal = blocked()
+  if (refusal !== null) {
+    await refundLaunch(env, ticket, { kind, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null }, `${kind} on ${branch} starts no worker: ${refusal}`)
+    return refusal
+  }
+  const session = FIX_KINDS.includes(kind) ? resumableSession(env, ticket, { kind, branch, model, account, invocation: baseInvocation, worktree }) : null
+  const invocation = session === null ? baseInvocation : workerApi.resumeInvocation(baseInvocation, session)
+  const text = session === null
+    ? renderOrder({ kind, ticket: ticketForOrder(env, ticket, extra), partComments: ticket.comments.filter((entry) => entry.kind === null), findings: kind === "build part" ? ticket.comments.filter((entry) => entry.kind === "findings") : [], pull, review: order.review, failure: order.failure, history: order.history ?? [], place, partNumber: part?.number ?? null })
+    : renderResumeOrder({ kind, pull, review: order.review, failure: order.failure })
   // The worker writes its rate limit event right after its first message, so the reading belongs to the launch time.
   const startedAt = env.now()
   // What a reap needs lives on disk beside the pid file, so a worker that outlives a restart of the driver is still reaped.
+  writeFileSync(factsFileOf(logFile), `${JSON.stringify({ kind, model, at: startedIso, headBefore, blocking: order.review?.blocking ?? [], checks: order.failure?.checks ?? [] })}\n`)
   writeFileSync(launchRecordPath(env, stem), `${JSON.stringify({ kind, repoKey, ticketNumber: ticket.number, partNumber: part?.number ?? null, branch, prNumber: pull?.number ?? null, worktree, headBefore, logFile, account, startedAt })}\n`)
   const running = env.worker.launch({ invocation, worktree, order: text, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
-  log(env, `ticket#${ticket.number}`, `launch ${kind}`, `branch ${branch}, worktree ${worktree}`)
+  log(env, `ticket#${ticket.number}`, `launch ${kind} model ${model}`, `branch ${branch}, worktree ${worktree}`)
   mem.running.set(stem, running.then((result) => {
     mem.running.delete(stem)
     mem.results.set(stem, result)
@@ -1584,6 +1680,21 @@ const enforceOrphanClocks = async (env, mem) => {
 }
 
 /**
+ * A questions run that this process did not start has no timer here, so each tick checks its hard ceiling from its pid file.
+ * It gets SIGTERM at the ceiling and SIGKILL on the next tick if it still lives.
+ */
+const enforceQuestionsCeiling = (env, mem) => {
+  if (env.dryRun || mem.questions !== null) return
+  const file = pidFileOf(env, QUESTIONS_STEM)
+  if (file === null) return void mem.orphans.delete(QUESTIONS_STEM)
+  if (mem.orphans.has(QUESTIONS_STEM)) return env.worker.killWorkerTree(file.pid, "SIGKILL")
+  if (env.now() - Date.parse(file.startedAt) < env.worker.WORKER_LIMITS.hardCeilingMs) return
+  mem.orphans.set(QUESTIONS_STEM, { reason: "hard-ceiling" })
+  log(env, "questions", "kill", `a run that this process did not start ${env.worker.KILL_REASONS["hard-ceiling"]}`)
+  env.worker.killWorkerTree(file.pid, "SIGTERM")
+}
+
+/**
  * Marks the account of a worker that ended on a usage limit (or a sign-in failure) as stopped, and takes the launch back so the
  * order starts again on the other account without a count toward its cap. A limit lasts until the `resetsAt` of the account;
  * a sign-in failure or an unknown reset lasts one hour.
@@ -1593,14 +1704,30 @@ const stopAndRefund = async (env, mem, ticket, exit, result) => {
   const name = nameOfKey(mem, account)
   const until = result.result.usageLimitReached ? limitEnd(env, mem, name) : env.now() + HOUR_MS
   await stopAccount(env, mem, name, until, result.result.usageLimitReached ? "a worker hit a usage limit" : "a worker sign-in failed")
-  const body = marked("launch-refund", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber }))
+  await refundLaunch(env, ticket, { kind, partNumber, branch, prNumber }, `${kind} on ${branch} starts again on the other account`)
+}
+
+/** Records the session that a worker leaves and the size of its context on the ticket, so a later fix of the branch can resume it. A log with no usage records nothing. */
+const recordSession = async (env, ticket, { kind, partNumber, branch, prNumber, account, logFile }, sessionId) => {
+  const tokens = env.worker.logContextTokens(logFile)
+  if (tokens === null) return
+  const body = marked("launch-session", JSON.stringify({ kind, part: partNumber, branch, pr: prNumber, session: sessionId, account, tokens }))
   await env.github.comment("tickets", ticket.number, body)
-  ticket.comments.push({ kind: "launch-refund", body, createdAt: new Date(env.now()).toISOString() })
-  log(env, `ticket#${ticket.number}`, "launch-refund", `${kind} on ${branch} starts again on the other account`)
+  ticket.comments.push({ kind: "launch-session", body, createdAt: new Date(env.now()).toISOString() })
 }
 
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
 const exitFromLog = (logFile) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logEvent(logFile), result: workerApi.logFinalResult(logFile) })
+
+/** Adds the exit of a launch to its facts file: the exit code, the kill reason and the head that the worktree holds now. A failed write loses only history. */
+const recordExit = async (env, { worktree, logFile }, result) => {
+  try {
+    const file = factsFileOf(logFile)
+    const facts = JSON.parse(readFileSync(file, "utf8"))
+    const head = await env.git(worktree, ["rev-parse", "HEAD"])
+    writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter: head.status === 0 ? head.stdout.trim() : null })}\n`)
+  } catch { /* no facts file means a launch from before the facts files */ }
+}
 
 /** What a worker's exit leaves to do: records, a pause, a question, or a findings comment. */
 const reapExit = async (env, mem, tickets, states, exit) => {
@@ -1612,6 +1739,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   const newerReading = own.reading?.account === account && own.reading.at > startedAt
   if (result.utilization !== null && account !== null && !newerReading) setReading(env, mem, { utilization: result.utilization, resetsAt: result.resetsAt, at: startedAt, account })
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
+  await recordExit(env, exit, result)
   const tail = tailOf(logFile)
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
@@ -1619,6 +1747,7 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     if (knownAccounts(mem).length > 1 && account !== null) return stopAndRefund(env, mem, ticket, exit, result)
     return pauseDriver(env, mem, tickets, { source: result.result.usageLimitReached ? "A worker" : "A worker sign-in", message, reset: workerApi.usageLimitIn(message)?.reset ?? null, account: account ?? undefined })
   }
+  if (kind !== "find" && result.sessionId) await recordSession(env, ticket, exit, result.sessionId).catch((error) => log(env, item, "error", `the session is not recorded: ${error.message}`))
   // The 403 message can sit in a file that the worker read, so a push counts only from git state: its own output and commits that the remote lacks.
   if (await pushForbidden(env, tail, worktree, branch, headBefore)) return needsOwner(env, mem, { ticket, reason: `The worker push failed with HTTP 403 on ${branch}` })
   if (result.result.needsDecision) return needsOwner(env, mem, { ticket, reason: `${branch}: NEEDS_DECISION: ${result.result.needsDecision}` })
@@ -1762,11 +1891,11 @@ const onlyOwnerItems = (line) => {
   return items.length > 0 && items.every((item) => OWNER_ITEM.test(item))
 }
 
-/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. */
-const rebuildStopReason = (history) => {
+/** The reason that no build helps, or `null`. The last merged pull request leaves only owner items, or two merges in a row leave the same Remaining line. An owner decision after the last merge lifts the stop: the owner decided what the next build does. */
+const rebuildStopReason = (history, decidedAt = 0) => {
   const last = history.at(-1)
   const line = last === undefined ? null : remainingLineOf(last)
-  if (line === null) return null
+  if (line === null || decidedAt > Date.parse(last.mergedAt)) return null
   if (onlyOwnerItems(line)) return `${line} (only owner items are left)`
   const before = history.length > 1 ? remainingLineOf(history.at(-2)) : null
   return before === line ? `${line} (two merged pull requests in a row left the same line)` : null
@@ -1790,6 +1919,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const partFault = partProblem(ticket.comments.filter((comment) => comment.kind === null))
   if (partFault !== null) return { reason: "a part comment is broken or doubled", owner: partFault }
   const state = states.find((entry) => entry.repositoryKey === ticket.repoKey)
+  if (state === undefined) return stop(`the ${ticket.repoKey} repository could not be read this tick`)
   const tracking = state.pulls.filter((pull) => pull.tracks === ticket.number)
   const parts = partsOf(ticket)
   if (parts.length === 0 && tracking.length > 0) return stop("an open pull request tracks it")
@@ -1809,7 +1939,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   if (parts.length === 0) {
     const branch = ownBranch(null)
     if (held(branch)) return held(branch)
-    const stopReason = rebuildStopReason(history)
+    const stopReason = rebuildStopReason(history, ownerDecisionAt(env, ticket))
     if (stopReason !== null) return { reason: "a rebuild cannot meet the Remaining line", owner: `No build can meet the Remaining line of the last merged pull request: ${stopReason}` }
     const remaining = history.length === 0 ? "" : `Remaining after the merged pull requests: ${remainingLineOf(history.at(-1)) ?? "Remaining: unknown"}`
     return { order: { kind: "build", repoKey: ticket.repoKey, ticket, branch, extra: [remaining, earlier].filter(Boolean).join("\n\n") } }
@@ -1894,23 +2024,27 @@ const admit = async (env, mem, tickets, states, { running, room, full, ciHold = 
     }
     // The launches before the newest owner decision are answered, so a decided order gets its full count again.
     const launches = launchesOf(ticket, ownerDecisionAt(env, ticket)).filter((entry) => entry.branch === verdict.order.branch && entry.kind === verdict.order.kind)
-    if (launches.length >= MAX_ORDER_LAUNCHES) {
-      decisions.set(ticket.number, "needs:owner: the order used its launches")
-      await needsOwner(env, mem, { ticket, reason: `The ${verdict.order.kind} order of ${verdict.order.branch} launched ${launches.length} times without a result`, relabel: true })
-      continue
-    }
     if (running.branches.has(verdict.order.branch)) {
       decisions.set(ticket.number, "wait: a worker runs on its branch")
       continue
     }
+    let order = verdict.order
+    if (launches.length >= MAX_ORDER_LAUNCHES) {
+      if (launches.some(ranOpus)) {
+        decisions.set(ticket.number, `wait: ${WAITS_FOR_REPLAN}`)
+        continue
+      }
+      // At the cap the driver grants itself one launch on the coordinator model, with the failure history of every earlier launch.
+      order = { ...order, model: workerApi.COORDINATOR_MODEL, history: failureHistory(env, launches) }
+    }
     // A new build adds about 35 jobs to a queue that is full. The open pull requests finish first.
-    if (ciHold !== null && CI_HELD_KINDS.includes(verdict.order.kind)) {
+    if (ciHold !== null && CI_HELD_KINDS.includes(order.kind)) {
       decisions.set(ticket.number, `wait: ${ciHold}`)
       repaired(mem, `holds new builds: ${ciHold}`)
       continue
     }
-    chosen.push(verdict.order)
-    decisions.set(ticket.number, `admit ${verdict.order.kind} on ${verdict.order.branch}`)
+    chosen.push(order)
+    decisions.set(ticket.number, `admit ${order.kind} on ${order.branch}${order.model ? ` on ${order.model}` : ""}`)
   }
   return { chosen, decisions }
 }
@@ -2035,11 +2169,52 @@ const intake = async (env, mem) => {
 }
 
 /** One tick: rebuild the state, reap exits, act on pull requests, run the owner-work notices, admit, and take the hourly intake. */
+const noteReadError = (mem, error) => { mem.readErrors.push(error) }
+
+/**
+ * The tickets and the state of each repository. A repository that cannot be read after its half-size retry is `unknown` for this
+ * tick, and the other repositories go on. The read fails when the tickets cannot be read or when no repository can.
+ */
 const readWorld = async (env, mem) => {
-  const tickets = await env.github.readTickets()
-  const states = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] })))
+  let tickets
+  try { tickets = await env.github.readTickets() } catch (error) { noteReadError(mem, error); throw error }
+  const reads = await Promise.all(REPOSITORY_KEYS.map((key) => env.github.readRepositoryState(key, { knownNumbers: mem.known[key] ?? [] }).then((state) => ({ state }), (error) => ({ key, error }))))
+  const states = reads.flatMap((read) => (read.state ? [read.state] : []))
+  const unknown = []
+  for (const { key, error } of reads.filter((read) => read.error)) {
+    noteReadError(mem, error)
+    log(env, key, "repository-unknown", error.message)
+    unknown.push(key)
+  }
+  if (states.length === 0) throw new Error(`no repository could be read: ${mem.readErrors.at(-1).message}`)
   for (const state of states) mem.known[state.repositoryKey] = state.numbers
-  return { tickets, states }
+  return { tickets, states, unknown }
+}
+
+/** The epoch milliseconds at which a rate limit resets: the latest reset of the exhausted core and GraphQL limits of `gh api rate_limit`, or 0 when neither is exhausted. */
+const rateLimitReset = async (env) => {
+  try {
+    const { resources } = JSON.parse(await env.gh(["api", "rate_limit"]))
+    const exhausted = ["core", "graphql"].map((name) => resources[name]).filter((limit) => limit?.remaining === 0)
+    return exhausted.length === 0 ? 0 : Math.max(...exhausted.map((limit) => limit.reset)) * 1000
+  } catch (error) {
+    log(env, "tick", "rate-limit-unread", error.message)
+    return 0
+  }
+}
+
+/**
+ * Closes the reads of one tick. A rate limit holds the next tick until the reset. A third failed tick in a row holds each next tick
+ * for 10 minutes, until one tick passes. A held tick reads nothing from GitHub.
+ */
+const settleReads = async (env, mem, { failed }) => {
+  const errors = mem.readErrors
+  mem.readErrors = []
+  mem.failedTicks = failed ? mem.failedTicks + 1 : 0
+  let until = errors.some(isRateLimited) ? await rateLimitReset(env) : 0
+  if (mem.failedTicks >= FAILED_TICKS_BEFORE_BACKOFF) until = Math.max(until, env.now() + BACKOFF_MS)
+  mem.holdUntil = until
+  if (until > env.now()) log(env, "tick", "hold", `GitHub reads wait until ${new Date(until).toISOString()}`)
 }
 
 /**
@@ -2057,16 +2232,19 @@ const killLeftoverGroup = (env, stem) => {
 /**
  * Reaps every worker whose launch record is on disk and whose process is gone, after a restart of the driver too. A tick
  * reaps before it reads GitHub for its own steps, so every later step reads what the reap wrote. The reap has its own
- * read, and it takes one only when a record waits.
+ * read, and it takes one only when a record waits. It returns the repositories that its read could not see. The record of each
+ * waits for the next tick, so the tick treats each of them as unknown for the whole tick.
  */
 const reapExits = async (env, mem) => {
   // A dry run writes nothing, so it leaves every record for the driver that runs. Until the account is known, a reading of a worker
   // belongs to no account, so the records wait for the tick that reads it.
-  if (env.dryRun || mem.account === null) return
+  if (env.dryRun || mem.account === null) return []
   const gone = launchRecords(env).filter(({ stem }) => !workerRuns(env, mem, stem))
-  if (gone.length === 0) return
-  const { tickets, states } = await readWorld(env, mem)
+  if (gone.length === 0) return []
+  const { tickets, states, unknown } = await readWorld(env, mem)
   for (const { stem, record } of gone) {
+    // The record of a repository that this read could not see waits for the next tick.
+    if (unknown.includes(record.repoKey)) continue
     rmSync(launchRecordPath(env, stem), { force: true })
     // A worker that this process did not wait for has no `finish` here to end the children it left in its group, and its pid file is still there.
     if (!mem.results.has(stem)) killLeftoverGroup(env, stem)
@@ -2077,6 +2255,7 @@ const reapExits = async (env, mem) => {
     mem.orphans.delete(stem)
     await reapExit(env, mem, tickets, states, { ...record, result }).catch((error) => log(env, `ticket#${record.ticketNumber}`, "error", error.message))
   }
+  return unknown
 }
 
 /**
@@ -2160,10 +2339,23 @@ const watchHealth = async (env, mem, { states, tickets, queue, held }) => {
   save()
 }
 
+/** The detached worktree of the questions run, on the current `origin/main` of the ui repository. It has no branch, so the worktree sweep keeps it. */
+const questionsWorktree = async (env) => {
+  const repoPath = env.config.repos.ui
+  const path = join(dirname(repoPath), "orbit-worktrees", "ui", QUESTIONS_STEM)
+  await gitText(env, repoPath, ["fetch", "origin", "main"])
+  const listed = parseWorktreeList(await gitText(env, repoPath, ["worktree", "list", "--porcelain"])).some((entry) => resolve(entry.path) === resolve(path))
+  if (listed) await gitText(env, path, ["checkout", "--detach", "origin/main"])
+  else await gitText(env, repoPath, ["worktree", "add", "--detach", path, "origin/main"])
+  return path
+}
+
 /**
  * Starts one headless `/questions --auto` run when a held item (`heldWithNewReport`) has a `needs-owner` report newer than the
- * start of the last run, and no run is live. The run takes no worker slot. It runs in the driver worktree on the main account with the
- * coordinator model and the owner's gh login, and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * start of the last run, and no run is live. The run takes no worker slot. It runs in its own worktree (`questionsWorktree`), not in the
+ * driver worktree, so a driver switch does not wait for it. It runs on the main account with the coordinator model and the owner's gh login,
+ * and it stops with the main account at 90% like a worker. The start goes to `questions.json` before the launch.
+ * A live pid file means a run that an earlier driver process started: the new process adopts it and starts no second one.
  * The skill reads `sleep.json` itself, so the driver passes no sleep state.
  */
 const startQuestions = async (env, mem, { tickets, states, blocked }) => {
@@ -2175,10 +2367,11 @@ const startQuestions = async (env, mem, { tickets, states, blocked }) => {
   const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
   if (token === null) return log(env, "questions", "refused", "no owner gh login: run gh auth login")
   const invocation = env.worker.questionsInvocation({ home: env.home, parentEnvironment: process.env, token })
+  const worktree = await questionsWorktree(env)
   const startedAt = env.now()
   writeFileSync(join(env.stateDir, QUESTIONS_FILE), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
   const logFile = join(env.stateDir, "logs", `${QUESTIONS_STEM}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
-  const running = env.worker.launch({ invocation, worktree: env.driverWorktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
+  const running = env.worker.launch({ invocation, worktree, order: QUESTIONS_ORDER, logFile, pidFile: join(env.stateDir, `${QUESTIONS_STEM}.pid`) })
   log(env, "questions", "launch")
   mem.questions = running.then((result) => {
     mem.questions = null
@@ -2214,16 +2407,25 @@ export const tick = async (env, mem) => {
   await sendPending(env)
   await reportSleep(env)
   await enforceOrphanClocks(env, mem)
+  enforceQuestionsCeiling(env, mem)
+  if (env.now() < mem.holdUntil) {
+    log(env, "tick", "held", `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}`)
+    return { retried: true, held: true }
+  }
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
   const running = runningWorkers(env, mem)
   const status = await readAccount(env, mem)
   await readWorkerAccount(env, mem)
   let world
   try {
-    await reapExits(env, mem)
+    const unseen = await reapExits(env, mem)
     world = await readWorld(env, mem)
+    world.states = world.states.filter((state) => !unseen.includes(state.repositoryKey))
   } catch (error) {
     log(env, "tick", "retry", error.message)
+    // A failed read that the read itself did not note (a failure of the reap) still counts as a failed tick.
+    if (mem.readErrors.length === 0) noteReadError(mem, error)
+    await settleReads(env, mem, { failed: true })
     return { retried: true }
   }
   const { tickets, states } = world
@@ -2257,7 +2459,7 @@ export const tick = async (env, mem) => {
   // The worker account takes a launch when it has a free slot, else the main account.
   // A plan that found a Pullfrog limit sets `limitSeen` before the pause applies: no early launch runs, and no launch uses the main account.
   const limitSeen = { found: false }
-  // The tickets whose order reached `startWorker`. An early order that never got there goes back to the late admission.
+  // The tickets whose order reached `startWorker` and kept its launch. Each other early order goes back to the late admission.
   const reached = new Set()
   const LIMIT_STOP = "a Pullfrog limit stops the main account"
   // Returns the reason that the launches stopped before the end of the list, or null.
@@ -2265,10 +2467,18 @@ export const tick = async (env, mem) => {
     for (const order of launchable) {
       if (held()) return "the driver is paused"
       if (early && limitSeen.found) return LIMIT_STOP
-      const name = free.worker > 0 ? WORKER : MAIN
+      // A fix order goes to the account of its build session when that account has a free slot, so it resumes. Else the worker account takes a launch when it has a free slot, else the main account.
+      const own = sessionAccountOf(mem, order)
+      // A session on the main account is unusable after a Pullfrog limit, so the order starts cold on the worker account.
+      const name = own !== null && free[own] > 0 && !(limitSeen.found && own === MAIN) ? own : free.worker > 0 ? WORKER : MAIN
       if (limitSeen.found && name === MAIN) return LIMIT_STOP
       reached.add(order.ticket.number)
-      const reason = await startWorker(env, mem, order, name).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A plan can find a limit while a start runs. With a second account, a start on the main account then launches no worker.
+      let refused = null
+      const refusal = () => (refused = limitSeen.found && name === MAIN && knownAccounts(mem).length > 1 ? LIMIT_STOP : null)
+      const reason = await startWorker(env, mem, order, name, refusal).catch((error) => (log(env, `ticket#${order.ticket.number}`, "error", error.message), error.message))
+      // A refused start is a chosen hold, so it stays off the stall clock.
+      if (refused !== null) { reached.delete(order.ticket.number); return refused }
       if (reason === null) {
         mem.acted = true
         free[name] -= 1
@@ -2290,6 +2500,7 @@ export const tick = async (env, mem) => {
     await launchAll(admitted.chosen, { early: true })
   }
   const orders = await planning
+  await settleReads(env, mem, { failed: false })
   await ownerWorkNotices(env, mem, tickets)
   mem.mergedReadsLeft = MERGED_READS_PER_TICK
   mem.mergedReadThisTick.clear()
@@ -2398,12 +2609,12 @@ const reportRollback = async (env, { failedSha, previousSha, error, reason }) =>
  * At the end of a tick, moves the driver to the newer driver commit of origin/main, while workers run. A worker is a detached
  * process with its own pid file, launch record and worktree, so the restarted driver adopts it from them. The new commit must
  * start (`--preflight` exits 0); when it does not, the driver goes back at once and stays up. Returns true when the driver must
- * exit with code 0, so launchd starts the new version. No switch happens in a dry run, while the questions run is live (it runs
- * in the driver worktree), while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
+ * exit with code 0, so launchd starts the new version. The questions run is detached like a worker, so the new driver adopts it from its
+ * pid file. No switch happens in a dry run, while a launch of this tick has no live pid file to adopt, or while a result of this process waits for its reap.
  */
 const switchDriver = async (env, mem) => {
-  if (!env.selfUpdate || env.dryRun || mem.questions !== null || mem.results.size > 0) return false
-  if ([...mem.running.keys()].some((stem) => pidFileOf(env, stem) === null)) return false
+  if (!env.selfUpdate || env.dryRun || mem.results.size > 0) return false
+  if ([...mem.running.keys(), ...(mem.questions === null ? [] : [QUESTIONS_STEM])].some((stem) => pidFileOf(env, stem) === null)) return false
   const { head, next } = await newerDriverCommit(env, { fetch: true })
   if (next === null) return false
   await checkoutPin(env, next)
@@ -2535,6 +2746,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     slugOf: (key) => (key === "tickets" ? config.tickets.repository : repositorySlug(config.repos[key])),
     git: (cwd, args) => runBounded("git", ["-C", cwd, ...args], { timeoutMs: 300 * 1000 }),
     findRepositories,
+    dependencies: installDependencies,
     gh: (args) => runText("gh", args, { maxBuffer: 64 * 1024 * 1024 }),
     fetch: globalThis.fetch,
     osascript: async (message) => { await runBounded("osascript", ["-e", `display notification ${JSON.stringify(message)} with title "Orbit driver"`], { timeoutMs: 15 * 1000 }) },
@@ -2551,7 +2763,7 @@ const realEnvironment = ({ dryRun = false } = {}) => {
     processAlive: workerApi.isWorkerProcess,
     // EPERM means a process of another user holds the pid, so the pid is held.
     pidHeld: (pid) => { try { process.kill(pid, 0); return true } catch (error) { return error.code === "EPERM" } },
-    invocation: async (token, name = MAIN, own = null) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own }),
+    invocation: async (token, name = MAIN, own = null, model = undefined) => workerApi.workerInvocation({ home, parentEnvironment: process.env, token: token ?? (await workerApi.readWorkerToken()) ?? "probe-only", configDirectory: name === WORKER ? workerApi.workerConfigDirectory(home) : null, own, model }),
     sleep: (ms, mem) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); mem.wake = () => { clearTimeout(timer); resolve() } }),
   }
 }

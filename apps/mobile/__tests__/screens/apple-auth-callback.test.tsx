@@ -74,7 +74,7 @@ describe('Apple callback route', () => {
     const tree = await mount()
     expect(mocks.state).toBe('failed')
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason },
+      level: 'error', tags: { provider: 'apple', reason }, fingerprint: ['auth_callback_failed', 'apple', reason],
     })
     expect(mocks.apiClient).not.toHaveBeenCalled()
     act(() => tree.unmount())
@@ -86,7 +86,7 @@ describe('Apple callback route', () => {
     const tree = await mount()
     expect(mocks.state).toBe('failed')
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' },
+      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' }, fingerprint: ['auth_callback_failed', 'apple', 'profile_hydration_failed'],
     })
     expect(mocks.replace).not.toHaveBeenCalled()
     act(() => tree.unmount())
@@ -99,7 +99,7 @@ describe('Apple callback route', () => {
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(mocks.login).not.toHaveBeenCalled()
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason: 'state_mismatch' },
+      level: 'error', tags: { provider: 'apple', reason: 'state_mismatch' }, fingerprint: ['auth_callback_failed', 'apple', 'state_mismatch'],
     })
     act(() => tree.unmount())
   })
@@ -137,7 +137,7 @@ describe('Apple callback route', () => {
     await act(async () => { mocks.continueAccount?.(); await Promise.resolve() })
     expect(mocks.state).toBe('failed')
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' },
+      level: 'error', tags: { provider: 'apple', reason: 'profile_hydration_failed' }, fingerprint: ['auth_callback_failed', 'apple', 'profile_hydration_failed'],
     })
     expect(mocks.replace).not.toHaveBeenCalled()
     expect(await getStoredAuthReturnUrl(getAuthReturnUrlAttempt())).toBe('/')
@@ -201,7 +201,7 @@ describe('Apple callback route', () => {
     const tree = await mount()
     expect(mocks.state).toBe('failed')
     expect(captureMessage).toHaveBeenCalledExactlyOnceWith('auth_callback_failed', {
-      level: 'error', tags: { provider: 'apple', reason: 'exchange_failed' },
+      level: 'error', tags: { provider: 'apple', reason: 'exchange_failed' }, fingerprint: ['auth_callback_failed', 'apple', 'exchange_failed'],
     })
     mocks.params = { ...mocks.params, handoff: 'retried-handoff', state: `callback-state-${++sequence}` }
     await SecureStore.setItemAsync('apple_auth_attempt', JSON.stringify({ state: mocks.params.state, startedAt: Date.now() }))

@@ -59,7 +59,7 @@ What is left is really his: product, copy, pricing, positioning, brand, design d
 **`--auto` mode** (the driver, or `/sleep`) never calls `AskUserQuestion`. Read the sleep state: `cat "$(git rev-parse --git-common-dir)/orbit-drive/sleep.json"`. For a pull request with no open ticket, post each comment below on the pull request.
 
 - Sleep on: decide each survivor with your recommendation and write it into the ticket body as in section 4, so the work goes on. Also comment it on the ticket. Start that comment with `<!-- owner-review -->` and "Decided while the owner slept:". His next `/questions` asks him each one, so he confirms or changes it.
-- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind, so the question grants no fix launch. Keep `needs:owner`. His next `/questions` asks it.
+- Sleep off: comment the question, its options and your recommendation on the ticket, starting with `<!-- orbit-drive:owner-question -->`. The driver reads only this marker form as a kind. Keep `needs:owner`. His next `/questions` asks it.
 
 ## 6. Then the manual steps only he can do
 

@@ -132,6 +132,32 @@ export const workerCommand = (settingsJson, model = WORKER_MODEL) => ({
   ],
 })
 
+/** The command of a worker that resumes a session: the same arguments, the same model and settings, and `--resume <session id>`. The session keeps its id. */
+export const resumeInvocation = (invocation, sessionId) => ({ ...invocation, command: { ...invocation.command, args: [...invocation.command.args, "--resume", sessionId] } })
+
+/** A session whose context is over this many tokens starts cold: a resume would pay for the whole context again. */
+export const RESUME_TOKEN_LIMIT = 200_000
+
+/** The longest directory name that claude derives from a path. A longer path gets a hash suffix that is not read here. */
+const PROJECT_NAME_LIMIT = 200
+
+/**
+ * The transcript file of a session: `<config directory>/projects/<working directory>/<session id>.jsonl`. The directory name is the
+ * real path of the working directory with each character outside letters and digits changed to `-`. Null for a path that is too long.
+ */
+export const sessionFile = ({ configDirectory, worktree, sessionId }) => {
+  let real = worktree
+  try { real = realpathSync(worktree) } catch { /* a worktree that is gone keeps its given path */ }
+  const name = real.replace(/[^A-Za-z0-9]/g, "-")
+  return name.length > PROJECT_NAME_LIMIT ? null : join(configDirectory, "projects", name, `${sessionId}.jsonl`)
+}
+
+/** True when the transcript of the session is on disk, so `--resume` finds it. */
+export const sessionExists = (options) => {
+  const file = sessionFile(options)
+  return file !== null && existsSync(file)
+}
+
 /** The main-account environment plus the worker's own switches and its GitHub token. `BRAIN_SESSION_CAPTURE` makes the user SessionEnd hook skip the brain capture of a worker session. */
 export const workerEnvironmentFor = (parentEnvironment, token) => {
   if (typeof token !== "string" || token === "") throw new Error("a worker needs a GitHub token")
@@ -322,6 +348,39 @@ export const logEvent = (logFile) => {
     if (descriptor !== undefined) closeSync(descriptor)
   }
   return readEvent(kept.join("\n"))
+}
+
+/** The tokens in the context of one `usage` object: the new input, the cache write and the cache read. Null when it has none. */
+const contextTokens = (usage) => {
+  const parts = [usage?.input_tokens, usage?.cache_creation_input_tokens, usage?.cache_read_input_tokens]
+  return parts.every((value) => value === undefined || Number.isFinite(value)) && parts.some((value) => value !== undefined) ? parts.reduce((sum, value) => sum + (value ?? 0), 0) : null
+}
+
+/**
+ * The size of the session context at the end of a stream-json log: the usage of the last `assistant` record. The `usage` of the
+ * `result` record adds every turn, so it is not the context. Null when the log holds no such record or cannot be read.
+ */
+export const logContextTokens = (logFile) => {
+  let last = null
+  let descriptor
+  try {
+    descriptor = openSync(logFile, "r")
+    const buffer = Buffer.alloc(READ_CHUNK_BYTES)
+    let carry = ""
+    const keep = (line) => { if (line.startsWith('{"type":"assistant"') && line.includes('"usage"')) last = line }
+    for (let read = readSync(descriptor, buffer, 0, buffer.length, null); read > 0; read = readSync(descriptor, buffer, 0, buffer.length, null)) {
+      const lines = (carry + buffer.toString("utf8", 0, read)).split("\n")
+      carry = lines.pop()
+      lines.forEach(keep)
+    }
+    keep(carry)
+    return last === null ? null : contextTokens(JSON.parse(last).message?.usage)
+  } catch {
+    // A log that cannot be read holds no usage, and the session then starts cold.
+    return null
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor)
+  }
 }
 
 /** The one-turn probe: the worker command, settings and environment, the prompt "reply ok" and one turn. A reading, or null when the output holds no event. */

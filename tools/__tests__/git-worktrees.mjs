@@ -1,8 +1,8 @@
 import { spawnSync } from "node:child_process"
-import { appendFileSync, mkdirSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readlinkSync, realpathSync, renameSync, symlinkSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, findRepositories, hiddenChangesOf, parseWorktreeList } from "../lib/git-worktrees.mjs"
+import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList, workspaceDirectories } from "../lib/git-worktrees.mjs"
 import { T, root, same } from "./_harness.mjs"
 
 /** A repository with one linked worktree of each kind that `git worktree list --porcelain` prints. */
@@ -90,7 +90,88 @@ const fsmonitorCases = () => {
   same("git-worktrees: the clean check shows the edit that the fsmonitor hook hides", git(CLEAN_STATUS_ARGUMENTS).stdout, " M tracked.txt\n")
 }
 
-export const cases = () => {
+/** A checkout with a lock file, the workspaces `apps/*` and `eslint-rules`, and a `node_modules` in the root, in `apps/web` and in `eslint-rules`. */
+const stageCheckout = (name, { lock = "lock-a", modules = true } = {}) => {
+  const directory = join(root, "dependencies", name)
+  for (const workspace of ["apps/web", "apps/mobile", "eslint-rules"]) mkdirSync(join(directory, workspace), { recursive: true })
+  writeFileSync(join(directory, "package.json"), JSON.stringify({ workspaces: ["apps/*", "eslint-rules"] }))
+  if (lock !== null) writeFileSync(join(directory, "package-lock.json"), lock)
+  if (modules) {
+    for (const workspace of ["", "apps/web", "eslint-rules"]) {
+      mkdirSync(join(directory, workspace, "node_modules", "package"), { recursive: true })
+      writeFileSync(join(directory, workspace, "node_modules", "package", "index.js"), `module.exports = "${workspace}"\n`)
+    }
+    symlinkSync("../apps/web", join(directory, "node_modules", "web-link"), "dir")
+  }
+  return directory
+}
+
+const dependencyCases = async () => {
+  const recorder = (reply = () => ({ status: 0, stderr: "" })) => {
+    const calls = []
+    return { calls, run: async (file, args, options) => { calls.push({ file, args, cwd: options?.cwd }); return reply(file, args) } }
+  }
+  const clock = () => { let tick = 0; return () => (tick += 7) }
+  const install = (source, target, run, platform = "darwin") => installDependencies(source, target, { run, platform, now: clock() })
+
+  same("git-worktrees: the workspaces are the root and each directory that a pattern names", workspaceDirectories(stageCheckout("names")).sort(), ["", "apps/mobile", "apps/web", "eslint-rules"])
+  const object = join(root, "dependencies", "object-form")
+  mkdirSync(join(object, "tools"), { recursive: true })
+  writeFileSync(join(object, "package.json"), JSON.stringify({ workspaces: { packages: ["tools", "missing/*"] } }))
+  same("git-worktrees: the object form of workspaces and a pattern with no parent directory are read", workspaceDirectories(object), ["", "tools"])
+  writeFileSync(join(object, "package.json"), "{}")
+  same("git-worktrees: a package.json with no workspaces names only the root", workspaceDirectories(object), [""])
+
+  const source = stageCheckout("source")
+  const same1 = stageCheckout("target-same", { modules: false })
+  const clones = recorder()
+  const cloned = await install(source, same1, clones.run)
+  same("git-worktrees: a matching lock file clones the node_modules of the root and of each workspace that has one, and runs no npm", [clones.calls.map((call) => [call.file, ...call.args]).sort(), cloned.action, cloned.directories.sort(), cloned.ms],
+    [[["cp", "-c", "-R", join(source, "apps/web/node_modules"), join(same1, "apps/web/node_modules")], ["cp", "-c", "-R", join(source, "eslint-rules/node_modules"), join(same1, "eslint-rules/node_modules")], ["cp", "-c", "-R", join(source, "node_modules"), join(same1, "node_modules")]], "clone", ["", "apps/web", "eslint-rules"], 7])
+
+  const other = stageCheckout("target-other", { lock: "lock-b", modules: false })
+  const differs = recorder()
+  const installed = await install(source, other, differs.run)
+  same("git-worktrees: a different lock file runs npm ci once in the new worktree and clones nothing", [differs.calls, installed.action, installed.reason], [[{ file: "npm", args: ["ci"], cwd: other }], "install", "the lock file differs from the main checkout"])
+
+  const linux = recorder()
+  same("git-worktrees: a platform with no clonefile runs npm ci", [(await install(source, stageCheckout("target-linux", { modules: false }), linux.run, "linux")).action, linux.calls.map((call) => call.file)], ["install", ["npm"]])
+  const bare = recorder()
+  const noModules = await install(stageCheckout("source-bare", { modules: false }), stageCheckout("target-bare", { modules: false }), bare.run)
+  same("git-worktrees: a main checkout with no node_modules has nothing to clone, so npm ci runs", [noModules.action, noModules.reason, bare.calls.map((call) => call.file)], ["install", "the main checkout has no node_modules", ["npm"]])
+
+  const noLock = recorder()
+  same("git-worktrees: a checkout with no lock file needs no install", [(await install(stageCheckout("source-nolock", { lock: null }), stageCheckout("target-nolock", { lock: null, modules: false }), noLock.run)).action, noLock.calls.length], ["none", 0])
+  const present = stageCheckout("target-present")
+  const kept = recorder()
+  same("git-worktrees: a tree that has its node_modules already keeps them", [(await install(source, present, kept.run)).action, kept.calls.length], ["none", 0])
+
+  const broken = stageCheckout("target-broken", { modules: false })
+  const half = recorder((file, args) => {
+    if (file !== "cp") return { status: 0, stderr: "" }
+    mkdirSync(args[3], { recursive: true })
+    return args[3].endsWith(join("eslint-rules", "node_modules")) ? { status: 1, stderr: "no space left\n" } : { status: 0, stderr: "" }
+  })
+  const fellBack = await install(source, broken, half.run)
+  same("git-worktrees: a failed clone removes every partial clone and falls back to npm ci", [fellBack.action, fellBack.reason, half.calls.at(-1).file, ["", "apps/web", "eslint-rules"].some((workspace) => existsSync(join(broken, workspace, "node_modules")))], ["install", "cp failed for eslint-rules: no space left", "npm", false])
+
+  const failing = recorder(() => ({ status: 1, stderr: "npm error one\nnpm error last\n" }))
+  const failed = await install(source, other, failing.run)
+  same("git-worktrees: a failed npm ci reports failed with its last line and never throws", [failed.action, failed.reason], ["failed", "npm ci exit 1: npm error last"])
+  const throwing = await install(source, other, async () => { throw new Error("spawn broke") })
+  same("git-worktrees: a run that throws reports failed", [throwing.action, throwing.reason], ["failed", "spawn broke"])
+
+  if (process.platform === "darwin") {
+    const real = stageCheckout("target-real", { modules: false })
+    const result = await installDependencies(source, real)
+    same("git-worktrees: a real clone copies each node_modules and keeps a relative link inside the new tree", [result.action, readFileSync(join(real, "apps/web/node_modules/package/index.js"), "utf8"), readlinkSync(join(real, "node_modules/web-link"))], ["clone", 'module.exports = "apps/web"\n', "../apps/web"])
+    writeFileSync(join(real, "node_modules/package/index.js"), "changed\n")
+    same("git-worktrees: a write in the clone leaves the main checkout alone", readFileSync(join(source, "node_modules/package/index.js"), "utf8"), 'module.exports = ""\n')
+  }
+}
+
+export const cases = async () => {
+  await dependencyCases()
   walkCases()
   hiddenChangeCases()
   fsmonitorCases()
