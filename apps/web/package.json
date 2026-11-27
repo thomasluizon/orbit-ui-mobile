@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "build:hermetic": "tsx scripts/build-hermetic.mjs",
     "start": "next start",
-    "type-check": "tsc --noEmit",
+    "type-check": "next typegen && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "test:smoke": "playwright test --project=smoke",
