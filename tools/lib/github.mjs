@@ -61,7 +61,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
         number title body
         labels(first: 50) { nodes { name } }
         blockedBy(first: 100) { nodes { number state labels(first: 50) { nodes { name } } } }
-        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } }
+        comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
       }
     }
   }
@@ -69,7 +69,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
 
 const MORE_COMMENTS_QUERY = `query DriveComments($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
-    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id body createdAt author { login } } } }
+    issue(number: $number) { comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } } }
   }
 }`
 
@@ -159,6 +159,7 @@ export const bodyFindings = (body) => {
 
 const normalizeComment = (comment) => ({
   id: comment.id,
+  url: comment.url,
   author: comment.author?.login ?? null,
   body: comment.body,
   createdAt: comment.createdAt,
@@ -422,12 +423,17 @@ export const readFailedSteps = async (repositoryKey, runId, jobId, seams = {}) =
   return response.jobs.filter((job) => job.databaseId === jobId).flatMap((job) => job.steps.filter((step) => step.conclusion === "failure").map((step) => step.name))
 }
 
-/** The `pullfrog.yml` runs that name one pull request in their display title. */
-export const pullfrogRunsFor = async (repositoryKey, prNumber, seams = {}) => {
+/** The newest 200 `pullfrog.yml` runs of a repository. One list serves every pull request of the repository. */
+export const pullfrogRuns = async (repositoryKey, seams = {}) => {
   const api = bind(seams)
   const args = ["run", "list", "--repo", api.slugOf(repositoryKey), "--workflow", "pullfrog.yml", "--json", "databaseId,displayTitle,status,conclusion,createdAt,updatedAt", "--limit", "200"]
+  return parseJson("gh run list", await api.run(args))
+}
+
+/** The runs of a `pullfrogRuns` list that name one pull request in their display title. */
+export const runsNaming = (runs, prNumber) => {
   const mention = new RegExp(`#${prNumber}(?!\\d)`)
-  return parseJson("gh run list", await api.run(args)).filter((run) => mention.test(run.displayTitle))
+  return runs.filter((run) => mention.test(run.displayTitle))
 }
 
 /** The newest deployment of an environment and task whose latest status is `success`, or null. */
