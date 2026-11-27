@@ -3,6 +3,7 @@ import type { ErrorEvent } from '@sentry/react-native'
 import { sampleTodayLaunch } from '@orbit/shared/utils/today-launch'
 import { startTodayLaunch } from './today-launch'
 import { scrubAuthNavigation } from '@orbit/shared/utils/auth-navigation-privacy'
+import { titleSentryEventByContent } from '@orbit/shared/utils/sentry-event-title'
 
 const dsn = process.env.EXPO_PUBLIC_SENTRY_DSN
 
@@ -36,7 +37,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
     event.breadcrumbs = scrubbed
   }
 
-  return scrubAuthNavigation(event)
+  return titleSentryEventByContent(scrubAuthNavigation(event))
 }
 
 /**

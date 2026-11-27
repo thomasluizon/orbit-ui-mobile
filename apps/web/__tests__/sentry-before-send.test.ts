@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import type { ErrorEvent, EventHint } from '@sentry/nextjs'
+import { defaultStackParser, eventFromException, eventFromMessage } from '@sentry/browser'
 import { ApiClientError } from '@orbit/shared'
+import { createTurnstileLoadFailureReporter } from '@orbit/shared/hooks/turnstile-token-core'
 import {
   beforeSendEvent,
   isExpectedApiClientError,
@@ -183,4 +185,39 @@ it('tags webview errors with the running shell version', () => {
   try {
     expect(beforeSendEvent({ type: undefined }, {})?.tags?.desktop_shell_version).toBe('0.1.12')
   } finally { vi.unstubAllGlobals() }
+})
+
+
+describe('the title of a synthetic event', () => {
+  const capturedFrom = () => ({ syntheticException: new Error('Sentry syntheticException') })
+
+  it('is the message when the React Native SDK attaches a stack to a message from a callback', async () => {
+    const captured: PromiseLike<unknown>[] = []
+    createTurnstileLoadFailureReporter((message) => {
+      captured.push(eventFromMessage(defaultStackParser, message, 'warning', capturedFrom(), true))
+    })({ kind: 'bridge_deadline', host: 'app.useorbit.org' })
+    const event = await captured[0] as ErrorEvent
+    expect(event.exception?.values?.[0]?.mechanism?.synthetic).toBe(true)
+
+    const [exception] = beforeSendEvent(event, {})?.exception?.values ?? []
+    expect(exception).toMatchObject({ type: 'Message', value: 'turnstile_load_failed', mechanism: { synthetic: false } })
+    expect(exception?.stacktrace?.frames?.length).toBeGreaterThan(0)
+  })
+
+  it.each([
+    [{ code: 'E_TASK', message: 'Task failed' }, 'Error', 'Object captured as exception with keys: code, message'],
+    ['native refusal', 'Error', 'native refusal'],
+  ])('is the content of a captured value that is no Error: %o', async (value, type, text) => {
+    const event = await eventFromException(defaultStackParser, value, capturedFrom(), true) as ErrorEvent
+
+    expect(beforeSendEvent(event, {})?.exception?.values?.[0]).toMatchObject({ type, value: text, mechanism: { synthetic: false } })
+  })
+
+  it('stays the type and the message of a captured Error', async () => {
+    const event = await eventFromException(defaultStackParser, new TypeError('boom'), capturedFrom(), true) as ErrorEvent
+
+    const [exception] = beforeSendEvent(event, {})?.exception?.values ?? []
+    expect(exception).toMatchObject({ type: 'TypeError', value: 'boom' })
+    expect(exception?.mechanism?.synthetic).toBeUndefined()
+  })
 })
