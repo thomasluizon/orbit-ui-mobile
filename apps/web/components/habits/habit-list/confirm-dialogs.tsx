@@ -31,7 +31,9 @@ function parentPromptCopy(t: HabitListConfirmDialogsProps['t'], prompt: ParentPr
   const ask = t(skip ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage', { name: prompt?.habit.title ?? '' })
   const answer = t(skip ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')
   const applyChanges = t('chat.pendingOp.action.applyChanges')
-  return { severalAncestors, title: ask, message: '', confirmLabel: answer, freePathLabel: severalAncestors ? applyChanges : undefined }
+  const title = t(skip ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')
+  if (severalAncestors) return { severalAncestors, title, message: '', confirmLabel: applyChanges }
+  return { severalAncestors, title: ask, message: '', confirmLabel: answer }
 }
 
 function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onConfirmParent, onCancelParent }: Readonly<Pick<HabitListConfirmDialogsProps, 't' | 'parentPrompt' | 'onSelectParentAncestor' | 'onConfirmParent' | 'onCancelParent'>>) {
@@ -48,7 +50,6 @@ function ParentPromptConfirmation({ t, parentPrompt, onSelectParentAncestor, onC
       key={sheetPrompt?.habit.id ?? 'parent-prompt'}
       open={open}
       quickOptions
-      freePathLabel={copy.freePathLabel}
       title={copy.title}
       message={copy.message}
       confirmLabel={copy.confirmLabel}

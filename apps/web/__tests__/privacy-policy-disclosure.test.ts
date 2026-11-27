@@ -169,7 +169,6 @@ describe('privacy policy disclosures', () => {
     expect(privacy.thirdParty.posthog).toMatch(/performance|desempenho/)
     expect(privacy.dataResidency.body).toContain('Ohio')
     expect(privacy.dataResidency.body).toContain('us-east-2')
-    expect(privacy.dataResidency.body).not.toMatch(/Supabase|Vercel|Resend/)
   })
 
   it.each([

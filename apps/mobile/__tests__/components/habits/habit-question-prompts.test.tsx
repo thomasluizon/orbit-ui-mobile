@@ -15,9 +15,9 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 const date = '2026-09-12'
 const root = createMockHabit({ id: 'root', title: 'Morning', scheduledDates: [date] })
 const parent = createMockHabit({ id: 'parent', title: 'Stretch', parentId: root.id, scheduledDates: [date] })
-const promptOf = (ancestorHabits: typeof root[]) => {
-  const ancestors = ancestorHabits.map((habit) => ({ habit, mode: 'log' as const }))
-  return { ...ancestors[0]!, childId: 'child', ancestors, selectedCount: 1, date }
+const promptOf = (ancestorHabits: typeof root[], mode: 'log' | 'skip' = 'log', selectedCount = 1) => {
+  const ancestors = ancestorHabits.map((habit) => ({ habit, mode }))
+  return { ...ancestors[0]!, mode, childId: 'child', ancestors, selectedCount, date }
 }
 const handlers = () => ({
   onSelectParentAncestor: vi.fn(), onConfirmDelete: vi.fn(), onCancelDelete: vi.fn(), onDeleteClosed: vi.fn(),
@@ -62,15 +62,33 @@ describe('Android habit prompts as one question', () => {
     expect(spies.onConfirmParent).not.toHaveBeenCalled()
   })
 
-  it('keeps the ancestor choices as the free path with its own action', () => {
+  it('asks several ancestors with one confirm, the ancestor title and the choices in the body', () => {
     const spies = handlers()
     const tree = dialogs(spies, { parentPrompt: promptOf([parent, root]) })
+    expect(sheetTitle(tree)).toEqual(['habits.autoLogParentTitle'])
+    expect(labels(tree)).toEqual(['common.notNow', 'chat.pendingOp.action.applyChanges'])
+    expect(hosts(tree, 'button-secondary-sm')).toHaveLength(0)
     const boxes: ReactTestInstance[] = tree.root.findAll((node: ReactTestInstance) => typeof node.type === 'string' && node.props.accessibilityRole === 'checkbox')
     expect(boxes).toHaveLength(2)
     press(boxes[1]!)
     expect(spies.onSelectParentAncestor).toHaveBeenCalledWith(1, true)
-    press(hosts(tree, 'button-secondary-sm')[0]!)
+    press(answers(tree)[1]!)
     expect(spies.onConfirmParent).toHaveBeenCalledOnce()
+  })
+
+  it('titles the skip prompt with several ancestors as the skip title', () => {
+    const tree = dialogs(handlers(), { parentPrompt: promptOf([parent, root], 'skip') })
+    expect(sheetTitle(tree)).toEqual(['habits.autoSkipParentTitle'])
+    expect(labels(tree)).toEqual(['common.notNow', 'chat.pendingOp.action.applyChanges'])
+  })
+
+  it('disables the confirm of several ancestors when no box is selected', () => {
+    const spies = handlers()
+    const tree = dialogs(spies, { parentPrompt: promptOf([parent, root], 'log', 0) })
+    const confirm = answers(tree)[1]!
+    expect((confirm.props.accessibilityState as { disabled?: boolean } | undefined)?.disabled ?? confirm.props.disabled).toBe(true)
+    press(confirm)
+    expect(spies.onConfirmParent).not.toHaveBeenCalled()
   })
 
   it('asks the duplicate question with quick options and sends the same request', () => {

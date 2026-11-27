@@ -14,9 +14,9 @@ const date = '2026-09-12'
 const root = createMockHabit({ id: 'root', title: 'Morning', scheduledDates: [date] })
 const parent = createMockHabit({ id: 'parent', title: 'Stretch', parentId: root.id, scheduledDates: [date] })
 const child = createMockHabit({ id: 'child', parentId: parent.id, scheduledDates: [date] })
-const promptOf = (ancestorHabits: typeof root[]) => {
-  const ancestors = ancestorHabits.map((habit) => ({ habit, mode: 'log' as const }))
-  return { ...ancestors[0]!, childId: child.id, ancestors, selectedCount: 1, date }
+const promptOf = (ancestorHabits: typeof root[], mode: 'log' | 'skip' = 'log', selectedCount = 1) => {
+  const ancestors = ancestorHabits.map((habit) => ({ habit, mode }))
+  return { ...ancestors[0]!, mode, childId: child.id, ancestors, selectedCount, date }
 }
 
 const handlers = () => ({
@@ -57,16 +57,34 @@ describe('web habit prompts as one question', () => {
     expect(spies.onConfirmParent).not.toHaveBeenCalled()
   })
 
-  it('keeps the ancestor choices as the free path with its own action', async () => {
+  it('asks several ancestors with one confirm, the ancestor title and the choices in the body', async () => {
     const spies = handlers()
     render(dialogs(spies, { parentPrompt: promptOf([parent, root]) }))
+    expect(screen.getByRole('dialog', { name: 'habits.autoLogParentTitle' })).toBeInTheDocument()
+    expect(answers().map((answer) => answer.textContent)).toEqual(['common.notNow', 'chat.pendingOp.action.applyChanges'])
+    expect(screen.getAllByRole('button')).toHaveLength(3)
     const boxes = screen.getAllByRole('checkbox')
     expect(boxes).toHaveLength(2)
     fireEvent.click(boxes[1]!)
     expect(spies.onSelectParentAncestor).toHaveBeenCalledWith(1, true)
-    fireEvent.click(screen.getByRole('button', { name: 'chat.pendingOp.action.applyChanges' }))
+    fireEvent.click(answers()[1]!)
     await settle()
     expect(spies.onConfirmParent).toHaveBeenCalledOnce()
+  })
+
+  it('titles the skip prompt with several ancestors as the skip title', () => {
+    render(dialogs(handlers(), { parentPrompt: promptOf([parent, root], 'skip') }))
+    expect(screen.getByRole('dialog', { name: 'habits.autoSkipParentTitle' })).toBeInTheDocument()
+    expect(answers().map((answer) => answer.textContent)).toEqual(['common.notNow', 'chat.pendingOp.action.applyChanges'])
+  })
+
+  it('disables the confirm of several ancestors when no box is selected', async () => {
+    const spies = handlers()
+    render(dialogs(spies, { parentPrompt: promptOf([parent, root], 'log', 0) }))
+    expect(answers()[1]!.disabled).toBe(true)
+    fireEvent.click(answers()[1]!)
+    await settle()
+    expect(spies.onConfirmParent).not.toHaveBeenCalled()
   })
 
   it('draws the answers with the plain confirm buttons, not as tiles', () => {
