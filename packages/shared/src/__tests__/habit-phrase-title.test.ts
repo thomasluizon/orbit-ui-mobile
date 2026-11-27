@@ -201,3 +201,27 @@ describe('a title at the end of a sentence', () => {
     expect(getHabitPhraseTitle('Read ch. 3.', 'en')).toBe('Read ch. 3.')
   })
 })
+
+describe('a title beside a bare das hour range', () => {
+  it.each([
+    ['Estudar das 9 às 11 toda segunda', 'Estudar'],
+    ['Aula de segunda a sexta das 8 às 12', 'Aula'],
+    ['Trabalhar das 8 até 17h de segunda a sexta', 'Trabalhar'],
+    ['Estudar das 9h até 11h', 'Estudar'],
+    ['Ler 20 páginas das 9 às 10 toda segunda', 'Ler 20 páginas'],
+    ['Estudar das 9 a 11 às segundas', 'Estudar'],
+    ['Estudar das 9 a 11 3 vezes por semana', 'Estudar'],
+  ] as const)('removes the full range: %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+
+  it.each([
+    ['Academia de 2 a 3 vezes por semana', 'Academia'],
+    ['Academia de 2 até 3 vezes por semana', 'Academia de 2 até'],
+    ['Curso de 3 horas às 19h toda quarta', 'Curso de 3 horas'],
+    ['Ler das 5 a 7 páginas', 'Ler das 5 páginas'],
+    ['Andar das 3 a 5 quadras', 'Andar das 3 quadras'],
+  ] as const)('keeps the title of a phrase outside the form: %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
