@@ -635,14 +635,6 @@ const unpreparedCases = async () => {
   await buildSlot.run()
   await buildSlot.run()
   same("drive: a build order whose preparation failed counts no launch and leaves the only slot to the next ticket", [launchesOf(buildTickets[0]).length, buildSlot.launched.map((entry) => entry.invocation.own.branch)], [0, ["chore/ticket-9"]])
-
-  const stalledRepo = stageRepo("unprepared-stall")
-  stalledRepo.git(["branch", "chore/ticket-7"])
-  const stalled = realRepositoryScene(stalledRepo, { tickets: [ticket(7)] })
-  await stalled.run()
-  writeFileSync(join(stalled.env.stateDir, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-  await stalled.run()
-  same("drive: a branch that waits after a failed preparation stays on the stall clock", only(stalled.calls, "createTicket").filter(([, input]) => input.title === STALL).length, 1)
 }
 
 /** The usage line of one assistant record: the context holds 100000 tokens. */
@@ -1040,51 +1032,25 @@ const checkOnlyCases = async () => {
   same("drive: a needs:owner pull request gets no check-only request", commentsOf(labelled.calls, 30).length, 0)
 }
 
-const STALL = "Driver stalled: no worker, request or merge for 60 minutes"
-
-const stallCases = async () => {
-  const stalled = async (offset, { extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false, refusesMerge = false } = {}) => {
-    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
+const heldPullCases = async () => {
+  const held = async ({ extra = {}, runs = [runOf("in_progress", 1, 0)], tickets = [ticket(7)], sleeping = false } = {}) => {
+    const stateDirectory = join(root, `drive-held-${++scenarios}`)
     mkdirSync(stateDirectory, { recursive: true })
-    if (offset !== null) writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW + offset }))
     const scene = scenario({ tickets, runs, stateDirectory, sleeping, pulls: { ui: [withoutApprovalCheck(extra)] } })
-    if (refusesMerge) scene.env.github.merge = async (...args) => { scene.calls.push(["merge", ...args]); throw new Error("gh pr merge failed: a repository rule refuses the merge") }
     await scene.run()
-    scene.stateDirectory = stateDirectory
     return scene
   }
-  const created = (scene) => only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
-  const first = await stalled(null)
-  same("drive: the first tick starts the clock and opens no stall issue", [created(first).length, JSON.parse(readFileSync(join(first.stateDirectory, "activity.json"), "utf8")).at], [0, NOW])
-  const young = await stalled(-59 * MINUTE)
-  same("drive: 59 minutes of waiting with no action opens no stall issue", created(young).length, 0)
-  const late = await stalled(-61 * MINUTE)
-  const [[, issue]] = created(late)
-  same("drive: 61 minutes with no action opens one needs:owner stall issue that names the waiting pull request", [created(late).length, issue.labels, issue.body.includes("ui#30: wait: a Pullfrog run is in progress")], [1, [OWNER_LABEL], true])
-  T("drive: the stall is logged with the reason of the waiting item", late.messages.some((line) => / driver stall \(ui#30: wait: a Pullfrog run is in progress\)/.test(line)), late.messages.join(" | "))
-  same("drive: the stall issue sends one notification", only(late.calls, "notify").length, 1)
-  const open = await stalled(-61 * MINUTE, { tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
-  same("drive: an open stall issue is not opened twice", created(open).length, 0)
-  const asleep = await stalled(-61 * MINUTE, { sleeping: true })
-  same("drive: while sleep is on the stall issue opens and no notification goes out", [created(asleep).length, only(asleep.calls, "notify").length, JSON.parse(readFileSync(join(asleep.stateDirectory, "sleep-items.json"), "utf8")).length], [1, 0, 1])
-  const acting = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a request in the tick resets the clock and opens no stall issue", [created(acting).length, commentsOf(acting.calls, 30).length > 0, JSON.parse(readFileSync(join(acting.stateDirectory, "activity.json"), "utf8")).at], [0, true, NOW])
-  const closing = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
-  same("drive: an action closes the open stall issue", only(closing.calls, "closeTicket"), [["closeTicket", 41]])
-  const quiet = await stalled(-61 * MINUTE, { tickets: [ticket(7)], extra: { labels: [OWNER_LABEL] } })
-  same("drive: a pull request that waits on the owner is no stall", created(quiet).length, 0)
   const fixBranch = "chore/ticket-7-30"
   const opusSpent = [launchComment("fix", fixBranch, -300 * MINUTE), launchComment("fix", fixBranch, -200 * MINUTE), launchComment("fix", fixBranch, -100 * MINUTE, null, { model: "claude-opus-5-5" })]
-  const replanWait = await stalled(-61 * MINUTE, { runs: [], tickets: [ticket(7, { comments: opusSpent })], extra: { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] } })
-  same("drive: a capped pull request whose ladder ended starts the re-plan run, so it is no stall, and it writes no notice, no label and no sleep line", [created(replanWait).length, only(replanWait.calls, "notify").length, only(replanWait.calls, "editLabels").length, replanWait.messages.filter((line) => line.includes("sleep held")).length, replanWait.launched.length], [0, 0, 0, 0, 1])
-  const replanAsleep = await stalled(-61 * MINUTE, { runs: [], sleeping: true, tickets: [ticket(7, { comments: opusSpent })], extra: { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] } })
-  same("drive: while sleep is on, a pull request whose ladder ended holds no sleep item", [created(replanAsleep).length, replanAsleep.messages.filter((line) => line.includes("sleep held")).length], [0, 0])
-  const parkedStall = await stalled(-61 * MINUTE, { runs: [], tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: opusSpent })], extra: { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] } })
-  same("drive: a parked pull request is no stall, gets no launch and writes nothing", [created(parkedStall).length, parkedStall.launched.length, only(parkedStall.calls, "comment").length, only(parkedStall.calls, "notify").length], [0, 0, 0, 0])
-  const merging = await stalled(-61 * MINUTE, { runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a merge resets the clock", [only(merging.calls, "merge").length, created(merging).length], [1, 0])
-  const refused = await stalled(-61 * MINUTE, { runs: [], refusesMerge: true, extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
-  same("drive: a pull request whose merge throws on every tick still opens one stall issue", [only(refused.calls, "merge").length, created(refused).length], [1, 1])
+  const blocking = { reviews: [review(CHANGES_REQUESTED, RECORDED_HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: one" }] })] }
+  const replanWait = await held({ runs: [], tickets: [ticket(7, { comments: opusSpent })], extra: blocking })
+  same("drive: a capped pull request whose ladder ended starts the re-plan run, and it writes no notice, no label and no sleep line", [only(replanWait.calls, "notify").length, only(replanWait.calls, "editLabels").length, replanWait.messages.filter((line) => line.includes("sleep held")).length, replanWait.launched.length], [0, 0, 0, 1])
+  const replanAsleep = await held({ runs: [], sleeping: true, tickets: [ticket(7, { comments: opusSpent })], extra: blocking })
+  same("drive: while sleep is on, a pull request whose ladder ended holds no sleep item", replanAsleep.messages.filter((line) => line.includes("sleep held")).length, 0)
+  const parked = await held({ runs: [], tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: opusSpent })], extra: blocking })
+  same("drive: a parked pull request gets no launch and writes nothing", [parked.launched.length, only(parked.calls, "comment").length, only(parked.calls, "notify").length], [0, 0, 0])
+  const merging = await held({ runs: [], extra: { checks: [check("Unit Tests"), approvalCheck()], mergeState: "CLEAN", reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
+  same("drive: a pull request that meets the bar merges once", only(merging.calls, "merge").length, 1)
 }
 
 /** A saved release train with the mobile steps in the given states, as `release-train.json` keeps it. */
@@ -1976,7 +1942,7 @@ const blockingClassCases = async () => {
   same("drive: a waiting ticket whose merged history was not read gets no cap check and no needs:owner", [only(settled.calls, "editLabels").length, commentsOf(settled.calls, settledNumber).length], [0, 0])
 }
 
-/** A pull request with no open ticket gets no label, so its `needs-owner` report is the hold that the bar, the stall alarm and the questions run read. */
+/** A pull request with no open ticket gets no label, so its `needs-owner` report is the hold that the bar and the questions run read. */
 const reportHoldCases = async () => {
   const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
   const green = [check("Unit Tests"), approvalCheck()]
@@ -1985,25 +1951,23 @@ const reportHoldCases = async () => {
   const bumps = (checks, comments) => pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks, comments: [comment("ticket", "T"), RERAN, ...comments] })
   const tracked = (comments) => pull(30, { checks: green, comments: [comment("ticket", "T"), ...comments] })
   const table = [
-    ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [0, 1, 0, 0]],
-    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [0, 1, 0, 1]],
-    ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [0, 1, 0, 0]],
-    ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [0, 1, 0, 0]],
-    ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 0, 1, 0]],
-    ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [0, 1, 0, 0]],
-    ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [0, 1, 0, 0]],
-    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [1, 0, 0, 0]],
-    ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 0, 1, 0]],
+    ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [1, 0, 0]],
+    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [1, 0, 1]],
+    ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [1, 0, 0]],
+    ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [1, 0, 0]],
+    ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 1, 0]],
+    ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [1, 0, 0]],
+    ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [1, 0, 0]],
+    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [0, 0, 0]],
+    ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 1, 0]],
   ]
   for (const [label, held, tickets, expected] of table) {
     const stateDirectory = join(root, `drive-report-hold-${++scenarios}`)
     mkdirSync(stateDirectory, { recursive: true })
-    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
     const scene = scenario({ driver: {}, tickets, pulls: { ui: [held] }, stateDirectory })
     await scene.run()
     await scene.mem.questions
-    const stalls = only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL)
-    same(`drive: ${label} gives [stall issues, questions runs, merges, new reports]`, [stalls.length, questionRuns(scene).length, only(scene.calls, "merge").length, needsOwnerComments(scene.calls, 30).length], expected)
+    same(`drive: ${label} gives [questions runs, merges, new reports]`, [questionRuns(scene).length, only(scene.calls, "merge").length, needsOwnerComments(scene.calls, 30).length], expected)
   }
 }
 
@@ -3336,26 +3300,15 @@ const twoAccountCases = async () => {
   same("drive: main at 0.92 posts no Pullfrog request while the worker account works", commentsOf(mainStopped.calls, 30).length, 0)
   T("drive: the weekly stop of the main account still opens its one stop issue", only(mainStopped.calls, "createTicket").some((entry) => entry[1].title === STOP_ISSUE_TITLE))
 
-  // The main account holds the Pullfrog request while the worker account has slots: the hold is chosen, so no stall issue opens.
-  const stallOf = async (label, { reading, usageLimit }) => {
-    const stateDirectory = join(root, `drive-stall-${++scenarios}`)
-    mkdirSync(stateDirectory, { recursive: true })
-    writeFileSync(join(stateDirectory, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-    const scene = scenario({ tickets: [ticket(8)], pulls: { ui: [waitingPull] }, stateDirectory, reading, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.5, resetsAt: RESETS_AT, status: "rejected" } })
+  // The main account holds the Pullfrog request while the worker account has slots: the hold is chosen, so it starts nothing and posts nothing.
+  const holdOf = async (label, { reading, usageLimit }) => {
+    const scene = scenario({ tickets: [ticket(8)], pulls: { ui: [waitingPull] }, reading, workerAuth: WORKER_AUTH, workerReading: below, probeReading: { utilization: 0.5, resetsAt: RESETS_AT, status: "rejected" } })
     if (usageLimit) scene.mem.stoppedUntil = NOW + 60 * MINUTE
     await scene.run()
-    same(`drive: ${label} and 61 minutes with no action open no stall issue`, [scene.launched.length, commentsOf(scene.calls, 30).length, only(scene.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 0, 0])
+    same(`drive: ${label} starts no worker and posts no request`, [scene.launched.length, commentsOf(scene.calls, 30).length], [0, 0])
   }
-  await stallOf("main at 0.92 with the worker account at 0.35 and one pull request waiting for its first review", { reading: stoppedReading })
-  await stallOf("main stopped by a usage limit with the worker account at 0.35 and one pull request waiting for its first review", { reading: below, usageLimit: true })
-
-  // A launch that fails on the worker account is no hold the driver chose, so it stays on the stall clock while the main account is stopped.
-  const failing = join(root, `drive-stall-${++scenarios}`)
-  mkdirSync(failing, { recursive: true })
-  writeFileSync(join(failing, "activity.json"), JSON.stringify({ at: NOW - 61 * MINUTE }))
-  const failed = scenario({ tickets: [ticket(7)], occupants: [4242], stateDirectory: failing, reading: stoppedReading, workerAuth: WORKER_AUTH, workerReading: below })
-  await failed.run()
-  same("drive: main at 0.92 and the worker account at 0.35 with a worktree that another process holds on every tick open one stall issue after 61 minutes", [failed.launched.length, only(failed.calls, "createTicket").filter(([, input]) => input.title === STALL).length], [0, 1])
+  await holdOf("main at 0.92 with the worker account at 0.35 and one pull request waiting for its first review", { reading: stoppedReading })
+  await holdOf("main stopped by a usage limit with the worker account at 0.35 and one pull request waiting for its first review", { reading: below, usageLimit: true })
 
   const both = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   await both.run()
@@ -4142,7 +4095,7 @@ export const driverUnit = async () => {
   await releaseCases()
   await admissionCases()
   await checkOnlyCases()
-  await stallCases()
+  await heldPullCases()
   await paceCases()
   await sleepCases()
   await questionsCases()
