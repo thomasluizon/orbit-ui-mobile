@@ -936,6 +936,21 @@ const mergeCases = async () => {
   const met = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL] })] } })
   await met.run()
   same("drive: a needs:owner pull request whose bar is otherwise met gets no merge and no order", [only(met.calls, "merge").length, met.launched.length], [0, 0])
+
+  // The order of an open part pull request names no part to build, so two live comments of one part never reach the worker as "this order".
+  const doubledParts = [comment(null, "Part 1 of 2: first\n", -7200 * 1000), comment(null, "Part 2 of 2: second\nBODY-OF-SECOND\n", -7100 * 1000), comment(null, "Part 2 of 2: second again\nBODY-OF-AGAIN\n", -7000 * 1000)]
+  const partPull = (extra) => pull(30, { headRef: "chore/ticket-7-part-2", ...extra })
+  const orderKinds = {
+    "ci-fix": partPull({ checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] }),
+    fix: partPull({ reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] }),
+    "merge-forward": partPull({ mergeState: "DIRTY" }),
+  }
+  for (const [kind, open] of Object.entries(orderKinds)) {
+    const scene = scenario({ tickets: [ticket(7, { comments: doubledParts })], pulls: { ui: [open] }, ...(kind === "ci-fix" ? { failedSteps: ["Unit tests"], routes: [["--log-failed", "AssertionError: expected 1 to be 2\n"]] } : {}) })
+    await scene.run()
+    const order = orderText(scene)
+    same(`drive: a ${kind} order on a part pull request with two live comments of one part has no "this order" part and no part body`, [scene.launched.length, order.includes("(this order)"), order.includes("BODY-OF-SECOND") || order.includes("BODY-OF-AGAIN"), order.includes("- Part 2 of 2: second again")], [1, false, false, true])
+  }
 }
 
 const updateCases = async () => {
