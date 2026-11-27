@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { REQUIRED_CHECKS_FILE, requiredChecksOf } from "../lib/github-read.mjs"
-import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, sameRequiredChecks, writeProtectionChecks } from "../lib/github.mjs"
+import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
 import { REPO_ROOT, T, root, same } from "./_harness.mjs"
 
 const HEAD = "a".repeat(40)
@@ -101,6 +101,19 @@ const adapterCases = async () => {
   const written = seams(() => "{}")
   await writeProtectionChecks("ui", "main", { strict: false, checks: answer.checks }, written)
   same("lib/github.mjs: the protection write is one PATCH that sends -1 for every app", [written.calls.map((call) => call.text), JSON.parse(written.calls[0].input)], [[`api repos/${slug}/branches/main/protection/required_status_checks --method PATCH --input -`], { strict: false, checks: [{ context: "a", app_id: ACTIONS }, { context: "b", app_id: -1 }] }])
+
+  const note = (id) => ({ id, url: `https://example.test/c/${id}`, body: `Note ${id}`, createdAt: "2026-11-20T00:00:00Z", author: { login: "thomasluizon" } })
+  const issue = (comments, hasNextPage) => ({ data: { repository: { issue: { number: 7, title: "T", body: null, state: "CLOSED", createdAt: "2026-11-01T00:00:00Z", labels: { nodes: [{ name: "Bug" }] }, comments: { pageInfo: { hasNextPage, endCursor: hasNextPage ? "c1" : null }, nodes: comments } } } } })
+  const paged = seams((args) => JSON.stringify(args.join(" ").includes("query DriveComments") ? issue([note("C2")], false) : issue([note("C1")], true)))
+  const ticket = await readTicket(7, paged)
+  same("lib/github.mjs: readTicket reads a closed ticket and a second page of comments", [ticket.number, ticket.state, ticket.body, ticket.labels, ticket.comments.map((entry) => entry.id), paged.calls.length], [7, "CLOSED", "", ["Bug"], ["C1", "C2"], 2])
+  const missing = await readTicket(8, seams(() => JSON.stringify({ data: { repository: { issue: null } } }))).catch((error) => error.message)
+  T("lib/github.mjs: readTicket refuses a ticket that does not exist", /does not exist/.test(String(missing)), String(missing))
+  const edited = seams(() => "")
+  await updateBody(7, "New body", edited)
+  same("lib/github.mjs: updateBody sends the body on stdin to gh issue edit", [edited.calls.map((call) => [call.text, call.input])], [[[`issue edit 7 --repo thomasluizon/orbit-tickets --body-file -`, "New body"]]])
+  const blank = await updateBody(7, " ", edited).catch((error) => error.message)
+  T("lib/github.mjs: updateBody refuses an empty body", /non-empty/.test(String(blank)) && edited.calls.length === 1, String(blank))
 }
 
 const FIX = "## Permanent fix\n\n"

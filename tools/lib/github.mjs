@@ -467,6 +467,32 @@ export const readBoardFor = async (ticket, seams = {}) => {
   return listed.filter((other) => other.number !== ticket.number).map((other) => ({ number: other.number, state: other.state, body: other.body ?? "" }))
 }
 
+const TICKET_QUERY = `query DriveTicket($owner: String!, $name: String!, $number: Int!) {
+  repository(owner: $owner, name: $name) {
+    issue(number: $number) {
+      number title body state createdAt
+      labels(first: 50) { nodes { name } }
+      comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
+    }
+  }
+}`
+
+/** One ticket, open or closed, with its body, state, labels and every comment. */
+export const readTicket = async (number, seams = {}) => {
+  const api = bind(seams)
+  const { owner, name } = splitSlug(api.config.tickets.repository)
+  const issue = (await graphql(api, TICKET_QUERY, { owner, name, number })).repository.issue
+  if (!issue) throw new Error(`Ticket ${number} does not exist`)
+  const more = issue.comments.pageInfo.hasNextPage ? await readMoreComments(api, number, issue.comments.pageInfo.endCursor) : []
+  return { number: issue.number, title: issue.title, body: issue.body ?? "", state: issue.state, createdAt: issue.createdAt, labels: labelNames(issue.labels), comments: [...issue.comments.nodes, ...more].map(normalizeComment) }
+}
+
+/** Replaces the body of a ticket. The body goes on stdin, because a body can be long. */
+export const updateBody = async (number, body, seams = {}) => {
+  const api = bind(seams)
+  await api.run(["issue", "edit", String(number), "--repo", api.config.tickets.repository, "--body-file", "-"], { input: nonEmpty(body, "ticket body") })
+}
+
 /** The `deploy-first:<environment>/<task>` holds a ticket label list carries. */
 export const deployFirstHolds = (labels) => labels.flatMap((label) => {
   const match = /^deploy-first:([^/]+)\/(.+)$/.exec(label)

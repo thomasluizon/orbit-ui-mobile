@@ -11,13 +11,14 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
-import { delimiter, dirname, join, resolve } from "node:path"
+import { basename, delimiter, dirname, join, resolve } from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 import { readDriveConfig } from "./lib/config.mjs"
 import { detailOf, errorClassOf, healthRecord, rateLimitResetOf, readHealth, writeHealth } from "./lib/driver-health.mjs"
 import { changesDriver, collectCrash, crashesOfSwitch, endRun, endedWithSwitch, lastLine, markSwitch, readPin, rolledBackFrom, startedAfterSwitch, startRun, writePin } from "./lib/driver-pin.mjs"
 import { escapeRegex } from "./lib/escape-regex.mjs"
+import { readGate } from "./lib/gate-commands.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
@@ -27,6 +28,7 @@ import { runBounded } from "./lib/bounded-process.mjs"
 import { CODEX_MODEL, codexHomeDirectory, codexLogEvent, codexResultText } from "./lib/codex-runner.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
+import { worktreeStatus } from "./lib/worker-gate-hook.mjs"
 import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail } from "./lib/stage-budgets.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -1323,7 +1325,7 @@ export const failureHistory = (env, launches) => [...launches].reverse().map((en
   const logFile = entry.log ? join(env.stateDir, "logs", `${entry.log}.log`) : null
   let facts = {}
   try { facts = JSON.parse(readFileSync(factsFileOf(logFile), "utf8")) } catch { /* a launch from before the facts files has none */ }
-  return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : (facts.runner === "codex" ? codexResultText : resultText)(tailOf(logFile)) }
+  return { kind: entry.kind, model: entry.model ?? workerApi.WORKER_MODEL, at: entry.at ?? null, exitCode: facts.exitCode ?? null, killReason: facts.killReason ?? null, headBefore: facts.headBefore ?? null, headAfter: facts.headAfter ?? null, gate: facts.gate ?? null, blocking: facts.blocking ?? [], checks: facts.checks ?? [], result: logFile === null ? "" : (facts.runner === "codex" ? codexResultText : resultText)(tailOf(logFile)) }
 })
 
 /** The ordered actions for one pull request. The plan writes nothing. */
@@ -2163,13 +2165,32 @@ const recordSession = async (env, ticket, { kind, partNumber, branch, prNumber, 
 /** The exit of a worker that this process did not wait for: the session, the reading and the verdict that its log holds. */
 const exitFromLog = (env, { logFile, runner }) => ({ spawnError: null, exitCode: null, killed: null, killReason: null, ...workerApi.logOutcome(logFile, runnerOfRecord({ runner }) === "codex" ? codexHomeDirectory(env.home) : null) })
 
-/** Adds the exit of a launch to its facts file: the exit code, the kill reason and the head that the worktree holds now. A failed write loses only history. */
-const recordExit = async (env, { worktree, logFile }, result) => {
+/**
+ * The gate result of a launch: `gate green` or `gate red`, from the record that the `Stop` hook wrote in the git directory of the worktree.
+ * A record of another launch, a record for another head, a missing record and a worktree with an uncommitted file read as red,
+ * because a run that never passed its gate has no green result. A `find` or `replan` run and a Codex launch have no gate, so they give null.
+ * The status comes from `worktreeStatus` of the gate hook, so the driver and the hook see the same files.
+ */
+export const gateResultOf = async (env, { kind, worktree, logFile, runner }, headAfter) => {
+  if (kind === "find" || kind === "replan" || runnerOfRecord({ runner }) === "codex") return null
+  const dir = await env.git(worktree, ["rev-parse", "--absolute-git-dir"])
+  if (dir.status !== 0) return "gate red"
+  const record = readGate(dir.stdout.trim())
+  let status
+  try { status = worktreeStatus(worktree) } catch { return "gate red" }
+  // The record names a commit and the gate tested the files, so a green record counts only for a worktree that holds no uncommitted file.
+  return record?.run === basename(logFile, ".log") && record.green === true && headAfter !== null && record.head === headAfter && status === "" ? "gate green" : "gate red"
+}
+
+/** Adds the exit of a launch to its facts file: the exit code, the kill reason, the head that the worktree holds now and the gate result. A failed write loses only history. */
+const recordExit = async (env, exit, result) => {
   try {
-    const file = factsFileOf(logFile)
+    const file = factsFileOf(exit.logFile)
     const facts = JSON.parse(readFileSync(file, "utf8"))
-    const head = await env.git(worktree, ["rev-parse", "HEAD"])
-    writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter: head.status === 0 ? head.stdout.trim() : null })}\n`)
+    const head = await env.git(exit.worktree, ["rev-parse", "HEAD"])
+    const headAfter = head.status === 0 ? head.stdout.trim() : null
+    const gate = await gateResultOf(env, exit, headAfter)
+    writeFileSync(file, `${JSON.stringify({ ...facts, exitCode: result.exitCode ?? null, killReason: result.killReason ?? null, headAfter, ...(gate === null ? {} : { gate }) })}\n`)
   } catch { /* no facts file means a launch from before the facts files */ }
 }
 
