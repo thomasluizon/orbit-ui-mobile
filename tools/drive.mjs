@@ -20,7 +20,7 @@ import { escapeRegex } from "./lib/escape-regex.mjs"
 import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUMENTS, findRepositories, hiddenChangesOf, installDependencies, parseWorktreeList } from "./lib/git-worktrees.mjs"
 import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { ownerParts, partOf, partProblem, renderOrder, renderResumeOrder } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
@@ -340,9 +340,31 @@ export const ticketComment = ({ repository, ticket, part }) => {
   return assemble(ticket.body.trim().slice(0, Math.max(0, room)), `Ticket body cut here: it had ${ticket.body.trim().length} characters.\n`)
 }
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), acted: false, waiting: [], lastIntakeAt: 0, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), orphans: new Map(), paceLoaded: false, saved: null, questions: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
+
+/**
+ * Logs a hold or a wait reason when it starts or changes, not on each tick. `scope` names the hold, and `signature` is what changes it.
+ * A scope that a tick does not name is forgotten at the end of the tick (`forgetUnseen`), so a hold that ends and returns logs again.
+ */
+const logChange = (env, mem, { scope, signature, item, action, reason }) => {
+  mem.loggedSeen.add(scope)
+  if (mem.logged.get(scope) === signature) return
+  mem.logged.set(scope, signature)
+  log(env, item, action, reason)
+}
+
+/** Keeps the log memory of a pull request that a tick did not plan: its hold goes on, so its lines must not come again. */
+const keepLogged = (mem, item) => {
+  mem.loggedSeen.add(`needs-owner ${item}`)
+  mem.loggedSeen.add(`wait ${item}`)
+}
+
+const forgetUnseen = (mem) => {
+  for (const scope of mem.logged.keys()) if (!mem.loggedSeen.has(scope)) mem.logged.delete(scope)
+  mem.loggedSeen.clear()
+}
 
 /** The start of the last questions run in epoch milliseconds, or 0 when no run started. `questions.json` keeps it, so a restart does not run again for the same reports. */
 const readQuestionsStart = (stateDir) => {
@@ -485,12 +507,12 @@ const sendPending = async (env) => {
   }
 }
 
-/** While sleep is on, keeps one `needs:owner` item with its link for the notification that sleep off sends. Awake, it keeps nothing. */
-const holdItem = (env, { link, reason }) => {
+/** While sleep is on, keeps one `needs:owner` item with its link for the notification that sleep off sends. Awake, it keeps nothing. `key` names the hold: one entry for each link and key. */
+const holdItem = (env, { link, reason, key = reason }) => {
   if (env.dryRun || !readSleep(env.stateDir).on) return
   const items = readSleepItems(env.stateDir)
-  if (items.some((item) => item.link === link && item.reason === reason)) return
-  writeFileSync(join(env.stateDir, SLEEP_ITEMS_FILE), `${JSON.stringify([...items, { link, reason }])}\n`)
+  if (items.some((item) => item.link === link && (item.key ?? item.reason) === key)) return
+  writeFileSync(join(env.stateDir, SLEEP_ITEMS_FILE), `${JSON.stringify([...items, { link, reason, key }])}\n`)
 }
 
 const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/issues/${number}`
@@ -569,30 +591,39 @@ export const setSleep = (env, word, { out }) => {
   return after.on === (word === "on") ? 0 : 3
 }
 
+/** The hidden last line of a `needs-owner` comment: it names the report, so a reason text that changes keeps one report. */
+const reportKeyLine = (key) => `<!-- orbit-drive-key:${createHash("sha256").update(key).digest("hex").slice(0, 16)} -->`
+
 /**
  * Writes one `needs-owner` comment, labels the ticket `needs:owner` when it lacks it, and notifies. A label change on an open pull request starts its checks again, so the pull request keeps its labels.
- * The comment is the mark that stops a repeat: a ticket that an owner gate already labelled still gets each new report.
- * A ticket repeats only for the same reason, and a pull request report names it and its head. With no ticket, one report only, and that report holds the pull request (`heldByReport`).
+ * The comment is the mark that stops a repeat. A report is keyed on the pull request, its head and its `cause` class, never on
+ * the reason text, so a changed check list at the same head and cause keeps one report. A ticket with no pull request keys on its
+ * `cause`, which is the reason text unless the caller names a class. With no ticket, one report only, and that report holds the pull request (`heldByReport`).
  * A `relabel` report restores a removed label and writes no comment and sends no notification.
+ * The log line, the comment, the notification and the sleep item each come once for a key. The comment gates the log line, so a new process logs no repeat.
  */
-const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, relabel = false }) => {
+const needsOwner = async (env, mem, { ticket, repoKey = null, pull = null, reason: plainReason, cause = plainReason, relabel = false }) => {
   const item = pull ? `${repoKey}#${pull.number}` : `ticket#${ticket.number}`
   const reason = ticket && pull ? `${item} at ${pull.headSha}: ${plainReason}` : plainReason
-  log(env, item, "needs-owner", reason)
+  const key = pull ? `${item} ${pull.headSha} ${cause}` : `${item} ${cause}`
   const comments = ticket ? ticket.comments : pull.comments
+  const keyLine = reportKeyLine(key)
   // A report from before the owner decision is answered, so the same reason after the decision is a new report.
   const decidedAt = ticket ? ownerDecisionAt(env, ticket) : 0
-  const reported = comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (ticket === null || bodyAfterMarker(entry).trim() === reason))
+  const reported = comments.some((entry) => entry.kind === "needs-owner" && !(Date.parse(entry.createdAt) <= decidedAt) && (ticket === null || bodyAfterMarker(entry).trim() === reason || bodyAfterMarker(entry).trimEnd().endsWith(keyLine)))
+  // The comment persists across a driver switch and the log memory does not, so the comment gates the line.
+  if (!reported) logChange(env, mem, { scope: `needs-owner ${item}`, signature: key, item, action: "needs-owner", reason })
   if (env.dryRun || (reported && !relabel)) return
   if (ticket && !ticket.labels.includes(OWNER)) {
     await env.github.editLabels("tickets", ticket.number, { add: [OWNER] })
     ticket.labels.push(OWNER)
   }
   if (reported) return
-  await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, marked("needs-owner", reason))
-  comments.push({ kind: "needs-owner", body: marked("needs-owner", reason), createdAt: new Date(env.now()).toISOString() })
+  const body = marked("needs-owner", `${reason}\n${keyLine}`)
+  await env.github.comment(ticket ? "tickets" : repoKey, ticket ? ticket.number : pull.number, body)
+  comments.push({ kind: "needs-owner", body, createdAt: new Date(env.now()).toISOString() })
   const link = ticket ? issueLink(env, ticket.number) : `https://github.com/${env.slugOf(repoKey)}/pull/${pull.number}`
-  holdItem(env, { link, reason })
+  holdItem(env, { link, reason, key })
   await say(env, { key: `needs-owner ${item} ${pull?.headSha ?? ""} ${plainReason}`, lines: [`Orbit needs you: ${cut(ticket?.title || item, TITLE_LIMIT)}`, cut(plainReason, DETAIL_LIMIT)], link })
 }
 
@@ -971,6 +1002,7 @@ const checkPlan = async (env, repoKey, pull) => {
   const checks = []
   // One rerun comes before any launch. A check that failed for a test, not for the setup, the checkout or a gateway, is a suspect: a pass on the rerun at the same head proves a flake.
   const rerun = new Map()
+  const running = new Set()
   for (const check of failed) {
     // A cancelled job never ran a failing step, so it has no failed lines to read: it gets a rerun and is no flake suspect.
     const cancelled = check.conclusion === "CANCELLED"
@@ -978,13 +1010,20 @@ const checkPlan = async (env, repoKey, pull) => {
     const verdict = cancelled ? "rerun" : classifyCheckFailure({ name: check.name, failedSteps })
     if (verdict === "needs-owner") return { owner: `${check.name} asks for a deployment barrier, which only the owner writes` }
     const already = pull.comments.some((entry) => entry.kind === "record" && bodyAfterMarker(entry) === `driver rerun ${check.runId}`)
-    const owesRerun = check.runId !== null && !already
+    // A deterministic check gives the same result at the same head, so it never reruns: its failure goes to a fix order.
+    const owesRerun = check.runId !== null && !already && !isDeterministicCheck(check.name)
+    // GitHub refuses to rerun the failed jobs of a run that still runs, so the rerun waits for the run to end.
+    if (owesRerun && runInProgress(pull, check.runId)) {
+      running.add(check.name)
+      continue
+    }
     const logLines = check.runId === null || (owesRerun && verdict === "rerun") ? [] : await failedLogLines(env, repoKey, check.jobId)
     const gatewayTimeout = logLines.some((line) => /HTTP 504|504 Gateway/.test(line))
     if (owesRerun) rerun.set(check.runId, [...(rerun.get(check.runId) ?? []), ...(verdict === "rerun" || gatewayTimeout ? [] : [{ name: check.name, lines: logLines.slice(-FLAKE_LOG_LINES) }])])
     else checks.push({ name: check.name, failedSteps, logLines })
   }
-  return rerun.size > 0 ? { rerun: [...rerun].map(([runId, suspects]) => ({ runId, suspects })) } : { checks }
+  if (rerun.size > 0) return { rerun: [...rerun].map(([runId, suspects]) => ({ runId, suspects })) }
+  return running.size > 0 ? { wait: `a workflow run still runs, so ${[...running].join(", ")} is not rerun yet` } : { checks }
 }
 
 /**
@@ -1062,10 +1101,10 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A ci-fix launch for a base merge is no fault of the change, so the cap does not count it. Its mark holds the head it ran at.
   const counted = launches.filter((entry) => !entry.baseMerge)
   const actions = flakeActions(pull)
-  const owner = (reason) => [...actions, { type: "needs-owner", reason }]
+  const owner = (reason, cause = reason) => [...actions, { type: "needs-owner", reason, cause }]
   const orderOrWait = (order) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket goes to the owner.
-    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it.`)
+    if (ticket === null) return owner(`${item} needs a ${order.kind} order and no open ticket tracks it.`, `no-ticket-${order.kind}`)
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     if (counted.length < MAX_FIX_LAUNCHES) return [...actions, order]
@@ -1084,7 +1123,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   }
   if (need.fix) return orderOrWait({ type: "order", kind: "fix", repoKey, pull, ticket, review: need.fix })
   const checks = await checkPlan(env, repoKey, pull)
-  if (checks?.owner) return owner(checks.owner)
+  if (checks?.owner) return owner(checks.owner, "deployment-barrier")
+  if (checks?.wait) return [...actions, { type: "none", reason: checks.wait }]
   if (checks?.rerun) return [...actions, ...checks.rerun.map(({ runId, suspects }) => ({ type: "rerun", runId, suspects }))]
   if (checks?.checks) {
     const baseMerge = await baseMergeOf(env, env.config.repos[repoKey], pull)
@@ -1098,6 +1138,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return owner(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) return [...actions, { type: "merge" }]
+  // The bar text holds `behind:N`, which changes at each commit to main, and the `needs-owner` token: a stable reason keeps the log to one line.
+  if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
@@ -1161,7 +1203,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       for (const suspect of action.suspects ?? []) await env.github.comment(repoKey, pull.number, marked("record", `driver flake-suspect ${flakeKey(action.runId, suspect.name)}\n${suspect.lines.join("\n")}`))
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
-    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, relabel: action.relabel })
+    case "needs-owner": return needsOwner(env, mem, { ticket, repoKey, pull, reason: action.reason, cause: action.cause, relabel: action.relabel })
     // The child still holds its parent's commits, so main is merged in before the first pass reads its diff.
     case "update": return updateBranch(env, repoKey, pull)
     case "merge":
@@ -1227,9 +1269,10 @@ const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped,
 /** Runs the plans of one repository in number order. Returns the order candidates. The first merge ends the repository's turn. */
 const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
   const orders = []
-  for (const { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain } of planned) {
+  for (const [index, { pull, item, plan: planned1, limit, error, ownerAtPlan, planAgain }] of planned.entries()) {
     if (error) {
       log(env, item, "error", error.message)
+      keepLogged(mem, item)
       continue
     }
     try {
@@ -1240,13 +1283,17 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       const labelled = !ownerAtPlan && pull.tracks !== null && ctx.ticketMap.get(pull.tracks)?.labels.includes(OWNER) === true
       const plan = labelled ? [...planned1.filter((action) => action.type === "resolve-threads"), ...await planAgain()] : planned1
       const mergeHeld = plan.some((action) => action.held)
-      if (mergeHeld) log(env, item, "merge held", `release train ${ctx.hold.id} ships mobile at ${ctx.hold.sha}`)
       env.lines.push(`pull ${item}: ${plan.map(describe).join("; ")}${limit.found ? " (Pullfrog hit a usage limit)" : ""}`)
+      const waits = plan.filter((action) => action.type === "none").map((action) => action.reason)
+      // The hold takes the wait scope with the wait signature, so it logs once when it starts and the wait line adds no second one.
+      if (mergeHeld) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "merge held", reason: `release train ${ctx.hold.id} ships mobile at ${ctx.hold.sha}` })
+      else if (waits.length > 0 && !env.dryRun) logChange(env, mem, { scope: `wait ${item}`, signature: waits.join("; "), item, action: "wait", reason: waits.join("; ") })
       try {
         for (const action of plan) {
           if (action.type === "order") orders.push(action)
           else if (action.type !== "none") {
-            log(env, item, describe(action))
+            // A hold logs itself in `needsOwner`, once for each report key.
+            if (action.type !== "needs-owner") log(env, item, describe(action))
             if (!env.dryRun) await executeAction(env, mem, ctx, pull, action)
           }
           if (ctx.merged) break
@@ -1260,8 +1307,12 @@ const actOnPlans = async (env, mem, { ctx, tickets, planned }) => {
       }
     } catch (failure) {
       log(env, item, "error", failure.message)
+      keepLogged(mem, item)
     }
-    if (ctx.merged) break
+    if (ctx.merged) {
+      for (const skipped of planned.slice(index + 1)) keepLogged(mem, skipped.item)
+      break
+    }
   }
   return orders
 }
@@ -2302,7 +2353,12 @@ export const tick = async (env, mem) => {
   const stillOpen = tickets.filter((ticket) => !closed.has(ticket.number))
   const { chosen, decisions: later } = holdReason ? { chosen: [], decisions: new Map() } : await admit(env, mem, stillOpen, states, { running, room: room - fixOrders.length, full, skip: reached })
   const decisions = new Map([...admitted.decisions, ...later])
-  for (const ticket of tickets) env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"}`)
+  for (const ticket of tickets) {
+    const decision = closed.has(ticket.number) ? "close" : holdReason ? `wait: ${holdReason}` : decisions.get(ticket.number) ?? "wait"
+    env.lines.push(`ticket ${env.config.tickets.repository}#${ticket.number}: ${decision}`)
+    // A needs:owner decision logs itself in `needsOwner`. Outside `--dry-run` the wait reason logs once when it changes.
+    if (!env.dryRun && decision.startsWith("wait")) logChange(env, mem, { scope: `wait ticket#${ticket.number}`, signature: decision, item: `ticket#${ticket.number}`, action: "wait", reason: decision.replace(/^wait:? ?/, "") })
+  }
   if (env.dryRun) env.lines.push(await nextTicketLine(env, mem, stillOpen, states, running))
   if (!env.dryRun) {
     const stoppedBy = await launchAll([...fixOrders, ...chosen])
@@ -2326,6 +2382,7 @@ export const tick = async (env, mem) => {
   logPace(env, paces, startedAt)
   if (env.dryRun && env.driverWorktree) env.lines.push(await pinLine(env).catch((error) => `driver pin unreadable (${error.message})`))
   if (env.dryRun) for (const line of env.lines) env.log(line)
+  forgetUnseen(mem)
   const switched = await switchDriver(env, mem).catch((error) => (log(env, "driver", "switch-error", error.message), false))
   return { retried: false, lines: env.lines, switched }
 }

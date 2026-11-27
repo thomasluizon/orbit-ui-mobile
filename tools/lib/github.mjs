@@ -21,6 +21,8 @@ const SHA = /^[0-9a-f]{40}$/
 const BARRIER_CHECK = "Guard Migrations"
 const BARRIER_STEP = "Require deployment barriers for schema contractions"
 const SETUP_STEP = "Set up job"
+/** The checks that read only the pull request, so a rerun at the same head gives the same result. */
+const DETERMINISTIC_CHECKS = new Set(["PR Metadata", "Guards"])
 /** The default name of a checkout step, or the name that `guards.yml` gives it. The post step is no checkout. */
 const CHECKOUT_STEP = /^(?:Run actions\/checkout@\S+|Checkout)$/
 /** The `test.yml` steps that read the result of a needed job. A failure there comes from that job, so it is no flake. */
@@ -455,11 +457,20 @@ export const passedChecks = (pull) => newestChecks(pull.checks)
   .filter((check) => check.passed && check.node.__typename === "CheckRun")
   .map((check) => ({ name: check.name, runId: /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] ?? null }))
 
-/** What to do about one failed check, from the names of its failed steps: a rerun for the job setup, the checkout or a gate step, the owner for a barrier, otherwise a fix order. */
+/** True for a check whose result does not change on a rerun at the same head: the driver never reruns it. */
+export const isDeterministicCheck = (name) => DETERMINISTIC_CHECKS.has(name)
+
+/**
+ * What to do about one failed check, from the names of its failed steps: a rerun for the job setup, the checkout or a gate step, the owner for a barrier,
+ * otherwise a fix order. A deterministic check is never a rerun: its failure goes to a fix order.
+ */
 export const classifyCheckFailure = ({ name, failedSteps }) => {
   if (name === BARRIER_CHECK && failedSteps.includes(BARRIER_STEP)) return "needs-owner"
-  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step) || GATE_STEPS.has(step)) ? "rerun" : "ci-fix"
+  return failedSteps.some((step) => step === SETUP_STEP || CHECKOUT_STEP.test(step) || GATE_STEPS.has(step)) && !isDeterministicCheck(name) ? "rerun" : "ci-fix"
 }
+
+/** True while a job of one workflow run has not completed. GitHub refuses to rerun the failed jobs of such a run. */
+export const runInProgress = (pull, runId) => newestChecks(pull.checks).some((check) => check.node.__typename === "CheckRun" && check.node.status !== "COMPLETED" && /\/actions\/runs\/(\d+)/.exec(check.node.detailsUrl ?? "")?.[1] === runId)
 
 /** The names of the failed steps of one job of a workflow run. */
 export const readFailedSteps = async (repositoryKey, runId, jobId, seams = {}) => {
