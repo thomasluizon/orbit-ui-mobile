@@ -261,6 +261,31 @@ describe('login context through the owning onboarding layouts', () => {
   })
   afterEach(() => { vi.unstubAllGlobals(); mocks.navigate.mockReset() })
 
+  it.each(['shortcut', 'completion'] as const)('preserves referral and return URL through the %s exit', async (exit) => {
+    useOnboardingDraftStore.setState({ introSeen: true })
+    render(<QueryClientProvider client={new QueryClient()}><LoginEntry initialUrl="/login?ref=friend-42&returnUrl=%2Fcalendar" /></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByLabelText('Current URL')).toHaveTextContent('/onboarding?ref=friend-42&returnUrl=%2Fcalendar'))
+    expect(screen.queryByText(/Entrar/)).not.toBeInTheDocument()
+    if (exit === 'shortcut') {
+      fireEvent.click(screen.getByRole('button', { name: 'onboarding.flow.what.haveAccount' }))
+    } else {
+      await act(async () => { fireEvent.change(await screen.findByLabelText('onboarding.flow.guided.what.question', { selector: 'textarea' }), { target: { value: 'Walk every Monday at 18:00' } }) })
+      await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'onboarding.flow.continue' })) })
+      await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'onboarding.flow.create' })) })
+      await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'onboarding.flow.remind.continue' })) })
+      fireEvent.click(await screen.findByRole('button', { name: 'onboarding.flow.done.signIn' }))
+    }
+    await screen.findByText(/Entrar friend-42/)
+    const destination = new URL(screen.getByLabelText('Current URL').textContent!, 'https://orbit.test')
+    expect(destination.pathname).toBe('/login')
+    expect(destination.searchParams.get('ref')).toBe('friend-42')
+    expect(destination.searchParams.get('returnUrl')).toBe('/calendar')
+    expect(destination.searchParams.get('from')).toBe(exit === 'completion' ? 'onboarding' : null)
+    expect(document.cookie).toContain('referral_code=friend-42')
+    expect(useOnboardingDraftStore.getState().habits).toHaveLength(exit === 'completion' ? 1 : 0)
+    expect(useOnboardingDraftStore.getState().onboardingLocallyDone).toBe(true)
+  })
+
   it.each([
     ['email=person%40example.com&code=123456&ref=friend-42&returnUrl=%2Fcalendar', 'code'],
     ['googleError=1&returnUrl=%2Fcalendar', 'auth.errors.googleError'],

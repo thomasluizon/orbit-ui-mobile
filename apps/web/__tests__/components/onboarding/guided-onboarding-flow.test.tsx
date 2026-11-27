@@ -7,7 +7,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { MAX_HABIT_INTERVAL_WEEKS } from '@orbit/shared/types/habit'
 import { buildOnboardingHabitInput, buildOnboardingScheduleFromPhrase } from '@orbit/shared/utils'
-import { holdAccount } from '@/__tests__/support/account-change'
+import { holdAccount, replaceAccountWith } from '@/__tests__/support/account-change'
 
 const mocks = vi.hoisted(() => ({
   push: vi.fn(), completed: vi.fn(), event: vi.fn(), suggest: vi.fn(), subscribe: vi.fn(), requestPermission: vi.fn(),
@@ -627,6 +627,93 @@ describe('guided onboarding requests', () => {
     })
   })
 
+  describe.each(locales)('the retained recovery, the lock and the exit in $locale', ({ locale, messages }) => {
+    const flow = messages.onboarding.flow
+    const guided = flow.guided
+    const remind = flow.remind
+    const reachReminder = async () => {
+      useOnboardingDraftStore.setState({ introSeen: true })
+      mount(locale, messages)
+      await typePhrase(messages, locale === 'en' ? 'Walk every Monday at 18:00' : 'Caminhar toda segunda às 18:00')
+      await act(async () => { press(flow.create) })
+    }
+    const deferredFailure = () => useOnboardingDraftStore.setState({ introSeen: true, habits: [{ title: 'Walk', dueTime: '18:00' }], pushPermissionGranted: true, pushRegistrationFailed: true })
+
+    it('states a push registration that failed before sign-in, offers no Back, retries it and finishes onboarding', async () => {
+      deferredFailure()
+      mount(locale, messages)
+      expect(heading()).toBe(remind.failedTitle)
+      expect(screen.queryByRole('button', { name: flow.back })).toBeNull()
+      await act(async () => { press(flow.retry) })
+      expect(mocks.subscribe).toHaveBeenCalledOnce()
+      await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+      expect(mocks.updateHabit).not.toHaveBeenCalled()
+    })
+
+    it('clears the failed push recovery before Escape finishes onboarding', async () => {
+      deferredFailure()
+      mount(locale, messages)
+      fireEvent.keyDown(document, { key: 'Escape' })
+      await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+      expect(useOnboardingDraftStore.getState().pushRegistrationFailed).toBe(false)
+      expect(useOnboardingDraftStore.getState().habits).toEqual([])
+    })
+
+    it('locks both reminder choices until Allow completes, then saves reminders on once', async () => {
+      let resolveSubscription!: (value: { supported: true; status: 'registered' }) => void
+      mocks.subscribe.mockReturnValue(new Promise((resolve) => { resolveSubscription = resolve }))
+      await reachReminder()
+      await act(async () => { press(guided.remind.allow) })
+      await act(async () => { press(remind.deny) })
+      expect(mocks.updateHabit).not.toHaveBeenCalled()
+      await act(async () => { resolveSubscription({ supported: true, status: 'registered' }) })
+      await waitFor(() => expect(mocks.updateHabit).toHaveBeenCalledWith('habit-1', expect.objectContaining({ reminderEnabled: true })))
+      expect(mocks.updateHabit).toHaveBeenCalledOnce()
+    })
+
+    it('ignores Allow while Not now is saving', async () => {
+      let resolveUpdate!: () => void
+      mocks.updateHabit.mockReturnValue(new Promise<void>((resolve) => { resolveUpdate = resolve }))
+      await reachReminder()
+      await act(async () => { press(remind.deny) })
+      await act(async () => { press(guided.remind.allow) })
+      expect(mocks.subscribe).not.toHaveBeenCalled()
+      await act(async () => { resolveUpdate() })
+      expect(mocks.updateHabit).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the header Back inside the pending reminder decision', async () => {
+      let resolveSubscription!: (value: { supported: true; status: 'registered' }) => void
+      mocks.subscribe.mockReturnValue(new Promise((resolve) => { resolveSubscription = resolve }))
+      await reachReminder()
+      await act(async () => { press(guided.remind.allow) })
+      const back = screen.queryByRole('button', { name: flow.back })
+      if (back) fireEvent.click(back)
+      expect(heading()).not.toBe(guided.what.question)
+      expect(screen.queryByLabelText(guided.what.question, { selector: 'textarea' })).toBeNull()
+      await act(async () => { resolveSubscription({ supported: true, status: 'registered' }) })
+    })
+
+    it('keeps the overlay until the Escape completion settles, and goes back from the first question instead of leaving', async () => {
+      useOnboardingDraftStore.setState({ introSeen: true })
+      mount(locale, messages)
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(mocks.finishOnboarding).not.toHaveBeenCalled()
+      cleanup()
+      let finish!: () => void
+      mocks.finishOnboarding.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+      deferredFailure()
+      mount(locale, messages)
+      const dialog = screen.getByRole('dialog')
+      fireEvent.keyDown(document, { key: 'Escape' })
+      await waitFor(() => expect(mocks.finishOnboarding).toHaveBeenCalledOnce())
+      expect(dialog).toBeInTheDocument()
+      await act(async () => { finish() })
+      await waitFor(() => expect(dialog).not.toBeInTheDocument())
+      expect(mocks.finishOnboarding).toHaveBeenCalledOnce()
+    })
+  })
+
   it('shows Orbit in Pensando while the model reads the phrase', async () => {
     mocks.suggestionAvailable = true
     let resolve!: (value: unknown) => void
@@ -662,6 +749,18 @@ describe('retained onboarding', () => {
       </QueryClientProvider>,
     )
   }
+
+  it('drops the typed habit when another account replaces the tab', async () => {
+    vi.stubGlobal('fetch', vi.fn())
+    useOnboardingDraftStore.setState({ introSeen: true })
+    mountRetained(false)
+    const field = () => screen.getByLabelText(en.onboarding.flow.guided.what.question, { selector: 'textarea' })
+    await screen.findByLabelText(en.onboarding.flow.guided.what.question, { selector: 'textarea' })
+    fireEvent.change(field(), { target: { value: 'Walk every Monday at 18:00' } })
+    expect(field()).toHaveValue('Walk every Monday at 18:00')
+    await replaceAccountWith('user-2')
+    expect(field()).toHaveValue('')
+  })
 
   it('keeps the final-step-only mode on the Pro step', async () => {
     mocks.flag = true
