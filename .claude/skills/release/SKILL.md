@@ -75,6 +75,23 @@ The UI `release.yml` runs the desktop release for both environments. Do not disp
 
 ## Android
 
-Follow `.claude/skills/android-release/SKILL.md` for the version, the `versionCode` and the dispatch. The train uses mobile staging (Android track `internal` and iOS variant `staging`) and then mobile production (Android track `open` and iOS variant `production`), always from `main`. The train never uses Android track `production` and never submits to the App Store. The launch ticket owns those. A hand release can use `production` only when the owner asks. Staging by hand uses only `internal`, from the selected branch. Then run `.claude/skills/ios-release/SKILL.md` at the same version.
+Follow `.claude/skills/android-release/SKILL.md` for the version, the `versionCode` and the dispatch. The train uses mobile staging (Android track `internal` and iOS variant `staging`) and then mobile production (Android track `open` and iOS variant `production`), always from `main`. The train never uses Android track `production` and never submits to the App Store. The launch ticket owns those. A hand release can use `production` only when the owner asks. Staging by hand uses only `internal`, from the selected branch. Then run `.claude/skills/ios-release/SKILL.md` at the same version and commit.
 
-Before a staging Android dispatch, the staging API must be healthy at the planned API commit. Dispatch with `--ref <selected branch>`. Resolve the unique new run, then run `wait-release.mjs --repo ui --workflow android --run <databaseId> --sha <planned Android SHA>`. A successful upload does not say when Play makes the build available to testers.
+Before a staging Android dispatch, the staging API must be healthy at the planned API commit.
+
+Each hand Android dispatch builds the planned Android SHA. The selected branch sets the inputs:
+
+| Selected branch | `--ref` | `source_sha` | Workflow SHA |
+|---|---|---|---|
+| `main` | `main` | planned Android SHA | head of `main` at the dispatch |
+| another branch (staging) | that branch | empty | planned Android SHA |
+
+The workflow accepts only a commit of `main` as `source_sha`. For another branch, dispatch only while the branch head is the planned Android SHA. If the head moved, plan again.
+
+Record the dispatch time and the workflow SHA. Select the unique new run with that workflow SHA. If no unique run matches, stop. Then run the waiter:
+
+```text
+node tools/wait-release.mjs --repo ui --workflow android --run <databaseId> --sha <planned Android SHA> --workflow-sha <workflow SHA>
+```
+
+A successful upload does not say when Play makes the build available to testers.

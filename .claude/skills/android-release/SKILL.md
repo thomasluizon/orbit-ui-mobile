@@ -27,7 +27,7 @@ Android and iOS ship at the same `app_version` from the same commit. Each store 
 The workflow runs `node apps/mobile/scripts/mobile-version-pair.js check` before it builds. The check reads the newest version of each platform from the GitHub Deployments `android-release` and `ios-release`.
 
 - One version names one code state. The check refuses an Android version at or below the newest iOS version when Android does not carry that version. A reason does not change this.
-- The workflow passes `--sha "$GITHUB_SHA"`. A version that a platform already carries takes only the commit of that platform's newest record at that version. New code takes `nextVersion`.
+- The workflow passes the build commit as `--sha`: `source_sha`, or the head of the dispatch ref when `source_sha` is empty. A version that a platform already carries takes only the commit of that platform's newest record at that version. New code takes `nextVersion`.
 - A record with no commit makes the check refuse the version.
 - `node apps/mobile/scripts/mobile-version-pair.js plan --environment <production|staging>` prints both newest versions, the lagging platform and `nextVersion`. Set `GITHUB_REPOSITORY` and `GH_TOKEN` first.
 - A refusal is a stop. Never retry it with a made-up reason.
@@ -41,10 +41,10 @@ Each GitHub environment keeps its own records. The Android track selects the env
 
 ## Workflow inputs
 
-Read the inputs from `.github/workflows/android-release.yml`, never from memory. The inputs are `app_version`, `android_version_code`, `track`, `clear_cache`, `validate_expo_dependencies`, `message` and `platform_only_reason`.
+Read the inputs from `.github/workflows/android-release.yml`, never from memory. The inputs are `app_version`, `android_version_code`, `track`, `clear_cache`, `validate_expo_dependencies`, `message`, `platform_only_reason` and `source_sha`.
 
-- Track `internal` builds the selected branch as Orbit Staging against the staging API. It records in the `staging` environment.
-- Tracks `open` and `production` build `main` as Orbit against the production API. They record in the `production` environment.
+- Track `internal` builds a commit of the selected branch as Orbit Staging against the staging API. It records in the `staging` environment.
+- Tracks `open` and `production` build a commit of `main` as Orbit against the production API. They record in the `production` environment.
 - Every build ships its own JavaScript bundle with updates disabled.
 - Never promote a binary between tracks.
 
@@ -81,9 +81,27 @@ Each value in `$ARGUMENTS` overrides its default:
 
 When a version has no code, derive the code from the last run and say so.
 
-## Step 3: Resolve the ref
+## Step 3: Resolve the ref and the build commit
 
-`gh workflow run` runs the workflow at the default branch when `--ref` is missing. So resolve the ref and pass it.
+`gh workflow run` runs the workflow at the default branch when `--ref` is missing. So resolve the ref and pass it. Open and production need `main`. A tag does not satisfy their branch guard.
+
+Resolve two commits:
+
+- The build commit is the commit that the workflow builds.
+- The workflow SHA is the head of the dispatch ref.
+
+### A release from `main`
+
+1. Take the planned Android SHA as the build commit. It is the `plannedSha` of the `android` entry of the release plan.
+2. If you have no reviewed plan, run `node tools/release-plan.mjs`. Add `--track production` for the `production` track. Add `--environment staging --branch main` for `internal`.
+3. Stop when the `android` entry has a `baselineError`.
+4. When the entry shows `needsRelease: false`, stop. Continue only if the owner asks for a rebuild, with the `deployedSha` of the entry as the build commit.
+5. Run `git fetch origin main`. Take `git rev-parse origin/main` as the workflow SHA.
+6. Dispatch with `--ref main` and `source_sha` set to the build commit. `main` can move past that commit.
+
+### An internal release from another branch
+
+The workflow accepts only a commit of `main` as `source_sha`. So leave `source_sha` empty, and the workflow builds the head of the ref.
 
 ```bash
 git rev-parse --abbrev-ref HEAD
@@ -93,15 +111,17 @@ git rev-parse HEAD
 git rev-parse origin/<branch>
 ```
 
-The two SHAs must be equal. A mismatch is a stop.
+The last two SHAs must be equal. A mismatch is a stop.
 
 - Remote behind local: the build cannot see the unpushed commits.
 - Remote ahead of local: `--ref` names the branch, so someone else's later commit ships under the version you confirmed.
 - No upstream is also a stop. The workflow builds from the remote.
 
-Open and production need `main`. A tag does not satisfy their branch guard. An internal release can use a confirmed exact tag when its branch moves.
+That head is the build commit and the workflow SHA. With a reviewed plan, it must equal the planned Android SHA. If it differs, plan again. An internal release can use a confirmed exact tag when its branch moves.
 
-Show the resolved inputs and the ref as a table. Say when the working tree has uncommitted mobile changes, because the build excludes them. Then dispatch.
+### Confirm
+
+Show the resolved inputs, the ref and the build commit as a table. Say when the working tree has uncommitted mobile changes, because the build excludes them. Then dispatch.
 
 ## Step 4: Dispatch and follow
 
@@ -114,24 +134,26 @@ gh workflow run android-release.yml \
   -f clear_cache=<bool> \
   -f validate_expo_dependencies=<bool> \
   -f message=<text> \
-  -f platform_only_reason=<reason or empty>
+  -f platform_only_reason=<reason or empty> \
+  -f source_sha=<build commit for main, empty for another ref>
 ```
 
-`gh workflow run` prints no run id. List the runs again for the same ref. Take the newest entry whose `displayTitle` matches the dispatch. Copy the id from this output.
+`gh workflow run` prints no run id. Record the dispatch time before you dispatch. List the runs again for the same ref. Select the unique new run whose `headSha` is the workflow SHA and whose `displayTitle` matches the dispatch. If no unique run matches, stop. Copy the id from this output.
 
 ```bash
 gh run list --workflow android-release.yml --branch <confirmed ref> --limit 5 \
-  --json databaseId,displayTitle,status,headBranch
+  --json databaseId,displayTitle,status,headBranch,headSha,createdAt,event
 gh run watch <databaseId>
 ```
 
 ## Step 5: Release iOS at the same version
 
-Unless `--android-only` applies, run `/ios-release` after the Android dispatch, once the Android run title carries the version (`Android Release <version> (<code>) to <track> on`). A title of only `Android Release` makes the iOS configuration check fail. Use the same commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
+Unless `--android-only` applies, run `/ios-release` after the Android dispatch, once the Android run title carries the version (`Android Release <version> (<code>) to <track> on`). A title of only `Android Release` makes the iOS configuration check fail. Use the same build commit and the same `app_version`. Use the iOS `variant` of the Android environment: `production` after `open` or `production`, and `staging` after `internal`.
 
-- `gh workflow run --ref` builds the tip of the branch. The iOS check refuses a commit other than the Android commit.
-- Before the iOS dispatch, run `git fetch origin <branch>`. Compare `git rev-parse origin/<branch>` with the commit of the Android run.
-- If the branch moved, release Android again at the new `nextVersion` from the new tip. Then release iOS.
+- The iOS check refuses a commit other than the Android build commit.
+- For `main`, dispatch iOS with `--ref main` and `source_sha` set to the build commit. `main` can move past that commit.
+- For another branch, leave `source_sha` empty. Run `git fetch origin <branch>`. Compare `git rev-parse origin/<branch>` with the build commit.
+- If that branch moved, release Android again at the new `nextVersion` from the new tip. Then release iOS.
 
 ## Report
 
