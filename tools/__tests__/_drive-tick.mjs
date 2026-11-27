@@ -226,12 +226,12 @@ const admissionCases = async () => {
   const doubled = [comment(null, "Part 1 of 2: first\n", -7200 * 1000), comment(null, "Part 2 of 2: second\n", -7100 * 1000), comment(null, "Part 2 of 2: second again\n", -7000 * 1000)]
   const doubledScene = scenario({ tickets: [ticket(7, { comments: doubled })] })
   await doubledScene.run()
-  const doubledText = commentsOf(doubledScene.calls, 7).find((text) => text.includes("needs-owner")) ?? ""
-  same("drive: two live comments of one part launch nothing and give needs:owner with both comment URLs", [doubledScene.launched.length, only(doubledScene.calls, "editLabels")[0]?.[3], doubledText.includes(doubled[1].url) && doubledText.includes(doubled[2].url)], [0, { add: [OWNER_LABEL] }, true])
+  const doubledText = parkedComments(doubledScene.calls, 7)[0] ?? ""
+  same("drive: two live comments of one part launch nothing and park the ticket with both comment URLs and no needs:owner", [doubledScene.launched.length, only(doubledScene.calls, "editLabels")[0]?.[3], doubledText.includes(doubled[1].url) && doubledText.includes(doubled[2].url), needsOwnerComments(doubledScene.calls, 7).length], [0, { add: ["parked"] }, true, 0])
   const brokenScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), comment(null, "## Part 2 of two: second\n", -7000 * 1000)] })] })
   await brokenScene.run()
-  const brokenText = commentsOf(brokenScene.calls, 7).find((text) => text.includes("needs-owner")) ?? ""
-  same("drive: a broken part heading launches no part and no build, and the needs:owner comment quotes the line", [brokenScene.launched.length, only(brokenScene.calls, "editLabels").length, brokenText.includes('"## Part 2 of two: second"')], [0, 1, true])
+  const brokenText = parkedComments(brokenScene.calls, 7)[0] ?? ""
+  same("drive: a broken part heading launches no part and no build, and the parked comment quotes the line", [brokenScene.launched.length, only(brokenScene.calls, "editLabels").length, brokenText.includes('"## Part 2 of two: second"'), needsOwnerComments(brokenScene.calls, 7).length], [0, 1, true, 0])
   const statusScene = scenario({ tickets: [ticket(7, { comments: [partComment(1, 2), partComment(2, 2), comment(null, "## Part 2 is complete (18 November 2026)\n", -7000 * 1000)] })] })
   await statusScene.run()
   same("drive: a status note that starts with Part 2 holds nothing and part 1 starts", [statusScene.launched.length, only(statusScene.calls, "editLabels").length], [1, 0])
@@ -253,6 +253,10 @@ const admissionCases = async () => {
 }
 
 const OWNER_LABEL = "needs:owner"
+/** The labels of a driver problem that the driver builds itself. */
+const BUG_LABELS = ["repo:ui", "Bug", "harness"]
+/** The sleep items of a scene, or an empty list when the driver held none. */
+const sleepItemsOf = (stateDirectory) => (existsSync(join(stateDirectory, "sleep-items.json")) ? JSON.parse(readFileSync(join(stateDirectory, "sleep-items.json"), "utf8")) : [])
 
 const STOP_ISSUE_TITLE = "Driver stopped: weekly usage reached 90%"
 const pending = () => new Promise(() => {})
@@ -841,10 +845,10 @@ const reviewCases = async () => {
   const commented = (state = "COMMENTED") => review(state, HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })
   const first = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented()], comments: [comment("ticket", "T")] })] } })
   await first.run()
-  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and needs:owner", [commentsOf(first.calls, 30).length, only(first.calls, "editLabels").length], [0, 1])
+  same("drive: a COMMENTED review with no BLOCKING gets no second plain request and a park", [commentsOf(first.calls, 30).length, only(first.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
   const second = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [commented(), review(CHANGES_REQUESTED, HEAD, -1 * MINUTE)], comments: [comment("ticket", "T")] })] } })
   await second.run()
-  same("drive: a second review with no BLOCKING gives needs:owner", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").length], [0, 1])
+  same("drive: a second review with no BLOCKING parks the ticket and its pull request", [commentsOf(second.calls, 30).length, only(second.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
 
   // Pullfrog edits the body of a review after it submits it, so a review whose run is not settled waits.
   const unsettledPull = (run) => scenario({ tickets: [ticket(7)], runs: [run], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)], comments: [comment("ticket", "T")] })] } })
@@ -856,7 +860,7 @@ const reviewCases = async () => {
   same("drive: a CHANGES_REQUESTED review with no finding whose run completed less than the settle time ago waits and gives no needs:owner", [commentsOf(justDone.calls, 30).length, only(justDone.calls, "editLabels").length, justDone.launched.length], [0, 0, 0])
   const settled = unsettledPull(pullfrogRun(5, -16 * MINUTE, -12 * MINUTE))
   await settled.run()
-  same("drive: a CHANGES_REQUESTED review with no finding whose run settled gives needs:owner", [commentsOf(settled.calls, 30).length, only(settled.calls, "editLabels").length], [0, 1])
+  same("drive: a CHANGES_REQUESTED review with no finding whose run settled parks the ticket and its pull request", [commentsOf(settled.calls, 30).length, only(settled.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
   const edited = scenario({ tickets: [ticket(7)], runs: [pullfrogRun(5, -16 * MINUTE, -12 * MINUTE)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [blocking("a.mjs", 1)] })], comments: [comment("ticket", "T")] })] } })
   await edited.run()
   T("drive: a review that gets its BLOCKING line by an edit in its run gives a fix order and no needs:owner", edited.launched.length === 1 && only(edited.calls, "editLabels").length === 0)
@@ -895,7 +899,7 @@ const reviewCases = async () => {
   same("drive: a run that ended 5 minutes ago still waits", await waitingCommentCount(waiting(-40 * MINUTE, [endedRun(5)])), 0)
   const secondMiss = waiting(-80 * MINUTE, [], 2)
   await secondMiss.run()
-  same("drive: a second miss gives needs:owner", [commentsOf(secondMiss.calls, 30).length, only(secondMiss.calls, "editLabels").length], [0, 1])
+  same("drive: a second miss parks the ticket and its pull request", [commentsOf(secondMiss.calls, 30).length, only(secondMiss.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
 
   const threads = [{ id: "PRRT_x1", resolved: false, author: "pullfrog" }, { id: "PRRT_x2", resolved: false, author: "pullfrog" }, { id: "PRRT_y", resolved: false, author: "someone" }]
   const approved = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { threads })] } })
@@ -1026,7 +1030,7 @@ const checkOnlyCases = async () => {
   const afterRun = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -80 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -50 * MINUTE)] }, [runOf("completed", 45, 20)])
   same("drive: 15 minutes after the run of the first check request ended gives one re-request", texts(afterRun), asked)
   const owner = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -90 * MINUTE)], comments: [comment("ticket", "T"), checkRecord(RECORDED_HEAD, -80 * MINUTE), checkRecord(RECORDED_HEAD, -40 * MINUTE)] })
-  same("drive: a second miss at the same head gives needs:owner and no request", [commentsOf(owner.calls, 30).filter((text) => text.includes("request")).length, only(owner.calls, "editLabels").length], [0, 1])
+  same("drive: a second miss at the same head parks the ticket and its pull request, with no request", [commentsOf(owner.calls, 30).filter((text) => text.includes("request")).length, only(owner.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
   const other = await run({ reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T"), checkRecord("8".repeat(40), -80 * MINUTE), checkRecord("8".repeat(40), -40 * MINUTE)] })
   same("drive: the check requests of an older head do not count against a new head", texts(other), asked)
   const unchecked = pull(30, { headSha: RECORDED_HEAD, mergeState: "BLOCKED", checks: [check("Unit Tests")], reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)], comments: [comment("ticket", "T")] })
@@ -1059,13 +1063,13 @@ const stallCases = async () => {
   same("drive: 59 minutes of waiting with no action opens no stall issue", created(young).length, 0)
   const late = await stalled(-61 * MINUTE)
   const [[, issue]] = created(late)
-  same("drive: 61 minutes with no action opens one needs:owner stall issue that names the waiting pull request", [created(late).length, issue.labels, issue.body.includes("ui#30: wait: a Pullfrog run is in progress")], [1, [OWNER_LABEL], true])
+  same("drive: 61 minutes with no action opens one Bug stall ticket for the harness that names the waiting pull request, with no needs:owner", [created(late).length, issue.labels, issue.body.includes("ui#30: wait: a Pullfrog run is in progress")], [1, BUG_LABELS, true])
   T("drive: the stall is logged with the reason of the waiting item", late.messages.some((line) => / driver stall \(ui#30: wait: a Pullfrog run is in progress\)/.test(line)), late.messages.join(" | "))
   same("drive: the stall issue sends one notification", only(late.calls, "notify").length, 1)
   const open = await stalled(-61 * MINUTE, { tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
   same("drive: an open stall issue is not opened twice", created(open).length, 0)
   const asleep = await stalled(-61 * MINUTE, { sleeping: true })
-  same("drive: while sleep is on the stall issue opens and no notification goes out", [created(asleep).length, only(asleep.calls, "notify").length, JSON.parse(readFileSync(join(asleep.stateDirectory, "sleep-items.json"), "utf8")).length], [1, 0, 1])
+  same("drive: while sleep is on the stall ticket opens, no notification goes out and no sleep item is held", [created(asleep).length, only(asleep.calls, "notify").length, sleepItemsOf(asleep.stateDirectory).length], [1, 0, 0])
   const acting = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] } })
   same("drive: a request in the tick resets the clock and opens no stall issue", [created(acting).length, commentsOf(acting.calls, 30).length > 0, JSON.parse(readFileSync(join(acting.stateDirectory, "activity.json"), "utf8")).at], [0, true, NOW])
   const closing = await stalled(-61 * MINUTE, { runs: [], extra: { reviews: [review("APPROVED", RECORDED_HEAD, -40 * MINUTE)] }, tickets: [ticket(7), { ...ticket(41, { labels: [OWNER_LABEL] }), title: STALL }] })
@@ -1137,7 +1141,7 @@ const mergeCases = async () => {
   same("drive: a Dependabot patch merges", only(patch.calls, "merge").length, 1)
   const major = dependabot(["major"])
   await major.run()
-  same("drive: a Dependabot major gets needs:owner and no merge", [only(major.calls, "merge").length, only(major.calls, "notify").length], [0, 1])
+  same("drive: a Dependabot major parks the pull request with no merge, no notice and no needs:owner", [only(major.calls, "merge").length, only(major.calls, "editLabels").map((entry) => entry[3].add[0]), only(major.calls, "notify").length], [0, ["parked"], 0])
 
   const red = scenario({ tickets: [ticket(7, { labels: ["repo:ui", OWNER_LABEL] })], pulls: { ui: [pull(30, { labels: [OWNER_LABEL], checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T"), RERAN] })] } })
   await red.run()
@@ -1190,39 +1194,19 @@ const updateCases = async () => {
   const forwardMark = (head) => comment("launch", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", baseMerge: head }))
   const spent = scenario({ tickets: [ticket(7, { comments: [...fixes, forwardMark(HEAD)] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await spent.run()
-  same("drive: a conflict that stays after the merge-forward launch at the same head gets needs:owner and no second launch", [spent.launched.length, only(spent.calls, "editLabels").length], [0, 1])
+  const noOwnerStop = (scene) => [only(scene.calls, "notify").length, needsOwnerComments(scene.calls, 7).length, only(scene.calls, "editLabels").filter((entry) => entry[3].add?.includes(OWNER_LABEL)).length]
+  same("drive: a conflict that stays after the merge-forward launch at the same head gets one re-plan run on the coordinator model and no needs:owner", [spent.launched.length, spent.launched[0]?.invocation.model, /## This order \(replan\)/.test(orderText(spent) ?? ""), noOwnerStop(spent)], [1, "claude-opus-5-5", true, [0, 0, 0]])
   const older = scenario({ tickets: [ticket(7, { comments: [...fixes, forwardMark("0".repeat(40))] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
   await older.run()
   same("drive: a merge-forward launch at an older head does not stop a new merge-forward order", [older.launched.length, only(older.calls, "editLabels").length], [1, 0])
-  const conflictReport = (offset, head = HEAD, count = 1) => comment("needs-owner", `ui#30 at ${head}: ui#30 still conflicts with the base branch after a merge-forward launch at this head. Launches: ${count}. Open: merge conflict with the base branch`, offset)
   const stuckForward = (...later) => scenario({ tickets: [ticket(7, { comments: [...fixes, forwardMark(HEAD), ...later] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
-  const forwardReport = stuckForward()
-  await forwardReport.run()
-  same("drive: a conflict that stays after a merge-forward launch gets one report with the launch count at the head", [forwardReport.launched.length, commentsOf(forwardReport.calls, 7).filter((entry) => /Launches: 1\. Open: merge conflict with the base branch/.test(entry) && entry.includes(`ui#30 at ${HEAD}:`)).length], [0, 1])
-  const forwardRemoved = stuckForward(conflictReport(-60 * MINUTE))
-  await forwardRemoved.run()
-  same("drive: a conflict report whose label the owner removed with no comment restores the label and writes no second report", [forwardRemoved.launched.length, only(forwardRemoved.calls, "editLabels").length, commentsOf(forwardRemoved.calls, 7).length], [0, 1, 0])
-  const forwardAnswered = stuckForward(conflictReport(-60 * MINUTE), comment(null, "Keep the left side of the conflict.", -30 * MINUTE))
-  await forwardAnswered.run()
-  same("drive: an owner comment after the conflict report gives a new merge-forward order at the same head with the comment", [forwardAnswered.launched.length, forwardAnswered.launched[0]?.order.includes("Merge `origin/main` into the branch and resolve the conflicts"), forwardAnswered.launched[0]?.order.includes("Keep the left side of the conflict."), only(forwardAnswered.calls, "editLabels").length], [1, true, true, 0])
-  const forwardMarkOf = JSON.parse(commentsOf(forwardAnswered.calls, 7).find((entry) => entry.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
-  same("drive: the granted merge-forward launch mark holds its kind and the head", [forwardMarkOf.kind, forwardMarkOf.baseMerge], ["merge-forward", HEAD])
-  const forwardBefore = stuckForward(comment(null, "A note from before the report.", -100 * MINUTE), conflictReport(-60 * MINUTE))
-  await forwardBefore.run()
-  same("drive: an owner comment from before the conflict report grants no merge-forward launch", forwardBefore.launched.length, 0)
-  const forwardOlderHead = stuckForward(conflictReport(-60 * MINUTE, "0".repeat(40)), comment(null, "A note for an older head.", -30 * MINUTE))
-  await forwardOlderHead.run()
-  same("drive: an owner comment after the conflict report of an older head grants no launch at this head", forwardOlderHead.launched.length, 0)
-  const grantedMark = comment("launch", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", baseMerge: HEAD }), -20 * MINUTE)
-  const forwardUsed = scenario({ tickets: [ticket(7, { comments: [...fixes, forwardMark(HEAD), conflictReport(-60 * MINUTE), comment(null, "Keep the left side.", -30 * MINUTE), grantedMark] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
-  await forwardUsed.run()
-  same("drive: a granted merge-forward launch that leaves the head the same gives a new report with the next launch count", [forwardUsed.launched.length, commentsOf(forwardUsed.calls, 7).filter((entry) => /Launches: 2\. Open:/.test(entry)).length, only(forwardUsed.calls, "notify").length], [0, 1, 1])
-  const forwardDecided = stuckForward(conflictReport(-60 * MINUTE), comment("owner-answer", "Decided: keep the left side of the conflict.", -30 * MINUTE))
+  const replanLaunches = [launchComment("replan", "chore/ticket-7-replan", -70 * MINUTE, null, { model: "claude-opus-5-5" }), launchComment("replan", "chore/ticket-7-replan", -60 * MINUTE, null, { model: "claude-opus-5-5" })]
+  const forwardParked = stuckForward(...replanLaunches)
+  await forwardParked.run()
+  same("drive: a conflict that stays after the re-plans parks the ticket and its pull request, with no launch, no notice and no needs:owner", [forwardParked.launched.length, only(forwardParked.calls, "editLabels").map((entry) => entry[3].add[0]), noOwnerStop(forwardParked), parkedComments(forwardParked.calls, 7).length], [0, ["parked", "parked"], [0, 0, 0], 1])
+  const forwardDecided = stuckForward(comment("owner-answer", "Decided: keep the left side of the conflict.", -30 * MINUTE))
   await forwardDecided.run()
-  same("drive: an owner-answer after the conflict report gives a new merge-forward order and no second report", [forwardDecided.launched.length, only(forwardDecided.calls, "editLabels").length, commentsOf(forwardDecided.calls, 7).filter((entry) => entry.startsWith(marked("needs-owner", ""))).length, only(forwardDecided.calls, "notify").length], [1, 0, 0, 0])
-  const forwardOldGrant = stuckForward(conflictReport(-90 * MINUTE), comment(null, "Keep the left side.", -80 * MINUTE), comment("launch", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", baseMerge: HEAD }), -70 * MINUTE), conflictReport(-60 * MINUTE), comment("owner-answer", "Decided: keep the right side.", -30 * MINUTE))
-  await forwardOldGrant.run()
-  same("drive: a plain-comment grant from before an owner-answer is not used again after the answer", [forwardOldGrant.launched.length, forwardOldGrant.launched[0]?.order.includes("Keep the left side.") ?? false, only(forwardOldGrant.calls, "editLabels").length], [1, false, 0])
+  same("drive: an owner-answer after a merge-forward launch gives a new merge-forward order and no needs:owner", [forwardDecided.launched.length, forwardDecided.launched[0]?.order.includes("Merge `origin/main` into the branch and resolve the conflicts"), noOwnerStop(forwardDecided)], [1, true, [0, 0, 0]])
   const uncounted = scenario({ tickets: [ticket(7, { comments: [fixes[0], launchComment("merge-forward", "chore/ticket-7-30", -80 * MINUTE)] })], pulls: { ui: [pull(30, { reviews: [blockingChanges()] })] } })
   await uncounted.run()
   const uncountedMark = JSON.parse(commentsOf(uncounted.calls, 7).find((entry) => entry.startsWith("<!-- orbit-drive:launch -->")).split("\n")[1])
@@ -1233,25 +1217,6 @@ const updateCases = async () => {
     await scene.run()
     same(`drive: ${label} at the same head does not stop a merge-forward order`, [scene.launched.length, /## This order \(merge-forward\)/.test(orderText(scene) ?? ""), only(scene.calls, "editLabels").length], [1, true, 0])
   }
-  const forwardPart = stuckForward(conflictReport(-60 * MINUTE), comment(null, "Part 1 of 2: first\n", -30 * MINUTE))
-  await forwardPart.run()
-  same("drive: a part comment after the conflict report grants no merge-forward launch", forwardPart.launched.length, 0)
-  const forwardTwice = stuckForward(conflictReport(-60 * MINUTE), comment(null, "Keep the left side.", -30 * MINUTE), comment(null, "Also keep the imports.", -25 * MINUTE), grantedMark)
-  await forwardTwice.run()
-  same("drive: two owner comments after one conflict report grant one merge-forward launch", [forwardTwice.launched.length, commentsOf(forwardTwice.calls, 7).filter((entry) => /Launches: 2\. Open:/.test(entry)).length], [0, 1])
-  const forwardUnsorted = stuckForward(comment(null, "Keep the left side of the conflict.", -30 * MINUTE), conflictReport(-60 * MINUTE))
-  await forwardUnsorted.run()
-  same("drive: a conflict grant follows the comment times and not the order of the comment list", forwardUnsorted.launched.length, 1)
-  const secondGrant = stuckForward(conflictReport(-90 * MINUTE), comment(null, "FIRST-NOTE", -80 * MINUTE), comment("launch", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", baseMerge: HEAD }), -70 * MINUTE), conflictReport(-60 * MINUTE, HEAD, 2), comment(null, "SECOND-NOTE", -50 * MINUTE))
-  await secondGrant.run()
-  same("drive: the second granted merge-forward order holds the second owner comment and not the first", [secondGrant.launched.length, orderText(secondGrant)?.includes("SECOND-NOTE"), orderText(secondGrant)?.includes("FIRST-NOTE")], [1, true, false])
-  const forwardStale = scenario({ tickets: [ticket(7, { comments: [...fixes, conflictReport(-90 * MINUTE), comment(null, "Keep the left side.", -80 * MINUTE), comment("owner-answer", "Decided: keep the right side.", -70 * MINUTE), comment("launch", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", baseMerge: HEAD }), -50 * MINUTE)] })], pulls: { ui: [pull(30, { mergeState: "DIRTY" })] } })
-  await forwardStale.run()
-  same("drive: a plain-comment grant from before an owner-answer grants nothing after the first launch of the answer", forwardStale.launched.length, 0)
-  const savedSession = comment("launch-session", JSON.stringify({ kind: "merge-forward", part: null, branch: "chore/ticket-7-30", pr: 30, session: "sess-1", account: ACCOUNT.key, tokens: 90000 }), -65 * MINUTE)
-  const forwardResumed = stuckForward(savedSession, conflictReport(-60 * MINUTE), comment(null, "Keep the left side of the conflict.", -30 * MINUTE))
-  await forwardResumed.run()
-  same("drive: a granted merge-forward launch that resumes its session holds the owner comment", [forwardResumed.launched[0]?.invocation.command.args, orderText(forwardResumed)?.includes("## This order (merge-forward, resumed)"), orderText(forwardResumed)?.includes("Keep the left side of the conflict.")], [["--resume", "sess-1"], true, true])
   const child = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { baseRef: "chore/ticket-7-part-1", reviews: [], comments: [comment("ticket", "T")] })] }, routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   await child.run()
   same("drive: a child whose base pull request merged is retargeted to main, updated, and asked for a first pass", [only(child.calls, "retarget"), only(child.calls, "updateBranch"), commentsOf(child.calls, 30)], [[["retarget", "ui", 30, "main"]], [["updateBranch", "ui", 30]], [marked("record", `driver update-branch -> ${NEXT_HEAD}`), marked("request", PLAIN)]])
@@ -1279,7 +1244,7 @@ const ciCases = async () => {
   const gateway = await run(["Install"], [["actions/jobs/11/logs", "error: HTTP 504: Gateway Timeout\n"]])
   same("drive: a GitHub 504 gets one rerun", only(gateway.calls, "rerunFailed").length, 1)
   const barrier = await run(["Require deployment barriers for schema contractions"], [], "Guard Migrations", true)
-  same("drive: a Guard Migrations barrier failure gives needs:owner and no order", [barrier.launched.length, only(barrier.calls, "editLabels").length], [0, 1])
+  same("drive: a Guard Migrations barrier failure parks the ticket and gives no order and no needs:owner", [barrier.launched.length, only(barrier.calls, "editLabels").map((entry) => entry[3].add[0])], [0, ["parked", "parked"]])
   const other = await run(["Unit tests"], [["actions/jobs/11/logs", "AssertionError: expected 1 to be 2\n"]], "Unit Tests", true)
   T("drive: any other failure gives one ci-fix order with the failed lines", other.launched.length === 1 && /AssertionError/.test(orderText(other)) && only(other.calls, "rerunFailed").length === 0)
 
@@ -1340,7 +1305,21 @@ const closeCases = async () => {
     same(`drive: ${label}`, [scene.launched.length, only(scene.calls, "editLabels").map((entry) => entry[3]), needsOwnerComments(scene.calls, 7).length, needsOwnerComments(scene.calls, 7).every((entry) => entry.includes(text))], [0, [{ add: [OWNER_LABEL] }], 1, true])
   }
   const listing = "Remaining: the App Store card needs the live listing URL, and the pt-BR copy needs /second-opinion."
-  await heldFor("two merged pull requests with the same Remaining line launch no build and set needs:owner once", [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }], listing)
+  const sameLine = [merged(147, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7"), { ...merged(151, `Tracks ${REPOSITORY}#7\n\n${listing}`, "chore/ticket-7-r2"), mergedAt: iso(-1800 * 1000) }]
+  const noOwnerWrite = (scene) => [only(scene.calls, "editLabels").filter((entry) => entry[3].add?.includes(OWNER_LABEL)).length, needsOwnerComments(scene.calls, 7).length, only(scene.calls, "notify").length]
+  const repeated = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed(sameLine) })
+  await repeated.run()
+  same("drive: two merged pull requests with the same Remaining line launch one re-plan run on the coordinator model, with no needs:owner and no notice", [repeated.launched.length, repeated.launched[0]?.invocation.model, /## This order \(replan\)/.test(orderText(repeated) ?? ""), orderText(repeated)?.includes(listing), noOwnerWrite(repeated)], [1, "claude-opus-5-5", true, true, [0, 0, 0]])
+  const replanned = scenario({ tickets: [ticket(7, { comments: [launchRecord, comment("replan", JSON.stringify({ plan: "fresh", branch: "chore/ticket-7-r2", pr: null, part: null, count: 1, at: iso(-10 * MINUTE) }), -10 * MINUTE)] })], routes: listed(sameLine) })
+  await replanned.run()
+  same("drive: a re-plan after the last merge lifts the stop of the same Remaining line, so the next order is a build", [replanned.launched.length, /## This order \(build\)/.test(orderText(replanned) ?? ""), noOwnerWrite(replanned)], [1, true, [0, 0, 0]])
+  const replanLaunches = [launchComment("replan", "chore/ticket-7-replan", -70 * MINUTE, null, { model: "claude-opus-5-5" }), launchComment("replan", "chore/ticket-7-replan", -60 * MINUTE, null, { model: "claude-opus-5-5" })]
+  const exhausted = scenario({ tickets: [ticket(7, { comments: [launchRecord, ...replanLaunches] })], routes: listed(sameLine) })
+  await exhausted.run()
+  same("drive: the same Remaining line after the re-plans parks the ticket with no launch, no needs:owner and no notice", [exhausted.launched.length, only(exhausted.calls, "editLabels").map((entry) => entry[3].add[0]), parkedComments(exhausted.calls, 7).length, noOwnerWrite(exhausted)], [0, ["parked"], 1, [0, 0, 0]])
+  const blockedOnly = scenario({ tickets: [ticket(7, { comments: [launchRecord] })], routes: listed([merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: blocked by #9`, "chore/ticket-7")]) })
+  await blockedOnly.run()
+  same("drive: a Remaining line that only waits on another ticket parks the ticket, with no launch and no needs:owner", [blockedOnly.launched.length, only(blockedOnly.calls, "editLabels").map((entry) => entry[3].add[0]), parkedComments(blockedOnly.calls, 7).length, noOwnerWrite(blockedOnly)], [0, ["parked"], 1, [0, 0, 0]])
   await heldFor("a Remaining line of owner items only launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, "chore/ticket-7")], "owner: set the listing URL")
   await heldFor("a Remaining line that blocks on another ticket launches no build and sets needs:owner", [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL; blocked by #9`, "chore/ticket-7")], "blocked by #9")
   const ownerLast = [merged(30, `Tracks ${REPOSITORY}#7\n\nRemaining: owner: add the repository secret`, "chore/ticket-7")]
@@ -1626,7 +1605,7 @@ const robustnessCases = async () => {
   starts.env.stateDir = dir
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-9 * MINUTE), iso(-4 * MINUTE)]))
   const tripped = await recordStart(starts.env, [])
-  same("drive: three starts in ten minutes give one notification and one issue", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").length], [true, 1, 1])
+  same("drive: three starts in ten minutes give one notification and one Bug ticket for the harness", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").map((entry) => entry[1].labels)], [true, 1, [BUG_LABELS]])
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-60 * MINUTE)]))
   same("drive: a start long after the last one gives no alarm", await recordStart(starts.env, []), false)
   same("drive: the start log keeps the new start", JSON.parse(readFileSync(join(dir, "starts.json"), "utf8")).length, 2)
@@ -1751,21 +1730,21 @@ const blockingClassCases = async () => {
   const redUnit = [check("Unit Tests", "FAILURE"), approvalCheck()]
   const dependabot = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", checks: redUnit, comments: [comment("ticket", "T"), RERAN] })] } })
   await dependabot.run()
-  same("drive: a Dependabot pull request with a red check gives needs:owner and does not wedge the lane", [dependabot.launched.map((entry) => entry.worktree), only(dependabot.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], []])
+  same("drive: a Dependabot pull request with a red check parks the pull request and does not wedge the lane", [dependabot.launched.map((entry) => entry.worktree), only(dependabot.calls, "editLabels").map((entry) => [...entry.slice(1, 3), entry[3].add[0]])], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30, "parked"]]])
   const conflict = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", mergeState: "DIRTY" })] } })
   await conflict.run()
-  same("drive: a Dependabot pull request with a conflict gives needs:owner and does not wedge the lane", [conflict.launched.length, only(conflict.calls, "editLabels").length], [1, 0])
+  same("drive: a Dependabot pull request with a conflict parks the pull request and does not wedge the lane", [conflict.launched.length, only(conflict.calls, "editLabels").length], [1, 1])
   const closedTicket = scenario({ tickets: [ticket(8)], pulls: { ui: [pull(30, { checks: redUnit, comments: [comment("ticket", "T"), RERAN] })] } })
   await closedTicket.run()
-  same("drive: a pull request whose tracked ticket is closed gets needs:owner and no fix order", [closedTicket.launched.map((entry) => entry.worktree), only(closedTicket.calls, "editLabels").map((entry) => entry.slice(1, 3))], [["/r/orbit-worktrees/ui/chore-ticket-8"], []])
+  same("drive: a pull request whose tracked ticket is closed is parked and gets no fix order", [closedTicket.launched.map((entry) => entry.worktree), only(closedTicket.calls, "editLabels").map((entry) => [...entry.slice(1, 3), entry[3].add[0]])], [["/r/orbit-worktrees/ui/chore-ticket-8"], [["ui", 30, "parked"]]])
   const noOrder = scenario({ tickets: [], pulls: { ui: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", reviews: [review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "a", line: 1, body: "BLOCKING: x" }] })] })] } })
   await noOrder.run()
-  same("drive: a Dependabot pull request with a BLOCKING review gets needs:owner and no fix order", [noOrder.launched.length, only(noOrder.calls, "editLabels").length], [0, 0])
+  same("drive: a Dependabot pull request with a BLOCKING review is parked and gets no fix order", [noOrder.launched.length, only(noOrder.calls, "editLabels").length], [0, 1])
 
   const redApproval = check("pullfrog-approval", "FAILURE", { databaseId: 12, checkSuite: { app: { databaseId: APP } } })
   const commented = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("COMMENTED", HEAD, -5 * MINUTE, { body: "A verdict with no BLOCKING class." })], checks: [check("Unit Tests"), redApproval], mergeState: "BLOCKED" })] } })
   await commented.run()
-  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, needs:owner and no ci-fix order", [commentsOf(commented.calls, 30).length, only(commented.calls, "editLabels").length, commented.launched.length], [0, 1, 0])
+  same("drive: a COMMENTED review beside a red pullfrog-approval check gets no request, a park and no ci-fix order", [commentsOf(commented.calls, 30).length, only(commented.calls, "editLabels").map((entry) => entry[3].add[0]), commented.launched.length], [0, ["parked", "parked"], 0])
 
   const merged = { number: 31, body: `Tracks ${REPOSITORY}#8\n\nRemaining: none`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-8" }
   const routes = [["--state merged", (args) => (args.join(" ").includes("#8\"") ? JSON.stringify([merged]) : "[]")]]
@@ -1812,13 +1791,13 @@ const reportHoldCases = async () => {
   const tracked = (comments) => pull(30, { checks: green, comments: [comment("ticket", "T"), ...comments] })
   const table = [
     ["a reported Dependabot pull request with a red check", bumps(redUnit, [report]), [], [0, 1, 0, 0]],
-    ["the tick that writes the report of a Dependabot pull request", bumps(redUnit, []), [], [0, 1, 0, 1]],
+    ["the tick that parks a Dependabot pull request", bumps(redUnit, []), [], [0, 0, 0, 0]],
     ["a reported Dependabot pull request whose check passes now", bumps(green, [report]), [], [0, 1, 0, 0]],
     ["a reported pull request whose tracked ticket is closed", tracked([report]), [], [0, 1, 0, 0]],
     ["an owner answer after the report", bumps(green, [report, answer(-80 * MINUTE)]), [], [0, 0, 1, 0]],
     ["an answer of another login after the report", bumps(green, [report, answer(-80 * MINUTE, { author: "someone" })]), [], [0, 1, 0, 0]],
     ["an owner answer older than the report", bumps(green, [answer(-100 * MINUTE), report]), [], [0, 1, 0, 0]],
-    ["an answered pull request that still needs the owner", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [1, 0, 0, 0]],
+    ["an answered pull request that still has a red check, parked again", bumps(redUnit, [report, answer(-80 * MINUTE)]), [], [0, 0, 0, 0]],
     ["an old report on a pull request whose tracked ticket is open", tracked([report]), [ticket(7)], [0, 0, 1, 0]],
   ]
   for (const [label, held, tickets, expected] of table) {
@@ -1858,11 +1837,11 @@ const laneAndReviewPassCases = async () => {
   same("drive: one whole-diff request answered with no whole-diff review gets one re-request", [commentsOf(oneAnswer.calls, 30).map((text) => text.split("\n")[1]), only(oneAnswer.calls, "editLabels").length], [[`${PLAIN} whole diff`], 0])
   const twoAnswers = answered(2)
   await twoAnswers.run()
-  same("drive: two whole-diff requests answered with no whole-diff review give needs:owner and no third request", [commentsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, only(twoAnswers.calls, "editLabels").length], [0, 1])
+  same("drive: two whole-diff requests answered with no whole-diff review park the ticket and its pull request, with no third request", [commentsOf(twoAnswers.calls, 30).filter((text) => text.includes("review")).length, only(twoAnswers.calls, "editLabels").length], [0, 2])
 
   const repliesBeforeChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [reviewReply(-9 * MINUTE), reviewReply(-8 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await repliesBeforeChanges.run()
-  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [commentsOf(repliesBeforeChanges.calls, 30).length, only(repliesBeforeChanges.calls, "editLabels").length], [0, 1])
+  same("drive: thread replies before a review with no BLOCKING comment do not count as a review at the head", [commentsOf(repliesBeforeChanges.calls, 30).length, only(repliesBeforeChanges.calls, "editLabels").length], [0, 2])
 
   const replyAfterApproval = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -10 * MINUTE), reviewReply(-5 * MINUTE)] })] } })
   await replyAfterApproval.run()
@@ -1879,20 +1858,20 @@ const laneAndReviewPassCases = async () => {
   same("drive: a recorded CHANGES_REQUESTED Pullfrog review with BLOCKING comments gives one fix order and no request", [recordedBlocking.length > 0, recordedChanges.launched.length, commentsOf(recordedChanges.calls, 30).length], [true, 1, 0])
   const unusableChanges = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review(CHANGES_REQUESTED, HEAD, -9 * MINUTE), review(CHANGES_REQUESTED, HEAD, -5 * MINUTE)] })] } })
   await unusableChanges.run()
-  same("drive: two CHANGES_REQUESTED reviews with no BLOCKING comment at one head give needs:owner and no third request", [commentsOf(unusableChanges.calls, 30).filter((text) => text.includes("review")).length, only(unusableChanges.calls, "editLabels").map((entry) => entry[1])], [0, ["tickets"]])
+  same("drive: two CHANGES_REQUESTED reviews with no BLOCKING comment at one head park the ticket and its pull request, with no third request", [commentsOf(unusableChanges.calls, 30).filter((text) => text.includes("review")).length, only(unusableChanges.calls, "editLabels").map((entry) => entry[1])], [0, ["tickets", "ui"]])
 
   const refusedLabel = (comments) => {
     const scene = scenario({ tickets: [], pulls: { landing: [pull(30, { author: "dependabot", tracks: null, body: "Bumps x", comments, checks: [check("Unit Tests", "FAILURE")] })] } })
-    scene.env.github.editLabels = async (...args) => { scene.calls.push(["editLabels", ...args]); throw new Error("Unknown label(s): needs:owner") }
+    scene.env.github.editLabels = async (...args) => { scene.calls.push(["editLabels", ...args]); throw new Error("Unknown label(s): parked") }
     return scene
   }
   const unlabelled = refusedLabel([comment("ticket", "T"), RERAN])
   await unlabelled.run()
-  same("drive: a pull request with no ticket whose label write fails still gets one needs-owner comment and one notification", [commentsOf(unlabelled.calls, 30).filter((text) => text.includes("needs-owner")).length, only(unlabelled.calls, "notify").length], [1, 1])
-  const marked = refusedLabel([comment("ticket", "T"), RERAN, comment("needs-owner", "The check failed.")])
-  await marked.run()
-  await marked.run()
-  same("drive: a pull request with no ticket and a needs-owner comment gets no second comment and no second notification", [commentsOf(marked.calls, 30).length, only(marked.calls, "notify").length], [0, 0])
+  same("drive: a pull request with no ticket whose label write fails still gets one parked comment and no notification", [commentsOf(unlabelled.calls, 30).filter((text) => text.startsWith(marked("parked", ""))).length, only(unlabelled.calls, "notify").length], [1, 0])
+  const parked = refusedLabel([comment("ticket", "T"), RERAN, comment("parked", "The check failed.")])
+  await parked.run()
+  await parked.run()
+  same("drive: a pull request with no ticket and a parked comment gets no second comment and no notification", [commentsOf(parked.calls, 30).length, only(parked.calls, "notify").length], [0, 0])
 
   const landed = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
   landed.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve(clean) }
@@ -2211,11 +2190,11 @@ const planShapeCases = async () => {
   await mergeable.run()
   same("drive: every pull request that meets the bar merges in number order, with every plan ready before the first merge", only(mergeable.calls, "merge").map((entry) => entry[2]), [30, 31])
 
-  // An earlier pull request of a ticket labels the ticket needs:owner in the act step, so a later pull request of the ticket plans again against the label.
+  // An earlier pull request of a ticket parks the ticket in the act step, so a later pull request of the ticket plans again against the label.
   const missedTwice = [comment("ticket", "T"), comment("request", PLAIN, -80 * MINUTE), comment("request", PLAIN, -50 * MINUTE)]
   const labelled = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [], comments: missedTwice }), pull(31, { headRef: "chore/ticket-7-31" })] } })
   const labelledTick = await labelled.run()
-  same("drive: a pull request that follows a needs:owner report of its ticket in the same tick waits on the label and does not merge", [labelledTick.lines.filter((line) => line.startsWith("pull ui#31:")), only(labelled.calls, "merge").map((entry) => entry[2])], [["pull ui#31: wait: carries needs:owner"], []])
+  same("drive: a pull request that follows a park of its ticket in the same tick waits on the label and does not merge", [labelledTick.lines.filter((line) => line.startsWith("pull ui#31:")), only(labelled.calls, "merge").map((entry) => entry[2])], [["pull ui#31: wait: parked"], []])
 
   // Each pull request reads only the Pullfrog runs that name it, from the one list of its repository.
   const named = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [] })] }, runs: [failedRun(77, 30), failedRun(78, 99)], routes: [["run view 77 ", "boring failure"], ["run view 78 ", LIMIT_LOG]] })
@@ -2349,6 +2328,7 @@ const launchComment = (kind, branch, offset = -3600 * 1000, part = null, extra =
 const mergedPull = (number, branch, remaining) => ({ number: 40, body: `Tracks ${REPOSITORY}#${number}\n\n${remaining}`, mergedAt: iso(-60 * 1000), headRefName: branch })
 const mergedRoute = (number, history) => ["--state merged", (args) => (args.join(" ").includes(`#${number}"`) ? JSON.stringify(history) : "[]")]
 const blockingChanges = () => review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
+const parkedComments = (calls, number) => commentsOf(calls, number).filter((text) => text.startsWith(marked("parked", "")))
 const needsOwnerComments = (calls, number) => commentsOf(calls, number).filter((text) => text.startsWith(marked("needs-owner", "")))
 
 /** Writes the record that an earlier driver process left beside its pid file. */
@@ -2387,7 +2367,7 @@ const branchKeyCases = async () => {
   const twice = [launchComment("build", "chore/ticket-7"), launchComment("build", "chore/ticket-7")]
   const untracked = scenario({ tickets: [ticket(7, { comments: twice })], pulls: { ui: [pull(30, { headRef: "chore/ticket-7", tracks: null, body: "Tracks #7" })] } })
   await untracked.run()
-  same("drive: an open pull request on the order's branch with no Tracks line keeps the order on that branch and gives needs:owner", [untracked.launched.length, only(untracked.calls, "editLabels").map((entry) => entry.slice(1, 3)), needsOwnerComments(untracked.calls, 7).map((text) => /ui#30/.test(text) && /Tracks/.test(text))], [0, [["tickets", 7]], [true]])
+  same("drive: an open pull request on the order's branch with no Tracks line keeps the order on that branch and parks the ticket", [untracked.launched.length, only(untracked.calls, "editLabels").map((entry) => entry.slice(1, 3)), parkedComments(untracked.calls, 7).map((text) => /ui#30/.test(text) && /Tracks/.test(text)), needsOwnerComments(untracked.calls, 7).length], [0, [["tickets", 7]], [true], 0])
 
   const parts = [partComment(1, 2, "Paths: apps/web/a.ts"), partComment(2, 2, "Paths: apps/mobile/b.ts")]
   const rotated = scenario({ tickets: [ticket(7, { comments: [...parts, launchComment("build part", "chore/ticket-7-part-1", -7200 * 1000, 1)] })], routes: [mergedRoute(7, [mergedPull(7, "chore/ticket-7-part-1-r2", "Remaining: Part 2 of 2")])] })
@@ -2488,21 +2468,11 @@ const reasonKeyCases = async () => {
 
   const two = scenario({ tickets: [ticket(7)], pulls: { ui: [missedPull(30), missedPull(31)] } })
   await two.run()
-  same("drive: two pull requests of one ticket that both miss a review in one tick are two reports, each labelled and notified", [only(two.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")), reports(two), only(two.calls, "notify").length], [["tickets:7"], [`ui#30 at ${HEAD}: Pullfrog gave no review after two requests`, `ui#31 at ${HEAD}: Pullfrog gave no review after two requests`], 2])
-  same("drive: a needs-owner report changes no label of an open pull request", only(two.calls, "editLabels").filter((entry) => entry[1] !== "tickets").length, 0)
+  same("drive: two pull requests of one ticket that both miss a review in one tick are one park: the ticket and both pull requests carry the label, with one comment and no notice", [only(two.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")), parkedComments(two.calls, 7).length, only(two.calls, "notify").length, needsOwnerComments(two.calls, 7).length], [["tickets:7", "ui:30", "ui:31"], 1, 0, 0])
 
-  const later = scenario({ tickets: [ticket(7, { comments: [comment("needs-owner", "Pullfrog gave no review after two requests")] })], pulls: { ui: [missedPull(31)] } })
-  await later.run()
-  same("drive: a later pull request of the ticket is reported after an earlier report with the same plain reason", [reports(later), only(later.calls, "editLabels").map((entry) => entry.slice(1, 3).join(":")), only(later.calls, "notify").length], [[`ui#31 at ${HEAD}: Pullfrog gave no review after two requests`], ["tickets:7"], 1])
-
-  const reportedAtOldHead = comment("needs-owner", `ui#30 at ${HEAD}: Pullfrog gave no review after two requests`)
-  const newHead = scenario({ tickets: [ticket(7, { comments: [reportedAtOldHead] })], pulls: { ui: [missedPull(30, { headSha: NEXT_HEAD })] } })
-  await newHead.run()
-  same("drive: a later head of the same pull request is a new report", [reports(newHead), only(newHead.calls, "notify").length], [[`ui#30 at ${NEXT_HEAD}: Pullfrog gave no review after two requests`], 1])
-
-  const restarted = scenario({ tickets: [ticket(7, { comments: [reportedAtOldHead] })], pulls: { ui: [missedPull(30)] } })
-  await restarted.run()
-  same("drive: the same report at the same head after a restart posts no comment and sends no notification", [needsOwnerComments(restarted.calls, 7).length, only(restarted.calls, "notify").length, only(restarted.calls, "editLabels").length], [0, 0, 0])
+  const alreadyParked = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "parked"], comments: [comment("parked", "Parked by the driver: Pullfrog gave no review after two requests")] })], pulls: { ui: [missedPull(31, { labels: ["parked"] })] } })
+  await alreadyParked.run()
+  same("drive: a parked ticket with a parked pull request gets no second park, no comment and no notice", [only(alreadyParked.calls, "editLabels").length, commentsOf(alreadyParked.calls, 7).length, only(alreadyParked.calls, "notify").length], [0, 0, 0])
 
   const decisionLog = resultLine("Done.\nNEEDS_DECISION: Raise the price?")
   const asked = [ticket(7, { comments: [comment("needs-owner", "chore/ticket-7-part-1: NEEDS_DECISION: Raise the price?")] })]
@@ -3104,7 +3074,7 @@ const rollbackCases = async () => {
   const outcomes = []
   for (let crash = 0; crash < 3; crash++) outcomes.push(await crashOnce(rolled))
   outcomes.push(await guardStart(rolled.env))
-  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one needs:owner issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, [OWNER_LABEL]])
+  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one Bug ticket for the harness", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, BUG_LABELS])
   const issue = only(rolled.calls, "createTicket")[0][1]
   T("drive: the rollback issue names both commits and the last error line", [OLD_PIN, NEW_PIN, "boom: cannot read x"].every((part) => issue.body.includes(part)), issue.body)
   same("drive: the rollback logs one line", driverLines(rolled).length, 1)
@@ -3461,7 +3431,7 @@ const releaseCases = async () => {
   const held = scenario({ releasePorts: fakePorts([], { migration: true }) })
   await held.run()
   const created = only(held.calls, "createTicket")
-  same("drive: a held API step files one needs:owner ticket for the API with one comment that names the step", [created.length, created[0]?.[1].labels, only(held.calls, "comment").length, only(held.calls, "comment")[0]?.[3].includes("api-staging")], [1, ["repo:api", "needs:owner"], 1, true])
+  same("drive: a held API step files one Bug ticket for the harness with no needs:owner and no comment, and its body names the step", [created.length, created[0]?.[1].labels, only(held.calls, "comment").length, created[0]?.[1].body.includes("api-staging")], [1, BUG_LABELS, 0, true])
   await held.run()
   same("drive: the next tick of a train with a held step files no second ticket", only(held.calls, "createTicket").length, 1)
 
@@ -3474,20 +3444,19 @@ const releaseCases = async () => {
   T("drive: the usage names the release train and both flags", /release train/.test(usage) && /--release-now/.test(usage) && /--release-status/.test(usage), usage)
 }
 
-/** The driver log says each hold and each wait once, an owner report keys on pull request, head and cause, and a check that cannot change is not rerun. */
+/** The driver log says each hold and each wait once, an owner report keys on the ticket and its reason, and a check that cannot change is not rerun. */
 const quietLogCases = async () => {
-  // A launch cap is no hold, so the hold here is a deployment barrier: only the owner writes one, and its cause is one class.
-  const BARRIER = ["Require deployment barriers for schema contractions"]
-  const barrier = (...others) => pull(30, { checks: [...others.map((name) => check(name, "FAILURE")), check("Guard Migrations", "FAILURE"), approvalCheck()] })
+  // A launch cap is no hold. The hold here is a step that needs the owner's hands: the last merged pull request leaves only an owner item.
+  const ownerStep = { number: 30, body: `Tracks ${REPOSITORY}#7\n\nRemaining: owner: set the listing URL`, mergedAt: iso(-3600 * 1000), headRefName: "chore/ticket-7" }
+  const ownerHold = (tickets, extra = {}) => scenario({ tickets, routes: [["--state merged", JSON.stringify([ownerStep])]], ...extra })
   const heldItems = (scene) => JSON.parse(readFileSync(join(scene.env.stateDir, "sleep-items.json"), "utf8"))
   const holdLines = (scene) => scene.messages.filter((line) => line.includes(" needs-owner ("))
-
   const tickets = [ticket(7)]
-  const three = scenario({ tickets, pulls: { ui: [barrier()] }, failedSteps: BARRIER })
+  const three = ownerHold(tickets)
   keepWrites(three, tickets)
   for (let index = 0; index < 3; index += 1) await three.run()
   same("drive: the same hold on 3 ticks logs one needs-owner line and writes one report", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
-  T("drive: the hold line names the pull request, the head and the check", holdLines(three)[0].includes(`ui#30 at ${HEAD}`) && holdLines(three)[0].includes("Guard Migrations"))
+  T("drive: the hold line names the ticket and the owner step", holdLines(three)[0].includes("ticket#7") && holdLines(three)[0].includes("owner: set the listing URL"))
 
   // A driver switch ends the process, so the next process starts with an empty log memory: the report in the comment still gates the line.
   for (let restart = 0; restart < 3; restart += 1) {
@@ -3499,46 +3468,12 @@ const quietLogCases = async () => {
   }
   same("drive: a hold that was reported keeps one needs-owner line, one report and one notification across 3 restarts of the memory", [holdLines(three).length, needsOwnerComments(three.calls, 7).length, only(three.calls, "notify").length], [1, 1, 1])
 
-  // A hold that goes on keeps its log memory when a tick does not plan its item: a merge ends the pull loop and a plan can throw.
-  const holdOf = (scene) => holdLines(scene).filter((line) => line.includes("ui#30 needs-owner ("))
-  const merged = [ticket(7), ticket(8)]
-  const other = pull(20, { tracks: 8, body: "Tracks thomasluizon/orbit-tickets#8\n\nRemaining: none", headRef: "chore/ticket-8-20", draft: true })
-  const mergePulls = [other, barrier()]
-  const afterMerge = scenario({ tickets: merged, pulls: { ui: mergePulls }, failedSteps: BARRIER })
-  keepWrites(afterMerge, merged)
-  await afterMerge.run()
-  other.draft = false
-  await afterMerge.run()
-  mergePulls.splice(0, 1)
-  await afterMerge.run()
-  same("drive: a merge before a held pull request in the same tick keeps one needs-owner line and one report for the hold", [only(afterMerge.calls, "merge").length, holdOf(afterMerge).length, needsOwnerComments(afterMerge.calls, 7).length], [1, 1, 1])
-
-  const thrown = [ticket(7)]
-  const failing = scenario({ tickets: thrown, pulls: { ui: [barrier()] }, failedSteps: BARRIER })
-  keepWrites(failing, thrown)
-  const namingRuns = failing.env.github.runsNaming
-  let failNext = false
-  failing.env.github.runsNaming = (...input) => { if (failNext) { failNext = false; throw new Error("gh read failed") } return namingRuns(...input) }
-  await failing.run()
-  failNext = true
-  await failing.run()
-  await failing.run()
-  same("drive: a plan that throws once keeps one needs-owner line for a hold that goes on", [failing.messages.filter((line) => line.includes("ui#30 error (gh read failed)")).length, holdOf(failing).length], [1, 1])
-
-  const changed = [ticket(7)]
-  const held = barrier("Unit Tests")
-  const scene = scenario({ tickets: changed, pulls: { ui: [held] }, failedSteps: BARRIER, sleeping: true })
-  keepWrites(scene, changed)
-  await scene.run()
-  held.checks = barrier("Lint", "Layout").checks
-  await scene.run()
-  same("drive: a changed check list at the same pull request, head and cause keeps one report, one log line and one sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [1, 1, 1])
-  held.checks = barrier("Unit Tests").checks
-  scene.env.now = () => NOW
-  const states = scene.env.github.readRepositoryState
-  scene.env.github.readRepositoryState = async (key) => { const state = await states(key); for (const entry of state.pulls) Object.assign(entry, { headSha: NEXT_HEAD, commits: [{ sha: NEXT_HEAD, parents: 1 }], reviews: [{ ...entry.reviews[0], commit: NEXT_HEAD }] }); return state }
-  await scene.run()
-  same("drive: a new head of the same pull request is a new report and a new sleep item", [needsOwnerComments(scene.calls, 7).length, holdLines(scene).length, heldItems(scene).length], [2, 2, 2])
+  const asleepTickets = [ticket(7)]
+  const asleep = ownerHold(asleepTickets, { sleeping: true })
+  keepWrites(asleep, asleepTickets)
+  await asleep.run()
+  await asleep.run()
+  same("drive: two ticks of one hold in sleep keep one report, one log line and one sleep item", [needsOwnerComments(asleep.calls, 7).length, holdLines(asleep).length, heldItems(asleep).length], [1, 1, 1])
 
   const waiting = scenario({ tickets: [ticket(7, { blockedBy: [blocker(5)] })] })
   for (let index = 0; index < 3; index += 1) await waiting.run()

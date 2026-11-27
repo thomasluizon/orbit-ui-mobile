@@ -33,9 +33,10 @@ A question you never wrote down cannot be answered. It blocks the driver and nob
 
 Stop at the first step that resolves the question.
 
-1. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the text of section 4.
-2. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
-3. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.
+1. **Does the open step need his hands?** Section 6 lists them. When the open step needs none of them, the item is not his: a cap, a failed check, an emulator check, a Terraform plan, a flag state, a smoke run and a release are technical work. Record the next step for the worker as in section 4: write it under `## Owner decisions` in the ticket body, comment `<!-- orbit-drive:owner-answer -->`, and remove `needs:owner` from the ticket and from its open pull requests. Add `--blocked-by` to a ticket that waits on the release of another ticket, in place of the label. Stop here.
+2. **Is it already answered?** Read the code, the contract type, the API source in the sibling repository, the ticket body and its comments, `DESIGN.md`, `BRAND.md`, and the decisions in `/brain`. For how to build or fix something, search the web every time: the current official docs, the version installed in the repository and the newest stable one. Memory is not a source. Put the sources in the text of section 4.
+3. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
+4. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.
 
 What is left is really his: product, copy, pricing, positioning, brand, design direction, and a choice where two answers are both defensible and only he knows which one he wants.
 

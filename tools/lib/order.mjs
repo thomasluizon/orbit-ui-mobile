@@ -217,7 +217,7 @@ const deliverySection = ({ ticket, kind }) => {
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
     ? "Push to the branch of the open pull request. Open no other pull request."
-    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start each item that waits on the owner, on another ticket or on a release with \`owner:\` or \`blocked by #<ticket>\`.`
+    : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start an item with \`owner:\` only for a step that needs the owner's hands: his password, a 2FA prompt, a payment, a legal identity choice, a device in his hands, or a permission only his account can grant (section 6 of \`.claude/skills/questions/SKILL.md\`). Start an item that waits on another ticket with \`blocked by #<ticket>\`. Write a technical step that stays open (an emulator check, a Terraform plan, a flag state, a smoke run, a release) as a plain item with no prefix, because the next order builds it.`
   const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
   const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
@@ -267,10 +267,10 @@ const assertFixInputs = ({ kind, pull, review, failure }) => {
  * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker pushes
  * to the branch of the open pull request and opens no other pull request. Every other rule of the brief holds.
  */
-export const renderResumeOrder = ({ kind, pull, review = null, failure = null, ownerNote = null }) => {
+export const renderResumeOrder = ({ kind, pull, review = null, failure = null }) => {
   if (kind !== "fix" && kind !== "ci-fix" && kind !== "merge-forward") throw new Error(`a ${kind} order does not resume a session`)
   assertFixInputs({ kind, pull, review, failure })
-  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
+  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
 }
 
 /**
@@ -278,7 +278,7 @@ export const renderResumeOrder = ({ kind, pull, review = null, failure = null, o
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null, replan = null }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], place, partNumber = null, replan = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
@@ -288,5 +288,5 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
   }
   const parts = kind === "build" ? "" : kind === "replan" ? wholePartSection(partComments) : partSection(partComments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}\n\n${renderBrief({ kind, place, ticket })}`
 }

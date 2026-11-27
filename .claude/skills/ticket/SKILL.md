@@ -60,7 +60,7 @@ For a defect, run a red-capable command at least once before the ticket exists, 
 - A ui ticket carries `parity:yes` or `parity:no`, with its reason in the body.
 - `owner-work` when the owner's own session must run the ticket: Chrome, the Keychain, the release tools or the owner's hands.
 - `deploy-first:<environment>/<task>` on a blocker whose deployment a later ticket needs.
-- `needs:owner` when a store or production check must pass first.
+- `needs:owner` only for a step that needs the owner's hands, as section 6 of `.claude/skills/questions/SKILL.md` lists them. A store or production check is technical: link the ticket whose release it waits on with `--blocked-by`.
 
 ## Split, name and link
 

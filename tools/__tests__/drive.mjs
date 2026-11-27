@@ -1156,8 +1156,6 @@ const orderCases = async () => {
   const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
   T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
   T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
-  const resumedGrant = renderResumeOrder({ kind: "merge-forward", pull: PULL, ownerNote: "Keep the left side of the conflict." })
-  T("lib/order.mjs: a resumed merge-forward order that an owner comment granted holds the comment, and one with no comment holds no owner section", resumedGrant.includes("## Owner comment") && resumedGrant.includes("Keep the left side of the conflict.") && resumedGrant.indexOf("## Owner comment") < resumedGrant.indexOf("Your first order and its brief still hold.") && !renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("## Owner comment"))
   for (const [label, call, message] of [
     ["a build order", () => renderResumeOrder({ kind: "build" }), /does not resume a session/],
     ["a fix order with no blocking class", () => renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [] } }), /needs its pull request/],
@@ -1168,6 +1166,7 @@ const orderCases = async () => {
   T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
   T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && !delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "Never merge and never force-push"].every((text) => delivery.includes(text)))
+  T("lib/order.mjs: the Remaining rule starts owner: only for the owner's hands, points to the list of /questions, and builds a technical step", delivery.includes("Start an item with `owner:` only for a step that needs the owner's hands") && delivery.includes("section 6 of `.claude/skills/questions/SKILL.md`") && ["an emulator check", "a Terraform plan", "a flag state", "a smoke run", "a release"].every((step) => delivery.includes(step)) && !delivery.includes("on a release with"), delivery)
   T("lib/order.mjs: an opening order names the parity:exempt label, the ## Parity line and every term that the PR Metadata gate accepts", ["build", "build part"].every((kind) => {
     const opening = order(kind, { partNumber: 2 })
     return opening.includes("`parity:exempt`") && opening.includes("`## Parity`") && parityExemptTerms.every((term) => opening.includes(term))
@@ -1251,11 +1250,15 @@ const skillMarkerCases = () => {
   // An order carries the ticket body, the part comments and the findings. A plain answer comment reaches no worker, so the body holds every answer.
   T("skills/questions: section 4 writes each answer into the ticket body with gh issue edit --body-file under ## Owner decisions", questions.includes(`gh issue edit <number> --repo ${TICKET_REPOSITORY} --body-file <file>`) && questions.includes("`## Owner decisions`"), "section 4 has no body write")
   same("skills/questions: no step records an answer by a reference to the old comment-only step", questions.match(/as in step 4|comment of step 4/g) ?? [], [])
-  same("skills/questions: the manual answer, the owner change and the sleep-on decision all record through section 4", questions.split("as in section 4").length - 1, 3)
+  same("skills/questions: the manual answer, the owner change, the sleep-on decision and the filter of owner hands all record through section 4", questions.split("as in section 4").length - 1, 4)
   // A pull request with no open ticket gets no label, so a skill finds it by its report, and only the owner-answer comment ends its hold.
   const listing = questions.split("\n").find((line) => line.startsWith("2. ") && line.includes("pull request")) ?? ""
   T("skills/questions: step 1 lists a pull request with no open ticket by its needs-owner report", listing.includes("no open ticket") && listing.includes("<!-- orbit-drive:needs-owner -->"), listing)
   T("skills/questions: section 4 ends the hold of such a pull request with the orbit-drive:owner-answer marker", questions.includes("<!-- orbit-drive:owner-answer -->"), "no step writes the answer marker")
+  // An item whose open step needs no owner hands is not his: the first filter step sends it back to the worker.
+  const filter = questions.split("\n").find((line) => line.startsWith("1. **Does the open step need his hands?**")) ?? ""
+  T("skills/questions: the first filter step removes needs:owner from an item whose open step needs no owner hands and writes the next step under ## Owner decisions", filter.includes("Section 6") && filter.includes("`needs:owner`") && filter.includes("`## Owner decisions`") && filter.includes("--blocked-by"), filter)
+  T("skills/ticket: needs:owner is for the owner's hands only and names the list of /questions", skillText("ticket").includes("`needs:owner` only for a step that needs the owner's hands") && !skillText("ticket").includes("when a store or production check must pass first"))
   const drivers = skillText("driver")
   T("skills/driver: a held report with no label is handled only when its pull request is closed or answered", drivers.includes("orbit-drive:owner-answer"), "the sleep report reads only the label")
   const unlink = drivers.split("\n").find((line) => line.includes("fs.unlinkSync")) ?? ""
