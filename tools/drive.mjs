@@ -359,6 +359,7 @@ const logChange = (env, mem, { scope, signature, item, action, reason }) => {
 const keepLogged = (mem, item) => {
   mem.loggedSeen.add(`needs-owner ${item}`)
   mem.loggedSeen.add(`wait ${item}`)
+  mem.loggedSeen.add(`review-skip ${item}`)
 }
 
 const forgetUnseen = (mem) => {
@@ -1113,7 +1114,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     return [...actions, { type: "none", reason: WAITS_FOR_REPLAN }]
   }
   const need = reviewNeed({ pull, ticket, fixLaunches: launches.length, now, runs })
-  if (need.skip) log(env, item, `review skip (${need.skip})`)
+  if (need.skip) logChange(env, mem, { scope: `review-skip ${item}`, signature: `${pull.headSha} ${need.skip}`, item, action: "review skip", reason: need.skip })
   if (need.approved) {
     const open = pull.threads.filter((thread) => !thread.resolved && thread.author === "pullfrog")
     if (open.length > 0) {
@@ -2257,7 +2258,7 @@ export const tick = async (env, mem) => {
   await enforceOrphanClocks(env, mem)
   enforceQuestionsCeiling(env, mem)
   if (env.now() < mem.holdUntil) {
-    log(env, "tick", "held", `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}`)
+    logChange(env, mem, { scope: "tick held", signature: mem.holdUntil, item: "tick", action: "held", reason: `GitHub reads wait until ${new Date(mem.holdUntil).toISOString()}` })
     return { retried: true, held: true }
   }
   // The workers that run when the read starts keep their slots for this whole tick, whatever the read shows.
