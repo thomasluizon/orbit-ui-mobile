@@ -1,23 +1,11 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
 import path from 'path'
 import { createStallDiagnostics } from './vitest/stall-diagnostics'
+import { findProjectTests } from './vitest/project-tests.mjs'
 import { TimedSequencer } from './vitest/timed-sequencer.mjs'
 
-function findChromiumTests(directory: string): string[] {
-  return readdirSync(directory).flatMap((name) => {
-    const filename = path.join(directory, name)
-    if (statSync(filename).isDirectory()) return findChromiumTests(filename)
-    if (!/\.test\.tsx?$/.test(name)) return []
-    const source = readFileSync(filename, 'utf8')
-    if (!/\bfrom\s+['"][^'"]*\/chromium['"]/.test(source)) return []
-    return [path.relative(__dirname, filename).split(path.sep).join('/')]
-  })
-}
-
-const chromiumTests = findChromiumTests(path.join(__dirname, '__tests__'))
-  .sort((left, right) => left.localeCompare(right))
+const { chromiumTests, crossAppTests } = findProjectTests(__dirname)
 
 const stallDiagnostics = createStallDiagnostics()
 
@@ -40,7 +28,15 @@ export default defineConfig({
         test: {
           name: 'jsdom',
           include: ['__tests__/**/*.test.{ts,tsx}'],
-          exclude: chromiumTests,
+          exclude: [...chromiumTests, ...crossAppTests],
+          sequence: { groupOrder: 1 },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'cross-app',
+          include: crossAppTests,
           sequence: { groupOrder: 1 },
         },
       },

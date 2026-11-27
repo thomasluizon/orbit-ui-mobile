@@ -9,7 +9,7 @@ import test from "node:test"
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..")
 const script = resolve(root, ".github/scripts/plan-test-jobs.mjs")
 const tasks = {
-  "@orbit/web#test": "web0", "@orbit/mobile#test": "mobile0", "@orbit/desktop#test": "desktop0",
+  "@orbit/web#test": "web0", "@orbit/web#test:cross-app": "cross0", "@orbit/mobile#test": "mobile0", "@orbit/desktop#test": "desktop0",
   "@orbit/shared#test": "shared0", "@orbit/eslint-rules#test": "rules0", "@orbit/shared#build": "build0",
 }
 
@@ -142,17 +142,19 @@ test("no tool or CI script writes a GitHub skip instruction into a commit messag
 test("each result key follows only its own Turbo tasks and the workflow file", () => {
   const base = plan().outputs
   assert.match(base["web-unit-key"], /^web-unit-[0-9a-f]{24}-[0-9a-f]{24}$/)
+  assert.match(base["web-cross-app-unit-key"], /^web-cross-app-unit-[0-9a-f]{24}-[0-9a-f]{24}$/)
   assert.match(base["mobile-unit-key"], /^mobile-unit-[0-9a-f]{24}-[0-9a-f]{24}$/)
   assert.match(base["workspace-unit-key"], /^workspace-unit-[0-9a-f]{24}-[0-9a-f]{24}$/)
   assert.deepEqual(plan({ hashes: { ...tasks, "@orbit/shared#build": "build1" } }).outputs, base, "a task outside the groups changes no key")
-  for (const [task, group] of [["@orbit/web#test", "web-unit-key"], ["@orbit/mobile#test", "mobile-unit-key"], ["@orbit/eslint-rules#test", "workspace-unit-key"]]) {
+  const keys = ["web-unit-key", "web-cross-app-unit-key", "mobile-unit-key", "workspace-unit-key"]
+  for (const [task, group] of [["@orbit/web#test", "web-unit-key"], ["@orbit/web#test:cross-app", "web-cross-app-unit-key"], ["@orbit/mobile#test", "mobile-unit-key"], ["@orbit/eslint-rules#test", "workspace-unit-key"]]) {
     const changed = plan({ hashes: { ...tasks, [task]: "changed" } }).outputs
-    for (const key of ["web-unit-key", "mobile-unit-key", "workspace-unit-key"]) {
+    for (const key of keys) {
       assert.equal(changed[key] !== base[key], key === group, `${task} must change only ${group}`)
     }
   }
   const edited = plan({ workflow: "name: PR Tests\n# edited\n" }).outputs
-  for (const key of ["web-unit-key", "mobile-unit-key", "workspace-unit-key"]) assert.notEqual(edited[key], base[key], key)
+  for (const key of keys) assert.notEqual(edited[key], base[key], key)
 })
 
 test("a missing Turbo task fails and a pull request needs its changed paths", () => {
@@ -160,5 +162,9 @@ test("a missing Turbo task fails and a pull request needs its changed paths", ()
   const missing = plan({ hashes: withoutMobile })
   assert.equal(missing.status, 1)
   assert.match(missing.stderr, /@orbit\/mobile#test/)
+  const { "@orbit/web#test:cross-app": _crossApp, ...withoutCrossApp } = tasks
+  const missingCrossApp = plan({ hashes: withoutCrossApp })
+  assert.equal(missingCrossApp.status, 1)
+  assert.match(missingCrossApp.stderr, /@orbit\/web#test:cross-app/)
   assert.equal(plan({ changedFile: false }).status, 2)
 })

@@ -267,10 +267,10 @@ const assertFixInputs = ({ kind, pull, review, failure }) => {
  * so the text holds only the new findings. The first order and its brief still hold. One delivery rule changes: the worker pushes
  * to the branch of the open pull request and opens no other pull request. Every other rule of the brief holds.
  */
-export const renderResumeOrder = ({ kind, pull, review = null, failure = null }) => {
+export const renderResumeOrder = ({ kind, pull, review = null, failure = null, ownerNote = null }) => {
   if (kind !== "fix" && kind !== "ci-fix" && kind !== "merge-forward") throw new Error(`a ${kind} order does not resume a session`)
   assertFixInputs({ kind, pull, review, failure })
-  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
+  return `## This order (${kind}, resumed)\n\n${kindSection({ kind, pull, review, failure })}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\nYour first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request. Write the choice and its evidence in the commit message.\n`
 }
 
 /**
@@ -278,7 +278,7 @@ export const renderResumeOrder = ({ kind, pull, review = null, failure = null })
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], place, partNumber = null, replan = null }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], ownerNote = null, place, partNumber = null, replan = null }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
@@ -288,5 +288,5 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
   }
   const parts = kind === "build" ? "" : kind === "replan" ? wholePartSection(partComments) : partSection(partComments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}\n\n${renderBrief({ kind, place, ticket })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}${ownerNote === null ? "" : `\n\n## Owner comment\n\nThe owner gave one more launch after the stop report, with this comment on the ticket.\n\n${trimmed(ownerNote)}`}\n\n${renderBrief({ kind, place, ticket })}`
 }
