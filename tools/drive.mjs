@@ -22,7 +22,7 @@ import { repositorySlug } from "./lib/github-auth.mjs"
 import * as githubApi from "./lib/github.mjs"
 import { APPROVAL_CHECK_MISSING, carriedApproval, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, mergeBar, needsWholeDiff, passedChecks, runInProgress, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
-import { noteSections, ownerParts, partOf, partProblem, renderOrder, renderResumeOrder, ticketChanges } from "./lib/order.mjs"
+import { noteKindOf, noteSections, ownerParts, partOf, partProblem, renderOrder, renderResumeOrder, ticketChanges } from "./lib/order.mjs"
 import { mobileMergeHold, readTrainState, realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
@@ -1141,16 +1141,16 @@ const factsFileOf = (logFile) => logFile.replace(/\.log$/, ".facts.json")
 const ranOpus = (entry) => entry.model === workerApi.COORDINATOR_MODEL
 
 /**
- * The owner comments on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
- * and holds `stopText`: the conflict report of one head. Each owner comment after it grants one more launch, and a later stop
- * report asks for the next one.
+ * The marked notes on the ticket that follow a stop report, oldest first. The stop report is the comment that goes with the label
+ * and holds `stopText`: the conflict report of one head. Each `orbit-owner` or `orbit-decision` note after it grants one more
+ * launch, and a later stop report asks for the next one. A comment with no marker starts no order.
  */
 const stopGrants = (ticket, stopText) => {
   const grants = []
   let capped = false
   for (const entry of [...ticket.comments].sort((left, right) => left.createdAt.localeCompare(right.createdAt))) {
     if (entry.kind === "needs-owner") capped ||= bodyAfterMarker(entry).includes(stopText)
-    else if (entry.kind === null && capped && partOf(entry) === null) {
+    else if (capped && noteKindOf(entry) !== null) {
       grants.push(entry)
       capped = false
     }
@@ -1218,7 +1218,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
     // The free launch runs once for each head, so a worker that pushes nothing meets the cap at its next launch.
     if (order.failure?.baseMerge && !launches.some((entry) => entry.baseMerge === pull.headSha)) return [...actions, { ...order, baseMergeHead: pull.headSha }]
     // A conflict with the base branch is no fault of the change, so a merge-forward order skips the cap. It runs once for each head, so a worker that pushes nothing does not loop.
-    // An owner comment after the conflict report of this head grants one more merge-forward launch at it.
+    // A marked owner or decision note after the conflict report of this head grants one more merge-forward launch at it.
     if (order.kind === "merge-forward") {
       // The launches and the grants before the newest owner decision are answered, so a decided conflict gets its first launch again.
       const since = ownerDecisionAt(env, ticket)
