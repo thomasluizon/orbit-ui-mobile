@@ -128,6 +128,10 @@ jobs:
       # The package step compiles the target in full, so no separate cargo check runs.
       - name: Package unsigned staging shell
         run: npm run build:staging -w @orbit/desktop -- --target x86_64-pc-windows-msvc --no-sign -- --locked
+      # WHY: the harness builds this target again and requires one installer in the folder, and Tauri never clears bundle/nsis.
+      # The compile output stays in the Rust target folder, so the harness build reuses it.
+      - name: Remove the unsigned staging installer
+        run: rm -r apps/desktop/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis
       - name: Build, install and exercise the isolated desktop app
         env:
           ACCEPTANCE_OUTPUT: ${{ runner.temp }}/orbit-desktop-acceptance

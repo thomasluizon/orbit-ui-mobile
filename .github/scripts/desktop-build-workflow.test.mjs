@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import test from 'node:test'
@@ -168,4 +168,29 @@ test('only a push to main or a dispatch starts the macOS jobs', () => {
   for (const concurrency of [acceptance.concurrency, producers.concurrency]) {
     assert.match(concurrency.group, /github\.run_id/, 'a main run never shares a group with another main run')
   }
+})
+
+// buildInstaller of tools/desktop-bench/acceptance-platform.mjs throws unless the bundle directory of its target holds one
+// installer. Tauri never clears bundle/nsis, so a package step that ran before it for the same target leaves a second installer.
+test('a step that packages a target before the acceptance harness removes the bundle output of that target first', () => {
+  const directory = new URL('../workflows/', import.meta.url)
+  const checked = []
+  for (const file of readdirSync(directory).filter((name) => name.endsWith('.yml'))) {
+    const { jobs } = yaml.load(readFileSync(new URL(file, directory), 'utf8'))
+    for (const [name, job] of Object.entries(jobs)) {
+      const steps = job.steps ?? []
+      const harness = steps.findIndex((step) => /tools\/desktop-bench\/acceptance\.mjs/.test(step.run ?? ''))
+      if (harness < 0) continue
+      steps.slice(0, harness).forEach((step, index) => {
+        if (!/\bbuild:staging\b|\btauri build\b/.test(step.run ?? '') || /--no-bundle/.test(step.run)) return
+        const target = /--target (\S+)/.exec(step.run)?.[1]
+        assert.ok(target, `${file}: ${name}: ${step.name} names its target`)
+        const bundle = `apps/desktop/src-tauri/target/${target}/release/bundle`
+        const removal = steps.slice(index + 1, harness).find((later) => new RegExp(`\\brm -r\\S* ${bundle.replaceAll('/', '\\/')}\\/(nsis|dmg)\\b`).test(later.run ?? ''))
+        assert.ok(removal, `${file}: ${name}: ${step.name} leaves an installer in ${bundle} that the harness counts`)
+        checked.push(`${file}: ${name}`)
+      })
+    }
+  }
+  assert.deepEqual(checked, ['desktop-acceptance.yml: installed'], 'the Windows job is the one job that packages before the harness')
 })
