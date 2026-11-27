@@ -7,6 +7,7 @@ import { inspectControls } from './interaction-fill-states'
 import { captureControlInventory } from './interaction-fill-inventory'
 import { layoutRouteInventory } from './layout-route-inventory'
 import { installInteractionFillFixtures } from './interaction-fill-fixtures'
+import { guidedRow, guidedSummary } from './guided-habit-steps'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 
@@ -16,36 +17,34 @@ for (const width of [320, 360, 384, 412, 600, 1024, 1352]) {
       optionTest.describe(`option row clearance at ${width}px in ${locale} and ${mode}`, () => {
         optionTest.use({ appLocale: locale, layoutProfile: { themePreference: mode }, viewport: { width, height: 1000 }, contextOptions: { reducedMotion: 'reduce' } })
         optionTest('keeps hovered, pressed and focused options clear of selected neighbours', async ({ page }) => {
-          const words = (locale === 'en' ? en : ptBR).habits.form
+          const messages = locale === 'en' ? en : ptBR
+          const flow = messages.habits.flow
           await page.goto('/habits/new')
-          const screen = page.locator('[data-habit-create-screen]')
-          const type = screen.getByRole('radiogroup', { name: words.itemType, exact: true })
-          const habit = type.getByRole('radio', { name: new RegExp(words.typeHabit) })
-          await habit.click()
-          const frequency = screen.getByRole('radiogroup', { name: words.frequency, exact: true })
-          const timesPer = frequency.getByRole('radio', { name: words.timesPerUnit, exact: true })
-          const task = type.getByRole('radio', { name: new RegExp(words.typeTask) })
-          const dates = screen.getByRole('radiogroup', { name: words.datePhrase, exact: true })
-          const noDate = dates.getByRole('radio', { name: words.noSchedule, exact: true })
+          await page.getByRole('textbox', { name: flow.what.label, exact: true }).fill('Read')
+          await page.getByRole('button', { name: flow.continue, exact: true }).click()
+          await page.getByRole('group', { name: flow.when.question, exact: true }).getByRole('button', { name: flow.when.everyDay, exact: true }).click()
+          await page.getByRole('group', { name: flow.time.question, exact: true }).getByRole('button', { name: flow.time.none, exact: true }).click()
+          await guidedRow(guidedSummary(page, messages), flow.summary.when).click()
+          const options = page.getByRole('group', { name: flow.repeat.question, exact: true })
+          const everyN = options.getByRole('button', { name: flow.repeat.everyN, exact: true })
+          const timesIn = options.getByRole('button', { name: flow.repeat.timesIn, exact: true })
           await page.evaluate(() => document.fonts.ready)
           for (const [select, row, neighbour] of [
-            [() => timesPer.click(), frequency.getByRole('radio', { name: words.every, exact: true }), timesPer],
-            [() => habit.click(), task, habit],
-            [async () => { await task.click(); await noDate.click() }, dates.getByRole('radio', { name: words.taskDate, exact: true }), noDate],
+            [() => timesIn.click(), everyN, timesIn],
+            [() => everyN.click(), timesIn, everyN],
           ] as const) {
             await select()
-            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+            await expect(neighbour).toHaveAttribute('aria-pressed', 'true')
             await inspectControls(page, row, `option rows, ${width}px, ${locale}, ${mode}`, INTERACTION_FILL_CLEARANCE)
             await expect(page.locator('[data-interaction-fill-probe]')).toHaveCount(0)
             const bounds = (await row.boundingBox())!
             const next = (await neighbour.boundingBox())!
-            expect(next.y - bounds.y - bounds.height).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
-            expect(next.x).toBe(bounds.x)
-            expect(next.width).toBe(bounds.width)
-            const titleFits = await row.locator('[data-slot="list-row-title"]').evaluate(element =>
-              element.scrollWidth <= element.clientWidth && element.getBoundingClientRect().height <= parseFloat(getComputedStyle(element).lineHeight) + 1)
-            expect(titleFits).toBe(true)
-            await expect(neighbour).toHaveAttribute('aria-checked', 'true')
+            const gap = next.x > bounds.x ? next.x - bounds.x - bounds.width : bounds.x - next.x - next.width
+            expect(gap).toBeGreaterThanOrEqual(INTERACTION_FILL_CLEARANCE)
+            expect(next.y).toBe(bounds.y)
+            expect(next.height).toBe(bounds.height)
+            expect(await row.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+            await expect(neighbour).toHaveAttribute('aria-pressed', 'true')
           }
         })
       })
@@ -105,7 +104,7 @@ for (const width of [320, 412, 600, 1024, 1352]) {
           if (route === '/login') await context.clearCookies({ name: /^(auth_token|refresh_token)$/ })
           await page.goto(route)
           await page.evaluate(() => document.fonts.ready)
-          if (hasControls) await expect(page.locator('h1:visible').first()).toBeVisible()
+          if (hasControls) await expect(page.locator(route === '/auth-callback' ? '[data-callback-failure]' : 'h1:visible').first()).toBeVisible()
           if (route === '/chat') await expect(page.getByRole('button', { name: words.common.closeConversation })).toBeVisible()
           if (route === '/habits/habit-1') {
             const detail = page.locator('[data-habit-detail-content]')
@@ -118,7 +117,8 @@ for (const width of [320, 412, 600, 1024, 1352]) {
             await expect(pencil).toBeVisible()
           }
           if (route === '/progress') await expect(page.getByTestId('bar-chart').getByRole('radio')).toHaveCount(30)
-          const controls = page.locator(':is(button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex="0"]):visible:not(:disabled):not([aria-disabled="true"])')
+          const scope = route === '/support' ? page.locator('[data-flow-screen]') : page
+          const controls = scope.locator(':is(button, a[href], input, textarea, select, summary, [role="button"], [role="checkbox"], [role="radio"], [role="switch"], [role="tab"], [role="menuitem"], [tabindex="0"]):visible:not(:disabled):not([aria-disabled="true"])')
           const count = await controls.count()
           if (hasControls) expect(count, `${route} control inventory`).toBeGreaterThan(0)
           const counts = { inspectedControls: 0, skippedSentinels: 0 }
