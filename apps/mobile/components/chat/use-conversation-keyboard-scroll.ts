@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { Keyboard } from 'react-native'
+import { isFieldFocused } from '@/lib/focused-field'
 
 interface ScrollableConversation {
   scrollToEnd: (params?: { animated?: boolean }) => void
@@ -15,6 +16,8 @@ export function useConversationKeyboardScroll(
   const composerFocused = useRef(false)
   const restoreOnLayout = useRef(false)
 
+  const threadFieldFocused = useCallback(() => isFieldFocused() && !composerFocused.current, [])
+
   const onComposerFocus = useCallback(() => {
     composerFocused.current = true
     if (keyboardVisible.current && shouldFollow()) listRef.current?.scrollToEnd({ animated: false })
@@ -26,9 +29,13 @@ export function useConversationKeyboardScroll(
 
   const followAfterDismissal = useCallback(() => {
     if (!restoreOnLayout.current) return
+    if (threadFieldFocused()) {
+      restoreOnLayout.current = false
+      return
+    }
     if (shouldFollow()) listRef.current?.scrollToEnd({ animated: false })
     restoreOnLayout.current = false
-  }, [listRef, shouldFollow])
+  }, [listRef, shouldFollow, threadFieldFocused])
 
   const onLayout = useCallback(() => {
     if (restoreOnLayout.current) {
@@ -59,5 +66,5 @@ export function useConversationKeyboardScroll(
     }
   }, [listRef, followAfterDismissal, shouldFollow])
 
-  return { onLayout, onComposerFocus, onComposerBlur }
+  return { onLayout, onComposerFocus, onComposerBlur, threadFieldFocused }
 }

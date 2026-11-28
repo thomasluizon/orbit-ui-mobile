@@ -504,6 +504,7 @@ export function KeyboardAwareSheetScrollView({
 function KeyboardAwareFlatListInner<ItemT>(
   {
     keyboardVerticalOffset = 0,
+    keyboardShouldPersistTaps = 'handled',
     ...props
   }: Readonly<KeyboardAwareFlatListProps<ItemT>>,
   ref: Ref<FlatList<ItemT>>,
@@ -541,6 +542,7 @@ function KeyboardAwareFlatListInner<ItemT>(
     <KeyboardAwareContext.Provider value={keyboardAwareContext}>
       <FlatList
         {...props}
+        keyboardShouldPersistTaps={keyboardShouldPersistTaps}
         ref={assignRef}
         onScroll={handleScroll}
         scrollEventThrottle={props.scrollEventThrottle ?? 16}
