@@ -146,13 +146,27 @@ export const CLASS_RULE = "Fix the whole class of each finding in this round. Na
 
 const baseMergeSection = (baseMerge) => `The head is a clean merge of \`origin/main\`. The branch was green at \`${baseMerge.before}\` before the merge. The merge brought in these base commits:\n\n${baseMerge.commits.map((line) => `- ${line}`).join("\n")}\n\nThe cause is one of these commits and how it meets this branch. Find it and fix it.\n\n`
 
+/**
+ * The four sentences of the proven-best rule. `.claude/skills/ticket/SKILL.md`, `.claude/skills/questions/SKILL.md` and `CLAUDE.md`
+ * hold the same words, and `tools/__tests__/order.mjs` checks all four files.
+ */
+export const PROOF_RULE = Object.freeze([
+  'Ask the question "which real product already solved this, and with what?" and write the links.',
+  "The candidate set holds the precedent's approach and the ready tool.",
+  'The number on the real target decides. "Defer until a profile shows a cost" is not allowed.',
+  "An objection counts only with a precedent link or a measured number. Without one, it falls, and the loop ends.",
+])
+
+/** The proof step of an order that builds. The rule, then what the worker measures, fixes and reports. */
+const PROOF_STEP = `Prove the approach. ${PROOF_RULE.join(" ")} Measure on the real target, never on a proxy: a Node script, a laptop, a mock or a desktop browser decides nothing. Never defer a measurement. Fix every hit of \`## Every place\`, or write the reason for a hit that stays. Write \`Measured: <value> on <where>\` in the body of the last pull request when the \`Measure:\` line of the ticket is not \`none\`.`
+
 /** The part of the order that belongs to one kind: what to do first and what to fix. */
 const kindSection = ({ kind, pull, review, failure, partNumber, partTotal, replan }) => {
   switch (kind) {
     case "build":
-      return "Build the ticket. Rebase on `origin/main` before the first push."
+      return `Build the ticket. Rebase on \`origin/main\` before the first push.\n\n${PROOF_STEP}`
     case "build part":
-      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".`
+      return `Build Part ${partNumber} of this ticket and no other part. Rebase on \`origin/main\` before the first push. End the pull request title with "(Part ${partNumber} of ${partTotal})".\n\n${PROOF_STEP}`
     case "fix":
       return `The pull request ${pull.number} has the head \`${pull.headSha}\`. Its latest review blocks the merge with the classes below. Each finding names one instance of a class. The class can have more instances.\n\n${instanceList(review)}\n\n${CLASS_RULE} Fix every class in one commit. Change no line that the classes do not need. Run the focused tests, the type check and the lint. Do not merge \`origin/main\`. Push once.`
     case "ci-fix":

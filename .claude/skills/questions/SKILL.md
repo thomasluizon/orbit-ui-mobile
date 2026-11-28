@@ -38,6 +38,15 @@ Stop at the first step that resolves the question.
 2. **Is it "simpler or more correct"?** The answer is the correct one, always, whatever it costs. Say the cost in one line.
 3. **Is it an engineering call?** Naming, structure, which layer owns something, how to test it, which allowed parity adapter applies: decide it now. A question about what a screen shows is yours too when one answer is clearly better.
 
+The proof rule applies to every answer, every objection and every held decision:
+
+- Ask the question "which real product already solved this, and with what?" and write the links.
+- The candidate set holds the precedent's approach and the ready tool.
+- The number on the real target decides. "Defer until a profile shows a cost" is not allowed.
+- An objection counts only with a precedent link or a measured number. Without one, it falls, and the loop ends.
+
+An item held only on an objection with no link and no number is not held. Decide it with the proven best way.
+
 What is left is really his: product, copy, pricing, positioning, brand, design direction, and a choice where two answers are both defensible and only he knows which one he wants.
 
 ## 4. Record each answer and decision
