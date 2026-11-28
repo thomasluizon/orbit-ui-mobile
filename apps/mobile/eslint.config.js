@@ -118,6 +118,7 @@ module.exports = defineConfig([
           .map((full) => [full, "error"]),
       ),
       "sonarjs/cognitive-complexity": ["error", 15],
+      "sonarjs/no-invariant-returns": "error",
     },
   },
   {

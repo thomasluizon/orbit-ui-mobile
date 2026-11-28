@@ -115,3 +115,15 @@ it('scrubs event stream tickets from URLs and breadcrumb messages while retainin
   expect(result.breadcrumbs?.[2]?.data?.to).toBe('/api/events?cursor=next&ticket=[Filtered]')
   expect(result.breadcrumbs?.[3]?.data?.url).toBe('/api/events/ticket')
 })
+
+
+it('titles a message event by its text, not by the callback that sent it', () => {
+  const result = scrubEvent({ type: undefined, message: 'turnstile_load_failed', exception: { values: [{
+    value: 'turnstile_load_failed', stacktrace: { frames: [{ function: 'anonymous' }] },
+    mechanism: { type: 'generic', handled: true, synthetic: true },
+  }] } })
+
+  expect(result.exception?.values?.[0]).toMatchObject({
+    type: 'Message', value: 'turnstile_load_failed', mechanism: { type: 'generic', handled: true, synthetic: false },
+  })
+})
