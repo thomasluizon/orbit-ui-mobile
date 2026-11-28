@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, markSwitch, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -55,7 +55,7 @@ const partComment = (number, total, extra = "") => comment(null, `## Part ${numb
 let scenarios = 0
 
 /** A driver environment whose every seam is a recorder. `routes` answer `gh` calls by text; `git` answers by its first words. */
-const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true, board = [] } = {}) => {
+const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, routes = [], gitRoutes = [], reading = { utilization: 0.1, resetsAt: RESETS_AT, at: NOW - 5 * MINUTE }, token = "token", ownerToken = "owner-token", dryRun = false, runs = [], failedSteps = [], limit = null, probeReading = undefined, unmet = [], auth = AUTH, stateDirectory = null, allowance = null, sleeping = false, occupants = [], directories = [], driver = null, workerAuth = null, workerReading = null, workerProbeReading = undefined, releasePorts = null, dependencies = { action: "clone", ms: 40, directories: ["", "apps/web"], reason: null }, sessions = true, board = [], workerRuns = null } = {}) => {
   const calls = []
   const messages = []
   let elapsed = 0
@@ -130,6 +130,8 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       const hit = gitRoutes.find(([text]) => args.join(" ").includes(text)); return hit ? { status: 0, stderr: "", stdout: typeof hit[1] === "function" ? hit[1](args) : hit[1] } : { status: args[0] === "rev-parse" && args.includes("--quiet") ? 1 : 0, stderr: "", stdout: args[0] === "rev-parse" ? HEAD : "" }
     },
     gh: async (args) => { calls.push(["gh", args.join(" ")]); const hit = routes.find(([text]) => args.join(" ").includes(text)); if (hit) return typeof hit[1] === "function" ? hit[1](args) : hit[1]; if (args[0] === "pr" && args[1] === "list") return "[]"; if (args[0] === "issue") return "[]"; if (args[0] === "api") return "[]"; return "" },
+    // The push and the `gh pr create` of the driver: a pull request URL for `gh`, and exit 0 for `git`, unless the scene answers otherwise.
+    workerRun: async (cwd, file, args) => { calls.push(["workerRun", cwd, file, ...args]); return workerRuns?.(file, args) ?? { status: 0, stdout: file === "gh" ? "https://github.com/thomasluizon/orbit-ui-mobile/pull/40\n" : "", stderr: "" } },
     osascript: async (message) => { calls.push(["notify", message]) },
     fetch: async (url, init) => { calls.push(["fetch", url, init]); return { status: 200, json: async () => ({ ok: true, result: {} }) } },
     findRepositories: (path) => [path],
@@ -589,15 +591,81 @@ const workerCases = async () => {
   await decision.run()
   await decision.run()
   same("drive: NEEDS_DECISION gives needs:owner and one needs-owner comment", [only(decision.calls, "editLabels")[0]?.[3], commentsOf(decision.calls, 7).filter((text) => text.includes("needs-owner")).length], [{ add: [OWNER_LABEL] }, 1])
-  const forbidden = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]] })
-  forbidden.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve({ ...clean, exitCode: 1, sessionId: "s" }) }
+  const forbidden = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`]], workerRuns: (file) => (file === "git" ? { status: 1, stdout: "", stderr: FORBIDDEN_OUTPUT } : undefined) })
   await forbidden.run()
   await forbidden.run()
-  same("drive: a push that fails with HTTP 403 gives needs:owner and a notification", [only(forbidden.calls, "editLabels").length, only(forbidden.calls, "notify").length], [1, 1])
+  same("drive: a push of the driver that fails with HTTP 403 gives needs:owner and a notification", [only(forbidden.calls, "editLabels").length, only(forbidden.calls, "notify").length], [1, 1])
   const recorded = scenario({ tickets: [ticket(7)], gitRoutes: [["log --format=%H", `${NEXT_HEAD}\n${"d".repeat(40)}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
   await recorded.run()
   await recorded.run()
   same("drive: one record comment for each pushed commit, oldest first", commentsOf(recorded.calls, 31).map((text) => text.split("\n")[1]), [`worker s1 -> ${"d".repeat(40)}`, `worker s1 -> ${NEXT_HEAD}`])
+}
+
+/** The cases of the push step: a worker commits and exits, and the driver pushes once and opens the pull request of a new branch. */
+const pushCases = async () => {
+  const pullDir = (name, text) => { const dir = join(root, `drive-git-dir-${name}-${++scenarios}`); mkdirSync(dir, { recursive: true }); if (text !== null) writeFileSync(join(dir, "orbit-pull.md"), text); return dir }
+  const finished = (extra = {}) => scenario({ tickets: [ticket(7)], ...extra, gitRoutes: [["--absolute-git-dir", pullDir("build", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n")], heads(HEAD, NEXT_HEAD), ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`], ...(extra.gitRoutes ?? [])] })
+  const pushes = (scene) => only(scene.calls, "workerRun").filter((entry) => entry[2] === "git")
+  const creates = (scene) => only(scene.calls, "workerRun").filter((entry) => entry[2] === "gh")
+
+  const bodies = []
+  const build = finished({ routes: [["--head chore/ticket-7", "\n"]], workerRuns: (file, args) => { if (file === "gh") bodies.push(readFileSync(args[args.indexOf("--body-file") + 1], "utf8")); return undefined } })
+  await build.run()
+  await build.run()
+  same("drive: a reaped build worker with a new head gives one push and one gh pr create with the title and the body of orbit-pull.md", [pushes(build).map((entry) => entry.slice(2)), creates(build).map((entry) => entry.slice(2, 11)), readdirSync(build.env.stateDir).includes("pull-body.md")], [[["git", "push", "origin", "chore/ticket-7"]], [["gh", "pr", "create", "--base", "main", "--head", "chore/ticket-7", "--title", "Build the thing (Part 7 of 12)"]], false])
+  same("drive: the body file of gh pr create holds the text of orbit-pull.md after its title line", bodies, ["Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n"])
+  same("drive: the pull request of the driver writes the record comments of the pushed commit on the new number", commentsOf(build.calls, 40).map((text) => text.split("\n")[1]), [`worker s1 -> ${NEXT_HEAD}`])
+  same("drive: the push entry is gone after the push", JSON.parse(readFileSync(join(build.env.stateDir, "pushes.json"), "utf8")), [])
+
+  const launchOf = (kind, branch) => comment("launch", JSON.stringify({ kind, part: null, branch }))
+  const blockingReview = review(CHANGES_REQUESTED, HEAD, -5 * MINUTE, { blocking: [{ path: "tools/a.mjs", line: 3, body: "BLOCKING: a class" }] })
+  const fixTickets = [ticket(7, { comments: [launchOf("build", "chore/ticket-7-30")] })]
+  const fix = scenario({ tickets: fixTickets, pulls: { ui: [pull(30, { reviews: [blockingReview] })] }, gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7-30\n`], ["log --format=%H", `${NEXT_HEAD}\n`]] })
+  keepWrites(fix, fixTickets)
+  await fix.run()
+  await fix.run()
+  same("drive: a reaped fix worker gives one push and no new pull request", [pushes(fix).length, creates(fix).length, launchesOf(fix.tickets?.[0] ?? fixTickets[0]).some((entry) => entry.kind === "fix")], [1, 0, true])
+
+  const refused = finished({ workerRuns: (file) => (file === "git" ? { status: 1, stdout: "", stderr: "fatal: unable to reach the remote" } : undefined) })
+  await refused.run()
+  await refused.run()
+  const kept = JSON.parse(readFileSync(join(refused.env.stateDir, "pushes.json"), "utf8"))
+  same("drive: a push that fails for a reason other than HTTP 403 keeps its entry and gives no pull request and no needs:owner", [kept.map((entry) => [entry.repoKey, entry.branch, entry.ticketNumber, entry.head, entry.gate, entry.prNumber]), creates(refused).length, only(refused.calls, "editLabels").length], [[["ui", "chore/ticket-7", 7, NEXT_HEAD, "gate red", null]], 0, 0])
+
+  const restarted = scenario({ tickets: [], stateDirectory: refused.env.stateDir, gitRoutes: [["--absolute-git-dir", pullDir("restart", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n")], ["ls-remote", ""]], routes: [["--head chore/ticket-7", "\n"]] })
+  await restarted.run()
+  await restarted.run()
+  same("drive: a restart between the reap and the push keeps the entry, and the driver pushes it once and opens one pull request", [pushes(restarted).length, creates(restarted).length, JSON.parse(readFileSync(join(restarted.env.stateDir, "pushes.json"), "utf8"))], [1, 1, []])
+
+  const decided = finished({ routes: [["--head chore/ticket-7", "\n"]], limit: { exitCode: 0, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: "Raise the price?" } } })
+  await decided.run()
+  await decided.run()
+  same("drive: a worker that commits and ends with NEEDS_DECISION still gets its push and its pull request, and the ticket gets needs:owner", [pushes(decided).length, creates(decided).length, only(decided.calls, "editLabels").length], [1, 1, 1])
+  const limited = finished({ routes: [["--head chore/ticket-7", "\n"]], limit: { exitCode: 1, result: { usageLimitReached: true, authenticationFailed: false, error: "You've hit your limit. Resets 4am (America/Sao_Paulo)", needsDecision: null } } })
+  await limited.run()
+  await limited.run()
+  same("drive: a worker that commits and ends on a usage limit still gets its push", pushes(limited).length, 1)
+
+  const noText = finished({ routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [] })
+  noText.env.git = ((git) => async (cwd, args) => (args.includes("--absolute-git-dir") ? { status: 0, stderr: "", stdout: pullDir("none", null) } : git(cwd, args)))(noText.env.git)
+  await noText.run()
+  await noText.run()
+  same("drive: a new branch with no orbit-pull.md is pushed and opens no pull request", [pushes(noText).length, creates(noText).length, noText.messages.some((line) => line.includes("push-no-text"))], [1, 0, true])
+
+  const labelArgs = []
+  const labeled = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("labels", "Build the web side (Part 7 of 12)\nLabels: parity:exempt, Bug\n\nTracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n")], heads(HEAD, NEXT_HEAD), ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`]], workerRuns: (file, args) => { if (file === "gh") labelArgs.push([args.filter((_, index) => args[index - 1] === "--label"), readFileSync(args[args.indexOf("--body-file") + 1], "utf8")]); return undefined } })
+  await labeled.run()
+  await labeled.run()
+  same("drive: the Labels line of orbit-pull.md gives one --label for each label, and the body leaves the line out", labelArgs, [[["parity:exempt", "Bug"], "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n"]])
+
+  const rebuilt = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("rebuilt", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n")], ["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`], ["rev-list --count origin/main..HEAD", "2\n"]] })
+  await rebuilt.run()
+  await rebuilt.run()
+  same("drive: a build run that adds no commit to a pushed branch with no pull request gets no push and one gh pr create", [pushes(rebuilt).length, creates(rebuilt).length], [0, 1])
+  const empty = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("empty", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n")], ["ls-remote", ""]] })
+  await empty.run()
+  await empty.run()
+  same("drive: a build run with no commit on a branch that main holds gets no push and no pull request", [pushes(empty).length, creates(empty).length], [0, 0])
 }
 
 const pullfrogRun = (databaseId, createdOffset, updatedOffset, status = "completed") => ({ databaseId, displayTitle: `Respond to mention on #7 [run${databaseId}]`, status, conclusion: status === "completed" ? "success" : null, createdAt: iso(createdOffset), updatedAt: iso(updatedOffset) })
@@ -2251,37 +2319,19 @@ const laneAndReviewPassCases = async () => {
   same("drive: a pull request with no ticket and its parked comment gets no second comment and no notification", [commentsOf(parked.calls, 30).length, only(parked.calls, "notify").length], [0, 0])
 
   const landed = scenario({ tickets: [ticket(7)], gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", `${NEXT_HEAD}\trefs/heads/chore/ticket-7\n`], ["log --format=%H", `${NEXT_HEAD}\n`]], routes: [["--head chore/ticket-7", "31\n"]] })
-  landed.env.worker.launch = (options) => { writeFileSync(options.logFile, bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)); return Promise.resolve(clean) }
   await landed.run()
   await landed.run()
-  same("drive: a worker whose git push printed the 403 text but whose commits are on the remote is not a failed push and gets its commit records", [only(landed.calls, "editLabels").length, only(landed.calls, "notify").length, commentsOf(landed.calls, 31).map((text) => text.split("\n")[1])], [0, 0, [`worker s1 -> ${NEXT_HEAD}`]])
+  same("drive: a branch that the remote holds at the same head gets no push and its commit records", [only(landed.calls, "workerRun").length, only(landed.calls, "editLabels").length, commentsOf(landed.calls, 31).map((text) => text.split("\n")[1])], [0, 0, [`worker s1 -> ${NEXT_HEAD}`]])
 }
 
-const FAILED_PUSH_LOG = bashRun("git push -u origin chore/ticket-7", FORBIDDEN_OUTPUT)
-
 const logOnlyCases = async () => {
-  const readsText = bashRun("cat tools/drive.mjs", `const FORBIDDEN_PUSH = /The requested URL returned error: 403/`, "toolu_read")
-  const unpushed = [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]]
-  const read = scenario({ tickets: [ticket(7)], gitRoutes: unpushed })
-  read.env.worker.launch = (options) => { writeFileSync(options.logFile, readsText); return Promise.resolve(clean) }
-  await read.run()
-  await read.run()
-  same("drive: a worker that read the 403 text in a file is not a failed push, even with commits that the remote lacks", [only(read.calls, "editLabels").length, only(read.calls, "notify").length], [0, 0])
-
-  const noCommit = scenario({ tickets: [ticket(7)], gitRoutes: [["ls-remote", ""]] })
-  noCommit.env.worker.launch = (options) => { writeFileSync(options.logFile, FAILED_PUSH_LOG); return Promise.resolve({ ...clean, exitCode: 1 }) }
-  await noCommit.run()
-  await noCommit.run()
-  same("drive: a worker with no commit since its launch has nothing to push, so its 403 text is not a failed push", [only(noCommit.calls, "editLabels").length, only(noCommit.calls, "notify").length], [0, 0])
-
-  const findLog = `${readsText}${resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix")}`
+  const findLog = `${resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix")}`
   const find = scenario({ tickets: [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })], gitRoutes: [["ls-remote", ""]] })
   find.env.worker.launch = (options) => { writeFileSync(options.logFile, findLog); return Promise.resolve(clean) }
   await find.run()
   await find.run()
   same("drive: a find order whose slice holds the 403 text posts its findings comment and gets no needs:owner", [only(find.calls, "editLabels").length, commentsOf(find.calls, 7).filter((text) => text.startsWith(marked("findings", "Findings, part 1"))).length], [0, 1])
-  same("drive: the push outputs of a log are those of its git push commands only", pushOutputs(`${readsText}${FAILED_PUSH_LOG}`), [FORBIDDEN_OUTPUT])
-}
+  }
 
 const runningWorkCases = async () => {
   const never = (scene, tickets) => {
@@ -2638,8 +2688,8 @@ const paceStampCases = async () => {
 
 const reapOutcomeCases = async () => {
   const stopped = { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }
-  const outcome = async (label, { tickets = [ticket(7)], result = {}, log = null, gitRoutes = [] }, expected) => {
-    const scene = scenario({ tickets, gitRoutes })
+  const outcome = async (label, { tickets = [ticket(7)], result = {}, log = null, gitRoutes = [], workerRuns = null }, expected) => {
+    const scene = scenario({ tickets, gitRoutes, workerRuns })
     keepWrites(scene, tickets)
     scene.env.worker.launch = (options) => {
       scene.launched.push(options)
@@ -2652,7 +2702,7 @@ const reapOutcomeCases = async () => {
     return scene
   }
   await outcome("a worker that ends with NEEDS_DECISION is not launched again by the tick that reaps it", { result: { result: { ...stopped, needsDecision: "Raise the price?" } } }, [1, 1, 1])
-  await outcome("a worker whose push failed with HTTP 403 is not launched again by the tick that reaps it", { result: { exitCode: 1 }, log: FAILED_PUSH_LOG, gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""]] }, [1, 1, 1])
+  await outcome("a worker whose push failed with HTTP 403 is not launched again by the tick that reaps it", { result: { exitCode: 1 }, gitRoutes: [heads(HEAD, NEXT_HEAD), ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`]], workerRuns: (file) => (file === "git" ? { status: 1, stdout: "", stderr: FORBIDDEN_OUTPUT } : undefined) }, [1, 1, 1])
   const findTickets = [ticket(7, { comments: [partComment(1, 1, "Kind: find")] })]
   const finder = await outcome("a find worker whose findings the reap posts is not launched again by the tick that reaps it", { tickets: findTickets, log: resultLine("Area: tools\n\nsrc/a.mjs:3 | class | fix") }, [1, 0, 0])
   same("drive: the reap of a find worker posts one findings comment", commentsOf(finder.calls, 7).filter((text) => text.startsWith(marked("findings", "Findings, part 1"))).length, 1)
@@ -4696,6 +4746,7 @@ export const driverUnit = async () => {
   await harnessReviewCases()
   await usageLimitCases()
   await workerCases()
+  await pushCases()
   await resumeCases()
   await capCases()
   await replanCases()

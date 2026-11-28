@@ -1,6 +1,7 @@
 /**
- * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except `gh pr create` and an edit
- * or a comment on the pull request of the worker's own branch. A permission pattern cannot say "my own pull request".
+ * The PreToolUse hook of a code worker. It reads one Bash call and blocks each `gh` write, except an edit
+ * or a comment on the pull request of the worker's own branch. This file runs live, so it keeps `gh pr create` for a worker that runs on an
+ * older order. The launch settings deny `gh pr create` and `gh pr new` through `CODE_WORKER_DENY`. A permission pattern cannot say "my own pull request".
  * It reads the command text, so it does not see a `gh` call that a script or a `bash -c` string makes.
  */
 

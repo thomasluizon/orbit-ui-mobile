@@ -75,8 +75,11 @@ export const WORKER_SKILLS_OFF = Object.freeze([
   "android-release", "audit-security", "dev-server", "driver", "flag", "investigate", "ios-release", "morning", "over-limit", "progress", "questions", "release", "sleep", "ticket",
 ])
 
-/** The GitHub writes that a code worker may never run, and the questions run and the harness review may. The `gh` hook blocks every other write of a code worker. */
+/** The GitHub writes that a code worker may never run, and the questions run and the harness review may. The driver pushes and opens each pull request. The `gh` hook blocks every other write of a code worker. */
 export const CODE_WORKER_DENY = Object.freeze([
+  "Bash(git push*)",
+  "Bash(gh pr create*)",
+  "Bash(gh pr new*)",
   "Bash(gh pr close*)",
   "Bash(gh issue close*)",
   "Bash(gh issue comment*)",
@@ -266,7 +269,7 @@ export const codexLoginStatus = async ({ home, parentEnvironment, run = runBound
 
 /** Writes the files of the Codex worker home, which a launch and a probe do first. */
 export const prepareCodexHome = ({ codex }) =>
-  writeCodexHome({ codexHome: codex.home, hookPath: GH_HOOK, sizeHookPath: SIZE_HOOK, gateHookPath: GATE_HOOK, skillFolders: agentSkillFolders(codex.skillsRoot), denyPrefixes: plainPrefixes(WORKER_DENY) })
+  writeCodexHome({ codexHome: codex.home, hookPath: GH_HOOK, sizeHookPath: SIZE_HOOK, gateHookPath: GATE_HOOK, skillFolders: agentSkillFolders(codex.skillsRoot), denyPrefixes: plainPrefixes([...WORKER_DENY, ...CODE_WORKER_DENY]) })
 
 /** The skills that stay on in a questions run: the one that it runs and the one that writes its comments. */
 export const QUESTIONS_SKILLS = Object.freeze(["humanizer", "questions"])

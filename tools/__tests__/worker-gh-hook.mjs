@@ -35,6 +35,7 @@ const ALLOWED = [
   "gh pr edit --body-file body.md 2>&1 | tail -3",
   "gh pr edit --help; gh pr comment --help",
   "gh pr create --title t --body-file body.md --label parity:exempt",
+  "gh pr new --title t --body b",
   "gh pr view 51 --json body,comments",
   "gh pr checks 2>&1 | head -20",
   "gh pr list --head chore/ticket-9 --json number",

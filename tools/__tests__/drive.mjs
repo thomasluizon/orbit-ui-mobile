@@ -55,6 +55,7 @@ import {
   logEvent,
   logFinalResult,
   NO_STOP,
+  prepareCodexHome,
   probe,
   readEvent,
   readWorkerToken,
@@ -820,9 +821,12 @@ const settingsCases = () => {
     "Edit(**/.github/migration-contracts.json)", "Write(**/.github/migration-contracts.json)", "Edit(**/.github/migration-locks.json)", "Write(**/.github/migration-locks.json)",
     "Bash(render *)", "Bash(terraform *)", "Bash(aws *)", "Bash(stripe *)", "Bash(gh workflow *)", "Bash(gh secret *)", "Bash(gh pr merge*)", "Bash(gh api *merge*)",
     "Bash(gh api * -X *)", "Bash(gh api -X *)", "Bash(gh api * --method *)", "Bash(gh api --method *)", "Bash(gh auth *)", "Bash(env -u GH_TOKEN *)", "Bash(unset GH_TOKEN*)", "Bash(*GH_TOKEN=*)", "Bash(security *)",
-    "Bash(gh pr close*)", "Bash(gh issue close*)", "Bash(gh issue comment*)", "Bash(gh issue edit*)",
+    "Bash(git push*)", "Bash(gh pr create*)", "Bash(gh pr new*)", "Bash(gh pr close*)", "Bash(gh issue close*)", "Bash(gh issue comment*)", "Bash(gh issue edit*)",
   ])
   T("lib/worker.mjs: no deny rule refuses the edit or the comment of a pull request", !settings.permissions.deny.some((rule) => /gh pr (edit|comment)/.test(rule)))
+  const codexHome = join(root, "codex-home-rules")
+  prepareCodexHome({ codex: { home: codexHome, skillsRoot: join(root, "no-agent-skills") } })
+  T("lib/worker.mjs: the Codex home forbids git push, as the code worker deny list names it", readFileSync(join(codexHome, "rules", "default.rules"), "utf8").includes('prefix_rule(pattern=["git", "push"], decision="forbidden")'))
   T("lib/worker.mjs: the deny list of the settings is a copy, so a caller cannot change the constant", settings.permissions.deny !== WORKER_DENY && Object.isFrozen(WORKER_DENY) && Object.isFrozen(CODE_WORKER_DENY))
   T("lib/worker.mjs: a code worker with no branch gets the hook with no target", !settings.hooks.PreToolUse[0].hooks[0].command.includes("--branch"))
   const schema = WORKER_FIXTURE.skillOverridesSchema
@@ -1208,7 +1212,7 @@ const orderCases = async () => {
   T("lib/order.mjs: one earlier launch that is over 16,000 bytes drops its oldest check-log lines and keeps the result tail and every fence", Buffer.byteLength(longSection.slice(0, longSection.indexOf("\n\nThe launches above failed."))) <= 16000 + 40 && longSection.includes("RESULT-TAIL-KEPT") && !longSection.includes("CUT-AWAY") && fenceLines.length > 0 && fenceLines.length % 2 === 0 && longSection.indexOf("The launches above failed. Find why before you change code.") >= 0 && oneLong.indexOf("The launches above failed. Find why before you change code.") < oneLong.indexOf("## Brief") && longSection.includes("LOG LINE 119"), `${Buffer.byteLength(longSection)} bytes, ${fenceLines.length} fence lines`)
 
   const resumed = renderResumeOrder({ kind: "fix", pull: PULL, review: { blocking: [{ path: "a.mjs", line: 4, body: "BLOCKING: x" }] } })
-  T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: push to the branch of the open pull request and open no other pull request.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
+  T("lib/order.mjs: a resumed fix order holds the findings, the class rule and the one delivery change, and no ticket, part or brief", resumed.startsWith("## This order (fix, resumed)") && resumed.includes("- a.mjs:4") && resumed.includes("Fix the whole class of each finding") && resumed.includes("Your first order and its brief still hold. One delivery rule changes: commit the fix to the branch of the open pull request, push nothing and open no pull request. The driver pushes your commits.") && !resumed.includes("except for the delivery") && !resumed.includes("## Brief") && !resumed.includes("The ticket body") && !resumed.includes("## Parts"))
   T("lib/order.mjs: a resumed ci-fix and a resumed merge-forward order hold their own work", renderResumeOrder({ kind: "ci-fix", pull: PULL, failure: { checks: [{ name: "Unit Tests", logLines: ["boom"] }] } }).includes("### Unit Tests") && renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("conflicts with `origin/main`"))
   T("lib/order.mjs: a resumed merge-forward order holds no owner section", !renderResumeOrder({ kind: "merge-forward", pull: PULL }).includes("## Owner comment"))
   for (const [label, call, message] of [
@@ -1218,7 +1222,7 @@ const orderCases = async () => {
 
   const build = order("build", { partComments: [] })
   T("lib/order.mjs: a build order holds the title, the ticket body and the brief, and no part section", build.startsWith("# A ticket title\n\nThe ticket body") && build.includes("Second paragraph.") && build.includes("## Brief") && !build.includes("## Parts"))
-  T("lib/order.mjs: a build order tells the worker to rebase before its first push", /Rebase on `origin\/main` before the first push/.test(build))
+  T("lib/order.mjs: a build order tells the worker to rebase before its first commit", /Rebase on `origin\/main` before your first commit/.test(build))
   const delivery = build.slice(build.indexOf("**Delivery.**"))
   T("lib/order.mjs: the delivery rules name the Tracks line, the three sections, the Remaining line and the attribution ban", delivery.includes(`Tracks ${TICKET_REPOSITORY}#9`) && !delivery.includes("never `Closes`") && ["## Assumptions", "## Manual steps", "## Test evidence", "`Remaining:`", "`Co-Authored-By`", "`Generated with`", "git rm", "rmSync", "Stage named paths only", "Never merge and never force-push"].every((text) => delivery.includes(text)))
   T("lib/order.mjs: the Remaining rule gives owner: only to a step that needs the owner's hands and names the list in the questions skill", ["only for a step that needs the owner's hands", ".claude/skills/questions/SKILL.md", "Write a technical step that stays open as a plain item"].every((part) => delivery.includes(part)))
@@ -1240,12 +1244,12 @@ const orderCases = async () => {
 
   const fix = order("fix", { pull: PULL, review: REVIEW })
   T("lib/order.mjs: a fix order lists every class and every instance of the review", ["src/a.ts:10", "src/b.ts:22", "src/c.ts:3", "src/d.ts:8", "BLOCKING: correctness bug", "BLOCKING: broken contract", "BLOCKING: missed requirement"].every((text) => fix.includes(text)), fix)
-  T("lib/order.mjs: a fix order names the head and asks for one commit, one red test per class, one push", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Push once/.test(fix) && /Do not merge `origin\/main`/.test(fix))
+  T("lib/order.mjs: a fix order names the head and asks for one commit and one red test per class", fix.includes(PULL.headSha) && /in one commit/.test(fix) && /fails without the fix, and run it red before the fix/.test(fix) && /Do not merge `origin\/main`/.test(fix))
   const ciFix = order("ci-fix", { pull: PULL, failure: FAILURE })
   T("lib/order.mjs: a ci-fix order names each failed check, its failed steps and the last 60 log lines", ciFix.includes("### Unit Tests (failed steps: Run Domain Tests)") && ciFix.includes("### Lint\n") && ciFix.includes("log line 79") && ciFix.includes("log line 20") && !ciFix.includes("log line 19\n"))
-  T("lib/order.mjs: a fix order and a ci-fix order never tell the worker to merge origin/main", [fix, ciFix].every((text) => /Do not merge `origin\/main`\. Push once/.test(text) && !/(^|[.] )Merge `origin\/main`/.test(text)))
+  T("lib/order.mjs: a fix order and a ci-fix order never tell the worker to merge origin/main", [fix, ciFix].every((text) => /Do not merge `origin\/main`\./.test(text) && !/(^|[.] )Merge `origin\/main`/.test(text)))
   const forward = order("merge-forward", { pull: PULL, failure: FAILURE })
-  T("lib/order.mjs: a merge-forward order names the conflicts and asks for one push", forward.includes("in: a.ts, b.ts") && /Merge `origin\/main` into the branch/.test(forward) && /Push once/.test(forward))
+  T("lib/order.mjs: a merge-forward order names the conflicts and asks for the merge", forward.includes("in: a.ts, b.ts") && /Merge `origin\/main` into the branch/.test(forward))
   T("lib/order.mjs: a merge-forward order without a conflict list still reads", /conflicts with `origin\/main`\. Merge/.test(order("merge-forward", { pull: PULL, failure: null })))
   const find = order("find", { partNumber: 1 })
   T("lib/order.mjs: a find order is read only and ends with the findings table", /path:line \| class \| fix/.test(find) && /Commit nothing, push nothing and open no pull request/.test(find) && /read-only order/.test(find) && !find.includes("gh pr create"))
@@ -1267,8 +1271,12 @@ const orderCases = async () => {
       : /final message is at most 12 lines/.test(text) && text.includes("the pull request URL"))
     T(`lib/order.mjs: the ${kind} brief puts the decisions where its kind can write`, reads
       ? !text.includes("pull request body") && !text.includes("commit message") && !text.includes("NEEDS_DECISION")
-      : text.includes(pushes ? "in the commit message" : "in the pull request body") && !text.includes(pushes ? "in the pull request body" : "in the commit message"))
-    T(`lib/order.mjs: the ${kind} brief names only the GitHub writes that its kind may make`, text.includes("`gh pr create`") === opens && (reads || text.includes("Write to GitHub only with `git push`")))
+      : text.includes(pushes ? "in the commit message" : "in the pull request text") && !text.includes(pushes ? "in the pull request text" : "in the commit message"))
+    T(`lib/order.mjs: the ${kind} brief names only the GitHub writes that its kind may make`, text.includes("`gh pr create`") === false && (reads || (pushes ? text.includes("Write to GitHub only with `gh pr edit`") : text.includes("Write nothing to GitHub."))))
+    T(`lib/order.mjs: the ${kind} order tells a worker to push nothing and names the driver as the one that pushes`, reads || (text.includes("Push nothing and open no pull request.") && text.includes("The driver pushes your commits")))
+    T(`lib/order.mjs: the ${kind} order holds no instruction to push`, text.replace(/[Pp]ush nothing|[Tt]he driver pushes|after it pushes|never force-push/g, "").match(/push/gi) === null)
+    T(`lib/order.mjs: the ${kind} order of a new branch tells the worker to write orbit-pull.md in the git directory`, !opens || (text.includes("`orbit-pull.md`") && text.includes("`git rev-parse --absolute-git-dir`") && text.includes("The first line is the title.")))
+    T(`lib/order.mjs: the ${kind} order of a new branch tells the worker to give labels on a Labels line after the title`, !opens || text.includes("To give the pull request labels, write `Labels: parity:exempt` (labels separated by commas) on the second line."))
     T(`lib/order.mjs: the ${kind} brief asks for verification evidence only when the order makes a change`, reads
       ? !text.includes("Report each command") && !text.includes("Spend at most 25 minutes")
       : text.includes("Report each command with its exit code") && text.includes("Spend at most 25 minutes"))

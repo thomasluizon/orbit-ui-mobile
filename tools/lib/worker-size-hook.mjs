@@ -83,8 +83,8 @@ const programWords = (words) => {
 }
 
 /**
- * True for `git`, a gate command and a `gh pr` delivery call. `git push` and `gh pr create` pass because a worker still delivers
- * its own work until the driver pushes (Part 5 of #2334 removes them). `worker-gh-hook.mjs` polices every `gh` write.
+ * True for `git`, a gate command and a `gh pr` call. `git push` and `gh pr create` pass here, and the permission deny list
+ * and `worker-gh-hook.mjs` block them. `worker-gh-hook.mjs` polices every `gh` write.
  */
 const isAllowedAtCap = (words) => {
   const [program, first, second] = words
