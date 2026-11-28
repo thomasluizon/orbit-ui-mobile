@@ -1490,6 +1490,9 @@ describe('a das hour range whose end day part has a connector other than da', ()
     ['Estudar das 8 às 10 pela manhã', '08:00', 'das 8 às 10 pela manhã'],
     ['Estudar das 2 a 5h à tarde', '14:00', 'das 2 a 5h à tarde'],
     ['Estudar das 2 às 5:30 a tarde', '14:00', 'das 2 às 5:30 a tarde'],
+    ['Estudar das 7 às 9 de noite', '19:00', 'das 7 às 9 de noite'],
+    ['Estudar das 7 às 9 pela noite', '19:00', 'das 7 às 9 pela noite'],
+    ['Estudar das 6 às 8 de manhã', '06:00', 'das 6 às 8 de manhã'],
   ] as const)('reads the start hour and consumes the whole range of %s', (input, time, range) => {
     const read = readHabitPhrase(input, 'pt-BR')
     expect(read.dueTime).toBe(time)
