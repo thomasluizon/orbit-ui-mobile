@@ -1353,6 +1353,21 @@ describe('a das hour range that ends before a minute tail', () => {
   })
 })
 
+describe('a das hour range with the a connector before a minute tail', () => {
+  it.each([
+    ['Estudar das 9 a 11 e quinze', '09:00'],
+    ['Estudar das 9 a 11 e 15', '09:00'],
+    ['Estudar das 9 a 11 e 15 toda segunda', '09:00'],
+    ['Estudar das 9 a 11 menos quinze', '09:00'],
+    ['Estudar das 9 a 11 e quinze minutos', '09:00'],
+    ['Estudar das 9 a 11 e quinze da noite', '21:00'],
+    ['Estudar das 9 a 11 e quinze, toda segunda', '09:00'],
+    ['Estudar das 9 a 11 e 2 vezes por semana', '09:00'],
+  ] as const)('reads the start hour of %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
+
 describe('a das hour range before a quantity with its own unit', () => {
   it.each([
     ['Tomar remédio das 8 às 20 e 2 comprimidos', '08:00'],
