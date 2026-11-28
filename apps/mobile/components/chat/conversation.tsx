@@ -186,6 +186,7 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   }, [replyWorking])
 
   const keyboardScroll = useConversationKeyboardScroll(flatListRef, threadScroll.isFollowing);
+  const { threadFieldFocused } = keyboardScroll;
   const proactiveEntryId = useChatStore((state) => state.proactiveEntryId);
   const initialScrollPending = useRef(true);
   const showProactiveEntry = useCallback(() => {
@@ -203,11 +204,12 @@ export function AstraConversation({ chat }: Readonly<{ chat: ChatController }>) 
   const onContentSizeChange = useCallback(() => {
     if (showProactiveEntry()) return;
     if (!threadScroll.isFollowing()) return;
+    if (threadFieldFocused()) return;
     if (initialScrollPending.current) {
       flatListRef.current?.scrollToEnd({ animated: false });
       initialScrollPending.current = false;
     } else scrollToBottom();
-  }, [flatListRef, scrollToBottom, showProactiveEntry, threadScroll]);
+  }, [flatListRef, threadFieldFocused, scrollToBottom, showProactiveEntry, threadScroll]);
 
   const trackCardOperation: ChatController['trackCardOperation'] = useCallback((operation) => {
     threadScroll.followLatest();

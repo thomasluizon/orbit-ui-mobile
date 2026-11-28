@@ -1,4 +1,5 @@
-import { forwardRef, useCallback, useMemo, useRef, type ComponentProps } from 'react'
+import { forwardRef, useCallback, useEffect, useMemo, useRef, type ComponentProps } from 'react'
+import { markFieldBlurred, markFieldFocused } from '@/lib/focused-field'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 import { useKeyboardRevealGroup } from './keyboard-reveal-group'
 import { Platform, StyleSheet, TextInput, type StyleProp, type TextStyle } from 'react-native'
@@ -27,6 +28,11 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
   function TypedTextInput({ style, placeholderTextColor, proposed = false, mirrored = false, onFocus, onBlur, onLayout, onContentSizeChange, ...props }, ref) {
     const inputRef = useRef<TextInput>(null)
     const focusedRef = useRef(false)
+    const fieldToken = useRef({})
+    useEffect(() => {
+      const token = fieldToken.current
+      return () => markFieldBlurred(token)
+    }, [])
     const keyboardAware = useKeyboardAwareInputReveal()
     const revealGroup = useKeyboardRevealGroup()
     const assignRef = useCallback((node: TextInput | null) => {
@@ -54,11 +60,13 @@ export const TypedTextInput = forwardRef<TextInput, TypedTextInputProps>(
         ref={assignRef}
         onFocus={(event) => {
           focusedRef.current = true
+          markFieldFocused(fieldToken.current)
           reveal()
           onFocus?.(event)
         }}
         onBlur={(event) => {
           focusedRef.current = false
+          markFieldBlurred(fieldToken.current)
           keyboardAware?.clearInput(revealTarget())
           onBlur?.(event)
         }}
