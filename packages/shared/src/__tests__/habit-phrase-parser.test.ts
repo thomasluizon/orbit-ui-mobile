@@ -1551,6 +1551,16 @@ describe('an hour that a measure unit follows', () => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBeNull()
     expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(input)
   })
+
+  it.each([
+    ['Tomar remédio às 8 segundo a receita', '08:00', 'Tomar remédio segundo a receita'],
+    ['Tomar remédio das 8 às 20 segundo a receita', '08:00', 'Tomar remédio segundo a receita'],
+    ['Treinar de 6 às 7 segundo o plano', '06:00', 'Treinar segundo o plano'],
+    ['Ir à feira às 8 segundo sábado do mês', '08:00', null],
+  ] as const)('reads the hour before the word segundo in %s', (input, time, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    if (title) expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
 })
 
 describe('a range end that a minute tail follows', () => {

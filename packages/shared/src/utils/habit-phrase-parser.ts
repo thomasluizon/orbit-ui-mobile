@@ -70,7 +70,7 @@ const PERIOD_OF_DAILY_WORD: Readonly<Record<string, DayPeriod>> = {
 }
 const PT_OFFSET_WORDS = new Set(['quarto', 'hora', 'horas', 'minuto', 'minutos', 'cinco', 'dez', 'quinze', 'vinte', 'trinta', 'quarenta', 'cinquenta'])
 const PT_MINUTE_UNIT = '(?:minutos?|mins?)'
-const PT_OTHER_MEASURE_UNIT = '(?:segundos?|kms?|quilometros?|metros?|kgs?|quilos?|gramas?|litros?|ml|paginas?|pags?|reais|copos?|calorias?|kcal|passos|series|repeticoes)'
+const PT_OTHER_MEASURE_UNIT = '(?:segundos|kms?|quilometros?|metros?|kgs?|quilos?|gramas?|litros?|ml|paginas?|pags?|reais|copos?|calorias?|kcal|passos|series|repeticoes)'
 const PT_MEASURE_UNIT = `(?:${PT_MINUTE_UNIT}|${PT_OTHER_MEASURE_UNIT})`
 const PT_MINUTE_TAIL = String.raw`\s+(?:e|menos)\s+(?:\d{1,2}(?![\w:])|um\s+quarto\b|meia\s+hora\b|(?:${[...PT_OFFSET_WORDS].join('|')})\b)(?!\s+(?:vezes?|x|${PT_OTHER_MEASURE_UNIT})\b)`
 const PT_MINUTE_TAIL_START = new RegExp(`^${PT_MINUTE_TAIL}`, 'u')
