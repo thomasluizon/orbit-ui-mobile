@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { REQUIRED_CHECKS_FILE, requiredChecksOf } from "../lib/github-read.mjs"
-import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, readTickets, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
+import { checkTicket, classOf, measureOf, MEASURED_MISSING, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, readTickets, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
 import { REPO_ROOT, T, root, same } from "./_harness.mjs"
 
 const HEAD = "a".repeat(40)
@@ -187,6 +187,17 @@ const fixCases = async () => {
   same(`${N}: a none section skips the check`, mergeBar(last(), fix("none")), [])
   same(`${N}: a pull request that is not the last one has no check`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 2" }), fix("missing")), [])
   same(`${N}: a pull request with no context field has no check`, mergeBar(last()), [])
+  same(`${N}: a last pull request while a part of its ticket has no merged pull request fails the bar`, mergeBar(last(), { partsLeft: [2, 3] }), ["parts-left:2,3"])
+  same(`${N}: a last pull request with no part left passes`, mergeBar(last(), { partsLeft: [] }), [])
+  same(`${N}: a pull request that is not the last one has no parts check`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: Part 2 of 3" }), { partsLeft: [2] }), [])
+  const real = { measure: { real: true } }
+  const measured = "Tracks thomasluizon/orbit-tickets#7\n\nMeasured: 14 ms per frame on a mid-range Android phone\n\nRemaining: none"
+  same(`${N}: a last pull request with a real Measure and no Measured line fails the bar`, mergeBar(last(), real), [MEASURED_MISSING])
+  same(`${N}: a last pull request with a real Measure and a Measured line passes`, mergeBar(last({ body: measured }), real), [])
+  same(`${N}: a Measured line with no where fails the bar`, mergeBar(last({ body: "Measured: 14 ms\n\nRemaining: none" }), real), [MEASURED_MISSING])
+  same(`${N}: a Measure none skips the check`, mergeBar(last(), { measure: { real: false } }), [])
+  same(`${N}: a pull request that is not the last one needs no Measured line`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 3" }), real), [])
+  same(`${N}: measureOf reads the Measure line of the Best approach section`, [measureOf("x"), measureOf("## Best approach\n\nPrecedent: a\n"), measureOf("## Best approach\n\nMeasure: 12 ms on a phone\n## Next\nMeasure: none: x"), measureOf("## Best approach\r\nMeasure: none: no cost\r\n"), measureOf("Measure: 1 ms on a phone")], [null, null, { real: true }, { real: false }, null])
   const at = "2026-11-01T00:00:00Z"
   const issue = { number: 7, title: "T", body: "B", createdAt: at, labels: { nodes: [{ name: "Bug" }] }, blockedBy: { nodes: [] }, comments: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } }
   const seams = { config: { tickets: { repository: "thomasluizon/orbit-tickets" } }, run: async () => JSON.stringify({ data: { repository: { issues: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [issue] } } } }) }
