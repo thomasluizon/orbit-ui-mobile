@@ -23,6 +23,7 @@ import {
   Pencil,
   RefreshCw,
   ShieldAlert,
+  X,
   XCircle,
 } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -234,7 +235,9 @@ function StaleFrameFooter({ frameProps }: Readonly<{ frameProps: BlockFrameProps
     )
 }
 
-function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFrameProps>; tokens: AppTokensV2 }>) {
+type FrameWithClose = BlockFrameProps & { close?: { label: string; onClose: () => void; disabled?: boolean } | undefined }
+
+function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<FrameWithClose>; tokens: AppTokensV2 }>) {
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<Text>(null)
   const personalTitleRef = useRef<View>(null)
@@ -255,14 +258,15 @@ function FrameHeader({ props, tokens }: Readonly<{ props: Readonly<BlockFramePro
   )
 }
 
-function FrameHeaderDetails({ props, tokens, clamped }: Readonly<{ props: BlockFrameProps; tokens: AppTokensV2; clamped: boolean }>) {
+function FrameHeaderDetails({ props, tokens, clamped }: Readonly<{ props: FrameWithClose; tokens: AppTokensV2; clamped: boolean }>) {
   return <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }}>
           {props.count !== null && (props.count !== undefined || props.items.length > 0) ? <Text style={[styles.count, { color: tokens.fg3 }]}>{props.count ?? props.items.length}</Text> : null}
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
+          {props.close ? <IconButton label={props.close.label} disabled={props.close.disabled} onClick={props.close.onClose}><X size={20} strokeWidth={1.5} color={tokens.fg2} accessible={false} /></IconButton> : null}
         </View>
 }
 
-export function BlockFrame(props: Readonly<BlockFrameProps>) {
+export function BlockFrame(props: Readonly<FrameWithClose>) {
   const layout = useConversationLayout()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)

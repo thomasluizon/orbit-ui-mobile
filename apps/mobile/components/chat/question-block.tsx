@@ -5,6 +5,7 @@ import { QuestionBlockController, questionBlockStatus, type QuestionBlockProps, 
 import { BlockFrame } from '@/components/ui/block-frame'
 import { IconButton } from '@/components/ui/icon-button'
 import { ArrowUp, Check, Lock } from '@/components/ui/icons'
+import { focusComposerInput } from '@/lib/composer-focus'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { QuestionControls } from './question-controls'
@@ -32,11 +33,33 @@ function QuestionPanel({ invalid, firstInvalid, validationAttempt, showPrompt, a
   </View>
 }
 
+function useClosedLine(props: QuestionBlockProps, controller: QuestionBlockController, words: QuestionWords) {
+  const [focusWhenClosed] = useState(() => !props.expired && !props.savedAnswer && props.block.closedAtUtc === undefined)
+  const closedByPerson = useRef(false)
+  const focusClosed = useCallback((element: View | null) => {
+    if (!element || !focusWhenClosed || closedByPerson.current) return
+    element.focus()
+    const handle = findNodeHandle(element)
+    if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
+  }, [focusWhenClosed])
+  const close = () => {
+    closedByPerson.current = true
+    const closing = controller.close(props, words)
+    focusComposerInput()
+    AccessibilityInfo.announceForAccessibility(words.closed)
+    void closing.then(() => { if (!controller.getSnapshot().settled) closedByPerson.current = false })
+  }
+  return { focusClosed, close }
+}
+
+function closeControl(props: QuestionBlockProps, label: string, disabled: boolean, onClose: () => void) {
+  return props.interaction?.close ? { label, disabled, onClose } : undefined
+}
+
 export function QuestionBlock(props: QuestionBlockProps) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const [focusWhenClosed] = useState(() => !props.expired && !props.savedAnswer)
   const [controller] = useState(() => new QuestionBlockController())
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const questions = props.block.questions
@@ -46,12 +69,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
     closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered'), invalid: t('chat.choice.invalid'), error: t('chat.choice.error'),
     offline: t('chat.choice.offline'), limit: props.interaction?.limitReason ?? t('chat.choice.limit', { allowance: props.interaction?.allowance ?? 0 }), acting: t('chat.choice.acting') }
   const view = questionBlockStatus(props, state, words)
-  const focusClosed = useCallback((element: View | null) => {
-    if (!element || !focusWhenClosed) return
-    element.focus()
-    const handle = findNodeHandle(element)
-    if (handle !== null) AccessibilityInfo.setAccessibilityFocus(handle)
-  }, [focusWhenClosed])
+  const { focusClosed, close } = useClosedLine(props, controller, words)
   const frameTitle = props.block.title || questions[0]!.prompt
   const titleContent = questionFrameTitle({ inView, blockTitle: props.block.title, first: questions[0]!, invalidIds: state.invalidIds, anchor: anchorQuestion, color: tokens.fg1 })
   const Glyph = view.answered ? Check : Lock
@@ -60,6 +78,7 @@ export function QuestionBlock(props: QuestionBlockProps) {
     {view.closed ? <View accessible accessibilityLabel={view.closed} tabIndex={-1} ref={focusClosed} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
       <Glyph size={20} strokeWidth={1.5} accessible={false} color={tokens.fg3} /><Text accessible={false} style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 20, color: tokens.fg3 }}>{view.closed}</Text>
     </View> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={frameTitle} wrapTitle items={[]} titleContent={titleContent}
+      close={closeControl(props, t('chat.question.close'), view.closeDisabled, close)}
       body={<View style={{ minWidth: 0, gap: 24 }}>
         {props.block.intro ? <Text style={{ fontSize: 16, lineHeight: 24, color: tokens.fg2 }}>{props.block.intro}</Text> : null}
         <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} color={tokens.fg3} />

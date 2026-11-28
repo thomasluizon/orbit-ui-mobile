@@ -7,13 +7,32 @@ import { BlockFrame } from '@/components/ui/block-frame'
 import { IconButton } from '@/components/ui/icon-button'
 import { ArrowUp, Check, Lock } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
+import { focusComposerInput } from '@/lib/focus-composer'
 import { QuestionControls } from './question-controls'
 import { QuestionCounters, QuestionInViewNav, useFocusQuestionInView, useQuestionInView } from './question-in-view'
+
+function useClosedLine(props: QuestionBlockProps, controller: QuestionBlockController, words: QuestionWords) {
+  const [focusWhenClosed] = useState(() => !props.expired && !props.savedAnswer && props.block.closedAtUtc === undefined)
+  const closedByPerson = useRef(false)
+  const focusClosed = useCallback((element: HTMLParagraphElement | null) => {
+    if (element && focusWhenClosed && !closedByPerson.current) element.focus({ preventScroll: true })
+  }, [focusWhenClosed])
+  const close = () => {
+    closedByPerson.current = true
+    const closing = controller.close(props, words)
+    focusComposerInput()
+    void closing.then(() => { if (!controller.getSnapshot().settled) closedByPerson.current = false })
+  }
+  return { focusClosed, close }
+}
+
+function closeControl(props: QuestionBlockProps, label: string, disabled: boolean, onClose: () => void) {
+  return props.interaction?.close ? { label, disabled, onClose } : undefined
+}
 
 export function QuestionBlock(props: QuestionBlockProps) {
   const t = useTranslations()
   const locale = useLocale()
-  const [focusWhenClosed] = useState(() => !props.expired && !props.savedAnswer)
   const [controller] = useState(() => new QuestionBlockController())
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const root = useRef<HTMLDivElement>(null)
@@ -30,15 +49,14 @@ export function QuestionBlock(props: QuestionBlockProps) {
     const first = root.current?.querySelector<HTMLElement>('[data-question-invalid="true"]')
     first?.querySelector<HTMLElement>('button, input, [role="slider"]')?.focus()
   }, [state.validationAttempt])
-  const focusClosed = useCallback((element: HTMLParagraphElement | null) => {
-    if (element && focusWhenClosed) element.focus({ preventScroll: true })
-  }, [focusWhenClosed])
+  const { focusClosed, close } = useClosedLine(props, controller, words)
   const Glyph = view.answered ? Check : Lock
   const controlWords = { yes: words.yes, no: words.no, recommended: t('chat.placement.recommended'), freeText: t('chat.choice.freeText'), required: t('common.required') }
   return <div ref={root} className="min-w-0" data-answer-block="question">
     {view.closed ? <p ref={focusClosed} tabIndex={-1} className="flex min-w-0 items-start gap-2 text-sm text-[var(--fg-3)]" style={{ outlineWidth: 0 }}>
       <Glyph size={20} strokeWidth={1.5} aria-hidden="true" className="shrink-0" /><span className="min-w-0 break-words">{view.closed}</span>
     </p> : <BlockFrame state={state.acting ? 'acting' : 'resting'} title={props.block.title || props.block.questions[0]!.prompt} wrapTitle items={[]}
+      close={closeControl(props, t('chat.question.close'), view.closeDisabled, close)}
       body={<div className="flex min-w-0 flex-col gap-6">
         {props.block.intro ? <p className="break-words text-base text-[var(--fg-2)]">{props.block.intro}</p> : null}
         <QuestionCounters progress={props.block.progress} answered={inView.enabled ? null : view.completed} total={props.block.questions.length} />

@@ -16,6 +16,7 @@ import { OptionCard } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 import { blockDesktopWebReload } from '@/lib/web-reload-state'
+import { focusComposerInput } from '@/lib/focus-composer'
 
 type AnswerContentProps = Readonly<{
   view: AnswerBlockView
@@ -74,10 +75,15 @@ function TerminalAnswer({ text, answered, focus }: Readonly<{ text: string; answ
 export function AnswerBlock(props: AnswerBlockProps) {
   const locale = useLocale()
   const t = useTranslations('chat.choice')
+  const closeLabel = useTranslations('chat.question')('close')
   const [controller] = useState(() => new AnswerBlockController(props))
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const view = getAnswerBlockView(props, state, t)
   const submit = () => controller.submit(props, t, locale)
+  const close = () => {
+    void controller.close(props, t)
+    focusComposerInput()
+  }
   const pendingAnswer = state.acting || (!view.closed && (state.selectedIds.length > 0 || state.freeText.length > 0))
   useEffect(() => {
     if (pendingAnswer) return blockDesktopWebReload()
@@ -85,6 +91,7 @@ export function AnswerBlock(props: AnswerBlockProps) {
 
   return <div className="min-w-0" data-answer-block={props.definition.kind}>
     {view.closed ? <TerminalAnswer text={view.closed} answered={view.answered} focus={controller.focusWhenClosed} /> : <BlockFrame state={view.acting ? 'acting' : 'resting'} title={view.title} wrapTitle items={[]}
+      close={view.closable ? { label: closeLabel, disabled: view.closeDisabled, onClose: close } : undefined}
       body={<AnswerBody view={view} state={state} controller={controller} submit={submit} />}
       actions={<AnswerSubmit view={view} submit={submit} />} />}
   </div>
