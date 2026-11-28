@@ -2,6 +2,7 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { VOICE_SILENCE_TIMEOUT_MS, VOICE_LEVEL_POLL_MS } from '@orbit/shared/chat'
+import { subscribeComposerVoiceLevel, voiceLevelFromRms } from '@orbit/shared/hooks'
 
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useThrottleStore } from '@/stores/throttle-store'
@@ -185,6 +186,22 @@ describe('useSpeechToText', () => {
     expect(mocks.stopRecording).toHaveBeenCalled()
     expect(hook.current.isRecording).toBe(false)
     expect(hook.current.transcript).toBe('log water')
+  })
+
+  it('publishes one voice level for each analysis callback that holds a sample', async () => {
+    const levels: number[] = []
+    const unsubscribe = subscribeComposerVoiceLevel((level) => levels.push(level))
+    const hook = await renderHook()
+    await TestRenderer.act(async () => { await hook.current.startRecording() })
+    await TestRenderer.act(async () => {
+      await mocks.onAnalysis?.({ dataPoints: [{ rms: 0.9 }, { rms: 0.05 }] })
+      await mocks.onAnalysis?.({ dataPoints: [] })
+      await mocks.onAnalysis?.({ dataPoints: [{ rms: 0.2 }] })
+    })
+    expect(levels).toEqual([voiceLevelFromRms(0.05), 1])
+    unsubscribe()
+    mocks.apiClient.mockResolvedValue({ text: 'log water' })
+    await TestRenderer.act(async () => { await hook.current.stopRecording() })
   })
 
   it('surfaces the stop-failure message when stopping the recording throws', async () => {

@@ -9,13 +9,12 @@ import {
   VOICE_SILENCE_TIMEOUT_MS,
   VOICE_WEB_SPEECH_RMS_THRESHOLD,
 } from '@orbit/shared/chat'
+import { publishComposerVoiceLevel, voiceLevelFromRms } from '@orbit/shared/hooks'
 import { ERROR_CODE_TO_KEY, getErrorSurface } from '@orbit/shared/utils'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { useAccountScopedState, useResetOnAccountChange } from '@/hooks/use-session-reset'
 import { getAccountGeneration } from '@/lib/session-epoch'
-
-export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
   text?: string
@@ -150,6 +149,7 @@ export function useSpeechToText() {
             sumSquares += deviation * deviation
           }
           const rms = Math.sqrt(sumSquares / samples.length)
+          publishComposerVoiceLevel(voiceLevelFromRms(rms))
 
           if (rms > VOICE_WEB_SPEECH_RMS_THRESHOLD) {
             speechDetected = true
