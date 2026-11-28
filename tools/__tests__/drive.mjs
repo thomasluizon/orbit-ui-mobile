@@ -413,7 +413,7 @@ const mergeBarCases = (approved) => {
   const lintBar = (changes) => barOf(changes, { lintCheck })
   const lintOf = (conclusion, status = "COMPLETED") => [...without(lintCheck), { ...green(lintCheck), conclusion, status }]
   const lintable = (list) => ({ files: ["tools/README.md", ...list] })
-  const manyFiles = Array.from({ length: 120 }, (_, index) => (index === 109 ? "tools/lib/github.mjs" : `docs/page${index}.md`))
+  const manyFiles = Array.from({ length: 120 }, (_, index) => (index === 109 ? "apps/web/late.tsx" : `docs/page${index}.md`))
   same("lib/github.mjs: a lintable path at file 110 of 120 fails the bar when the lint check was skipped", lintBar({ ...lintable(manyFiles), changedFiles: 120, checks: lintOf("SKIPPED") }), ["lint-missing", "whole-diff-review-missing"])
   same("lib/github.mjs: a SKIPPED lint check fails the bar for a lintable path", lintBar({ ...lintable(["apps/web/a.ts"]), checks: lintOf("SKIPPED") }), ["lint-missing"])
   for (const extension of ["ts", "tsx", "js", "jsx", "mjs", "cjs"]) {

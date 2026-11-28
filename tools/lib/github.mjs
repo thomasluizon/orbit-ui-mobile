@@ -7,6 +7,7 @@ import { readDriveConfig } from "./config.mjs"
 import { escapeRegex } from "./escape-regex.mjs"
 import { repositorySlug } from "./github-auth.mjs"
 import { readRequiredChecksAt } from "./github-read.mjs"
+import { DESIGN_LABEL, lockedPathsOf } from "./locks.mjs"
 import { ownerParts, partOf, partProblem } from "./order.mjs"
 
 const COMMAND_TIMEOUT_MS = 30000
@@ -276,6 +277,8 @@ const primitiveList = () => {
 
 const samePath = (first, second) => first === second || (first.endsWith("/") && second.startsWith(first)) || (second.endsWith("/") && first.startsWith(second))
 
+const isPrimitive = (path, primitives) => (primitives === null ? DEFAULT_PRIMITIVE.test(path) : primitives.some((entry) => samePath(entry, path)))
+
 /**
  * The only ticket check. It returns the reasons that the ticket is refused, and an empty list when the ticket is sound.
  * `ticket`: `{ number, body, labels, comments, edits }`. `edits` lists `{ before, after }` texts of the part comments that a write changes.
@@ -302,7 +305,7 @@ export const checkTicket = (ticket, board = [], { primitives = primitiveList() }
     if (name === null) problems.push(NO_CLASS_LINE)
     if (fix === null) problems.push(NO_FIX_SECTION)
   }
-  const holdsClass = (path) => path.startsWith("eslint-rules/") || TEST_FILE.test(path) || (primitives === null ? DEFAULT_PRIMITIVE.test(path) : primitives.some((entry) => samePath(entry, path)))
+  const holdsClass = (path) => path.startsWith("eslint-rules/") || TEST_FILE.test(path) || isPrimitive(path, primitives)
   if (fix !== null && !fix.none && !fix.paths.some(holdsClass)) {
     problems.push("The `## Permanent fix` section names no path under `eslint-rules/`, no primitive file and no test file. Name the code that holds the class, or write `none: <reason>`.")
   }
@@ -699,12 +702,32 @@ const fixFailures = (pull, fix) => {
   return fix.changedOnMain || (Array.isArray(pull.files) && touchesPath(pull.files, fix.paths)) ? [] : ["permanent-fix-unchanged"]
 }
 
+/** The locked paths that a Bug ticket with the `design-system` label may change besides the paths of its permanent fix: the lint of the changed files and its test, for a fix that names a rule or a primitive. */
+const CLASS_LINT_PATHS = ["tools/lint-changed.mjs", "tools/__tests__/lint-changed.mjs", "tools/__tests__/lint-changed.test.mjs"]
+
+/**
+ * The locked paths of a pull request that its ticket does not open: `[{ failure, label, paths }]`. A pull request whose diff touches a path of `lockedPathsOf`
+ * needs that label on the ticket. On a Bug ticket the `design-system` label opens only the locked paths that `fixPaths` (the paths of its `## Permanent fix`)
+ * names, plus the lint of the changed files and its test when `fixPaths` names a rule or a primitive. `lock` holds the sets that `lockSetsOf` reads from main.
+ */
+export const lockReport = (pull, { ticketLabels = [], lock = {}, fixPaths = [], primitives = primitiveList() } = {}) => {
+  if (!Array.isArray(pull.files)) return []
+  const bug = ticketLabels.includes(BUG_LABEL)
+  const names = (path) => fixPaths.some((own) => samePath(own, path))
+  const opensLint = fixPaths.some((path) => path.startsWith("eslint-rules/") || isPrimitive(path, primitives))
+  return Object.entries(lockedPathsOf(pull.files, lock)).flatMap(([label, paths]) => {
+    if (!ticketLabels.includes(label)) return [{ failure: `lock:${label}`, label, paths }]
+    const unnamed = label === DESIGN_LABEL && bug ? paths.filter((path) => !names(path) && !(opensLint && CLASS_LINT_PATHS.includes(path))) : []
+    return unnamed.length === 0 ? [] : [{ failure: `lock-unnamed:${label}`, label, paths: unnamed }]
+  })
+}
+
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
  * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
- * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none), `permanentFix` (for the pull request
+ * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none), `lock` and `fixPaths` (see `lockReport`), `permanentFix` (for the pull request
  * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
  * between base and head, both read by the driver.
  */
@@ -719,6 +742,7 @@ export const mergeBar = (pull, context = {}) => {
   failed.push(...checkFailures(pull))
   failed.push(...diffFailures(pull, context))
   failed.push(...fixFailures(pull, context.permanentFix))
+  failed.push(...lockReport(pull, context).map((entry) => entry.failure))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")

@@ -1318,13 +1318,13 @@ const mainLog = (commits) => ["log --since=", (args) => {
 
 /** A merge candidate whose base moved after the CI of its head started. The CI of the fixture head started 60 minutes before NOW. */
 const staleBaseCases = async () => {
-  const drive = "tools/drive.mjs"
+  const drive = "packages/shared/src/shared.ts"
   const staleScene = (commits, files, extra = {}) => scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { files, checks: [check("Unit Tests"), check("Checks", "SUCCESS", { databaseId: 31 }), approvalCheck()], ...extra })] }, gitRoutes: [mainLog(commits)], routes: [["--json headRefOid", `${NEXT_HEAD}\n`]] })
   const outcome = (scene) => [only(scene.calls, "updateBranch"), only(scene.calls, "merge").map((entry) => entry[2])]
   const shared = staleScene([{ at: -30 * MINUTE, files: [drive] }], [drive])
   await shared.run()
   same("drive: a code path that main gained after the CI started and the pull request changes gets one update and no merge", outcome(shared), [[["updateBranch", "ui", 30]], []])
-  same("drive: the update for a shared path logs the paths and records the new head", [shared.messages.some((line) => line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), commentsOf(shared.calls, 30).includes(marked("record", `driver update-branch -> ${NEXT_HEAD}`))], [true, true])
+  same("drive: the update for a shared path logs the paths and records the new head", [shared.messages.some((line) => line.includes(`wait: main changed ${drive} after the CI of this head started`)), commentsOf(shared.calls, 30).includes(marked("record", `driver update-branch -> ${NEXT_HEAD}`))], [true, true])
   const read = only(shared.calls, "git").find((entry) => entry[1] === "log" && entry.some((text) => text.startsWith("--since=")))
   same("drive: the read of main starts 5 minutes before the first CI start, skips the commits that the head holds, and lists names with no rename", [read.find((text) => text.startsWith("--since=")), read.slice(-2), read.includes("--no-renames")], [`--since=${new Date(NOW - 65 * MINUTE).toISOString()}`, ["origin/main", `^${HEAD}`], true])
   const lead = staleScene([{ at: -62 * MINUTE, files: [drive] }], [drive])
@@ -1349,7 +1349,7 @@ const staleBaseCases = async () => {
   const twice = pair([drive])
   await twice.run()
   same("drive: two pull requests of one tick that change one code path merge the first and update the second", [only(twice.calls, "merge").map((entry) => entry[2]), only(twice.calls, "updateBranch")], [[30], [["updateBranch", "ui", 31]]])
-  same("drive: the update that follows a merge of the same tick logs the shared paths", twice.messages.some((line) => line.includes("ui#31") && line.includes("wait: main changed tools/drive.mjs after the CI of this head started")), true)
+  same("drive: the update that follows a merge of the same tick logs the shared paths", twice.messages.some((line) => line.includes("ui#31") && line.includes(`wait: main changed ${drive} after the CI of this head started`)), true)
   const apart = pair(["apps/web/a.ts"])
   await apart.run()
   same("drive: two pull requests of one tick with no shared code path both merge", [only(apart.calls, "merge").map((entry) => entry[2]), only(apart.calls, "updateBranch")], [[30, 31], []])
@@ -4437,7 +4437,7 @@ const diffBarCases = async () => {
 /** The last pull request of a Bug ticket merges only when the code of its class changed: in the pull request, or on main after the ticket was created. */
 const permanentFixCases = async () => {
   const CREATED = "2026-11-01T00:00:00.000Z"
-  const bugTicket = (body) => ticket(7, { labels: ["repo:ui", "Bug"], createdAt: CREATED, body })
+  const bugTicket = (body) => ticket(7, { labels: ["repo:ui", "Bug", "design-system"], createdAt: CREATED, body })
   const withFix = (section) => `Broken label.\n\nClass: clipped label\n\n## Permanent fix\n\n${section}\n`
   const named = withFix("Lint rule \`eslint-rules/no-clip.cjs\` holds the class.")
   const settled = async ({ body = named, files = ["tools/README.md"], pullBody, gitRoutes = [], siblings = [] }) => {
@@ -4483,6 +4483,41 @@ const permanentFixCases = async () => {
   broken.env.git = async (cwd, args) => (args.some((word) => String(word).startsWith("--since=")) ? { status: 128, stderr: "bad revision", stdout: "" } : fake(cwd, args))
   await broken.run()
   same("drive: a read of main that fails gives no merge and no report", [only(broken.calls, "merge").length, reported(broken)], [0, 0])
+}
+
+/** A locked path merges only when the ticket carries the owner's label. A missing label goes to the owner before any order, and a worker never gets a fix for it. */
+const lockCases = async () => {
+  const BASE = "c".repeat(40)
+  const lint = [check("Checks", "SUCCESS", { databaseId: 31 })]
+  const settled = async (labels, files, { checks = [check("Unit Tests"), approvalCheck(), ...lint], gitRoutes = [], body = "Do the work." } = {}) => {
+    const entry = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", ...labels], body })], gitRoutes, pulls: { ui: [pull(30, { files, checks })], api: [], landing: [] } })
+    await entry.run()
+    return entry
+  }
+  const reports = (entry) => needsOwnerComments(entry.calls, 7)
+  const labelled = (entry) => only(entry.calls, "editLabels").map((call) => call[3].add?.[0])
+  const rule = await settled([], ["eslint-rules/x.cjs"])
+  same("drive: a rule file with no design-system label on the ticket goes to needs:owner and does not merge", [only(rule.calls, "merge").length, reports(rule).length, labelled(rule), rule.launched.length], [0, 1, ["needs:owner"], 0])
+  T("drive: the report of a locked path names the path and the label", /eslint-rules\/x\.cjs/.test(reports(rule)[0] ?? "") && /design-system/.test(reports(rule)[0] ?? ""), reports(rule).join(" | "))
+  const red = await settled([], ["eslint-rules/x.cjs"], { checks: [check("Unit Tests", "FAILURE"), approvalCheck(), ...lint] })
+  same("drive: a locked path with a red check goes to needs:owner and gets no ci-fix order", [reports(red).length, red.launched.length], [1, 0])
+  const open = await settled(["design-system"], ["eslint-rules/x.cjs"])
+  same("drive: the design-system label on the ticket lets a rule file merge", [only(open.calls, "merge").length, reports(open).length], [1, 0])
+  const driver = await settled([], ["tools/lib/worker.mjs"])
+  same("drive: a driver file with no gate label goes to needs:owner", [only(driver.calls, "merge").length, reports(driver).length], [0, 1])
+  const gate = await settled(["gate"], ["tools/lib/worker.mjs"])
+  same("drive: the gate label on the ticket lets a driver file merge", [only(gate.calls, "merge").length, reports(gate).length], [1, 0])
+  const lintScript = (value) => JSON.stringify({ scripts: { lint: value } })
+  const changed = await settled([], ["apps/web/package.json"], { gitRoutes: [[`show ${BASE}:apps/web/package.json`, lintScript("eslint .")], [`show ${HEAD}:apps/web/package.json`, lintScript("echo skip")]] })
+  same("drive: a package.json whose scripts.lint changed goes to needs:owner", [only(changed.calls, "merge").length, reports(changed).length], [0, 1])
+  const config = (include) => `{\n  // the sources\n  "include": ${JSON.stringify(include)},\n}`
+  const tsRoutes = (before, after) => [[`show ${BASE}:apps/web/tsconfig.json`, config(before)], [`show ${HEAD}:apps/web/tsconfig.json`, config(after)]]
+  const widened = await settled([], ["apps/web/tsconfig.json"], { gitRoutes: tsRoutes(["src"], ["src", "e2e"]) })
+  same("drive: a tsconfig whose include changed goes to needs:owner", [only(widened.calls, "merge").length, reports(widened).length], [0, 1])
+  const kept = await settled([], ["apps/web/tsconfig.json"], { gitRoutes: tsRoutes(["src"], ["src"]) })
+  same("drive: a tsconfig whose include and exclude are the same merges", [only(kept.calls, "merge").length, reports(kept).length], [1, 0])
+  const unnamed = await settled(["design-system", "Bug"], ["eslint-rules/x.cjs"], { body: "Broken.\n\nClass: clipped\n\n## Permanent fix\n\nLint rule `eslint-rules/y.cjs` holds the class.\n" })
+  same("drive: a Bug ticket with the label does not open a locked path that its permanent fix leaves out", [only(unnamed.calls, "merge").length, reports(unnamed).length], [0, 1])
 }
 
 const CHECKS_FILE = ".github/required-checks.json"
@@ -4796,6 +4831,7 @@ const runnerSwitchCases = async () => {
 export const driverUnit = async () => {
   await diffBarCases()
   await permanentFixCases()
+  await lockCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
   await noticeCases()

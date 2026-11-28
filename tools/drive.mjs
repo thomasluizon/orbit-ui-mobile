@@ -23,9 +23,10 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, lockReport, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { CODEX_MODEL, codexHomeDirectory, codexLogEvent, codexResultText } from "./lib/codex-runner.mjs"
+import { isLockedJsonName, jsonLockChanged, lockSetsOf } from "./lib/locks.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
 import { realPorts, releaseTick, requestTrain, trainSummary } from "./lib/release-train.mjs"
 import { worktreeStatus } from "./lib/worker-gate-hook.mjs"
@@ -1070,7 +1071,43 @@ const readPullDiff = async (env, repoPath, pull) => {
   if (messages.status !== 0) throw new Error(`git log of ${pull.number} failed: ${messages.stderr.trim()}`)
   pull.files = names.stdout.split("\0").filter(Boolean)
   pull.commitMessages = messages.stdout.split("\0").map((text) => text.trim()).filter(Boolean)
+  pull.lock = await readLock(env, repoPath, pull)
 }
+
+/** The text of a file at a git revision, or null when the revision holds no such file. */
+const showAt = async (env, repoPath, revision, path) => {
+  const shown = await env.git(repoPath, ["show", `${revision}:${path}`])
+  return shown.status === 0 ? shown.stdout : null
+}
+
+/**
+ * The locked paths that depend on the files of main, and the changed JSON files whose locked value differs between the merge base and the head.
+ * The sets come from `origin/main` and are read once for each repository in a tick, so a change of the pull request never edits its own lock.
+ * A read that git cannot answer gives an empty set, and the fixed lists of `locks.mjs` still apply.
+ */
+const readLock = async (env, repoPath, pull) => {
+  const sets = await readOnce(env, `lock-sets ${repoPath}`, async () => {
+    const main = `origin/${PROTECTED_BRANCH}`
+    await env.git(repoPath, ["fetch", "origin", PROTECTED_BRANCH])
+    const grep = async (pattern) => {
+      const found = await env.git(repoPath, ["grep", "-l", "-E", pattern, main, "--", "apps/web"])
+      return found.status === 0 ? found.stdout.split("\n").filter(Boolean).map((line) => line.slice(main.length + 1)) : []
+    }
+    return lockSetsOf({ read: (path) => showAt(env, repoPath, main, path), grep })
+  })
+  const jsonFiles = pull.files.filter(isLockedJsonName)
+  const changedJson = []
+  if (jsonFiles.length > 0) {
+    const base = (await env.git(repoPath, ["merge-base", pull.baseSha, pull.headSha])).stdout.trim() || pull.baseSha
+    for (const path of jsonFiles) {
+      if (jsonLockChanged(path, await showAt(env, repoPath, base, path), await showAt(env, repoPath, pull.headSha, path))) changedJson.push(path)
+    }
+  }
+  return { ...sets, changedJson }
+}
+
+/** The report text of a locked path that the ticket does not open. The same paths give the same text, so the report comes once. */
+const lockReason = (item, locked) => `${item} cannot merge: it changes ${locked.map(({ label, paths }) => `${paths.slice(0, 5).join(", ")}${paths.length > 5 ? ` and ${paths.length - 5} more` : ""} (needs the \`${label}\` label${label === "design-system" ? ", and on a Bug ticket the \`## Permanent fix\` section must name each path" : ""})`).join("; ")}. Only the owner adds the label to the ticket.`
 
 const GITHUB_ACTIONS_APP = 15368
 /** GitHub builds the test merge commit at the push, before the first job starts, so the CI sees main from a little before its first start. */
@@ -1378,6 +1415,10 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // A technical stop parks the ticket, or the pull request when no open ticket tracks it. Only a step that needs the owner's hands or a refused ticket check writes `needs:owner`.
   const parked = (reason) => ({ type: "park", repoKey, ticket, reason })
   const park = (reason) => [...actions, parked(reason)]
+  // A locked path that the ticket does not open goes to the owner before any order, so a worker never gets a fix order for it.
+  const lockContext = { ticketLabels: ticket?.labels ?? [], lock: pull.lock, fixPaths: permanentFixOf(ticket?.body)?.paths ?? [] }
+  const locked = lockReport(pull, lockContext)
+  if (locked.length > 0) return ticket === null ? park(`${item} changes a locked path and no open ticket tracks it`) : [...actions, { type: "needs-owner", ticket, reason: lockReason(item, locked) }]
   const orderOrWait = (order) => {
     // A worker order is recorded on a ticket, so a pull request with no open ticket parks.
     if (ticket === null) return park(`${item} needs a ${order.kind} order and no open ticket tracks it`)
@@ -1419,7 +1460,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ...lockContext, reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) {
