@@ -96,6 +96,7 @@ const scenario = ({ tickets = [], pulls = { ui: [], api: [], landing: [] }, rout
       launch: (options) => { launched.push(options); return Promise.resolve({ exitCode: 0, killed: null, sessionId: "s1", utilization: 0.2, resetsAt: RESETS_AT, status: "allowed", result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: null }, ...(limit ?? {}) }) },
       KILL_REASONS, WORKER_LIMITS,
       questionsInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5"] }, environment: { GH_TOKEN: value } }),
+      findingInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-sonnet-5-5", "finding"] }, environment: { GH_TOKEN: value } }),
       harnessReviewInvocation: ({ token: value }) => ({ command: { executable: "claude", args: ["--model", "claude-opus-5-5", "harness-review"] }, environment: { GH_TOKEN: value } }),
       worktreeOccupants: (worktree) => (calls.push(["occupants", worktree]), occupants),
       logContextTokens, sessionExists: (options) => (calls.push(["sessionExists", options]), sessions),
@@ -342,11 +343,15 @@ const ticketCheckCases = async () => {
   await recordStart(alarm.env, [])
   const filed = only(alarm.calls, "createTicket")[0]?.[1]
   const own = await checked({ tickets: [ticket(7, { title: filed.title, body: filed.body, labels: filed.labels })] })
-  same("drive: ticket check: a ticket that the driver files through openBug launches with the first step", [filed.labels, outcome(own)], [BUG_LABELS, [1, [], true]])
+  same("drive: ticket check: a restart notice carries the notice label and launches no build", [filed.labels, outcome(own)], [NOTICE_BUG, [0, [], false]])
 }
 
 const OWNER_LABEL = "needs:owner"
 const BUG_LABELS = ["repo:ui", "Bug", "harness"]
+const NOTICE_OWNER = [OWNER_LABEL, "notice"]
+const NOTICE_BUG = [...BUG_LABELS, "notice"]
+/** The findings that the driver queued for a `/ticket --auto` run: the `{ key, title, labels, body }` that a `createTicket` call held before. */
+const queued = (scene) => { try { return JSON.parse(readFileSync(join(scene.env.stateDir, "findings.json"), "utf8")) } catch { return [] } }
 
 const STOP_ISSUE_TITLE = "Driver stopped: weekly usage reached 90%"
 const pending = () => new Promise(() => {})
@@ -426,7 +431,7 @@ const stopCases = async () => {
   same("drive: at 0.90 no worker of any kind starts, no Pullfrog request is posted and no probe runs", [stopped.launched.length, commentsOf(stopped.calls, 30).length, only(stopped.calls, "probe").length], [0, 0, 0])
   same("drive: at 0.90 a pull request that meets the bar still merges", only(stopped.calls, "merge").map((entry) => entry.slice(1, 3)), [["ui", 40]])
   const notice = `Orbit starts no new work on the main account: it used 90% of its week.\nReviews wait until ${new Date(RESETS_AT * 1000).toISOString().slice(0, 16).replace("T", " ")} UTC. Run /over-limit to continue now.\nhttps://github.com/${REPOSITORY}/issues/99`
-  same("drive: at 0.90 the driver sends one notification with the issue link and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[notice], STOP_ISSUE_TITLE, [OWNER_LABEL], message])
+  same("drive: at 0.90 the driver sends one notification with the issue link and opens one needs:owner issue with the stop text", [only(stopped.calls, "notify").map((entry) => entry[1]), stopIssue?.title, stopIssue?.labels, stopIssue?.body], [[notice], STOP_ISSUE_TITLE, NOTICE_OWNER, message])
   same("drive: at 0.90 the ticket lines and the pull request lines say the stop holds", [stopped.env.lines.filter((line) => line.startsWith(`ticket ${REPOSITORY}#9:`)), stopped.env.lines.find((line) => line.startsWith("pull ui#30"))], [[`ticket ${REPOSITORY}#9: wait: the weekly usage stop holds every worker`], "pull ui#30: wait: the weekly usage stop holds Pullfrog requests"])
 
   const issue = ticket(60, { title: STOP_ISSUE_TITLE, labels: [OWNER_LABEL], repoKey: null })
@@ -523,7 +528,7 @@ const usageLimitCases = async () => {
   await stopped.run()
   await stopped.run()
   const issue = only(stopped.calls, "createTicket")[0]?.[1]
-  same("drive: a worker that stops at a usage limit pauses with one notification and one issue", [issue?.labels, only(stopped.calls, "notify").length, /Resets 4am/.test(issue?.body ?? "")], [[OWNER_LABEL], 1, true])
+  same("drive: a worker that stops at a usage limit pauses with one notification and one issue", [issue?.labels, only(stopped.calls, "notify").length, /Resets 4am/.test(issue?.body ?? "")], [NOTICE_OWNER, 1, true])
   const authFailed = scenario({ tickets: [ticket(7)], limit: { exitCode: 1, result: { usageLimitReached: false, authenticationFailed: true, error: "Please run /login", needsDecision: null } } })
   await authFailed.run()
   await authFailed.run()
@@ -1471,23 +1476,23 @@ const closeCases = async () => {
   same("drive: two merged pull requests with different Remaining lines launch one build", [differing.launched.length, only(differing.calls, "editLabels").length], [1, 0])
   const outside = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { reviews: [review("APPROVED", HEAD, -5 * MINUTE, { body: "Verdict\n\n## Outside this change\n\nsrc/x.mjs:4 loses data.\n" })] })] } })
   await outside.run()
-  const created = only(outside.calls, "createTicket")[0]?.[1]
+  const created = queued(outside)[0]
   same("drive: a merge opens one ticket for the Outside this change section", [only(outside.calls, "merge").length, created?.labels, created?.body.includes("src/x.mjs:4 loses data.")], [1, ["repo:ui", "Bug"], true])
   const classReview = (body) => review("APPROVED", HEAD, -5 * MINUTE, { body: `Verdict\n\n## Class checks\n\n${body}\n` })
   const TWO = "- rule-one | lint rule | src/a.mjs:3 | The test reads source text.\n- two-key | type | src/b.mjs:9 | The field has no type."
   const classScene = (reviews, extra = {}) => scenario({ tickets: [ticket(7), ...(extra.tickets ?? [])], routes: extra.routes ?? [], pulls: { ui: [pull(30, { reviews })] } })
-  const filed = (scene) => only(scene.calls, "createTicket").map((entry) => entry[1])
+  const filed = queued
   const classKeys = (scene) => filed(scene).map((entry) => /^Class: (.+)$/m.exec(entry.body)?.[1])
   const listed2 = (scene) => scene.calls.filter((entry) => entry[0] === "gh" && entry[1].startsWith("issue list") && entry[1].includes("--state closed"))
   const twice = classScene([classReview(TWO)])
   await twice.run()
-  same("drive: a merge with two class lines files two tickets with their Class lines and labels", [classKeys(twice), filed(twice).map((entry) => entry.labels), filed(twice)[0].title, filed(twice)[0].body.includes("Finding: class ui rule-one"), twice.messages.filter((line) => line.includes("class-ticket")).map((line) => line.slice(line.indexOf("class-ticket")))], [["rule-one", "two-key"], [["repo:ui", "Improvement", "parity:no"], ["repo:ui", "Improvement", "parity:no"]], "A lint rule finds every case of: The test reads source text.", true, ["class-ticket rule-one ui", "class-ticket two-key ui"]])
-  const openSame = classScene([classReview(TWO)], { tickets: [ticket(8, { body: "Class: Rule-One\nFiled by: driver", blockedBy: [blocker(9)] })] })
+  same("drive: a merge with two class lines files two tickets with their Class lines and labels", [classKeys(twice), filed(twice).map((entry) => entry.labels), filed(twice)[0].title, filed(twice)[0].key === "class ui rule-one", twice.messages.filter((line) => line.includes("class-ticket")).map((line) => line.slice(line.indexOf("class-ticket")))], [["rule-one", "two-key"], [["repo:ui", "Improvement", "parity:no"], ["repo:ui", "Improvement", "parity:no"]], "A lint rule finds every case of: The test reads source text.", true, ["class-ticket rule-one ui", "class-ticket two-key ui"]])
+  const openSame = classScene([classReview(TWO)], { tickets: [ticket(8, { body: "Finding: class ui rule-one\nFiled by: driver", blockedBy: [blocker(9)] })] })
   await openSame.run()
-  same("drive: an open ticket with the same Class line and repository label holds the key", [classKeys(openSame), openSame.messages.some((line) => line.includes("class-ticket held rule-one"))], [["two-key"], true])
-  const openOther = classScene([classReview(TWO.split("\n")[0])], { tickets: [ticket(8, { body: "Class: rule-one", labels: ["repo:api", "Improvement"], repoKey: "api", blockedBy: [blocker(9)] })] })
+  same("drive: an open ticket with the same Finding line holds the key", [classKeys(openSame), openSame.messages.some((line) => line.includes("class-ticket held rule-one"))], [["two-key"], true])
+  const openOther = classScene([classReview(TWO.split("\n")[0])], { tickets: [ticket(8, { body: "Finding: class api rule-one", labels: ["repo:api", "Improvement"], repoKey: "api", blockedBy: [blocker(9)] })] })
   await openOther.run()
-  same("drive: an open ticket with the same Class line and another repository label holds nothing", classKeys(openOther), ["rule-one"])
+  same("drive: an open ticket with the Finding line of another repository holds nothing", classKeys(openOther), ["rule-one"])
   const doubled = classScene([classReview(TWO.split("\n")[0]), classReview("- RULE-ONE | test | src/c.mjs:1 | Same class again.")])
   await doubled.run()
   same("drive: two reviews that name the same key file one ticket", classKeys(doubled), ["rule-one"])
@@ -1534,7 +1539,7 @@ const intakeCases = async () => {
   scene.env.keychain = async () => "sentry-token"
   scene.env.fetchJson = async (url) => { urls.push(url); return url === nextUrl ? { body: secondPage, link: null } : { body: recorded.body, link: recorded.link } }
   await scene.run()
-  const created = only(scene.calls, "createTicket").map((entry) => entry[1])
+  const created = queued(scene)
   const sentry = created.filter((entry) => / \(Sentry [A-Z0-9-]+\)$/.test(entry.title))
   same("drive: intake reads the first page, then the one next page that the recorded Link header names", urls, ["https://sentry.io/api/0/organizations/orbit-ai-habit-tracker/issues/?query=is:unresolved", nextUrl])
   same("drive: intake opens a Bug ticket only for an issue that no title, short id, permalink or path holds", sentry.map((entry) => [entry.labels, entry.title.endsWith(" (Sentry ORBIT-API-1K)"), entry.title.endsWith(" (Sentry ORBIT-WEB-2)")]), [[["repo:api", "Bug"], true, false], [["repo:ui", "Bug"], false, true]])
@@ -1547,7 +1552,7 @@ const intakeCases = async () => {
     regressed.env.keychain = async () => "sentry-token"
     regressed.env.fetchJson = async () => ({ body: [{ ...recorded.body[0], ...issue }], link: null })
     await regressed.run()
-    return only(regressed.calls, "createTicket").map((entry) => entry[1]).filter((entry) => entry.title.endsWith(" (Sentry ORBIT-API-1Q)")).map((entry) => [entry.labels, entry.body.split("\n").at(-1)])
+    return queued(regressed).filter((entry) => entry.title.endsWith(" (Sentry ORBIT-API-1Q)")).map((entry) => [entry.labels, entry.body.split("\n").at(-1)])
   }
   const closedTicket = (number, closedAt) => ({ number, state: "CLOSED", closedAt, title: "Triage", body: "Fixed ORBIT-API-1Q." })
   const openTicket = (number) => ({ number, state: "OPEN", closedAt: "0001-01-01T00:00:00Z", title: "Triage again", body: "Names ORBIT-API-1Q." })
@@ -1559,7 +1564,7 @@ const intakeCases = async () => {
   const longer = scenario({ tickets: [], routes: [["issue list", JSON.stringify([{ title: "Alert", body: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])], ["thomasluizon/ui/dependabot/alerts", JSON.stringify([{ html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3" }, { html_url: "https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/34" }])]] })
   longer.mem.lastIntakeAt = 0
   await longer.run()
-  same("drive: an alert url that only a longer alert url contains is not held, and the exact url is", only(longer.calls, "createTicket").map((entry) => entry[1].body.split("\n")[2]), ["https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3"])
+  same("drive: an alert url that only a longer alert url contains is not held, and the exact url is", queued(longer).map((entry) => entry.body.split("\n")[2]), ["https://github.com/thomasluizon/orbit-ui-mobile/security/dependabot/3"])
 }
 
 const accountCases = async () => {
@@ -1607,7 +1612,7 @@ const accountCases = async () => {
   const signedOut = { ...AUTH, loggedIn: false }
   const out = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30)] }, auth: signedOut })
   await out.run()
-  same("drive: a signed-out login launches nothing, sends one notification and opens one needs:owner issue", [out.launched.length, only(out.calls, "notify").length, only(out.calls, "createTicket").map((entry) => entry[1].labels)], [0, 1, [[OWNER_LABEL]]])
+  same("drive: a signed-out login launches nothing, sends one notification and opens one needs:owner issue", [out.launched.length, only(out.calls, "notify").length, only(out.calls, "createTicket").map((entry) => entry[1].labels)], [0, 1, [NOTICE_OWNER]])
   same("drive: merges continue while Claude is signed out", only(out.calls, "merge").length, 1)
   const loginIssue = ticket(51, { title: "Driver stopped: Claude is not logged in", labels: [OWNER_LABEL], repoKey: null })
   const again = scenario({ tickets: [loginIssue, ticket(7)], auth: signedOut })
@@ -1938,7 +1943,7 @@ const robustnessCases = async () => {
   starts.env.stateDir = dir
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-9 * MINUTE), iso(-4 * MINUTE)]))
   const tripped = await recordStart(starts.env, [])
-  same("drive: three starts in ten minutes give one notification and one harness Bug issue with no needs:owner label", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").map((entry) => entry[1].labels)], [true, 1, [BUG_LABELS]])
+  same("drive: three starts in ten minutes give one notification and one harness Bug issue with no needs:owner label", [tripped, only(starts.calls, "notify").length, only(starts.calls, "createTicket").map((entry) => entry[1].labels)], [true, 1, [NOTICE_BUG]])
   writeFileSync(join(dir, "starts.json"), JSON.stringify([iso(-60 * MINUTE)]))
   same("drive: a start long after the last one gives no alarm", await recordStart(starts.env, []), false)
   same("drive: the start log keeps the new start", JSON.parse(readFileSync(join(dir, "starts.json"), "utf8")).length, 2)
@@ -2073,19 +2078,21 @@ const baseMergeCases = async () => {
   const record = comment("record", suspect.split("\n").slice(1).join("\n"))
   const flaky = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
   await flaky.run()
-  const filed = only(flaky.calls, "createTicket")[0]?.[1]
+  const filed = queued(flaky)[0]
   same("drive: a suspect check that passes on the rerun at the same head files one Bug ticket and records it", [filed?.title, filed?.labels, filed?.body.includes("github-auth"), commentsOf(flaky.calls, 30).filter((text) => text.includes("driver flake-filed 9001 Tool Tests")).length, flaky.launched.length, only(flaky.calls, "editLabels").length], ["Flaky check: Tool Tests", ["repo:ui", "Bug"], true, 1, 0, 0])
   const filedOnce = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record, comment("record", "driver flake-filed 9001 Tool Tests")] })] } })
   await filedOnce.run()
-  same("drive: a flake that has its filed record gets no second ticket", only(filedOnce.calls, "createTicket").length, 0)
+  await flaky.run()
+  same("drive: the same flake finding twice queues one finding and calls no createTicket", [queued(flaky).length, only(flaky.calls, "createTicket").length], [1, 0])
+  same("drive: a flake that has its filed record gets no second ticket", queued(filedOnce).length, 0)
   const flakeTable = [
-    ["an open ticket of the same check in the same repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "ui" }, 0],
-    ["an open ticket of the same check in another repository", { ...ticket(8), title: "Flaky check: Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"] }, 1],
+    ["an open ticket of the same check in the same repository", { ...ticket(8), body: "Finding: flake ui Tool Tests" }, 0],
+    ["an open ticket of the same check in another repository", { ...ticket(8), body: "Finding: flake api Tool Tests", repoKey: "api", labels: ["repo:api", "Bug"] }, 1],
   ]
   for (const [label, other, created] of flakeTable) {
     const held = scenario({ tickets: [ticket(7), other], pulls: { ui: [pull(30, { checks: [check("Tool Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), RERAN, record] })] } })
     await held.run()
-    same(`drive: ${label} gives [tickets filed, filed records]`, [only(held.calls, "createTicket").length, commentsOf(held.calls, 30).filter((text) => text.includes("driver flake-filed")).length], [created, 1])
+    same(`drive: ${label} gives [tickets filed, filed records]`, [queued(held).length, commentsOf(held.calls, 30).filter((text) => text.includes("driver flake-filed")).length], [created, 1])
   }
   const stillRed = toolTests({ comments: [comment("ticket", "T"), RERAN] })
   await stillRed.run()
@@ -2099,7 +2106,7 @@ const baseMergeCases = async () => {
   const cancelledRecords = commentsOf(cancelled.calls, 30).filter((text) => text.startsWith("<!-- orbit-drive:record -->")).map((text) => comment("record", text.split("\n").slice(1).join("\n")))
   const passedAfter = scenario({ tickets: [ticket(7)], pulls: { ui: [pull(30, { checks: [check("Unit Tests", "SUCCESS"), approvalCheck()], comments: [comment("ticket", "T"), ...cancelledRecords] })] } })
   await passedAfter.run()
-  same("drive: a cancelled job that passes on the rerun at the same head files no flaky-check ticket", [only(passedAfter.calls, "createTicket").length, only(passedAfter.calls, "rerunFailed").length], [0, 0])
+  same("drive: a cancelled job that passes on the rerun at the same head files no flaky-check ticket", [queued(passedAfter).length, only(passedAfter.calls, "rerunFailed").length], [0, 0])
   const infra = merged(UI_2528, "ui", { checks: [check("Unit Tests", "FAILURE"), approvalCheck()], comments: [comment("ticket", "T")], steps: ["Set up job"] })
   await infra.run()
   T("drive: a setup failure gets a rerun and no flake record", only(infra.calls, "rerunFailed").length === 1 && !commentsOf(infra.calls, 30).some((text) => text.includes("flake-suspect")))
@@ -3104,7 +3111,7 @@ const sleepCases = async () => {
 
   const stopped = scenario({ tickets: [ticket(7)], sleeping: true, reading: { utilization: 0.92, resetsAt: RESETS_AT, at: NOW - MINUTE } })
   await stopped.run()
-  same("drive: sleep on: the 90% stop opens its needs:owner issue, holds its link and sends no notification", [only(stopped.calls, "createTicket").map((entry) => entry[1].labels), only(stopped.calls, "notify").length, heldItems(stopped).map((item) => item.link), stopped.launched.length], [[[OWNER_LABEL]], 0, [ISSUE_URL(99)], 0])
+  same("drive: sleep on: the 90% stop opens its needs:owner issue, holds its link and sends no notification", [only(stopped.calls, "createTicket").map((entry) => entry[1].labels), only(stopped.calls, "notify").length, heldItems(stopped).map((item) => item.link), stopped.launched.length], [[NOTICE_OWNER], 0, [ISSUE_URL(99)], 0])
 
   const signedOut = scenario({ tickets: [ticket(7)], sleeping: true, auth: { ...AUTH, loggedIn: false } })
   await signedOut.run()
@@ -3260,6 +3267,62 @@ const questionsCases = async () => {
   writeFileSync(join(young.env.stateDir, "questions.pid"), `${JSON.stringify({ pid: process.pid, worktree: QUESTIONS_WORKTREE, startedAt: iso(-MINUTE) })}\n`)
   await young.run()
   same("drive: questions: an adopted run inside its ceiling is left alone", only(young.calls, "kill"), [])
+}
+
+const FINDING = { key: "flake ui Tool Tests", title: "Flaky check: Tool Tests", labels: ["repo:ui", "Bug"], body: "The check failed.", tries: 0 }
+const FINDING_ORDER = "/ticket --auto\n\nThis run has no owner and no approval gate. Ask nothing and decide each choice with your recommendation. Write the lines `Filed by: driver` and `Finding: flake ui Tool Tests` in each ticket body.\n\nFinding: flake ui Tool Tests\nTitle: Flaky check: Tool Tests\nLabels: repo:ui, Bug\n\nThe check failed."
+const findingRuns = (scene) => scene.launched.filter((entry) => entry.order.startsWith("/ticket --auto\n"))
+const writeQueue = (scene, list) => writeFileSync(join(scene.env.stateDir, "findings.json"), `${JSON.stringify(list)}\n`)
+
+/** The driver files a finding only through a `/ticket --auto` run: it queues the finding, runs it outside the tick, and ends it on a ticket with the key. */
+const findingCases = async () => {
+  let filed = false
+  const filedTicket = ["--state open", () => JSON.stringify(filed ? [{ number: 70, body: "Filed by: driver\nFinding: flake ui Tool Tests\n" }] : [])]
+  const first = scenario({ driver: {}, routes: [filedTicket] })
+  writeQueue(first, [FINDING])
+  let finish
+  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => { filed = true; resolve({ exitCode: 0 }) } }) }
+  await first.run()
+  const [run] = findingRuns(first)
+  same("drive: finding: a queued finding starts one /ticket --auto run with the finding as its order", [findingRuns(first).length, run?.order], [1, FINDING_ORDER])
+  same("drive: finding: the run is headless in its own worktree on the worker model, with the owner login and a 20 minute timeout", [run.worktree, run.invocation.command.args, run.invocation.environment.GH_TOKEN, run.limits.hardCeilingMs], ["/r/orbit-worktrees/ui/finding", ["--model", "claude-sonnet-5-5", "finding"], "owner-token", 20 * 60 * 1000])
+  same("drive: finding: the start counts one try in the queue", queued(first).map((entry) => entry.tries), [1])
+  await first.run()
+  same("drive: finding: the next tick starts no second run while the run is live", findingRuns(first).length, 1)
+  finish()
+  await first.mem.finding
+  same("drive: finding: a ticket with the Finding line ends the finding and leaves no notice", [queued(first).length, only(first.calls, "createTicket").length], [0, 0])
+  const alone = scenario({ driver: {}, tickets: [ticket(7), ticket(8), ticket(9)] })
+  await alone.run()
+  const live = scenario({ driver: {}, tickets: [ticket(7), ticket(8), ticket(9)] })
+  live.mem.finding = new Promise(() => {})
+  await live.run()
+  same("drive: finding: a live finding run holds one of the three free slots, so two builds start and not three", [alone.launched.length, live.launched.length], [3, 2])
+  const miss = scenario({ driver: {} })
+  writeQueue(miss, [FINDING])
+  miss.env.worker.launch = (options) => { miss.launched.push(options); return Promise.resolve({ exitCode: null, killReason: "the hard ceiling" }) }
+  await miss.run()
+  await miss.mem.finding
+  same("drive: finding: a run that files no ticket keeps the finding for one retry and opens no notice", [queued(miss).map((entry) => entry.tries), only(miss.calls, "createTicket").length], [[1], 0])
+  await miss.run()
+  await miss.mem.finding
+  const notice = only(miss.calls, "createTicket")[0]?.[1]
+  same("drive: finding: the second run that files no ticket opens one needs:owner notice and drops the finding", [findingRuns(miss).length, queued(miss).length, notice?.title, notice?.labels, notice?.body.includes("the hard ceiling")], [2, 0, "The driver could not file a finding: flake ui Tool Tests", NOTICE_OWNER, true])
+  same("drive: finding: the notice creates the notice label first", only(miss.calls, "ensureLabel").map((entry) => [entry[1], entry[2].name]), [["tickets", "notice"]])
+  // A closed ticket of an earlier finding holds the same key. Only an open ticket ends a finding, so a run that files nothing still gets its retry.
+  const closedHolds = scenario({ driver: {}, routes: [["issue list", (args) => JSON.stringify(args.includes("open") ? [] : [{ number: 5, body: "Finding: flake ui Tool Tests" }])]] })
+  writeQueue(closedHolds, [FINDING])
+  closedHolds.env.worker.launch = (options) => { closedHolds.launched.push(options); return Promise.resolve({ exitCode: 0 }) }
+  await closedHolds.run()
+  await closedHolds.mem.finding
+  same("drive: finding: a closed ticket with the key does not end a finding whose run filed nothing", [queued(closedHolds).map((entry) => entry.tries), only(closedHolds.calls, "createTicket").length], [[1], 0])
+  const held = scenario({ driver: {}, routes: [["--state open", JSON.stringify([{ number: 70, body: "Finding: flake ui Tool Tests" }])]] })
+  writeQueue(held, [FINDING])
+  await held.run()
+  same("drive: finding: an open ticket with the same Finding line starts no run and ends the finding", [findingRuns(held).length, queued(held).length], [0, 0])
+  const noticeOnly = scenario({ tickets: [ticket(7, { labels: ["repo:ui", "Improvement", "notice"] })] })
+  await noticeOnly.run()
+  same("drive: finding: the launch ignores a notice issue", noticeOnly.launched.length, 0)
 }
 
 const REVIEW_ORDER = "/ticket --auto --parked"
@@ -3487,7 +3550,7 @@ const rollbackCases = async () => {
   const outcomes = []
   for (let crash = 0; crash < 3; crash++) outcomes.push(await crashOnce(rolled))
   outcomes.push(await guardStart(rolled.env))
-  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one harness Bug issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, BUG_LABELS])
+  same("drive: three crashes within ten minutes check the previous commit out, write the pin, send one notification and open one harness Bug issue", [outcomes, rolled.checkouts(), pinOf(rolled).rolledBack, pinOf(rolled).from, pinOf(rolled).to, only(rolled.calls, "notify").length, only(rolled.calls, "createTicket").length, only(rolled.calls, "createTicket")[0]?.[1].labels], [[false, false, false, true], [`checkout --detach ${OLD_PIN}`], true, NEW_PIN, OLD_PIN, 1, 1, NOTICE_BUG])
   const issue = only(rolled.calls, "createTicket")[0][1]
   T("drive: the rollback issue names both commits and the last error line", [OLD_PIN, NEW_PIN, "boom: cannot read x"].every((part) => issue.body.includes(part)), issue.body)
   same("drive: the rollback logs one line", driverLines(rolled).length, 1)
@@ -4746,6 +4809,7 @@ export const driverUnit = async () => {
   await sleepCases()
   await questionsCases()
   await harnessReviewCases()
+  await findingCases()
   await usageLimitCases()
   await workerCases()
   await resumeCases()

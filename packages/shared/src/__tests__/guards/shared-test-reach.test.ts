@@ -46,5 +46,5 @@ it('loads each runtime source module from a shared test, so the coverage report 
     .map((file) => path.relative(sourceRoot, file))
     .sort((first, second) => first.localeCompare(second))
 
-  expect(unreached).toEqual(['contracts/navigation/TabBar.ts', 'utils/goal-drag.ts', 'utils/progress-navigation.ts'])
+  expect(unreached).toEqual([])
 }, 60_000)

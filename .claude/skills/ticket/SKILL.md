@@ -1,7 +1,7 @@
 ---
 name: ticket
-description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets. /ticket --auto --parked is the run of the driver that re-plans parked items, with no gate.
-argument-hint: "<a bug, an idea, a chore, a feature, or a list of problems> | --auto --parked"
+description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets. /ticket --auto is the run of the driver that files one finding, and /ticket --auto --parked is the run that re-plans parked items. Both have no gate.
+argument-hint: "<a bug, an idea, a chore, a feature, or a list of problems> | --auto <finding> | --auto --parked"
 effort: high
 ---
 
@@ -11,7 +11,7 @@ Anything goes in, from a rough idea to an exact bug. One to N tickets come out. 
 
 ## Before the split: find the best way
 
-Do this for a new feature or an idea with more than one way to build it. A bug with one clear cause skips it.
+Do this for every ticket, of every type. A bug is included. The owner asks for the best approach, proven, for any request.
 
 1. Name the real problem in one sentence. When it differs from the ask, say both.
 2. Read everything the answer touches, in full: the code in all three repositories, `DESIGN.md`, `BRAND.md`, `FEATURES.md`, the decisions in `/brain`, and the open tickets near it. Write the list of what you read.
@@ -20,9 +20,18 @@ Do this for a new feature or an idea with more than one way to build it. A bug w
    - the version installed in each repository (read `package.json`, the lock files and the `.csproj` files) and the newest stable version, with the changes between them that matter here;
    - every outside fact the design leans on: a vendor limit, a price, an API field, a platform rule.
    Record each source with its link, its date and the version it covers.
-4. Write 3 to 5 candidates from that research. One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, size, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
-5. Pick the simplest candidate that fully solves the problem: the fewest files, layers, dependencies and settings. Prefer what the platform or an installed library already does over new code. Then cut the winner until nothing more can go.
-6. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, the fact that would make it wrong, and the sources. The tickets follow, and each one carries its sources, links and versions in Technical details, so the worker builds on them and not on memory.
+   Ask this concrete question: "which real product already solved this, and with what?" Write the links. Each precedent is a real product, what it uses for this exact problem, and a link to a primary source.
+4. Write 3 to 5 candidates from that research. The candidate set holds the precedent's approach and the ready tool (a library, a service or a platform feature that already does the job). One removes something instead of adding. One is "do nothing". Score each on what it costs to live with: upkeep, size, parity on web and mobile, contract changes, risk to old mobile clients. The cost to build decides nothing.
+5. Set the `Measure:` line before you score. Name what you measure, the target value, and where, on the real target: the device class, production data or the real API. A proxy decides nothing. A Node script, a laptop, a mock and a desktop browser for a phone cost are proxies. Run the measure when it is cheap. Write `Measure: none: <reason>` only when nothing can be measured.
+6. Pick the simplest candidate that fully solves the problem: the fewest files, layers, dependencies and settings. Prefer what the platform or an installed library already does over new code. Then cut the winner until nothing more can go. The number on the real target decides.
+7. At the gate, show: the problem, the recommendation, one line on why each other candidate lost, the cost, the fact that would make it wrong, and the sources. The tickets follow, and each one carries its sources, links and versions in Technical details, so the worker builds on them and not on memory.
+
+The proven-best rule has four points. Every skill, order and rule file states them in the same words:
+
+- Ask the question "which real product already solved this, and with what?" and write the links.
+- The candidate set holds the precedent's approach and the ready tool.
+- The number on the real target decides. "Defer until a profile shows a cost" is not allowed.
+- An objection counts only with a precedent link or a measured number. Without one, it falls, and the loop ends.
 
 Ask the owner only what reading cannot answer: product, copy, pricing, brand or a real toss-up. Ask it with a recommendation, at the gate.
 
@@ -50,6 +59,18 @@ A headless worker receives the ticket as its order. The worker cannot read this 
 7. Acceptance criteria
 8. Test scenarios
 9. Rollout or Events, where risk or measurement exists
+10. `## Best approach`, in every ticket
+11. `## Every place`, in every ticket
+
+`## Best approach` holds these lines:
+
+- One or more `Precedent: <product>: <what it uses for this problem>: https://<primary source>` lines. When no product exists, write `Precedent: none: <the searches that found no product>`.
+- One `Measure: <what is measured>, <target value>, <where, on the real target>` line, or `Measure: none: <reason>`.
+- One `Rejected: <candidate>: <the precedent, the source or the number that rejected it>` line for each losing candidate.
+
+`## Every place` holds the search command that finds the same pattern in every repository, then one list item for each hit with its path. Each hit is in scope, or it has a written reason.
+
+The last pull request of a ticket whose `Measure:` is not `none` carries a `Measured: <value> on <where>` line.
 
 A `Bug` ticket carries a `Class: <name>` line and a `## Permanent fix` section. The section names the code that holds the class (a path under `eslint-rules/`, a primitive file or a test file), or reads `none: <reason>`. A repeat of a class names the code of the earlier ticket.
 
@@ -92,6 +113,18 @@ Each part names its files, its cascade edits and its checks. Add a `Paths:` line
 - Fix a body: `gh issue edit <N> --repo thomasluizon/orbit-tickets --body-file <file>`
 
 Copy every issue number from this run's output. Read the milestones live with `gh api 'repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100' --paginate --jq '.[].title'`. Never create a milestone named `Backlog`.
+
+## --auto
+
+The driver starts this run for one finding: an outside defect that a review named, a flaky check, a class of defect, a Sentry issue or a security alert. The input has a `Finding:` line, a `Title:` line, a `Labels:` line and the text of the finding. This run has no owner and no approval gate. It writes no code and sends no notification.
+
+1. Ask nothing. Decide each open choice with your recommendation.
+2. Use the `Task` tool for the research subagents of "Before the split: find the best way", one for each question.
+3. Search the board first. When an open ticket has the same `Finding:` line, create nothing and end.
+4. Create each ticket with `node tools/create-ticket.mjs`. Put the line `Filed by: driver` and the line `Finding: <key>` in the body, each on its own line. The key is the text after `Finding:` in the input.
+5. Use the title and the labels of the input, unless your research shows that others are correct. Keep each link and each id of the finding in the body.
+6. Never add `design-system`, `gate` or `flag:approved`. When a step needs the owner's yes (a feature flag, a feature removal or a locked path), add `needs:owner` to the ticket. Write one comment that starts with `<!-- orbit-drive:needs-owner -->` and names that step.
+7. End with one line: the number of each ticket that you created.
 
 ## --auto --parked
 

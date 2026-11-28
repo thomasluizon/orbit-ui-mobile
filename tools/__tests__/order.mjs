@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
-import { ORDER_KINDS, SIZE_LINE, brokenPartHeadings, duplicateParts, highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, withTotal } from "../lib/order.mjs"
+import { ORDER_KINDS, PROOF_RULE, SIZE_LINE, brokenPartHeadings, duplicateParts, highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderBrief, renderOrder, splitProblem, withTotal } from "../lib/order.mjs"
 import { REPO_ROOT, T, same } from "./_harness.mjs"
 
 const PLACE = { repoKey: "ui", repoPath: "/work/repo", worktree: "/work/tree", branch: "chore/ticket-9-part-2", base: "main" }
@@ -158,5 +158,27 @@ export const cases = async () => {
   for (const kind of ["build", "build part", "find"]) {
     const bytes = Buffer.byteLength(renderBrief({ kind, place: PLACE, ticket: TICKET, classStep: true }))
     T(`lib/order.mjs: the ${kind} brief with a class step fits the byte limit (${bytes})`, bytes <= 6000)
+  }
+
+  const RULE = [
+    'Ask the question "which real product already solved this, and with what?" and write the links.',
+    "The candidate set holds the precedent's approach and the ready tool.",
+    'The number on the real target decides. "Defer until a profile shows a cost" is not allowed.',
+    "An objection counts only with a precedent link or a measured number. Without one, it falls, and the loop ends.",
+  ]
+  same("lib/order.mjs: PROOF_RULE holds the four sentences of the proven-best rule", PROOF_RULE, RULE)
+  const proven = [renderOrder({ kind: "build", ticket: TICKET, place: PLACE }), renderOrder({ kind: "build part", ticket: TICKET, partComments: fiveParts, place: PLACE, partNumber: 2 })]
+  for (const [index, text] of proven.entries()) {
+    const label = index === 0 ? "build" : "build part"
+    T(`lib/order.mjs: the ${label} order holds the four sentences of the proven-best rule`, RULE.every((sentence) => text.includes(sentence)))
+    T(`lib/order.mjs: the ${label} order says to measure on the real target and never on a proxy`, text.includes("Measure on the real target, never on a proxy: a Node script, a laptop, a mock or a desktop browser decides nothing."))
+    T(`lib/order.mjs: the ${label} order says never to defer a measurement`, text.includes("Never defer a measurement."))
+    T(`lib/order.mjs: the ${label} order says to fix every hit of ## Every place`, text.includes("Fix every hit of `## Every place`, or write the reason for a hit that stays."))
+    T(`lib/order.mjs: the ${label} order says to write Measured in the last pull request body`, text.includes("Write `Measured: <value> on <where>` in the body of the last pull request when the `Measure:` line of the ticket is not `none`."))
+  }
+  T("lib/order.mjs: a fix order holds no proven-best step", !renderOrder({ kind: "fix", ticket: TICKET, pull: { number: 5, headSha: "a".repeat(40) }, review: { blocking: [{ path: "a.mjs", line: 1, body: "B" }] }, place: PLACE }).includes("Never defer a measurement."))
+  for (const file of [".claude/skills/ticket/SKILL.md", ".claude/skills/questions/SKILL.md", "CLAUDE.md"]) {
+    const text = readFileSync(join(REPO_ROOT, file), "utf8")
+    T(`lib/order.mjs: ${file} holds the four sentences of the proven-best rule`, RULE.every((sentence) => text.includes(sentence)))
   }
 }

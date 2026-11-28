@@ -50,6 +50,8 @@ export const REMAINING_NONE = /^Remaining: none\s*$/m
 const BUG_LABEL = "Bug"
 /** The labels of the owner that unlock a locked path or a feature flag. A ticket that the driver filed never carries one. */
 const LOCK_LABELS = ["design-system", "gate", "flag:approved"]
+/** A driver notice is an issue and not a ticket: no check applies to it. */
+const NOTICE_LABEL = "notice"
 
 const PULL_FIELDS = `number state isDraft createdAt headRefName headRefOid baseRefName baseRefOid mergeStateStatus body changedFiles
   author { login }
@@ -280,6 +282,7 @@ const samePath = (first, second) => first === second || (first.endsWith("/") && 
  * `board`: the other tickets, open or closed, with `number` and `body`. `readBoardFor` reads them. `primitives` replaces the list that `lint-changed.mjs` gives.
  */
 export const checkTicket = (ticket, board = [], { primitives = primitiveList() } = {}) => {
+  if ((ticket.labels ?? []).includes(NOTICE_LABEL)) return []
   const problems = []
   const comments = (ticket.comments ?? []).filter((entry) => (entry.kind ?? null) === null)
   const fault = partProblem(comments)
@@ -1023,6 +1026,7 @@ export const sentryCandidate = (issue) => {
     body: `${issue.title}\n\n${issue.permalink}\n\nProject: ${issue.project.slug}`,
     held: (text) => namesShortId(text, issue.shortId) || holds(text, issue.permalink) || holds(text, `/issues/${issue.id}/`),
     label: issue.permalink,
+    finding: `sentry ${issue.shortId}`,
     ...(issue.substatus === "regressed" ? { regressedAt: Date.parse(issue.lastSeen) } : {}),
   }
 }

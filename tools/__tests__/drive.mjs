@@ -75,6 +75,7 @@ import {
   workerEnvironmentFor,
   questionsInvocation,
   harnessReviewInvocation,
+  findingInvocation,
   workerInvocation,
   workerSettings,
   worktreeOccupants,
@@ -921,6 +922,11 @@ const skillAndEnvironmentCases = async () => {
   same("lib/worker.mjs: the harness review keeps the ticket skill and the humanizer skill on and turns off the rest", reviewSettings.skillOverrides, { pdf: "off", ...Object.fromEntries(WORKER_SKILLS_OFF.filter((name) => name !== "ticket").map((name) => [name, "off"])) })
   same("lib/worker.mjs: the harness review keeps the shared deny list and environment, with the owner token", [reviewSettings.permissions.deny, review.environment], [[...WORKER_DENY], { ...invocation.environment, GH_TOKEN: "owner-login-token" }])
   T("lib/worker.mjs: the harness review writes tickets and labels, so it gets no GitHub hook", !("hooks" in reviewSettings))
+  const finding = findingInvocation({ home: reviewHome, parentEnvironment: parent, token: "owner-login-token" })
+  const findingArgs = finding.command.args
+  const findingSettings = JSON.parse(findingArgs.at(-1))
+  same("lib/worker.mjs: a finding run uses the worker model at effort high and allows Task, and no other denied tool changes", [findingArgs.slice(0, 5), findingArgs.slice(findingArgs.indexOf("--disallowed-tools") + 1, -2)], [["-p", "--model", "claude-sonnet-5-5", "--effort", "high"], WORKER_DENIED_TOOLS.filter((name) => name !== "Task")])
+  same("lib/worker.mjs: a finding run keeps the ticket skill on, takes the owner token and gets no GitHub hook", [findingSettings.skillOverrides.ticket, finding.environment.GH_TOKEN, "hooks" in findingSettings], [undefined, "owner-login-token", false])
   const ownSettings = JSON.parse(workerInvocation({ home, parentEnvironment: parent, token: TOKEN, own: { worktree: "/work/tree", branch: "chore/ticket-9" } }).command.args.at(-1))
   T("lib/worker.mjs: the invocation of a launch names its working tree and branch to the hook", ownSettings.hooks.PreToolUse[0].hooks[0].command.endsWith("--worktree '/work/tree' --branch 'chore/ticket-9' || exit 2"), ownSettings.hooks.PreToolUse[0].hooks[0].command)
   same("lib/worker.mjs: the worker, questions and worker account environments all carry BRAIN_SESSION_CAPTURE=1", [invocation.environment.BRAIN_SESSION_CAPTURE, questions.environment.BRAIN_SESSION_CAPTURE, workerInvocation({ home, parentEnvironment: parent, token: TOKEN, configDirectory: workerConfigDirectory(home) }).environment.BRAIN_SESSION_CAPTURE], ["1", "1", "1"])
