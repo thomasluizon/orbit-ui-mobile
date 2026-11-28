@@ -14,6 +14,9 @@ export const GATE_PROGRAMS = Object.freeze(["tsc", "eslint", "vitest"])
 /** The tool scripts of a gate: a `check-*` script and the test runner of `tools/`. */
 export const CHECK_SCRIPT = /^(?:\.\/)?tools\/(?:check-[^/\s]+|test-tools)\.mjs$/
 
+/** The time that the `Stop` hook of a Claude or a Codex worker may take, in seconds: one gate run of every touched workspace. */
+export const GATE_TIMEOUT_SECONDS = 1500
+
 /** The gate record of a worktree sits in its git directory. */
 export const recordFile = (gitDir) => join(gitDir, "orbit-gate.json")
 

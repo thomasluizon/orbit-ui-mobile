@@ -6,6 +6,8 @@
 import { closeSync, mkdirSync, openSync, readdirSync, readSync, renameSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { GATE_TIMEOUT_SECONDS } from "./gate-commands.mjs"
+
 /** The model of every Codex worker launch and its effort, in one place. The owner changes the model here after a pilot. */
 export const CODEX_MODEL = "gpt-6.2-sol"
 export const CODEX_EFFORT = "high"
@@ -37,13 +39,15 @@ export const codexCommand = ({ worktree, skipGitCheck = false }) => ({
 
 /**
  * The environment of a Codex worker: the worker environment, without any `CLAUDE_*` variable or login override, plus `CODEX_HOME`.
- * `own` is the `{ worktree, branch }` of a launch. The `gh` hook reads them from the environment of the `codex` process,
- * which no command of the worker changes.
+ * `own` is the `{ worktree, branch }` of a launch. `gate` is its `{ run, head }`: the launch name and the head at the start.
+ * The hooks read them from the environment of the `codex` process, which no command of the worker changes.
  */
-export const codexEnvironment = (workerEnvironment, codexHome, own = null) => {
+export const codexEnvironment = (workerEnvironment, codexHome, own = null, gate = null) => {
   const environment = { ...workerEnvironment, CODEX_HOME: codexHome }
   for (const key of Object.keys(environment)) if (key.startsWith("CLAUDE_") || key.startsWith("ORBIT_WORKER_") || LOGIN_OVERRIDES.has(key)) delete environment[key]
-  return own === null ? environment : { ...environment, ORBIT_WORKER_WORKTREE: own.worktree, ORBIT_WORKER_BRANCH: own.branch }
+  if (own === null) return environment
+  const identity = { ...environment, ORBIT_WORKER_WORKTREE: own.worktree, ORBIT_WORKER_BRANCH: own.branch }
+  return gate === null || gate === undefined ? identity : { ...identity, ORBIT_WORKER_RUN: gate.run, ORBIT_WORKER_HEAD: gate.head }
 }
 
 const tomlString = (text) => JSON.stringify(text)
@@ -59,14 +63,32 @@ export const codexConfigToml = ({ skillFolders }) => [
   "",
 ].join("\n")
 
+/** The tool names that Codex gives to a hook: `Bash` for a shell command and `apply_patch` for a file edit. A matcher is a regular expression. */
+const SHELL_AND_PATCH = "Bash|apply_patch"
+/** The time that a size hook may take, in seconds. */
+const SIZE_HOOK_TIMEOUT_SECONDS = 120
+
 /**
- * `hooks.json` of the worker home. One hook serves every worker at once: its shell reads the worktree and the branch of the
- * calling worker from the environment. The `cwd` of a call is the `workdir` that the model chose, so it names no worker.
- * Only a hook of this home fires in a linked worktree.
+ * `hooks.json` of the worker home. One hook serves every worker at once: its shell reads the worktree, the branch and the gate
+ * of the calling worker from the environment. The `cwd` of a call is the `workdir` that the model chose, so it names no worker.
+ * Only a hook of this home fires in a linked worktree. A run with no worktree in its environment (a probe) gets no size hook.
+ * A run with no `ORBIT_WORKER_RUN` (a `find` or a `replan` run) gets no gate hook, as a Claude run of those kinds does.
  */
-export const codexHooksJson = ({ hookPath, blockLogPath }) => {
-  const command = `node ${shellQuoted(hookPath)} --worktree "\${ORBIT_WORKER_WORKTREE-}" --branch "\${ORBIT_WORKER_BRANCH-}" --block-log ${shellQuoted(blockLogPath)} || exit 2`
-  return `${JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command, timeout: 60 }] }] } }, null, 2)}\n`
+export const codexHooksJson = ({ hookPath, sizeHookPath, gateHookPath, blockLogPath }) => {
+  const worktree = `--worktree "\${ORBIT_WORKER_WORKTREE-}"`
+  const ghCommand = `node ${shellQuoted(hookPath)} ${worktree} --branch "\${ORBIT_WORKER_BRANCH-}" --block-log ${shellQuoted(blockLogPath)} || exit 2`
+  const sizeCommand = (event) => `test -z "\${ORBIT_WORKER_WORKTREE-}" || node ${shellQuoted(sizeHookPath)} ${event} ${worktree} || exit 2`
+  const gateCommand = `test -z "\${ORBIT_WORKER_RUN-}" || node ${shellQuoted(gateHookPath)} ${worktree} --run "\${ORBIT_WORKER_RUN-}" --head "\${ORBIT_WORKER_HEAD-}"`
+  const entry = (command, timeout) => ({ type: "command", command, timeout })
+  const hooks = {
+    PreToolUse: [
+      { matcher: "Bash", hooks: [entry(ghCommand, 60)] },
+      { matcher: SHELL_AND_PATCH, hooks: [entry(sizeCommand("pre"), SIZE_HOOK_TIMEOUT_SECONDS)] },
+    ],
+    PostToolUse: [{ matcher: SHELL_AND_PATCH, hooks: [entry(sizeCommand("post"), SIZE_HOOK_TIMEOUT_SECONDS)] }],
+    Stop: [{ hooks: [entry(gateCommand, GATE_TIMEOUT_SECONDS)] }],
+  }
+  return `${JSON.stringify({ hooks }, null, 2)}\n`
 }
 
 const shellQuoted = (text) => `'${text.replaceAll("'", "'\\''")}'`
@@ -87,10 +109,10 @@ const writeAtomic = (path, text) => {
 }
 
 /** Writes the files of the worker home before a launch or a probe, each one whole. It never touches `auth.json`. */
-export const writeCodexHome = ({ codexHome, hookPath, skillFolders, denyPrefixes }) => {
+export const writeCodexHome = ({ codexHome, hookPath, sizeHookPath, gateHookPath, skillFolders, denyPrefixes }) => {
   mkdirSync(join(codexHome, "rules"), { recursive: true })
   writeAtomic(join(codexHome, HOME_FILES.config), codexConfigToml({ skillFolders }))
-  writeAtomic(join(codexHome, HOME_FILES.hooks), codexHooksJson({ hookPath, blockLogPath: blockLogFile(codexHome) }))
+  writeAtomic(join(codexHome, HOME_FILES.hooks), codexHooksJson({ hookPath, sizeHookPath, gateHookPath, blockLogPath: blockLogFile(codexHome) }))
   writeAtomic(join(codexHome, HOME_FILES.rules), codexRules(denyPrefixes))
 }
 
