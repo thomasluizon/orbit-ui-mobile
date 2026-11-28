@@ -219,7 +219,7 @@ describe('a title beside a bare das hour range', () => {
     ['Academia de 2 a 3 vezes por semana', 'Academia'],
     ['Academia de 2 até 3 vezes por semana', 'Academia de 2 até'],
     ['Curso de 3 horas às 19h toda quarta', 'Curso de 3 horas'],
-    ['Ler das 5 a 7 páginas', 'Ler das 5 páginas'],
+    ['Ler das 5 a 7 páginas', 'Ler das 5 a 7 páginas'],
     ['Andar das 3 a 5 quadras', 'Andar das 3 quadras'],
   ] as const)('keeps the title of a phrase outside the form: %s', (phrase, title) => {
     expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
