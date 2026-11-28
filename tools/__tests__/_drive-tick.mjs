@@ -579,6 +579,15 @@ const pushCases = async () => {
   await restarted.run()
   same("drive: a restart between the reap and the push keeps the entry, and the driver pushes it once and opens one pull request", [pushes(restarted).length, creates(restarted).length, JSON.parse(readFileSync(join(restarted.env.stateDir, "pushes.json"), "utf8"))], [1, 1, []])
 
+  const decided = finished({ routes: [["--head chore/ticket-7", "\n"]], limit: { exitCode: 0, result: { usageLimitReached: false, authenticationFailed: false, error: null, needsDecision: "Raise the price?" } } })
+  await decided.run()
+  await decided.run()
+  same("drive: a worker that commits and ends with NEEDS_DECISION still gets its push and its pull request, and the ticket gets needs:owner", [pushes(decided).length, creates(decided).length, only(decided.calls, "editLabels").length], [1, 1, 1])
+  const limited = finished({ routes: [["--head chore/ticket-7", "\n"]], limit: { exitCode: 1, result: { usageLimitReached: true, authenticationFailed: false, error: "You've hit your limit. Resets 4am (America/Sao_Paulo)", needsDecision: null } } })
+  await limited.run()
+  await limited.run()
+  same("drive: a worker that commits and ends on a usage limit still gets its push", pushes(limited).length, 1)
+
   const noText = finished({ routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [] })
   noText.env.git = ((git) => async (cwd, args) => (args.includes("--absolute-git-dir") ? { status: 0, stderr: "", stdout: pullDir("none", null) } : git(cwd, args)))(noText.env.git)
   await noText.run()

@@ -2420,6 +2420,14 @@ const reapExit = async (env, mem, tickets, states, exit) => {
   log(env, item, "worker-exit", `${kind}, exit ${result.exitCode}${result.killReason ? `, killed: ${result.killReason}` : ""}`)
   const { headAfter, gate } = await recordExit(env, exit, result)
   const tail = tailOf(logFile)
+  // A worker commits and exits. Its branch waits in `pushes.json` for the push of the driver, which opens the pull request of a new branch.
+  // The commits queue before every early return below, so a limit or a question never leaves them local.
+  if (kind !== "find" && kind !== "replan" && headAfter !== null) {
+    const listed = await env.git(worktree, ["log", "--format=%H", `${headBefore}..HEAD`])
+    const shas = listed.status === 0 ? listed.stdout.trim().split("\n").filter(Boolean).reverse() : []
+    const found = findPullByBranch(states, branch)
+    if (shas.length > 0) queuePush(env, { repoKey, branch, kind, ticketNumber: ticket.number, partNumber: partNumber ?? null, prNumber: prNumber ?? found?.pull.number ?? null, head: headAfter, finishedAt: new Date(env.now()).toISOString(), gate, worktree, sessionId: result.sessionId ?? null, shas })
+  }
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"
     // With a second account the stopped account waits and the order starts again on the other one. A lone account pauses the driver.
@@ -2439,10 +2447,6 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     if (text !== "" && result.result.error === null) await env.github.comment("tickets", ticket.number, marked("findings", `Findings, part ${partNumber}\n\n${text}`))
     return removeWorktrees(env, repoKey, [branch])
   }
-  const shas = (await gitText(env, worktree, ["log", "--format=%H", `${headBefore}..HEAD`])).split("\n").filter(Boolean).reverse()
-  const found = findPullByBranch(states, branch)
-  // A worker commits and exits. The branch waits in `pushes.json` for the push of the driver, which opens the pull request of a new branch.
-  if (shas.length > 0 && headAfter !== null) queuePush(env, { repoKey, branch, kind, ticketNumber: ticket.number, partNumber: partNumber ?? null, prNumber: prNumber ?? found?.pull.number ?? null, head: headAfter, finishedAt: new Date(env.now()).toISOString(), gate, worktree, sessionId: result.sessionId ?? null, shas })
 }
 
 /**

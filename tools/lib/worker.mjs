@@ -78,6 +78,8 @@ export const WORKER_SKILLS_OFF = Object.freeze([
 /** The GitHub writes that a code worker may never run, and the questions run and the harness review may. The driver pushes and opens each pull request. The `gh` hook blocks every other write of a code worker. */
 export const CODE_WORKER_DENY = Object.freeze([
   "Bash(git push*)",
+  "Bash(gh pr create*)",
+  "Bash(gh pr new*)",
   "Bash(gh pr close*)",
   "Bash(gh issue close*)",
   "Bash(gh issue comment*)",

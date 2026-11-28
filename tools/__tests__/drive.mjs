@@ -821,7 +821,7 @@ const settingsCases = () => {
     "Edit(**/.github/migration-contracts.json)", "Write(**/.github/migration-contracts.json)", "Edit(**/.github/migration-locks.json)", "Write(**/.github/migration-locks.json)",
     "Bash(render *)", "Bash(terraform *)", "Bash(aws *)", "Bash(stripe *)", "Bash(gh workflow *)", "Bash(gh secret *)", "Bash(gh pr merge*)", "Bash(gh api *merge*)",
     "Bash(gh api * -X *)", "Bash(gh api -X *)", "Bash(gh api * --method *)", "Bash(gh api --method *)", "Bash(gh auth *)", "Bash(env -u GH_TOKEN *)", "Bash(unset GH_TOKEN*)", "Bash(*GH_TOKEN=*)", "Bash(security *)",
-    "Bash(git push*)", "Bash(gh pr close*)", "Bash(gh issue close*)", "Bash(gh issue comment*)", "Bash(gh issue edit*)",
+    "Bash(git push*)", "Bash(gh pr create*)", "Bash(gh pr new*)", "Bash(gh pr close*)", "Bash(gh issue close*)", "Bash(gh issue comment*)", "Bash(gh issue edit*)",
   ])
   T("lib/worker.mjs: no deny rule refuses the edit or the comment of a pull request", !settings.permissions.deny.some((rule) => /gh pr (edit|comment)/.test(rule)))
   const codexHome = join(root, "codex-home-rules")
