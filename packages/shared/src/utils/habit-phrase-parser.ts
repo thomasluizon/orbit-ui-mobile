@@ -80,19 +80,21 @@ const PT_RANGE_END_WITHOUT_OWN_UNIT = String.raw`\b(?![:\dh]|[.,]\d)(?!\s+(?:${P
 const PT_RANGE_UNIT_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)${PT_RANGE_END_WITHOUT_OWN_UNIT}`
 const PT_RANGE_DAY_NAME = '(?:segundas?|segs?|tercas?|ter|quartas?|quas?|quintas?|quis?|sextas?|sexs?|sabados?|sabs?|domingos?|doms?)'
 const PT_RANGE_CADENCE_WORD = String.raw`(?:toda|todo|todas|todos|diariamente|(?:a\s+)?cada|dias?\s+\d{1,2}|${PT_NUMBER}\s*(?:vez|vezes|x)|${PT_RANGE_DAY_NAME})`
-const PT_RANGE_BARE_END_BEFORE_CADENCE = String.raw`${PT_RANGE_HOUR}${PT_RANGE_END_WITHOUT_OWN_UNIT}(?=\s*(?:[,.;!?…]|$)|\s+(?:e\s+)?(?:(?:as|aos|no|nos|na|nas|em)\s+)?${PT_RANGE_CADENCE_WORD}\b|\s+(?:de|nas|nos|aos)\b)`
+const PT_RANGE_PLACE_LEAD = String.raw`(?:no|na|nos|nas|em|com|para|pra|pro|perto|antes|depois|sem)\s+[a-z]`
+const PT_RANGE_BARE_END_BEFORE_CADENCE = String.raw`${PT_RANGE_HOUR}${PT_RANGE_END_WITHOUT_OWN_UNIT}(?=\s*(?:[,.;!?…]|$)|\s+(?:e\s+)?(?:(?:as|aos|no|nos|na|nas|em)\s+)?${PT_RANGE_CADENCE_WORD}\b|\s+(?:de|nas|nos|aos)\b|\s+${PT_RANGE_PLACE_LEAD})`
 const PT_RANGE_MINUTE_TAIL = String.raw`${PT_NOON_OFFSET_TAIL}(?:\s+minutos?\b)?(?=\s*(?:[,.;!?…]|$)|\s+(?:${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})|(?:(?:as|aos|de|no|nos|na|nas|em)\s+)?${PT_RANGE_CADENCE_WORD})\b)`
-const PT_RANGE_START_MARKS = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+e\s+(?<startHalf>meia)\b(?!-))?(?:\s+da\s+(?<startPeriod>${PT_PERIOD_WORD})\b)?`
+const PT_RANGE_START_MARKS = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+e\s+(?<startHalf>meia)\b(?!-))?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(?<startPeriod>${PT_PERIOD_WORD})\b)?`
 const PT_RANGE_END_MARKS = String.raw`(?:\s+${PT_HOUR_UNIT}\b)?(?:\s+e\s+meia\b(?!-))?(?:${PT_RANGE_MINUTE_TAIL})?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(?<endPeriod>${PT_PERIOD_WORD})\b)?`
 const PT_RANGE_END = String.raw`(?<endHour>${PT_RANGE_HOUR})(?::[0-5]\d|h(?:[0-5]\d)?)?${PT_RANGE_END_MARKS}${PT_RANGE_END_WITHOUT_OWN_UNIT}`
 const PT_RANGE_MARKED_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d|h(?:[0-5]\d)?)?\s+(?:${PT_HOUR_UNIT}\b|e\s+meia\b|${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})\b)`
 const PT_RANGE_MINUTE_TAIL_END = String.raw`${PT_RANGE_HOUR}${PT_RANGE_MINUTE_TAIL}`
 const PT_RANGE_NOON_END = String.raw`(?:ao|as|ate(?:\s+o)?)\s+(?<endNoon>meio-dia)(?!${PT_NOON_OFFSET_TAIL})(?:\s+e\s+mei[ao]\b(?!-))?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(?:${PT_PERIOD_WORD})\b)?(?![\w-]|[:.,]\d)`
-const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d)|h(?<startHMinute>[0-5]\d)?)?${PT_RANGE_START_MARKS}\s+(?:(?:(?:ate\s+as|ate|as)|a(?=\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}|${PT_RANGE_MARKED_END}|${PT_RANGE_MINUTE_TAIL_END})))\s+${PT_RANGE_END}|${PT_RANGE_NOON_END})`
-const PT_DE_RANGE_JOINER = String.raw`(?:ate\s+as|as)`
+const PT_RANGE_A_JOINER = String.raw`a(?=\s+(?:${PT_RANGE_UNIT_END}|${PT_RANGE_BARE_END_BEFORE_CADENCE}|${PT_RANGE_MARKED_END}|${PT_RANGE_MINUTE_TAIL_END}))`
+const PT_HOUR_RANGE = String.raw`\bdas\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d)|h(?<startHMinute>[0-5]\d)?)?${PT_RANGE_START_MARKS}\s+(?:(?:(?:ate\s+as|ate|as)|${PT_RANGE_A_JOINER})\s+${PT_RANGE_END}|${PT_RANGE_NOON_END})`
+const PT_DE_RANGE_JOINER = String.raw`(?:ate\s+as|as|${PT_RANGE_A_JOINER})`
 const PT_DE_RANGE_SPACED_END = String.raw`${PT_RANGE_HOUR}(?::[0-5]\d)?\s+${PT_HOUR_UNIT}\b`
 const PT_DE_RANGE_START_UNIT = String.raw`(?:\s+${PT_HOUR_UNIT}\b(?=\s+${PT_DE_RANGE_JOINER}\s+${PT_DE_RANGE_SPACED_END})|h(?<startHMinute>[0-5]\d)?\b|(?!h|\s+${PT_HOUR_UNIT}\b))`
-const PT_DE_HOUR_RANGE = String.raw`\bde\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d))?${PT_DE_RANGE_START_UNIT}(?:\s+e\s+(?<startHalf>meia)\b(?!-))?(?:\s+da\s+(?<startPeriod>${PT_PERIOD_WORD})\b)?\s+(?:${PT_DE_RANGE_JOINER}\s+${PT_RANGE_END}(?!\s+(?:vez|vezes|x)\b)|${PT_RANGE_NOON_END})`
+const PT_DE_HOUR_RANGE = String.raw`\bde\s+(${PT_RANGE_HOUR})(?::(?<startMinute>[0-5]\d))?${PT_DE_RANGE_START_UNIT}(?:\s+e\s+(?<startHalf>meia)\b(?!-))?(?:\s+${PT_DAY_PART_CONNECTOR}\s+(?<startPeriod>${PT_PERIOD_WORD})\b)?\s+(?:${PT_DE_RANGE_JOINER}\s+${PT_RANGE_END}(?!\s+(?:vez|vezes|x)\b)|${PT_RANGE_NOON_END})`
 const ARTICLE_GLUE = /^\.?(?:\s+feiras?)?\s+(?:as|aos)\s+$/u
 const RANGE_OPENER = /(?:^|\s)d(?:e|as?|os?)\s+$/u
 const WEEKDAY_GLUE_LEAD = /^\.?(?:\s+feiras?)?/u
@@ -188,7 +190,7 @@ const LOCALE_PATTERNS: Record<SupportedLocale, LocalePatterns> = {
     times: [
       new RegExp(PT_HOUR_RANGE, 'gu'),
       new RegExp(PT_DE_HOUR_RANGE, 'gu'),
-      new RegExp(String.raw`\b(?:as(?!\s+${PT_RANGE_HOUR}\s+${PT_MEASURE_UNIT}\b)|a)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
+      new RegExp(String.raw`\b(?:as|a)(?!\s+${PT_RANGE_HOUR}\s+${PT_MEASURE_UNIT}\b)\s+([01]?\d|2[0-3])(?::([0-5]\d)|h([0-5]\d)?|\s+e\s+(meia)\b(?!-))?\b${PT_DAY_PART}(?![:\dh]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3]):([0-5]\d)\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       new RegExp(String.raw`(?<![\w:])(?<!\d[.,])([01]?\d|2[0-3])h([0-5]\d)?\b${PT_DAY_PART}(?![:\d]|[.,]\d)`, 'gu'),
       /(?<![\w:])(?<!\d[.,])(1[0-2]|0?[1-9])\s+da\s+(manha|tarde|noite|madrugada)\b(?![:\d]|[.,]\d)/gu,

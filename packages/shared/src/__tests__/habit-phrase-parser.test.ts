@@ -1271,10 +1271,7 @@ describe('a bare das hour range', () => {
     ['Academia de 2 a 3 vezes por semana', '03:00'],
     ['Academia de 2 até 3 vezes por semana', null],
     ['Curso de 3 horas às 19h toda quarta', '19:00'],
-    ['Ler das 5 a 7 páginas', '07:00'],
     ['Andar das 3 a 5 quadras', '05:00'],
-    ['Correr das 5 a 8 quilômetros', '08:00'],
-    ['Meditar das 5 a 10 segundos', '10:00'],
     ['Correr das 3 a 5 dias por semana', '05:00'],
     ['Estudar das 9 até 11 ao meio-dia', '12:00'],
   ] as const)('reads a phrase outside the form as before: %s', (input, time) => {
@@ -1521,7 +1518,7 @@ describe('a de hour range', () => {
     ['Academia de 2 às 3 vezes por semana', '03:00', 'Academia'],
     ['Meditar de 10 até 20 minutos', null, 'Meditar de 10 até 20 minutos'],
     ['Correr de 5 até 10 km toda segunda', null, 'Correr de 5 até 10 km'],
-    ['Estudar de 9 a 11', '11:00', 'Estudar de 9'],
+    ['Estudar de 9 a 11', '09:00', 'Estudar'],
     ['Estudar de 9 até 11', null, 'Estudar de 9 até 11'],
     ['Curso de 3 horas às 19h toda quarta', '19:00', 'Curso de 3 horas'],
     ['Corrida de 1 hora às 7 da manhã', '07:00', 'Corrida de 1 hora'],
@@ -1644,6 +1641,61 @@ describe('a range end that a quantity follows', () => {
     ['Ler ao meio-dia e 20 páginas', '12:00'],
     ['Estudar das 9 ao meio-dia e 5 km', '09:00'],
   ] as const)('reads the noon hour before a quantity in %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+  })
+})
+
+describe('a pt-BR a N before a measure unit', () => {
+  it.each([
+    'Correr a 10 km',
+    'Pedalar a 20 km por hora',
+    'Correr das 5 a 8 quilômetros',
+    'Ler das 5 a 7 páginas',
+    'Meditar das 5 a 10 segundos',
+  ] as const)('reads no due time in %s', (input) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBeNull()
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(input)
+  })
+
+  it('still reads a due time after a', () => {
+    expect(readHabitPhrase('Correr a 10', 'pt-BR').dueTime).toBe('10:00')
+  })
+})
+
+describe('a range start with a day part connector', () => {
+  it.each([
+    ['Estudar das 9 de manhã às 11', '09:00'],
+    ['Estudar das 9 pela manhã às 11', '09:00'],
+    ['Estudar de 9 de manhã às 11', '09:00'],
+    ['Estudar de 9 pela manhã às 11', '09:00'],
+    ['Estudar das 9 da noite às 11', '21:00'],
+    ['Estudar das 9 de manhã a 11', '09:00'],
+  ] as const)('reads the start hour and leaves the title bare in %s', (input, time) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe('Estudar')
+  })
+})
+
+describe('a range with the a joiner before an ordinary word', () => {
+  it.each([
+    ['Estudar das 9 a 11 na biblioteca', '09:00', 'Estudar na biblioteca'],
+    ['Estudar das 9h a 11 na biblioteca', '09:00', 'Estudar na biblioteca'],
+    ['Estudar das 9 a 11 com a Ana', '09:00', 'Estudar com a Ana'],
+    ['Estudar de 10 a 12', '10:00', 'Estudar'],
+    ['Estudar de 9h a 11h', '09:00', 'Estudar'],
+    ['Estudar de 10 a 12 na biblioteca', '10:00', 'Estudar na biblioteca'],
+    ['Estudar de 9 a 11 toda segunda', '09:00', 'Estudar'],
+  ] as const)('reads the start hour and keeps the words of %s', (input, time, title) => {
+    expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
+    expect(getHabitPhraseTitle(input, 'pt-BR')).toBe(title)
+  })
+
+  it.each([
+    ['Academia de 2 a 3 vezes por semana', '03:00'],
+    ['Academia de 2 até 3 vezes por semana', null],
+    ['Andar das 3 a 5 quadras', '05:00'],
+    ['Correr das 3 a 5 dias por semana', '05:00'],
+  ] as const)('reads a phrase outside the form as before: %s', (input, time) => {
     expect(readHabitPhrase(input, 'pt-BR').dueTime).toBe(time)
   })
 })
