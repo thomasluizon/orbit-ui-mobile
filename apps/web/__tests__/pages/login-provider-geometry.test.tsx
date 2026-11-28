@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest
 import { authLocales, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
-import { SIGN_IN_BUTTON_HEIGHT } from '@orbit/shared/theme'
+import { SIGN_IN_BUTTON_HEIGHT, SIGN_IN_TITLE_SIZE } from '@orbit/shared/theme'
 import { LoginContent } from '@/app/(auth)/login/login-content'
 import { AuthPageFrame } from '@/components/auth/auth-page-frame'
 import { loadAppFonts } from '@/__tests__/support/app-fonts'
@@ -32,6 +32,7 @@ vi.mock('motion/react', async () => {
 // WHY: Cloudflare sizes the flexible widget at 65px height https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/widget-configurations/
 const FLEXIBLE_CHALLENGE_HEIGHT = 65
 const DRAWN_SPACE = 16
+const STACK_GAP = 24
 type CheckState = 'none' | 'loading' | 'challenge' | 'expired' | 'failed'
 interface TurnstileOptions { callback: (token: string) => void; 'before-interactive-callback': () => void; 'expired-callback': () => void; 'error-callback': (code: string) => boolean }
 const smallScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }].flatMap(screen =>
@@ -77,7 +78,9 @@ async function readSignIn(chrome: { browser: Browser; stylesheet: string }, mark
       const providers = [...document.querySelectorAll('button')].filter(button => button.querySelector('svg[data-asset="apple-sign-in-logo"], svg[data-asset="google-mark"]'))
       return { contentTop: bounds.top + Number.parseFloat(padding.paddingTop), contentBottom: bounds.bottom - Number.parseFloat(padding.paddingBottom),
         pageHeight: document.documentElement.scrollHeight, check: document.querySelector('[role="status"]:not(.sr-only)')?.textContent ?? '',
-        providerHeights: providers.map(button => button.getBoundingClientRect().height) }
+        providerHeights: providers.map(button => button.getBoundingClientRect().height),
+        providerWidths: providers.map(button => button.getBoundingClientRect().width),
+        providerTitleSizes: providers.map(button => getComputedStyle(button).fontSize) }
     })
     return { ...geometry, overflow: geometry.pageHeight - viewport.height, topGap: geometry.contentTop, bottomGap: geometry.pageHeight - geometry.contentBottom }
   } finally { await page.close() }
@@ -136,22 +139,24 @@ describe('Login provider geometry in Chromium', () => {
     else expect(overflow, 'only the drawn space can need a scroll').toBeLessThanOrEqual(2 * DRAWN_SPACE)
     if (overflow === 0) expect(Math.abs(topGap - bottomGap) / 2, JSON.stringify(geometry)).toBeLessThanOrEqual(0.5)
     if (step === 'email') expect(geometry.providerHeights).toEqual([SIGN_IN_BUTTON_HEIGHT, SIGN_IN_BUTTON_HEIGHT])
+    if (step === 'email') expect(geometry.providerTitleSizes, 'Apple and Google titles share one size').toEqual([`${SIGN_IN_TITLE_SIZE}px`, `${SIGN_IN_TITLE_SIZE}px`])
+    if (step === 'email') expect(geometry.providerWidths[0]).toBeCloseTo(geometry.providerWidths[1]!, 1)
   })
 
-  const steadyScreens = [{ width: 320, height: 640 }, { width: 375, height: 667 }, { width: 1280, height: 915 }]
+  const steadyScreens = [{ width: 320, height: 640 }, { width: 412, height: 915 }, { width: 1280, height: 915 }]
     .flatMap(screen => (['email', 'code'] as const).map(step => ({ ...screen, step })))
-  it.each(steadyScreens)('keeps the $step content at one place and one height in every state of the check at $width x $height', async ({ width, height, step }) => {
+  it.each(steadyScreens)('takes the check and its gap out of the $step content once it passes, and brings them back while something shows, at $width x $height', async ({ width, height, step }) => {
     vi.stubEnv('NEXT_PUBLIC_APPLE_CLIENT_ID', 'test-client')
-    const seen: { check: CheckState; contentTop: number; contentBottom: number }[] = []
+    const contentHeights: Record<string, number> = {}
     for (const check of ['loading', 'challenge', 'none', 'expired', 'failed'] as const) {
       const { contentTop, contentBottom } = await readSignIn({ browser, stylesheet }, await renderSignIn(step, check), { width, height })
-      seen.push({ check, contentTop, contentBottom })
+      contentHeights[check] = contentBottom - contentTop
       cleanup()
     }
-    for (const { check, contentTop, contentBottom } of seen) {
-      expect({ contentTop, contentBottom }, `${check}: the content moved or changed its height: ${JSON.stringify(seen)}`)
-        .toEqual({ contentTop: seen[0]!.contentTop, contentBottom: seen[0]!.contentBottom })
-    }
+    const closedHeight = contentHeights.loading! - FLEXIBLE_CHALLENGE_HEIGHT - STACK_GAP
+    expect(Math.abs(contentHeights.none! - closedHeight), JSON.stringify(contentHeights)).toBeLessThanOrEqual(0.5)
+    expect(Math.abs(contentHeights.challenge! - contentHeights.loading!), JSON.stringify(contentHeights)).toBeLessThanOrEqual(0.5)
+    for (const check of ['expired', 'failed']) expect(contentHeights[check], `${check} shows the message and Retry`).toBeGreaterThan(closedHeight)
   })
 
   it.each(['email', 'code'] as const)('keeps the drawn space above the Orbit mark and below the last line of the %s step when the content cannot fit', async (step) => {

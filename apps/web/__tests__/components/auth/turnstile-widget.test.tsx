@@ -3,9 +3,12 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createRoot } from 'react-dom/client'
 import { captureMessage } from '@sentry/nextjs'
 import { TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_LOAD_DEADLINE_MS } from '@orbit/shared/hooks/turnstile-token-core'
+import { motionDurations } from '@orbit/shared/theme'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 
 vi.mock('@sentry/nextjs', () => ({ captureMessage: vi.fn() }))
+const motionPreference = vi.hoisted(() => ({ reduced: true }))
+vi.mock('motion/react', async (importActual) => ({ ...(await importActual<typeof import('motion/react')>()), useReducedMotion: () => motionPreference.reduced }))
 const appLocale = vi.hoisted(() => ({ value: 'en' }))
 vi.mock('next-intl', () => ({ useTranslations: () => (key: string) => key, useLocale: () => appLocale.value }))
 
@@ -13,6 +16,7 @@ afterEach(() => {
   delete (window as Window & { turnstile?: unknown }).turnstile
   document.documentElement.style.removeProperty('color-scheme')
   appLocale.value = 'en'
+  motionPreference.reduced = true
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -142,37 +146,87 @@ it('removes the invisible quiet widget from the form gap flow', async () => {
   expect(getComputedStyle(widget).position).toBe('absolute')
 })
 
-it('keeps a slot of the challenge height in the form in every state, and shows the challenge only while it waits for the person', async () => {
+type SlotCallbacks = {
+  callback: (token: string) => void
+  'error-callback': (code: string) => boolean
+  'expired-callback': () => void
+  'before-interactive-callback': () => void
+  'after-interactive-callback': () => void
+}
+
+function readSlot() {
+  const slot = getComputedStyle(screen.getByTestId('turnstile-slot'))
+  return { height: slot.height, challenge: getComputedStyle(screen.getByTestId('turnstile-challenge')).height }
+}
+
+it('gives the slot no height when nothing shows, and the challenge height only while something shows', async () => {
   const renderWidget = vi.fn((..._args: unknown[]) => 'slot-widget')
   ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
   render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
-  const read = () => {
-    const slot = getComputedStyle(screen.getByTestId('turnstile-slot'))
-    return { minHeight: slot.minHeight, position: slot.position, challenge: getComputedStyle(screen.getByTestId('turnstile-challenge')).height }
-  }
-  const hidden = { minHeight: `${TURNSTILE_CHALLENGE_HEIGHT}px`, position: 'static', challenge: '0px' }
-  expect(read(), 'before the script loads').toEqual(hidden)
+  const closed = { height: '0px', challenge: '0px' }
+  const open = { height: `${TURNSTILE_CHALLENGE_HEIGHT}px`, challenge: '0px' }
+  expect(readSlot(), 'idle, before the script loads').toEqual(closed)
   await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
   expect(screen.getByTestId('turnstile-challenge')).toContainElement(renderWidget.mock.calls[0]![0] as HTMLElement)
-  const callbacks = renderWidget.mock.calls[0]![1] as {
-    callback: (token: string) => void
-    'error-callback': (code: string) => boolean
-    'expired-callback': () => void
-    'before-interactive-callback': () => void
-    'after-interactive-callback': () => void
-  }
-  expect(read(), 'loading').toEqual(hidden)
+  const callbacks = renderWidget.mock.calls[0]![1] as SlotCallbacks
+  expect(readSlot(), 'the wait shows while the check runs').toEqual(open)
   act(() => callbacks['before-interactive-callback']())
-  expect(read(), 'interactive').toEqual({ ...hidden, challenge: `${TURNSTILE_CHALLENGE_HEIGHT}px` })
+  expect(readSlot(), 'interactive').toEqual({ height: open.height, challenge: `${TURNSTILE_CHALLENGE_HEIGHT}px` })
   act(() => callbacks['after-interactive-callback']())
-  expect(read(), 'loading after the tap').toEqual(hidden)
+  expect(readSlot(), 'loading after the tap').toEqual(open)
   act(() => callbacks.callback('fresh-token'))
-  expect(read(), 'solved').toEqual(hidden)
+  expect(readSlot(), 'passed').toEqual(closed)
   act(() => callbacks['expired-callback']())
-  expect(read(), 'expired').toEqual(hidden)
+  expect(readSlot(), 'expired shows the message and Retry').toEqual(open)
   act(() => { callbacks['error-callback']('110200') })
-  expect(read(), 'failed').toEqual(hidden)
+  expect(readSlot(), 'failed shows the message and Retry').toEqual(open)
   expect(TURNSTILE_CHALLENGE_HEIGHT).toBe(65)
+})
+
+it('takes back the gap of the parent column while the slot is closed, and gives it back while something shows', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'gap-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} stackGap={24} onToken={vi.fn()} />)
+  const margin = () => getComputedStyle(screen.getByTestId('turnstile-slot')).marginBlockStart
+  expect(margin(), 'idle').toBe('-24px')
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(margin(), 'the wait shows while the check runs').toBe('0px')
+  act(() => (renderWidget.mock.calls[0]![1] as SlotCallbacks).callback('fresh-token'))
+  expect(margin(), 'passed').toBe('-24px')
+})
+
+it('closes the slot when the check passes with no interaction', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'silent-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  act(() => (renderWidget.mock.calls[0]![1] as SlotCallbacks).callback('silent-token'))
+  expect(readSlot()).toEqual({ height: '0px', challenge: '0px' })
+  expect(screen.getByTestId('turnstile-slot').getAttribute('data-open')).toBeNull()
+})
+
+it.each([[false, `height ${motionDurations.base}ms cubic-bezier(0.2, 0, 0, 1), margin-block-start ${motionDurations.base}ms cubic-bezier(0.2, 0, 0, 1)`], [true, 'none']])('animates the slot height over the shared base duration, reduced motion %s', async (reduced, transition) => {
+  motionPreference.reduced = reduced
+  const renderWidget = vi.fn((..._args: unknown[]) => 'motion-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  expect(screen.getByTestId('turnstile-slot').style.transition).toBe(transition)
+  expect(motionDurations.base).toBe(220)
+})
+
+it('keeps the focus on the field when the slot opens and closes', async () => {
+  const renderWidget = vi.fn((..._args: unknown[]) => 'focus-widget')
+  ;(window as Window & { turnstile?: unknown }).turnstile = { render: renderWidget, reset: vi.fn(), remove: vi.fn() }
+  render(<><input aria-label="e-mail" /><TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} /></>)
+  const field = screen.getByLabelText('e-mail')
+  field.focus()
+  await waitFor(() => expect(renderWidget).toHaveBeenCalledOnce())
+  const callbacks = renderWidget.mock.calls[0]![1] as SlotCallbacks
+  act(() => callbacks['before-interactive-callback']())
+  expect(document.activeElement, 'the slot opens').toBe(field)
+  act(() => callbacks.callback('fresh-token'))
+  expect(document.activeElement, 'the slot closes').toBe(field)
 })
 
 it('restores visible challenge space and collapses it again', async () => {
