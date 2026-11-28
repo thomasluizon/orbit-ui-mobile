@@ -147,4 +147,19 @@ export const cases = async () => {
   const largerOrder = renderOrder({ kind: "replan", ticket: TICKET, partComments: olderLarger, history: [], place: PLACE, replan: { stuckBranch: "chore/ticket-9", mergedParts: [], currentTotal: 3, highestTotal: 4 } })
   T("lib/order.mjs: a replan order tells the run to beat the highest total of any set", largerOrder.includes("Total of the part set in force: 3. Highest total of any part set on the ticket: 4.") && largerOrder.includes("make m higher than 4."))
   same("lib/order.mjs: a merged part keeps its text and takes the new total", [withTotal("## Part 2 of 3: two\nBody that says Part 2 of 3.", 5), withTotal("# #7 Part 1 of 2: x", 4)], ["## Part 2 of 5: two\nBody that says Part 2 of 3.", "# #7 Part 1 of 4: x"])
+
+  const STEP = "This Bug ticket has no `Class:` line or no `## Permanent fix` section. Before any code, read the ticket and the code, then write both into the body with `node tools/update-ticket.mjs body --ticket 9 --body-file <file> --confirm-replace`. Name the code that holds the class, or write `none: <reason>`."
+  const stepped = renderOrder({ kind: "build", ticket: TICKET, place: PLACE, classStep: true })
+  T("lib/order.mjs: classStep puts the class step first in the section This order", stepped.includes(`## This order (build)\n\n${STEP}\n\nBuild the ticket.`))
+  T("lib/order.mjs: an order with no classStep holds no class step and no ticket write", !renderOrder({ kind: "build", ticket: TICKET, place: PLACE }).includes("update-ticket"))
+  const elsewhere = renderOrder({ kind: "build", ticket: TICKET, place: { ...PLACE, repoKey: "api" }, classStep: true })
+  T("lib/order.mjs: an order of a repository with no ticket tool names the tool of the driver by its full path", elsewhere.includes(`\`node ${join(REPO_ROOT, "tools", "update-ticket.mjs")} body --ticket 9 `))
+  const ALSO = "The `update-ticket.mjs body` write of the first step is also allowed."
+  T("lib/order.mjs: the delivery rules of an order with a class step allow its ticket write", stepped.includes(ALSO) && !renderOrder({ kind: "build", ticket: TICKET, place: PLACE }).includes(ALSO))
+  const findStep = renderOrder({ kind: "find", ticket: TICKET, partComments: twoParts, partNumber: 1, place: PLACE, classStep: true })
+  T("lib/order.mjs: a find order with a class step stays read only apart from the ticket write", findStep.includes(STEP) && findStep.includes(`write nothing to GitHub. ${ALSO}`))
+  for (const kind of ["build", "build part", "find"]) {
+    const bytes = Buffer.byteLength(renderBrief({ kind, place: PLACE, ticket: TICKET, classStep: true }))
+    T(`lib/order.mjs: the ${kind} brief with a class step fits the byte limit (${bytes})`, bytes <= 6000)
+  }
 }
