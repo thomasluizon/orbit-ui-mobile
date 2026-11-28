@@ -36,7 +36,7 @@ export function LoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   useSignInCompletion(guided && (account || flow.signedIn))
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} stackGap={guided ? 12 : 24} />
     : null
   if (guided) return (
     <LazyMotion features={domMin}>

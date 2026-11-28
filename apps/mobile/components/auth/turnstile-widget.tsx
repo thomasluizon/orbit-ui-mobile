@@ -2,7 +2,10 @@ import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
 import { SkeletonFace } from '@/components/ui/skeleton'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AppState, Text, View } from 'react-native'
+import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- the slot height is a layout value, which the native driver cannot animate https://reactnative.dev/docs/animations#using-the-native-driver
+  Animated, AppState, Text, View,
+} from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { addBreadcrumb, captureMessage } from '@sentry/react-native'
 import {
@@ -11,8 +14,9 @@ import {
 } from '@orbit/shared/hooks/turnstile-token-core'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import type { WebViewErrorEvent, WebViewHttpErrorEvent } from 'react-native-webview/lib/WebViewTypes'
-import { SPACING } from '@orbit/shared/theme'
+import { motionDurations, motionEasings, SPACING } from '@orbit/shared/theme'
 import { createTokensV2, radius } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { APP_LINK_ORIGIN } from '@/lib/app-link-origin'
 import { shouldLoadTurnstileFrame, TURNSTILE_ORIGIN_ALLOWLIST, urlHost } from '@/lib/turnstile-frames'
@@ -242,14 +246,38 @@ function useBridgeLoad(resetKey: number, bridgeHost: string, onToken: (token: st
   return { state, attempt, onError, onHttpError, onMessage, retry }
 }
 
+function useSlotHeight(open: boolean, stackGap: number) {
+  const reducedMotion = usePrefersReducedMotion()
+  const [height] = useState(() => new Animated.Value(0))
+  const [marginTop] = useState(() => new Animated.Value(0 - stackGap))
+  useEffect(() => {
+    const targets = [{ value: height, to: open ? TURNSTILE_CHALLENGE_HEIGHT : 0 }, { value: marginTop, to: open ? 0 : 0 - stackGap }]
+    if (reducedMotion) {
+      for (const { value, to } of targets) {
+        value.stopAnimation()
+        value.setValue(to)
+      }
+      return
+    }
+    const animation = Animated.parallel(targets.map(({ value, to }) => Animated.timing(value, {
+      toValue: to, duration: motionDurations.base, easing: toAnimatedEasing(motionEasings.standard), useNativeDriver: false,
+    })))
+    animation.start()
+    return () => animation.stop()
+  }, [open, reducedMotion, stackGap, height, marginTop])
+  return { height, marginTop }
+}
+
 export function TurnstileWidget({
   siteKey,
   resetKey,
   onToken,
+  stackGap = 0,
 }: Readonly<{
   siteKey: string
   resetKey: number
   onToken: (token: string | null) => void
+  stackGap?: number
 }>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -258,10 +286,11 @@ export function TurnstileWidget({
   const { state, attempt, onError, onHttpError, onMessage, retry } = useBridgeLoad(resetKey, urlHost(APP_LINK_ORIGIN), onToken)
   const challengeHidden = state !== 'interactive'
   const stopped = state === 'failed' || state === 'expired'
+  const slot = useSlotHeight(state === 'loading' || state === 'interactive' || stopped, stackGap)
 
   return (
     // WHY: the root is one native view in every state: when Fabric created it only at the pass, Android lost the moved check (Unable to find viewState). https://github.com/facebook/react-native/blob/v0.88.1/packages/react-native/ReactCommon/react/renderer/components/view/ViewShadowNode.cpp#L44-L52
-    <View collapsable={false} style={{ alignSelf: 'stretch', minHeight: TURNSTILE_CHALLENGE_HEIGHT, justifyContent: 'center' }}>
+    <Animated.View collapsable={false} testID="turnstile-slot" style={{ alignSelf: 'stretch', ...slot, justifyContent: 'center', overflow: 'hidden' }}>
       <View testID="turnstile-challenge" importantForAccessibility={challengeHidden ? 'no-hide-descendants' : 'auto'} accessibilityElementsHidden={challengeHidden}
         style={{ alignSelf: 'stretch', height: challengeHidden ? 0 : TURNSTILE_CHALLENGE_HEIGHT, overflow: 'hidden' }}>
         {state === 'failed' ? null :
@@ -299,6 +328,6 @@ export function TurnstileWidget({
         {stopped &&
           <IconButton label={t('auth.turnstileRetry')} onClick={retry}><RefreshCw size={20} strokeWidth={1.5} accessible={false} /></IconButton>}
       </View>
-    </View>
+    </Animated.View>
   )
 }

@@ -1,10 +1,11 @@
 import { createRequire } from 'node:module'
 import React from 'react'
-import { AppState, StyleSheet } from 'react-native'
+import { Animated, AppState, StyleSheet } from 'react-native'
 import { expect, it, onTestFinished, vi } from 'vitest'
 import type * as WebViewShared from 'react-native-webview/lib/WebViewShared'
 import type { ShouldStartLoadRequestEvent } from 'react-native-webview/lib/WebViewTypes'
 import { addBreadcrumb, captureMessage } from '@sentry/react-native'
+import { motionDurations } from '@orbit/shared/theme'
 import { TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS } from '@orbit/shared/hooks/turnstile-token-core'
 import { TurnstileWidget } from '@/components/auth/turnstile-widget'
 import type appJson from '../../app.json'
@@ -14,6 +15,8 @@ const createConfig = createRequire(import.meta.url)('../../app.config.js') as ()
 const variantConfig = vi.hoisted(() => ({ current: null as typeof appJson.expo | null }))
 vi.mock('expo-constants', () => ({ default: { get expoConfig() { return variantConfig.current } } }))
 
+const motionPreference = vi.hoisted(() => ({ reduced: true }))
+vi.mock('@/lib/motion', async (importActual) => ({ ...(await importActual<typeof import('@/lib/motion')>()), usePrefersReducedMotion: () => motionPreference.reduced }))
 const appLanguage = vi.hoisted(() => ({ value: 'pt-BR' }))
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: appLanguage.value } }),
@@ -274,25 +277,79 @@ it('shows the loading sentence only while no challenge waits for the person, and
   expect(challengeHostHeight()).toBe(0)
 })
 
-it('keeps a slot of the challenge height in the layout in every state, so the sign-in column does not move when the check passes', async () => {
+function renderSlot(stackGap = 0) {
   let renderer!: ReturnType<typeof TestRenderer.create>
-  const slot = () => StyleSheet.flatten(renderer.toJSON().props.style)
   TestRenderer.act(() => {
-    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} />)
+    renderer = TestRenderer.create(<TurnstileWidget siteKey="site-key" resetKey={0} onToken={vi.fn()} stackGap={stackGap} />)
   })
   onTestFinished(() => TestRenderer.act(() => renderer.unmount()))
-  const slots = [slot()]
-  await TestRenderer.act(() => Promise.resolve())
-  slots.push(slot())
-  for (const state of ['interactive', 'loading', 'solved', 'expired', 'failed']) {
-    await TestRenderer.act(async () => {
-      renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
-      await Promise.resolve()
-    })
-    slots.push(slot())
-  }
-  expect(slots.map(({ minHeight, position }) => ({ minHeight, position }))).toEqual(Array(7).fill({ minHeight: TURNSTILE_CHALLENGE_HEIGHT, position: undefined }))
+  const slotStyle = () => StyleSheet.flatten(renderer.root.findByProps({ testID: 'turnstile-slot' }).props.style)
+  const slotHeight = () => slotStyle().height.value
+  const slotMargin = () => slotStyle().marginTop.value
+  const send = (state: string) => TestRenderer.act(async () => {
+    renderer.root.findByType('WebView').props.onMessage({ nativeEvent: { data: JSON.stringify({ state }) } })
+    await Promise.resolve()
+  })
+  return { slotHeight, slotMargin, send, settle: () => TestRenderer.act(() => Promise.resolve()) }
+}
+
+it('gives the slot no height when nothing shows, and the challenge height only while something shows', async () => {
+  motionPreference.reduced = true
+  onTestFinished(() => { motionPreference.reduced = true })
+  const { slotHeight, send, settle } = renderSlot()
+  expect(slotHeight(), 'idle').toBe(0)
+  await settle()
+  expect(slotHeight(), 'the wait shows while the check runs').toBe(TURNSTILE_CHALLENGE_HEIGHT)
+  await send('interactive')
+  expect(slotHeight(), 'interactive').toBe(TURNSTILE_CHALLENGE_HEIGHT)
+  await send('loading')
+  expect(slotHeight(), 'loading after the tap').toBe(TURNSTILE_CHALLENGE_HEIGHT)
+  await send('solved')
+  expect(slotHeight(), 'passed').toBe(0)
+  await send('expired')
+  expect(slotHeight(), 'expired shows the message and Retry').toBe(TURNSTILE_CHALLENGE_HEIGHT)
+  await send('failed')
+  expect(slotHeight(), 'failed shows the message and Retry').toBe(TURNSTILE_CHALLENGE_HEIGHT)
   expect(TURNSTILE_CHALLENGE_HEIGHT).toBe(65)
+})
+
+it('closes the slot when the check passes with no interaction', async () => {
+  const { slotHeight, send, settle } = renderSlot()
+  await settle()
+  await send('solved')
+  expect(slotHeight()).toBe(0)
+})
+
+it('takes back the gap of the parent column while the slot is closed, and gives it back while something shows', async () => {
+  const { slotMargin, send, settle } = renderSlot(24)
+  expect(slotMargin(), 'idle').toBe(-24)
+  await settle()
+  expect(slotMargin(), 'the wait shows while the check runs').toBe(0)
+  await send('solved')
+  expect(slotMargin(), 'passed').toBe(-24)
+  await send('failed')
+  expect(slotMargin(), 'failed').toBe(0)
+})
+
+it('animates the slot height over the shared base duration, and sets it with no animation under reduced motion', async () => {
+  const timing = vi.spyOn(Animated, 'timing')
+  onTestFinished(() => { timing.mockRestore(); motionPreference.reduced = true })
+  motionPreference.reduced = false
+  const { slotHeight, send, settle } = renderSlot(24)
+  await settle()
+  await send('solved')
+  const heightTimings = () => timing.mock.calls.filter(([, config]) => config.useNativeDriver === false)
+  expect(heightTimings().map(([, config]) => config.toValue), 'the height and the gap move together').toEqual([0, -24, TURNSTILE_CHALLENGE_HEIGHT, 0, 0, -24])
+  expect(heightTimings().every(([, config]) => config.duration === motionDurations.base)).toBe(true)
+  expect(motionDurations.base).toBe(220)
+
+  timing.mockClear()
+  motionPreference.reduced = true
+  const reduced = renderSlot()
+  await reduced.settle()
+  expect(heightTimings()).toEqual([])
+  expect(reduced.slotHeight()).toBe(TURNSTILE_CHALLENGE_HEIGHT)
+  expect(slotHeight()).toBe(0)
 })
 
 it('hides the clipped check from screen readers in every state but the challenge', async () => {

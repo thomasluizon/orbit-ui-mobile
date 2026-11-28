@@ -185,7 +185,7 @@ export function GuidedLoginContent({ callback }: Readonly<{ callback?: LoginCall
       continueAccount={() => { if (callbackAccount) callback.onContinue(); else void flow.continueAccount() }} errorMessage={flow.errorMessage} />
   }
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} stackGap={12} />
     : null
   return <GuidedLogin flow={flow} callback={callback} callbackDismissed={callbackDismissed} onDismissCallback={() => setCallbackDismissed(true)}
     canSubmitTurnstile={!flow.turnstileSiteKey || Boolean(flow.turnstileToken)} turnstileWidget={turnstileWidget} tokens={tokens} styles={styles} />

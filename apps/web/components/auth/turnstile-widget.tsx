@@ -2,13 +2,15 @@
 
 import { IconButton } from '@/components/ui/icon-button'
 import { RefreshCw } from '@/components/ui/icons'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useReducedMotion } from 'motion/react'
 import { captureMessage } from '@sentry/nextjs'
 import {
   createTurnstileLoadFailureReporter, TURNSTILE_CHALLENGE_HEIGHT, TURNSTILE_CHALLENGE_HOST, TURNSTILE_LOAD_DEADLINE_MS, TURNSTILE_RETRY_INTERVAL_MS,
   type TurnstileBridgeStage,
 } from '@orbit/shared/hooks/turnstile-token-core'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { useCurrentTheme } from '@/stores/theme-store'
 import { SkeletonFace } from '@/components/ui/skeleton'
 
@@ -327,6 +329,17 @@ function useTurnstileChallenge({ siteKey, resetKey, onToken, onStateChange, onFa
   return { containerRef, challengeVisible, state, retry }
 }
 
+function slotStyle(open: boolean, reducedMotion: boolean | null, stackGap: number): CSSProperties {
+  const [x1, y1, x2, y2] = motionEasings.standard
+  const timing = `${motionDurations.base}ms cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`
+  return {
+    height: open ? TURNSTILE_CHALLENGE_HEIGHT : 0,
+    marginBlockStart: open ? 0 : 0 - stackGap,
+    overflowY: 'clip',
+    transition: reducedMotion ? 'none' : `height ${timing}, margin-block-start ${timing}`,
+  }
+}
+
 export function TurnstileWidget({
   siteKey,
   resetKey,
@@ -337,10 +350,12 @@ export function TurnstileWidget({
   theme,
   language,
   quiet = false,
-}: ChallengeProps & Readonly<{ theme?: 'light' | 'dark'; language?: string; quiet?: boolean }>) {
+  stackGap = 0,
+}: ChallengeProps & Readonly<{ theme?: 'light' | 'dark'; language?: string; quiet?: boolean; stackGap?: number }>) {
   const t = useTranslations()
   const appLocale = useLocale()
   const currentTheme = useCurrentTheme()
+  const reducedMotion = useReducedMotion()
   const { containerRef, challengeVisible, state, retry } = useTurnstileChallenge({
     siteKey, resetKey, onToken, onStateChange, onFailure, onScriptStage, theme: theme ?? currentTheme, hasRunDeadline: !quiet,
     // WHY: Cloudflare lists Orbit's pt-BR as pt-br https://developers.cloudflare.com/turnstile/reference/supported-languages/
@@ -354,8 +369,10 @@ export function TurnstileWidget({
   const stopped = state === 'failed' || state === 'expired'
   const waiting = state === 'loading'
   const challengeHidden = state !== 'interactive'
+  const open = waiting || stopped || !challengeHidden
   return (
-    <div data-testid="turnstile-slot" className="flex flex-col justify-center text-sm text-[var(--fg-2)]" style={{ minHeight: TURNSTILE_CHALLENGE_HEIGHT }}>
+    <div data-testid="turnstile-slot" data-open={open ? '' : undefined} className="flex flex-col justify-center text-sm text-[var(--fg-2)]"
+      style={slotStyle(open, reducedMotion, stackGap)}>
       <div data-testid="turnstile-challenge" inert={challengeHidden || undefined} aria-hidden={challengeHidden || undefined}
         style={{ height: challengeHidden ? 0 : TURNSTILE_CHALLENGE_HEIGHT, overflowY: 'clip' }}>
         <div ref={containerRef} className="w-full" style={passedStyle} />

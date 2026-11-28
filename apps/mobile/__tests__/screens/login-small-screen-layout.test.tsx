@@ -3,6 +3,7 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authTranslator, createLoginScreenFixture } from '@orbit/shared/__tests__/auth-screen-fixtures'
 import { resolveMotionPreset, SPACING, type MotionScenario } from '@orbit/shared/theme'
+import { TURNSTILE_CHALLENGE_HEIGHT } from '@orbit/shared/hooks/turnstile-token-core'
 import { LoginContent } from '@/components/auth/login-content'
 import { measureProfileRow } from '@/__tests__/support/profile-row-geometry'
 import { committedHost, type GeometryHost } from '@/__tests__/support/safe-area-geometry'
@@ -179,15 +180,13 @@ describe('mobile sign-in on a small screen', () => {
   })
 
   const steadyCases = [IPHONE_SE, SE_SIZE_ANDROID, SMALL_ANDROID, IPAD].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))
-  it.each(steadyCases)('keeps the $step column of the $name at one height and one place in every state of the check', async ({ step, device }) => {
+  it.each(steadyCases)('takes the check out of the $step column of the $name once it passes, and brings it back while something shows', async ({ step, device }) => {
     const tree = await render(step, device)
-    const beforeMessage = placement(tree, device)
-    const seen = [{ check: 'no bridge message', ...beforeMessage }, ...(['interactive', 'loading', 'solved', 'expired', 'failed'] as const)
-      .map((check) => ({ check, ...showCheck(tree, check) }))]
-    for (const { check, column, first } of seen) {
-      expect({ height: column.height, top: column.top, markTop: first.top }, `${check}: the column moved or changed its height`)
-        .toEqual({ height: beforeMessage.column.height, top: beforeMessage.column.top, markTop: beforeMessage.first.top })
-    }
+    const height = (check: CheckState) => showCheck(tree, check).column.height
+    const waiting = placement(tree, device).column.height
+    expect(Math.abs(height('interactive') - waiting), 'interactive').toBeLessThanOrEqual(LAYOUT_UNIT)
+    expect(Math.abs(height('solved') - (waiting - TURNSTILE_CHALLENGE_HEIGHT)), 'passed').toBeLessThanOrEqual(LAYOUT_UNIT)
+    expect(height('expired'), 'expired shows the message and Retry').toBeGreaterThan(waiting - TURNSTILE_CHALLENGE_HEIGHT)
   })
 
   const fitCases = [SE_SIZE_ANDROID, IPHONE_SE].flatMap((device) => (['email', 'code'] as const).map((step) => ({ step, device, name: device.name })))

@@ -54,7 +54,7 @@ function CurrentLoginContent({ callback }: Readonly<{ callback?: LoginCallback }
   const sendCodeLabel = flow.fromOnboarding ? t('auth.onboarding.continue') : undefined
   const canSubmitTurnstile = !flow.turnstileSiteKey || Boolean(flow.turnstileToken)
   const turnstileWidget = flow.turnstileSiteKey && flow.isOnline
-    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} />
+    ? <TurnstileWidget key={flow.turnstileResetKey} siteKey={flow.turnstileSiteKey} resetKey={flow.turnstileResetKey} onToken={flow.onTurnstileToken} stackGap={24} />
     : null
   const scrollPadding = wide ? styles.scrollWide.padding : 0
   return <View style={styles.root}>
