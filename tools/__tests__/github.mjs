@@ -176,7 +176,7 @@ const ticketCases = async () => {
 /** The merge bar of the last pull request of a Bug ticket: the code of its class must change. */
 const fixCases = async () => {
   const last = (extra = {}) => pull({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none", mergeState: "CLEAN", requiredChecksChange: null, requiredChecks: [], ...extra })
-  const fix = (section, paths = [], changedOnMain = false) => ({ permanentFix: { section, paths, changedOnMain } })
+  const fix = (section, paths = [], changedOnMain = false) => ({ permanentFix: { section, paths, changedOnMain }, ticketLabels: ["Bug", "design-system"], fixPaths: paths })
   const N = "lib/github.mjs"
   same(`${N}: a last pull request whose ticket has no section fails the bar`, mergeBar(last(), fix("missing")), ["permanent-fix-missing"])
   same(`${N}: a last pull request whose section names no path fails the bar`, mergeBar(last(), fix("paths", [])), ["permanent-fix-missing"])
@@ -193,9 +193,32 @@ const fixCases = async () => {
   same(`${N}: readTickets returns createdAt for each ticket`, (await readTickets(seams)).map((entry) => entry.createdAt), [at])
 }
 
+/** The merge bar of a pull request that changes a locked path: the ticket must carry the owner's label. */
+const lockCases = () => {
+  const N = "lib/github.mjs"
+  const at = (files, context = {}) => mergeBar(pull({ files, ...{ requiredChecksChange: { base: required("Checks"), head: required("PR Tests") } } }), { lintCheck: null, ...context })
+  same(`${N}: a rule file with no label on the ticket fails the bar`, at(["eslint-rules/x.cjs"]), ["lock:design-system"])
+  same(`${N}: a rule file passes with the design-system label on the ticket`, at(["eslint-rules/x.cjs"], { ticketLabels: ["design-system"] }), [])
+  same(`${N}: the label on the pull request opens nothing`, mergeBar(pull({ files: ["eslint-rules/x.cjs"], labels: ["design-system"] }), {}), ["lock:design-system"])
+  same(`${N}: a rename of test.yml to tests.yml fails the bar`, at([".github/workflows/test.yml", ".github/workflows/tests.yml"]), ["lock:design-system"])
+  same(`${N}: a driver file with no gate label fails the bar and the design-system label does not open it`, [at(["tools/lib/worker.mjs"]), at(["tools/lib/worker.mjs"], { ticketLabels: ["design-system"] })], [["lock:gate"], ["lock:gate"]])
+  same(`${N}: a driver file passes with the gate label`, at(["tools/drive.mjs"], { ticketLabels: ["gate"] }), [])
+  same(`${N}: a file of the graph of main that the driver reads from main is locked`, [at(["tools/lib/extra.mjs"], { lock: { gate: ["tools/lib/extra.mjs"] } }), at(["tools/lib/extra.mjs"])], [["lock:gate"], []])
+  same(`${N}: a pull request on both locks fails on each label`, at(["eslint-rules/x.cjs", "tools/drive.mjs"]), ["lock:design-system", "lock:gate"])
+  const bug = (files, fixPaths, extra = {}) => at(files, { ticketLabels: ["Bug", "design-system"], fixPaths, primitives: ["apps/web/components/ui/label.tsx"], ...extra })
+  same(`${N}: a Bug ticket opens the locked rule file that its permanent fix names`, bug(["eslint-rules/x.cjs"], ["eslint-rules/x.cjs"]), [])
+  same(`${N}: a Bug ticket does not open a locked path that its permanent fix leaves out`, bug(["eslint-rules/x.cjs", "eslint-rules/y.cjs"], ["eslint-rules/x.cjs"]), ["lock-unnamed:design-system"])
+  same(`${N}: a Bug ticket with no named path opens no locked path`, bug(["eslint-rules/x.cjs"], []), ["lock-unnamed:design-system"])
+  same(`${N}: a Bug ticket whose fix names a rule also opens the lint of the changed files and its test`, bug(["eslint-rules/x.cjs", "tools/lint-changed.mjs", "tools/__tests__/lint-changed.mjs"], ["eslint-rules/x.cjs"]), [])
+  same(`${N}: a Bug ticket whose fix names a primitive also opens the lint of the changed files`, bug(["tools/lint-changed.mjs"], ["apps/web/components/ui/label.tsx"]), [])
+  same(`${N}: a Bug ticket whose fix names only a test leaves the lint of the changed files locked`, bug(["tools/lint-changed.mjs"], ["apps/web/__tests__/a.test.ts"]), ["lock-unnamed:design-system"])
+  same(`${N}: a ticket that is no Bug opens every design-system path`, at(["eslint-rules/x.cjs", "eslint-rules/y.cjs"], { ticketLabels: ["design-system"], fixPaths: [] }), [])
+}
+
 export const cases = async () => {
   await ticketCases()
   barCases()
+  lockCases()
   await fixCases()
   protectionCases()
   shapeCases()
