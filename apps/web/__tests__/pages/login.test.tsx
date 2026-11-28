@@ -299,6 +299,9 @@ vi.mock('@playwright/test', () => ({
 
 import { authenticate } from '@/e2e/support/auth'
 
+// WHY: the default 1000ms waitFor budget is shorter than the full flow under CI coverage. https://testing-library.com/docs/dom-testing-library/api-async/#waitfor
+const smokeWaitOptions = { timeout: 10_000 }
+
 class SmokeDomLocator {
   constructor(readonly selector: string, readonly root: () => ParentNode = () => document,
     readonly matches = () => Array.from(root().querySelectorAll<HTMLElement>(selector))) {}
@@ -336,7 +339,7 @@ class SmokeDomLocator {
 
   async click() {
     const element = this.element()
-    await waitFor(() => expect(element).toBeEnabled())
+    await waitFor(() => expect(element).toBeEnabled(), smokeWaitOptions)
     await act(async () => { fireEvent.click(element) })
   }
 
@@ -347,7 +350,7 @@ class SmokeDomLocator {
       expect(element.closest('[hidden]')).toBeNull()
       expect(getComputedStyle(element).display).not.toBe('none')
       expect(getComputedStyle(element).visibility).not.toBe('hidden')
-    })
+    }, smokeWaitOptions)
   }
 }
 
@@ -385,13 +388,13 @@ class SmokeDomPage {
 
   async waitForURL(predicate: (url: URL) => boolean, options?: { timeout: number }) {
     if (!options) {
-      await waitFor(() => expect(predicate(new URL(screen.getByLabelText('Current URL').textContent!, 'https://example.test'))).toBe(true))
+      await waitFor(() => expect(predicate(new URL(screen.getByLabelText('Current URL').textContent!, 'https://example.test'))).toBe(true), smokeWaitOptions)
       return
     }
     expect(predicate(new URL('https://example.test/login'))).toBe(false)
     expect(predicate(new URL('https://example.test/'))).toBe(true)
     expect(options).toEqual({ timeout: 30_000 })
-    await waitFor(() => expect(authRequests).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(authRequests).toHaveBeenCalledTimes(2), smokeWaitOptions)
     throw verificationRequestBoundary
   }
 }
