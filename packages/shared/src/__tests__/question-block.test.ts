@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { questionBlockSchema, questionSliderTick, questionSliderValue, questionSliderValueAtTick } from '../types/question-block'
 import { blockAnswerSchema, chatPartSchema } from '../types/chat'
 import type { BlockAnswerInteraction } from '../chat/block-answer'
-import { isSameBlockAnswer } from '../chat/block-answer'
+import { closeBlock, isSameBlockAnswer } from '../chat/block-answer'
 import { QuestionBlockController, formatQuestionNumber, isQuestionAnswered, questionAnswerLabels, questionBlockStatus, type QuestionWords } from '../chat/question-block-core'
 import { questionBlockFixture as block, questionAnswersFixture as answers } from '../test-support/question-fixtures'
 
@@ -159,5 +159,20 @@ describe('question block close', () => {
   it('keeps the close available at the message limit because a close costs no message', () => {
     const base = closing(async () => ({ ok: true as const }))
     expect(questionBlockStatus({ ...base, interaction: { ...base.interaction, atMessageLimit: true, dailyBudgetReached: true } }, new QuestionBlockController().getSnapshot(), words).closeDisabled).toBe(false)
+  })
+})
+
+describe('closeBlock', () => {
+  const chat = () => ({ transitionMessage: vi.fn(), messages: [{ id: 'm1', role: 'assistant', content: '', timestamp: new Date(), parts: [{ type: 'block', kind: 'question', block }] }] as never })
+  it.each([[{ ok: true as const }, 'Closed'], [{ ok: false as const, status: 409 }, 'Answered']])('keeps the line for %o in the chat store', async (result, text) => {
+    const store = chat()
+    await expect(closeBlock(store, block.blockId, async () => result, 'Closed', 'Answered')).resolves.toBe(result)
+    const [, update] = store.transitionMessage.mock.calls[0]!
+    expect(update({ id: 'm1' }).blockAnswers[block.blockId]).toEqual({ text, answered: false })
+  })
+  it('records nothing after a failure that reopens the card', async () => {
+    const store = chat()
+    await closeBlock(store, block.blockId, async () => ({ ok: false, status: 500 }), 'Closed', 'Answered')
+    expect(store.transitionMessage).not.toHaveBeenCalled()
   })
 })
