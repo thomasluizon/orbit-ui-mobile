@@ -5,7 +5,7 @@ import { mkdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
 import { REQUIRED_CHECKS_FILE, requiredChecksOf } from "../lib/github-read.mjs"
-import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
+import { checkTicket, classOf, mergeBar, permanentFixOf, protectionForMerge, readBoardFor, readProtectionChecks, readRequiredChecksFile, readTicket, readTickets, sameRequiredChecks, updateBody, writeProtectionChecks } from "../lib/github.mjs"
 import { REPO_ROOT, T, root, same } from "./_harness.mjs"
 
 const HEAD = "a".repeat(40)
@@ -172,9 +172,30 @@ const ticketCases = async () => {
   same(`${N}: the board read lists the tickets of the class and skips the ticket itself`, [await readBoardFor({ number: 9, body: "Class: Clipped label" }, seams), calls], [[{ number: 7, state: "CLOSED", body: "b" }], [`issue list --repo ${slug} --state all --search "Class: Clipped label" in:body --limit 200 --json number,state,body`]])
 }
 
+/** The merge bar of the last pull request of a Bug ticket: the code of its class must change. */
+const fixCases = async () => {
+  const last = (extra = {}) => pull({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none", mergeState: "CLEAN", requiredChecksChange: null, requiredChecks: [], ...extra })
+  const fix = (section, paths = [], changedOnMain = false) => ({ permanentFix: { section, paths, changedOnMain } })
+  const N = "lib/github.mjs"
+  same(`${N}: a last pull request whose ticket has no section fails the bar`, mergeBar(last(), fix("missing")), ["permanent-fix-missing"])
+  same(`${N}: a last pull request whose section names no path fails the bar`, mergeBar(last(), fix("paths", [])), ["permanent-fix-missing"])
+  same(`${N}: a section path that this pull request changed passes`, mergeBar(last({ files: ["eslint-rules/a.cjs"] }), fix("paths", ["eslint-rules/a.cjs"])), [])
+  same(`${N}: a section folder that this pull request changed passes`, mergeBar(last({ files: ["eslint-rules/a.cjs"] }), fix("paths", ["eslint-rules/"])), [])
+  same(`${N}: a section path that main changed after the ticket passes`, mergeBar(last(), fix("paths", ["eslint-rules/a.cjs"], true)), [])
+  same(`${N}: a section path that never changed fails the bar`, mergeBar(last(), fix("paths", ["eslint-rules/a.cjs"])), ["permanent-fix-unchanged"])
+  same(`${N}: a none section skips the check`, mergeBar(last(), fix("none")), [])
+  same(`${N}: a pull request that is not the last one has no check`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 2" }), fix("missing")), [])
+  same(`${N}: a pull request with no context field has no check`, mergeBar(last()), [])
+  const at = "2026-11-01T00:00:00Z"
+  const issue = { number: 7, title: "T", body: "B", createdAt: at, labels: { nodes: [{ name: "Bug" }] }, blockedBy: { nodes: [] }, comments: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } }
+  const seams = { config: { tickets: { repository: "thomasluizon/orbit-tickets" } }, run: async () => JSON.stringify({ data: { repository: { issues: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [issue] } } } }) }
+  same(`${N}: readTickets returns createdAt for each ticket`, (await readTickets(seams)).map((entry) => entry.createdAt), [at])
+}
+
 export const cases = async () => {
   await ticketCases()
   barCases()
+  await fixCases()
   protectionCases()
   shapeCases()
   await adapterCases()

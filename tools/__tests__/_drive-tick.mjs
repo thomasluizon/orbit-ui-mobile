@@ -332,7 +332,7 @@ const ticketCheckCases = async () => {
   const fix = await checked({ tickets: [bug({ body: fixed("a-class", "eslint-rules/other.mjs") })], board: earlier, pulls: { ui: [pull(30, { reviews: [blocking] })] } })
   same("drive: ticket check: a fix launch of an open pull request runs no check", [fix.scene.launched.length, fix.order.includes("## This order (fix)"), only(fix.scene.calls, "readBoardFor").length, fix.labels], [1, true, 0, []])
   const disjoint = [partComment(1, 2, "Paths: apps/web/a.ts"), partComment(2, 2, "Paths: apps/mobile/b.ts")]
-  const held = await checked({ tickets: [bug({ body: fixed("a-class", "eslint-rules/other.mjs"), comments: disjoint })], board: earlier, pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1" })] } })
+  const held = await checked({ tickets: [bug({ body: fixed("a-class", "eslint-rules/other.mjs"), comments: disjoint })], board: earlier, pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", body: `Tracks ${REPOSITORY}#7\n\nRemaining: part 2` })] } })
   same("drive: ticket check: a refused ticket waits while an open pull request holds it", [held.scene.launched.length, held.labels, held.reports.length], [0, [], 0])
 
   const alarm = scenario({})
@@ -4371,6 +4371,57 @@ const diffBarCases = async () => {
   same("drive: a diff that git cannot read gives no merge", only(failing.calls, "merge").length, 0)
 }
 
+/** The last pull request of a Bug ticket merges only when the code of its class changed: in the pull request, or on main after the ticket was created. */
+const permanentFixCases = async () => {
+  const CREATED = "2026-11-01T00:00:00.000Z"
+  const bugTicket = (body) => ticket(7, { labels: ["repo:ui", "Bug"], createdAt: CREATED, body })
+  const withFix = (section) => `Broken label.\n\nClass: clipped label\n\n## Permanent fix\n\n${section}\n`
+  const named = withFix("Lint rule \`eslint-rules/no-clip.cjs\` holds the class.")
+  const settled = async ({ body = named, files = ["tools/README.md"], pullBody, gitRoutes = [], siblings = [] }) => {
+    // A lintable path needs a green Lint, so the pull request of a rule file carries one.
+    const lint = files.some((file) => file.startsWith("eslint-rules/")) ? [check("Checks", "SUCCESS", { databaseId: 31 })] : []
+    const entry = scenario({ tickets: [bugTicket(body)], gitRoutes, pulls: { ui: [...siblings, pull(30, { files, checks: [check("Unit Tests"), approvalCheck(), ...lint], ...(pullBody ? { body: pullBody } : {}) })], api: [], landing: [] } })
+    await entry.run()
+    return entry
+  }
+  // The shared-path read of a merge candidate also uses --since, and it has no pathspec after `--`.
+  const since = (entry) => entry.calls.filter((call) => call[0] === "git" && call.includes("--") && call.some((word) => String(word).startsWith("--since=")))
+  const reported = (entry) => needsOwnerComments(entry.calls, 7).length
+  const labelled = (entry) => only(entry.calls, "editLabels").map((call) => call[3].add?.[0])
+
+  const none = await settled({ body: withFix("none: no code can hold the class") })
+  same("drive: a none section merges with no git read of main", [only(none.calls, "merge").length, since(none).length, reported(none)], [1, 0, 0])
+  const missing = await settled({ body: "Broken label.\n\nClass: clipped label" })
+  same("drive: a last pull request of a Bug ticket with no section goes to needs:owner and does not merge", [only(missing.calls, "merge").length, reported(missing), labelled(missing)], [0, 1, ["needs:owner"]])
+  T("drive: the report of a missing section names permanent-fix-missing", needsOwnerComments(missing.calls, 7)[0]?.includes("permanent-fix-missing") === true, needsOwnerComments(missing.calls, 7).join(" | "))
+  const inPull = await settled({ files: ["eslint-rules/no-clip.cjs"] })
+  same("drive: a section path that the pull request changed merges with no git read of main", [only(inPull.calls, "merge").length, since(inPull).length, reported(inPull)], [1, 0, 0])
+  const onMain = await settled({ gitRoutes: [["--since=", "eslint-rules/no-clip.cjs\n"]] })
+  same("drive: a section path that main changed after the ticket merges", [only(onMain.calls, "merge").length, reported(onMain)], [1, 0])
+  same("drive: the read of main is git log since the ticket was created, on origin/main, limited to the section paths", since(onMain).map((call) => call.slice(2)), [[`--since=${CREATED}`, "--name-only", "--format=", "origin/main", "--", "eslint-rules/no-clip.cjs"]])
+  const never = await settled({ gitRoutes: [["--since=", ""]] })
+  same("drive: a section path that never changed goes to needs:owner with the path and does not merge", [only(never.calls, "merge").length, reported(never), labelled(never)], [0, 1, ["needs:owner"]])
+  T("drive: the report of an unchanged path names permanent-fix-unchanged and the path", /permanent-fix-unchanged/.test(needsOwnerComments(never.calls, 7)[0] ?? "") && /eslint-rules\/no-clip\.cjs/.test(needsOwnerComments(never.calls, 7)[0] ?? ""), needsOwnerComments(never.calls, 7).join(" | "))
+  same("drive: a failed fix check launches no worker", never.launched.length, 0)
+  const earlier = await settled({ pullBody: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 2", gitRoutes: [["--since=", ""]] })
+  same("drive: a pull request that is not the last one has no check and no git read of main", [only(earlier.calls, "merge").length, since(earlier).length, reported(earlier)], [1, 0, 0])
+
+  // An earlier part of the ticket can still change the path, so its open pull request keeps the last one waiting. Only a missing section is final.
+  const sibling = pull(29, { headRef: "chore/ticket-7-part-1", draft: true, body: `Tracks ${REPOSITORY}#7\n\nRemaining: part 2`, files: ["eslint-rules/no-clip.cjs"] })
+  const waiting = await settled({ siblings: [sibling], gitRoutes: [["--since=", ""]] })
+  same("drive: an unchanged section path waits while another open pull request of the ticket runs, with no report and no label", [only(waiting.calls, "merge").length, reported(waiting), labelled(waiting)], [0, 0, []])
+  const lone = await settled({ siblings: [pull(29, { headRef: "chore/ticket-8-part-1", tracks: 8, draft: true, body: `Tracks ${REPOSITORY}#8\n\nRemaining: part 2` })], gitRoutes: [["--since=", ""]] })
+  same("drive: an open pull request of another ticket does not hold the check", [reported(lone), labelled(lone)], [1, ["needs:owner"]])
+  const absent = await settled({ siblings: [sibling], body: "Broken label.\n\nClass: clipped label" })
+  same("drive: a missing section still goes to the owner while another pull request of the ticket is open", [reported(absent), labelled(absent)], [1, ["needs:owner"]])
+
+  const broken = scenario({ tickets: [bugTicket(named)], pulls: { ui: [pull(30)], api: [], landing: [] } })
+  const fake = broken.env.git
+  broken.env.git = async (cwd, args) => (args.some((word) => String(word).startsWith("--since=")) ? { status: 128, stderr: "bad revision", stdout: "" } : fake(cwd, args))
+  await broken.run()
+  same("drive: a read of main that fails gives no merge and no report", [only(broken.calls, "merge").length, reported(broken)], [0, 0])
+}
+
 const CHECKS_FILE = ".github/required-checks.json"
 const MERGE_BASE = "d".repeat(40)
 const requiredList = (...contexts) => ({ strict: false, checks: contexts.map((context) => ({ context, app_id: context === "pullfrog-approval" ? APP : 15368 })) })
@@ -4681,6 +4732,7 @@ const runnerSwitchCases = async () => {
 
 export const driverUnit = async () => {
   await diffBarCases()
+  await permanentFixCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
   await noticeCases()
