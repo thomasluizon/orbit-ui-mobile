@@ -33,7 +33,7 @@ import { SAMPLES_KEPT, budgetLine, budgetResult, judge, mergeSamples, slowDetail
 import { MESSAGE_LIMIT, sendTelegram } from "./lib/telegram.mjs"
 import * as workerApi from "./lib/worker.mjs"
 
-const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off | --runner claude|codex | --runner-check | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
+const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-limit | --pace main|worker on|off|stop | --runner claude|codex | --runner-check | --sleep on | --sleep off | --reviewer-token | --preflight | --release-now | --release-status | --budgets] [--help]
 
   The delivery driver. It reads GitHub each tick, acts on every open ticket and pull request, and merges at the
   owner's bar. It never idles: a free worker slot and an admissible order start a worker on the same tick. The driver
@@ -81,8 +81,10 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   --probe     run one probe and print the reading (utilization, resetsAt, age)
   --allow-over-limit [main|worker]  let one account continue over 90% in its current week, with 1 worker. The owner session
               runs it when the owner says so. It takes the main account with no word. A new week of that account ends it.
-  --pace main|worker on|off  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no line
-              and no 90% stop, until a worker ends on its usage limit. on: the pace above. Each account starts with the pace on.
+  --pace main|worker on|off|stop  the owner's setting of one account's weekly pace. off: the account runs 3 workers with no
+              line and no 90% stop, until a worker ends on its usage limit. stop: the account starts no worker and runs no probe
+              until the owner sets on or off. A stop of the main account also holds the Pullfrog requests, the questions run and
+              the harness review, as its 90% stop does. on: the pace above. Each account starts with the pace on.
   --runner claude|codex  the owner's setting of what runs in the worker slots. claude (the default) runs claude -p on the worker
               account. codex runs codex exec on the Codex login of ~/.codex-orbit-workers. The main account, Pullfrog, the questions
               run, the harness review and the re-plan run stay on Claude, and an order on the coordinator model never takes a Codex
@@ -141,6 +143,7 @@ const QUESTIONS_RUN = Object.freeze({ stem: "questions", slot: "questions", orde
 const HARNESS_REVIEW_RUN = Object.freeze({ stem: "harness-review", slot: "harnessReview", order: "/ticket --auto --parked" })
 const COORDINATOR_RUNS = Object.freeze([QUESTIONS_RUN, HARNESS_REVIEW_RUN])
 const SLEEP_WORDS = ["on", "off"]
+const PACE_WORDS = ["on", "off", "stop"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
 /** The branch whose protection follows its required checks file. */
@@ -647,6 +650,16 @@ export const readUnpaced = (stateDir) => {
   }
 }
 
+/** The owner's stop setting: the accounts that `--pace <account> stop` stopped. A missing or unreadable file stops neither. */
+export const readStopped = (stateDir) => {
+  try {
+    const saved = JSON.parse(readFileSync(join(stateDir, PACE_SETTING_FILE), "utf8"))
+    return ACCOUNT_NAMES.filter((name) => saved?.[name]?.stopped === true)
+  } catch {
+    return []
+  }
+}
+
 /** The runner of the worker slots, from the owner's setting: `claude`, or `codex`. A missing or unreadable file, or any other word, gives `claude`. */
 export const readRunner = (stateDir) => {
   try {
@@ -670,15 +683,20 @@ export const readRunnerCheck = (stateDir) => {
 /** The runner of the launch that a record names. A record from before the Codex runner has none, and it ran on Claude. */
 const runnerOfRecord = (record) => (record.runner === "codex" ? "codex" : "claude")
 
-/** Writes the pace setting of one account and keeps the other account's. */
+/** Writes the pace setting of one account (`on`, `off` or `stop`) and keeps the other account's. */
 export const setPace = (env, name, word, { out }) => {
   const unpaced = new Set(readUnpaced(env.stateDir))
+  const stopped = new Set(readStopped(env.stateDir))
   if (word === "off") unpaced.add(name)
   else unpaced.delete(name)
-  writeFileSync(join(env.stateDir, PACE_SETTING_FILE), `${JSON.stringify(Object.fromEntries(ACCOUNT_NAMES.map((account) => [account, { paced: !unpaced.has(account) }])))}\n`)
-  const off = readUnpaced(env.stateDir).includes(name)
-  out(off ? `The ${name} account runs ${MAX_WORKERS} workers with no weekly pace until a worker ends on its usage limit.` : `The ${name} account follows the weekly pace.`)
-  return off === (word === "off") ? 0 : 3
+  if (word === "stop") stopped.add(name)
+  else stopped.delete(name)
+  writeFileSync(join(env.stateDir, PACE_SETTING_FILE), `${JSON.stringify(Object.fromEntries(ACCOUNT_NAMES.map((account) => [account, { paced: !unpaced.has(account), ...(stopped.has(account) ? { stopped: true } : {}) }])))}\n`)
+  const read = readStopped(env.stateDir).includes(name) ? "stop" : readUnpaced(env.stateDir).includes(name) ? "off" : "on"
+  out(read === "stop"
+    ? `The ${name} account starts no worker${name === MAIN ? " and Pullfrog posts no request" : ""} until --pace ${name} on or off.`
+    : read === "off" ? `The ${name} account runs ${MAX_WORKERS} workers with no weekly pace until a worker ends on its usage limit.` : `The ${name} account follows the weekly pace.`)
+  return read === word ? 0 : 3
 }
 
 /**
@@ -2767,10 +2785,10 @@ const nextTicketLine = async (env, mem, tickets, states, running) => {
 
 /**
  * The pace of one account this tick: the newest reading of its login, its slots and its stop state. `weekly` is the stop at 90%
- * of the week and `limitedUntil` is the stop after a worker hit a usage limit; `stopped` is either. The worker account is
+ * of the week, `limitedUntil` is the stop after a worker hit a usage limit, and the state `held` is the owner's `--pace <account> stop`; `stopped` is any of them. The worker account is
  * `absent` (0 slots) while no second login exists. The slots that the account's own running workers hold come off its free slots.
  */
-const decidePace = (env, mem, running, allowances, name, unpaced = []) => {
+const decidePace = (env, mem, running, allowances, name, unpaced = [], ownerStops = []) => {
   const state = stateOf(mem, name)
   const busy = running.workers.filter(({ record }) => nameOfKey(mem, record.account) === name).length
   if (name === WORKER && state.account === null) return { name, key: null, state: "absent", utilization: null, resetsAt: null, line: null, slots: 0, weekly: false, limitedUntil: null, stopped: false, running: busy, free: 0 }
@@ -2779,11 +2797,13 @@ const decidePace = (env, mem, running, allowances, name, unpaced = []) => {
   // While a probe is owed the status-line snapshot may belong to another organization of the same email, so only a reading of this account's key counts.
   const reading = newestReading(own, state.probeOwed ? null : snapshot)
   const allowance = allowances[name]
-  const pace = unpaced.includes(name)
+  const pace = ownerStops.includes(name)
+    ? { state: "held", utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, line: null, slots: 0, stopped: true }
+    : unpaced.includes(name)
     ? { state: "unpaced", utilization: reading?.utilization ?? null, resetsAt: reading?.resetsAt ?? null, line: null, slots: MAX_WORKERS, stopped: false }
     : paceState({ reading, now: env.now(), allowance, workersRun: busy > 0 })
   const stopped = pace.stopped || state.stoppedUntil !== null
-  return { ...pace, name, key: state.account?.key ?? null, weekly: pace.stopped, limitedUntil: state.stoppedUntil, stopped, running: busy, free: stopped ? 0 : Math.max(0, pace.slots - busy) }
+  return { ...pace, name, key: state.account?.key ?? null, weekly: pace.state === "stopped", limitedUntil: state.stoppedUntil, stopped, running: busy, free: stopped ? 0 : Math.max(0, pace.slots - busy) }
 }
 
 /** One log line with both accounts: each by its key, with its utilization, line, slots, running and free workers and stop state, and the seconds that the tick took. */
@@ -2817,6 +2837,8 @@ const syncStop = async (env, tickets, pace) => {
     tickets.push({ number: created.number, title: STOP_TITLE, labels: [OWNER], comments: [], blockedBy: [], body: message })
     return
   }
+  // The owner's stop leaves an open 90% stop issue as it is: the stop of the week still holds when the owner sets on.
+  if (pace.state === "held") return
   if (pace.state !== "unknown") forget(env, "weekly-stop")
   if (issue === null || env.dryRun || pace.state === "unknown") return
   await closeIssue(env, tickets, issue, pace.state === "unpaced" ? "The owner turned the weekly pace of the main account off, so the stop ends. It runs 3 workers until its usage limit." : pace.state === "allowed" ? "The owner allowed use over 90% for this week. The driver runs 1 worker." : "The week reset, so the stop ends. The driver runs workers again.")
@@ -3120,17 +3142,18 @@ const runTick = async (env, mem) => {
   if (account.ok) readRunningReadings(env, mem, running)
   const allowances = readAllowances(env)
   const unpaced = readUnpaced(env.stateDir)
+  const ownerStops = readStopped(env.stateDir)
   const paces = {}
-  for (const name of ACCOUNT_NAMES) paces[name] = decidePace(env, mem, running, allowances, name, unpaced)
+  for (const name of ACCOUNT_NAMES) paces[name] = decidePace(env, mem, running, allowances, name, unpaced, ownerStops)
   // One probe for each account, only at a start with no reading, or each hour while the driver is paused or the account is stopped
   // by a usage limit. The weekly stop runs none. The pause is the main account's: Pullfrog runs on it.
   for (const name of ACCOUNT_NAMES) {
     const state = stateOf(mem, name)
     const probeDue = state.lastProbeAt === null || env.now() - state.lastProbeAt >= HOUR_MS
     const owed = paces[name].state === "unknown" || state.probeOwed || state.stoppedUntil !== null || (name === MAIN && paused && paces[name].running === 0)
-    if (!account.ok || env.dryRun || paces[name].weekly || paces[name].state === "absent" || !probeDue || !owed) continue
+    if (!account.ok || env.dryRun || paces[name].weekly || paces[name].state === "held" || paces[name].state === "absent" || !probeDue || !owed) continue
     await runProbe(env, mem, tickets, name).catch((error) => log(env, "probe", "error", error.message))
-    paces[name] = decidePace(env, mem, running, allowances, name, unpaced)
+    paces[name] = decidePace(env, mem, running, allowances, name, unpaced, ownerStops)
   }
   // The weekly stop of the main account holds Pullfrog requests, and its issue is the owner's to lift.
   if (account.ok) await syncStop(env, tickets, paces.main)
@@ -3377,7 +3400,7 @@ export const parseArguments = (argv) => {
   const paceAt = argv.indexOf("--pace")
   if (paceAt >= 0) {
     const rest = argv.filter((argument, index) => index < paceAt || index > paceAt + 2).filter((argument) => argument !== "--help" && argument !== "-h")
-    if (!ACCOUNT_NAMES.includes(argv[paceAt + 1]) || !SLEEP_WORDS.includes(argv[paceAt + 2]) || rest.length > 0) return { error: `--pace takes an account, main or worker, then on or off, and no other argument` }
+    if (!ACCOUNT_NAMES.includes(argv[paceAt + 1]) || !PACE_WORDS.includes(argv[paceAt + 2]) || rest.length > 0) return { error: `--pace takes an account, main or worker, then on, off or stop, and no other argument` }
     return { help: argv.includes("--help") || argv.includes("-h"), mode: "pace", account: argv[paceAt + 1], word: argv[paceAt + 2] }
   }
   const runnerAt = argv.indexOf("--runner")
