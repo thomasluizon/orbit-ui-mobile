@@ -290,6 +290,20 @@ describe('a title beside a minute tail of a das range or a count after noon', ()
   })
 })
 
+describe('a title beside a das range with the a connector and a minute tail', () => {
+  it.each([
+    ['Estudar das 9 a 11 e quinze', 'Estudar'],
+    ['Estudar das 9 a 11 e 15', 'Estudar'],
+    ['Estudar das 9 a 11 e 15 toda segunda', 'Estudar'],
+    ['Estudar das 9 a 11 e quinze minutos', 'Estudar'],
+    ['Estudar das 9 a 11 menos quinze', 'Estudar'],
+    ['Estudar das 9 a 11 e quinze, toda segunda', 'Estudar'],
+    ['Estudar das 9 a 11 e 2 vezes por semana', 'Estudar'],
+  ] as const)('keeps only the verb of %s', (phrase, title) => {
+    expect(getHabitPhraseTitle(phrase, 'pt-BR')).toBe(title)
+  })
+})
+
 describe('a title beside a das range and a quantity with its own unit', () => {
   it.each([
     ['Tomar remédio das 8 às 20 e 2 comprimidos', 'Tomar remédio e 2 comprimidos'],

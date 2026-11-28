@@ -23,7 +23,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, passedChecks, protectionForMerge, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { CODEX_MODEL, codexHomeDirectory, codexLogEvent, codexResultText } from "./lib/codex-runner.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
@@ -167,7 +167,6 @@ const MERGED_READS_PER_TICK = 10
 const PLAN_PARALLEL = 4
 /** How long a tick waits for the pull request plan before a free slot takes an admitted build order. */
 const PLAN_WINDOW_MS = 15 * 1000
-const REMAINING_NONE = /^Remaining: none\s*$/m
 const REMAINING_LINE = /^Remaining:.*$/m
 /** A Remaining item that only the owner, another ticket or a release can meet starts with `owner:` or `blocked by` and a ticket reference. */
 const OWNER_ITEM = /^(owner:|blocked by\s+(#\d+|ORB-\d+))/i
@@ -1401,7 +1400,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) {
@@ -1416,6 +1415,11 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (bar.includes("needs-owner")) return [...actions, { type: "none", reason: "carries needs:owner" }]
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
   // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
+  const fixFailures = bar.filter((failure) => OWNER_FIX_FAILURES.has(failure))
+  // Another open pull request of the ticket can still change the named path, and a report would label the ticket and hold that pull request too. Only the unchanged-path failure waits for it.
+  const partOpen = state.pulls.some((other) => other !== pull && other.tracks === pull.tracks && !mergedPulls.has(other))
+  if (fixFailures.length > 0 && partOpen && fixFailures.every((failure) => failure === "permanent-fix-unchanged")) return [...actions, { type: "none", reason: "another open pull request of the ticket can still change the permanent fix" }]
+  if (fixFailures.length > 0) return [...actions, { type: "needs-owner", ticket, reason: fixReason(item, fixFailures, context.permanentFix) }]
   const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
   if (ownerFailures.length > 0) return park(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}`)
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
@@ -1423,6 +1427,25 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request, park: parked })]
   return [...actions, { type: "none", reason: `the bar fails: ${bar.join(", ")}` }]
 }
+
+/**
+ * The permanent fix of the Bug ticket that a pull request ends, for the merge bar; undefined for every other pull request. A path that the section names counts
+ * as changed on main when a commit that touches it came after the ticket was created. The git read runs only when this pull request leaves the paths alone.
+ * A read that fails throws, so the pull request waits for the next tick.
+ */
+const permanentFixOfTicket = async (env, repoKey, pull, ticket) => {
+  if (ticket === null || !ticket.labels.includes("Bug") || !REMAINING_NONE.test(pull.body)) return undefined
+  const fix = permanentFixOf(ticket.body)
+  if (fix === null) return { section: "missing", paths: [], changedOnMain: false }
+  if (fix.none) return { section: "none", paths: [], changedOnMain: false }
+  if (fix.paths.length === 0 || (Array.isArray(pull.files) && touchesPath(pull.files, fix.paths)) || !ticket.createdAt) return { section: "paths", paths: fix.paths, changedOnMain: false }
+  const seen = await env.git(env.config.repos[repoKey], ["log", `--since=${ticket.createdAt}`, "--name-only", "--format=", `origin/${PROTECTED_BRANCH}`, "--", ...fix.paths])
+  if (seen.status !== 0) throw new Error(`git log of the permanent fix of ${pull.number} failed: ${seen.stderr.trim()}`)
+  return { section: "paths", paths: fix.paths, changedOnMain: seen.stdout.trim() !== "" }
+}
+
+/** The text of the `needs-owner` report of a permanent fix failure. The same paths give the same text, so the report comes once. */
+const fixReason = (item, failures, fix) => `${item} cannot merge: the bar fails on ${failures.join(", ")}. ${fix.paths.length > 0 ? `The \`## Permanent fix\` section names ${fix.paths.join(", ")}, and none of them changed in this pull request or on main after the ticket was created.` : "The ticket needs a \`## Permanent fix\` section that names the code that holds the class, or \`none: <reason>\`."}`
 
 const dependabotTypes = async (env, mem, repoKey, pull) => {
   const key = `${repoKey}#${pull.number}@${pull.headSha}`
@@ -1658,6 +1681,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       for (const suspect of action.suspects ?? []) await env.github.comment(repoKey, pull.number, marked("record", `driver flake-suspect ${flakeKey(action.runId, suspect.name)}\n${suspect.lines.join("\n")}`))
       return undefined
     case "file-flake": return fileFlake(env, ctx, pull, action)
+    case "needs-owner": return needsOwner(env, mem, { ticket: action.ticket, reason: action.reason })
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })
     case "close-stuck":
       await closeStuck(env, { repoKey, ticketNumber: pull.tracks, number: pull.number, branch: pull.headRef, plan: action.plan, count: action.count })
@@ -1683,7 +1707,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
   }
 }
 
-const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "park" ? `park: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
+const describe = (action) => (action.type === "none" ? `wait: ${action.reason}` : action.type === "order" ? `order ${action.kind}${action.model ? ` on ${action.model}` : ""}` : action.type === "park" ? `park: ${action.reason}` : action.type === "needs-owner" ? `needs-owner: ${action.reason}` : action.type === "close-stuck" ? `close the pull request of a re-plan (${action.plan})` : action.type === "request" ? `request ${action.text}${action.ticketComment ? " after the ticket comment" : ""}` : action.type === "update" ? (action.reason ? `wait: ${action.reason}` : "update branch (retargeted child)") : action.type)
 
 /** True when the ticket carries a label that the act step can write and that stops its pull requests: `needs:owner` or `parked`. */
 const holdsTicket = (ticket) => ticket !== undefined && (ticket.labels.includes(OWNER) || ticket.labels.includes(PARKED))

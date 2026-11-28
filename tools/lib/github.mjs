@@ -42,6 +42,10 @@ const LINT_CHECK_BY_REPOSITORY = { ui: "Checks" }
 export const lintCheckOf = (repositoryKey) => LINT_CHECK_BY_REPOSITORY[repositoryKey] ?? null
 /** The merge bar failures that no worker order clears, so the driver hands them to the owner. */
 export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "closing-keyword"])
+/** The merge bar failures of the permanent fix of a Bug ticket. No worker order clears them, so the driver hands them to the owner with the paths. */
+export const OWNER_FIX_FAILURES = new Set(["permanent-fix-missing", "permanent-fix-unchanged"])
+/** The line of a pull request body when no part of the ticket stays open. */
+export const REMAINING_NONE = /^Remaining: none\s*$/m
 
 const BUG_LABEL = "Bug"
 /** The labels of the owner that unlock a locked path or a feature flag. A ticket that the driver filed never carries one. */
@@ -84,7 +88,7 @@ const TICKETS_QUERY = `query DriveTickets($owner: String!, $name: String!, $afte
     issues(states: OPEN, first: 50, after: $after, orderBy: { field: CREATED_AT, direction: ASC }) {
       pageInfo { hasNextPage endCursor }
       nodes {
-        number title body
+        number title body createdAt
         labels(first: 50) { nodes { name } }
         blockedBy(first: ${BLOCKERS_PER_PAGE}) { nodes { ${BLOCKER_FIELDS} } }
         comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id url body createdAt author { login } } }
@@ -445,6 +449,7 @@ export const readTickets = async (seams = {}) => {
         number: issue.number,
         title: issue.title,
         body: issue.body ?? "",
+        createdAt: issue.createdAt ?? null,
         labels,
         repoKey: repoKeyOf(labels),
         blockedBy: blockers.map((blocker) => {
@@ -677,13 +682,27 @@ const diffFailures = (pull, context) => {
   return failed
 }
 
+/** True when a changed file is one of the paths, or sits under one that ends in a slash. */
+export const touchesPath = (files, paths) => paths.some((path) => files.some((file) => file === path || (path.endsWith("/") && file.startsWith(path))))
+
+/**
+ * The failures of the permanent fix of a Bug ticket, for the pull request that ends it (`Remaining: none`). `fix` is the context field
+ * `permanentFix`: `{ section, paths, changedOnMain }`. A `none` section skips the check. A path that the section names must change in
+ * this pull request or on main after the ticket was created.
+ */
+const fixFailures = (pull, fix) => {
+  if (!fix || !REMAINING_NONE.test(pull.body ?? "") || fix.section === "none") return []
+  if (fix.section === "missing" || fix.paths.length === 0) return ["permanent-fix-missing"]
+  return fix.changedOnMain || (Array.isArray(pull.files) && touchesPath(pull.files, fix.paths)) ? [] : ["permanent-fix-unchanged"]
+}
+
 /**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
  * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
- * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none) and, for a Dependabot pull request,
- * `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
+ * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none), `permanentFix` (for the pull request
+ * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
  * between base and head, both read by the driver.
  */
 export const mergeBar = (pull, context = {}) => {
@@ -696,6 +715,7 @@ export const mergeBar = (pull, context = {}) => {
   if (pull.requiredChecksChange?.head === null) failed.push("required-checks-invalid")
   failed.push(...checkFailures(pull))
   failed.push(...diffFailures(pull, context))
+  failed.push(...fixFailures(pull, context.permanentFix))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")
