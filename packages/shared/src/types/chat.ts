@@ -505,6 +505,7 @@ export const choiceBlockSchema = z.object({
   multiSelect: z.boolean(),
   allowFreeText: z.boolean(),
   expiresAtUtc: z.iso.datetime(),
+  closedAtUtc: z.string().optional(),
 })
 
 export const pickListBlockSchema = z.object({

@@ -18,6 +18,8 @@ export interface BlockAnswerInteraction {
   limitReason?: string
   allowance: number
   send: (request: BlockAnswerRequest) => Promise<BlockAnswerResult>
+  /** Closes one open block for good. It sends no message and costs no message. */
+  close?: (blockId: string) => Promise<BlockAnswerResult>
 }
 
 export type AnswerBlockProps = Readonly<{
@@ -26,6 +28,21 @@ export type AnswerBlockProps = Readonly<{
   savedAnswer?: { text: string; answered: boolean }
   expired?: boolean
 }>
+
+/** What a close request leaves on the card. A refusal that says the block is gone or answered settles the card, and any other failure reopens it. */
+export function blockCloseOutcome(result: BlockAnswerResult): 'closed' | 'alreadyAnswered' | 'error' {
+  if (result.ok) return 'closed'
+  const key = blockAnswerErrorKey(result.status)
+  return key === 'closed' || key === 'alreadyAnswered' ? key : 'error'
+}
+
+/** Closes one block through the injected request and keeps the closed line in the chat store so a remounted card stays closed. */
+export async function closeBlock(chat: Pick<ChatStoreState, 'messages' | 'transitionMessage'>, blockId: string, request: (blockId: string) => Promise<BlockAnswerResult>, closedText: string, alreadyAnsweredText: string): Promise<BlockAnswerResult> {
+  const result = await request(blockId)
+  const outcome = blockCloseOutcome(result)
+  if (outcome !== 'error') recordBlockAnswer(chat, blockId, outcome === 'closed' ? { ok: false, status: 410 } : { ok: false, status: 409 }, '', closedText, alreadyAnsweredText)
+  return result
+}
 
 export function isSameBlockAnswer(answer: BlockAnswer, uncertain: BlockAnswer | null): boolean {
   return uncertain !== null && answer.blockId === uncertain.blockId && answer.freeText === uncertain.freeText &&

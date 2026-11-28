@@ -1,5 +1,5 @@
 import {
-  blockAnswerErrorKey, blockAnswerOptions, formatBlockAnswer, hasBlockAnswer, isSameBlockAnswer,
+  blockAnswerErrorKey, blockAnswerOptions, blockCloseOutcome, formatBlockAnswer, hasBlockAnswer, isSameBlockAnswer,
   type AnswerBlockProps,
 } from './block-answer'
 import type { BlockAnswer } from '../types/chat'
@@ -19,6 +19,10 @@ export interface AnswerBlockState {
   uncertainAnswer: BlockAnswer | null
 }
 
+function closedByHistory(props: AnswerBlockProps): boolean {
+  return props.definition.kind === 'choice' && props.definition.block.closedAtUtc !== undefined
+}
+
 function answerSnapshot(props: AnswerBlockProps, state: AnswerBlockState): BlockAnswer {
   const freeText = state.freeText.trim()
   return { blockId: props.definition.block.blockId, selectedIds: [...state.selectedIds], ...(freeText ? { freeText } : {}) }
@@ -27,10 +31,10 @@ function answerSnapshot(props: AnswerBlockProps, state: AnswerBlockState): Block
 export class AnswerBlockController {
   private state: AnswerBlockState = { selectedIds: [], freeText: '', expandedIds: [], acting: false, settled: null, error: null, uncertainAnswer: null }
   private readonly listeners = new Set<() => void>()
-  readonly focusWhenClosed: boolean
+  focusWhenClosed: boolean
 
   constructor(props: AnswerBlockProps) {
-    this.focusWhenClosed = !props.expired && !props.savedAnswer
+    this.focusWhenClosed = !props.expired && !props.savedAnswer && !closedByHistory(props)
   }
 
   getSnapshot = (): AnswerBlockState => this.state
@@ -52,6 +56,20 @@ export class AnswerBlockController {
 
   toggleExpanded = (id: string): void => {
     this.update({ expandedIds: this.state.expandedIds.includes(id) ? this.state.expandedIds.filter(expanded => expanded !== id) : [...this.state.expandedIds, id] })
+  }
+
+  /** Closes the card at once and asks the API to keep it closed. A failure reopens the card with its answers kept. */
+  async close(props: AnswerBlockProps, t: AnswerTranslator): Promise<void> {
+    if (getAnswerBlockView(props, this.state, t).closeDisabled) return
+    const focusWhenClosed = this.focusWhenClosed
+    this.focusWhenClosed = false
+    this.update({ settled: { text: t('closed'), answered: false }, error: null })
+    const reopen = () => { this.focusWhenClosed = focusWhenClosed; this.update({ settled: null, error: t('error') }) }
+    try {
+      const outcome = blockCloseOutcome(await props.interaction!.close!(props.definition.block.blockId))
+      if (outcome === 'alreadyAnswered') this.update({ settled: { text: t('alreadyAnswered'), answered: false } })
+      else if (outcome === 'error') reopen()
+    } catch { reopen() }
   }
 
   async submit(props: AnswerBlockProps, t: AnswerTranslator, locale: string): Promise<void> {
@@ -101,6 +119,9 @@ export interface AnswerBlockView {
   proposedLabel: string
   submitLabel: string
   submitDisabled: boolean
+  /** True for a choice block whose interaction can close it. A pick list has no close. */
+  closable: boolean
+  closeDisabled: boolean
   statusError: boolean
   status: string
 }
@@ -111,13 +132,14 @@ export function getAnswerBlockView(props: AnswerBlockProps, state: AnswerBlockSt
   const single = isChoice && !definition.block.multiSelect
   const status = getAnswerStatus(props, state, t)
   const settled = props.savedAnswer ?? state.settled
+  const closed = settled?.text ?? ((props.expired || closedByHistory(props)) && !state.acting ? t('closed') : null)
   const disabled = interaction?.dailyBudgetReached === true || state.acting || interaction?.isSending === true
   return {
     title: isChoice ? definition.block.question : definition.block.title,
     single,
     disabled,
     acting: state.acting,
-    closed: settled?.text ?? (props.expired && !state.acting ? t('closed') : null),
+    closed,
     answered: settled?.answered === true,
     options: blockAnswerOptions(definition).map((option, index, options) => ({
       ...option,
@@ -132,6 +154,8 @@ export function getAnswerBlockView(props: AnswerBlockProps, state: AnswerBlockSt
     proposedLabel: t('proposed'),
     submitLabel: t(isChoice ? 'submit' : 'review'),
     submitDisabled: disabled || !interaction || status.blocked || !hasBlockAnswer(definition, state.selectedIds, state.freeText),
+    closable: isChoice && interaction?.close !== undefined,
+    closeDisabled: Boolean(closed || !interaction?.close || !isChoice || state.acting || !interaction.isOnline),
     statusError: status.error,
     status: status.text,
   }

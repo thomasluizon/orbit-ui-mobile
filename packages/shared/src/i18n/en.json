@@ -1569,7 +1569,8 @@
       "progress": "{total, plural, one {{answered} of # question answered} other {{answered} of # questions answered}}",
       "next": "Next question",
       "previous": "Previous question",
-      "required": "Answer this question."
+      "required": "Answer this question.",
+      "close": "Close question"
     },
     "choice": {
       "submit": "Send",

@@ -60,6 +60,7 @@ export const questionBlockSchema = z.object({
   blockId: z.uuid(),
   questions: z.array(questionSchema).min(1).max(10).refine(values => new Set(values.map(value => value.id)).size === values.length),
   expiresAtUtc: z.iso.datetime(),
+  closedAtUtc: z.string().optional(),
   title: z.string().check(utf16Length('max', 120)).optional(),
   intro: text(500).optional(),
   progress: z.object({ current: z.number().int().nonnegative(), total: z.number().int().positive() }).refine(value => value.current <= value.total).optional(),
