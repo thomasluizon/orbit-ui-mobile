@@ -7,6 +7,7 @@ import {
   orbitBlinkMatrix,
   orbitEyeOffset,
   orbitMascotDrawnFrame,
+  orbitMascotFrame,
   orbitMascotHeight,
   orbitMascotSizeFor,
   orbitOutlineCutout,
@@ -15,7 +16,6 @@ import {
   resolveOrbitShownState,
   type OrbitEyeShape,
   type OrbitLiveRole,
-  type OrbitMascotFrame,
   type OrbitMascotProps,
   type OrbitMascotSmallSize,
   type OrbitSmallFaceFrame,
@@ -33,6 +33,7 @@ import {
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { AppState, useWindowDimensions } from 'react-native'
 import Svg, { Circle, ClipPath, Defs, G, Path } from 'react-native-svg'
+import Animated, { useAnimatedProps, useDerivedValue, useSharedValue, type SharedValue } from 'react-native-reanimated'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
@@ -41,6 +42,10 @@ import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { useOrbitScreenFocused } from '@/components/ui/orbit-screen-focus'
 
 const ON_SCREEN_PROBE_MS = 250
+const AnimatedPath = Animated.createAnimatedComponent(Path)
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+const AnimatedG = Animated.createAnimatedComponent(G)
+const REST = orbitMascotFrame(0, mascotMotion)
 
 interface WindowMeasurable {
   measureInWindow(callback: (x: number, y: number, width: number, height: number) => void): void
@@ -48,12 +53,16 @@ interface WindowMeasurable {
 
 function useOnScreen(target: RefObject<WindowMeasurable | null>, active: boolean): boolean {
   const [onScreen, setOnScreen] = useState(true)
+  const shown = useRef(true)
   const { width, height } = useWindowDimensions()
   useEffect(() => {
     if (!active) return undefined
     const probe = () => {
       target.current?.measureInWindow((x, y, boxWidth, boxHeight) => {
-        setOnScreen(boxWidth > 0 && boxHeight > 0 && x < width && y < height && x + boxWidth > 0 && y + boxHeight > 0)
+        const next = boxWidth > 0 && boxHeight > 0 && x < width && y < height && x + boxWidth > 0 && y + boxHeight > 0
+        if (next === shown.current) return
+        shown.current = next
+        setOnScreen(next)
       })
     }
     probe()
@@ -71,7 +80,7 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
   const candidate = wantsLoop && !reducedMotion && screenFocused
   const [foreground, setForeground] = useState(AppState.currentState === 'active')
   const onScreen = useOnScreen(target, candidate && foreground && isOrbitMotionEnabled())
-  const [clock, setClock] = useState(0)
+  const clock = useSharedValue(0)
   const drawn = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
@@ -88,14 +97,19 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: RefO
   const running = candidate && onScreen && foreground && mayOrbitRunLoop(claim)
 
   useEffect(() => {
+    clock.value = candidate ? drawn.current : 0
+  }, [candidate, clock])
+
+  useEffect(() => {
     if (!running) return undefined
     return runOrbitLoopClock(globalThis, drawn.current, (time) => {
+      if (time === drawn.current) return
       drawn.current = time
-      setClock(time)
+      clock.value = time
     })
-  }, [running])
+  }, [running, clock])
 
-  return { clock: candidate ? clock : 0, running }
+  return { clock, running }
 }
 
 function useRingTurn(turnKey: string | number | undefined, enabled: boolean): number {
@@ -139,21 +153,19 @@ interface Palette {
   readonly moon: string
 }
 
-function Eye({ shape, palette, blink }: Readonly<{ shape: OrbitEyeShape; palette: Palette; blink?: string }>) {
-  if (shape.kind === 'fill') return <Path d={shape.d} fill={palette.eye} transform={blink} />
+type AnimatedPropsOf = ReturnType<typeof useAnimatedProps>
+
+function Eye({ shape, palette, rest, blink }: Readonly<{ shape: OrbitEyeShape; palette: Palette; rest?: string; blink?: AnimatedPropsOf }>) {
+  if (shape.kind === 'fill') return <AnimatedPath d={shape.d} fill={palette.eye} transform={rest} animatedProps={blink} />
   return <Path d={shape.d} fill="none" stroke={palette.eye} strokeWidth={shape.width} strokeLinecap="round" />
 }
 
-function Moon({ frame, palette }: Readonly<{ frame: OrbitMascotFrame; palette: Palette }>) {
-  return <Circle cx={frame.moon.x} cy={frame.moon.y} r={frame.moon.radius} fill={palette.moon} />
-}
-
-function Planet({ viewBox, outline, outlineTransform, clipId, children }: Readonly<{ viewBox: string; outline: string; outlineTransform?: string; clipId: string; children: ReactNode }>) {
+function Planet({ viewBox, outline, outlineTransform, outlineProps, clipId, children }: Readonly<{ viewBox: string; outline: string; outlineTransform?: string; outlineProps?: AnimatedPropsOf; clipId: string; children: ReactNode }>) {
   return (
     <>
       <Defs>
         <ClipPath id={clipId}>
-          <Path d={orbitOutlineCutout(viewBox, outline)} transform={outlineTransform} clipRule="evenodd" />
+          <AnimatedPath d={orbitOutlineCutout(viewBox, outline)} transform={outlineTransform} clipRule="evenodd" animatedProps={outlineProps} />
         </ClipPath>
       </Defs>
       <G clipPath={`url(#${clipId})`} clipRule="evenodd">
@@ -163,23 +175,47 @@ function Planet({ viewBox, outline, outlineTransform, clipId, children }: Readon
   )
 }
 
-function Rig({ state, frame, palette, clipId, eyeOffset }: Readonly<{ state: NonNullable<OrbitMascotProps['state']>; frame: OrbitMascotFrame; palette: Palette; clipId: string; eyeOffset: { readonly x: number; readonly y: number } }>) {
+interface RigProps {
+  readonly state: NonNullable<OrbitMascotProps['state']>
+  readonly time: SharedValue<number>
+  readonly turn: number
+  readonly running: boolean
+  readonly palette: Palette
+  readonly clipId: string
+  readonly eyeOffset: { readonly x: number; readonly y: number }
+}
+
+function eyesTransform(offset: { readonly x: number; readonly y: number }, widen: number) {
+  'worklet'
+  return `translate(${offset.x} ${offset.y})${widen === 1 ? '' : ` scale(${widen} 1)`}`
+}
+
+function Rig({ state, time, turn, running, palette, clipId, eyeOffset }: Readonly<RigProps>) {
   const face = ORBIT_MASCOT_FACES[state]
-  const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
+  const centreY = face.blinkCentreY
+  const frame = useDerivedValue(() => orbitMascotDrawnFrame(time.value, mascotMotion, running, turn))
+  const ringBack = useAnimatedProps(() => ({ d: frame.value.ringBack }))
+  const ringFront = useAnimatedProps(() => ({ d: frame.value.ringFront }))
+  const cutout = useAnimatedProps(() => ({ d: orbitOutlineCutout(ORBIT_MASCOT_VIEW_BOX, frame.value.ringOutline) }))
+  const moonBehind = useAnimatedProps(() => ({ cx: frame.value.moon.x, cy: frame.value.moon.y, r: frame.value.moon.front ? 0 : frame.value.moon.radius }))
+  const moonAhead = useAnimatedProps(() => ({ cx: frame.value.moon.x, cy: frame.value.moon.y, r: frame.value.moon.front ? frame.value.moon.radius : 0 }))
+  const eyes = useAnimatedProps(() => ({ transform: eyesTransform(eyeOffset, frame.value.eyeWiden) }))
+  const blink = useAnimatedProps(() => ({ transform: centreY === null ? undefined : orbitBlinkMatrix(frame.value.blinkScale, centreY) }))
+  const moon = { cx: REST.moon.x, cy: REST.moon.y, fill: palette.moon }
   return (
     <>
-      <Path d={frame.ringBack} fill="currentColor" />
-      {frame.moon.front ? null : <Moon frame={frame} palette={palette} />}
-      <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
+      <AnimatedPath d={REST.ringBack} fill="currentColor" animatedProps={ringBack} />
+      <AnimatedCircle {...moon} r={REST.moon.front ? 0 : REST.moon.radius} animatedProps={moonBehind} />
+      <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={REST.ringOutline} outlineProps={cutout} clipId={clipId}>
         <Circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
-        <G transform={`translate(${eyeOffset.x} ${eyeOffset.y})${frame.eyeWiden === 1 ? '' : ` scale(${frame.eyeWiden} 1)`}`}>
+        <AnimatedG transform={eyesTransform(eyeOffset, 1)} animatedProps={eyes}>
           {face.eyes.map((shape) => (
-            <Eye key={shape.d} shape={shape} palette={palette} blink={blink} />
+            <Eye key={shape.d} shape={shape} palette={palette} rest={centreY === null ? undefined : orbitBlinkMatrix(1, centreY)} blink={blink} />
           ))}
-        </G>
+        </AnimatedG>
       </Planet>
-      <Path d={frame.ringFront} fill="currentColor" />
-      {frame.moon.front ? <Moon frame={frame} palette={palette} /> : null}
+      <AnimatedPath d={REST.ringFront} fill="currentColor" animatedProps={ringFront} />
+      <AnimatedCircle {...moon} r={REST.moon.front ? REST.moon.radius : 0} animatedProps={moonAhead} />
     </>
   )
 }
@@ -229,7 +265,6 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = f
   const { clock, running: looping } = useOrbitLoopClock(!small && !still, live, svgRef)
   const reducedMotion = usePrefersReducedMotion()
   const turn = useRingTurn(turnKey, !small && !still && !reducedMotion)
-  const frame = orbitMascotDrawnFrame(clock, mascotMotion, looping, turn)
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined
   const running = looping || read.running
@@ -255,7 +290,7 @@ function OrbitMascotDrawing({ size, state = 'parado', still = false, reading = f
       {small ? (
         <SmallFace size={size} palette={palette} clipId={clipId} motion={smallMotion} />
       ) : (
-        <Rig state={state} frame={frame} palette={palette} clipId={clipId} eyeOffset={eyeOffset} />
+        <Rig state={state} time={clock} turn={turn} running={looping} palette={palette} clipId={clipId} eyeOffset={eyeOffset} />
       )}
     </Svg>
   )

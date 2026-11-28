@@ -206,7 +206,7 @@ describe('redesign primitives on mobile', () => {
     const tree = render(<OrbitMascot size={size} still />)
     expect(tree.root.findByProps({ testID: 'orbit-mascot' }).props).toMatchObject({ width: size, height: (size * 300) / 420, viewBox: '-210 -150 420 300', 'data-orbit-face': 'rig', 'data-orbit-state': 'parado' })
     expect((22 / 420) * size).toBeGreaterThanOrEqual(2)
-    const accent = [...byType(tree.root, 'Path'), ...byType(tree.root, 'Circle')].filter(node => prop(node, 'fill') === tokens.primary)
+    const accent = [...byType(tree.root, 'Path'), ...byType(tree.root, 'Circle')].filter(node => prop(node, 'fill') === tokens.primary && prop(node, 'r') !== 0)
     expect(accent).toHaveLength(1)
   })
 
