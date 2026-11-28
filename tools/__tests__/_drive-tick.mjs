@@ -4175,7 +4175,7 @@ const replanCases = async () => {
     same(`drive: a park in the act step starts no order for the sibling pull request ${sibling} and closes both pull requests with their branches kept`, [siblingScene.launched.length, only(siblingScene.calls, "closePull").map((entry) => entry.slice(1, 3)).sort(), only(siblingScene.calls, "editLabels").map((entry) => entry.slice(1, 3)), only(siblingScene.calls, "deleteBranch").length, recordsOn(siblingScene, "parked").length, noNotice(siblingScene)], [0, [["ui", Math.min(30, sibling)], ["ui", Math.max(30, sibling)]], [["tickets", 7]], 0, 1, [0, 0, 0, 0]])
   }
   // A pull request that left OPEN earlier in the tick stays in the list of the repository. A park never closes it, comments on it or lists it.
-  const mergedSibling = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(29, { headRef: "chore/ticket-7-part-2" })] } })
+  const mergedSibling = scenario({ tickets: [partsSpent()], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-1", reviews: [finding] }), pull(29, { headRef: "chore/ticket-7-part-2", body: `Tracks ${REPOSITORY}#7\n\nRemaining: Part 1 of 2` })] } })
   await mergedSibling.run()
   same("drive: a park after a sibling merged in the same tick closes only the open pull request and lists only it", [only(mergedSibling.calls, "merge").map((entry) => entry[2]), only(mergedSibling.calls, "closePull").map((entry) => entry.slice(1)), commentsOf(mergedSibling.calls, 29).filter((text) => text.startsWith(marked("parked", ""))).length, recordsOn(mergedSibling, "parked").map((text) => [text.includes("- ui#30: branch"), text.includes("ui#29")])], [[29], [["ui", 30]], 0, [[true, false]]])
   const buildSpent = ticket(7, { comments: [partComment(1, 2, "Paths: a/"), partComment(2, 2, "Paths: b/"), ...ladder("chore/ticket-7-part-2", "build part", 2), replanLaunch(-90 * MINUTE), replanLaunch(-80 * MINUTE), replanRecord(1, "chore/ticket-7-old"), replanRecord(2, "chore/ticket-7-older")] })
@@ -4446,6 +4446,28 @@ const measuredCases = async () => {
   same("drive: measured: a pull request that is not the last one merges with no comment", [only(earlier.calls, "merge").length, measuredComments(earlier).length], [1, 0])
   const old = await settled({ body: "Do the work." })
   same("drive: measured: a ticket with no Best approach section has no Measured check", [only(old.calls, "merge").length, measuredComments(old).length], [1, 0])
+}
+
+/** A pull request says `Remaining: none` only when every part of its ticket has a merged pull request. */
+const partsLeftCases = async () => {
+  const parts = [partComment(1, 3), partComment(2, 3), partComment(3, 3)]
+  const settled = async ({ merged = [1], body, comments } = {}) => {
+    const history = merged.map((number) => mergedPull(7, `chore/ticket-7-part-${number}`, "Remaining: more"))
+    const entry = scenario({ tickets: [ticket(7, { comments: parts })], routes: [mergedRoute(7, history)], pulls: { ui: [pull(30, { headRef: "chore/ticket-7-part-3", ...(body ? { body } : {}), ...(comments ? { comments } : {}) })], api: [], landing: [] } })
+    await entry.run()
+    return entry
+  }
+  const left = (entry) => commentsOf(entry.calls, 30).filter((text) => text.startsWith(marked("parts-left", "")))
+  const open = await settled()
+  same("drive: parts left: a Remaining none while a part has no merged pull request stays open with one comment", [only(open.calls, "merge").length, left(open).length], [0, 1])
+  T("drive: parts left: the comment names the part that is left", /Part 2\b/.test(left(open)[0] ?? "") && !/Part 1\b/.test(left(open)[0] ?? ""), left(open).join(" | "))
+  same("drive: parts left: the stop parks nothing and launches no worker", [needsOwnerComments(open.calls, 7).length, open.launched.length], [0, 0])
+  const again = await settled({ comments: [comment("ticket", "Ticket"), comment("request", PLAIN, -20 * MINUTE), comment("parts-left", "Change the line.", -5 * MINUTE)] })
+  same("drive: parts left: a second tick adds no second comment", [only(again.calls, "merge").length, left(again).length], [0, 0])
+  const done = await settled({ merged: [1, 2] })
+  same("drive: parts left: every other part merged lets the last pull request merge", [only(done.calls, "merge").length, left(done).length], [1, 0])
+  const listed = await settled({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: Part 2 of 3, the second part" })
+  same("drive: parts left: a Remaining line that lists the open part merges", [only(listed.calls, "merge").length, left(listed).length], [1, 0])
 }
 
 const CHECKS_FILE = ".github/required-checks.json"
@@ -4760,6 +4782,7 @@ export const driverUnit = async () => {
   await diffBarCases()
   await permanentFixCases()
   await measuredCases()
+  await partsLeftCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
   await noticeCases()

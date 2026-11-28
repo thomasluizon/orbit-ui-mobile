@@ -714,6 +714,12 @@ const fixFailures = (pull, fix) => {
 }
 
 /**
+ * The failure of a pull request that says `Remaining: none` while a part of its ticket has no merged pull request. `left` is the context field
+ * `partsLeft`: the numbers of those parts. The close pass closes a ticket after a `Remaining: none` merge, so that merge would leave the parts unbuilt.
+ */
+const partsLeftFailures = (pull, left) => (left?.length > 0 && REMAINING_NONE.test(pull.body ?? "") ? [`parts-left:${left.join(",")}`] : [])
+
+/**
  * The failure of the measured number, for the pull request that ends a ticket (`Remaining: none`). `measure` is the context field:
  * `{ real }`, true when the `Measure:` line of the ticket names a number. A real measure needs a `Measured: <value> on <where>` line in the body.
  */
@@ -725,7 +731,7 @@ const measuredFailures = (pull, measure) => (measure?.real && REMAINING_NONE.tes
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
  * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
  * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none), `permanentFix` (for the pull request
- * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`), `measure` (for the last pull request of a ticket: `{ real }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
+ * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`), `partsLeft` (the numbers of the parts of the ticket that have no merged pull request), `measure` (for the last pull request of a ticket: `{ real }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
  * between base and head, both read by the driver.
  */
 export const mergeBar = (pull, context = {}) => {
@@ -739,6 +745,7 @@ export const mergeBar = (pull, context = {}) => {
   failed.push(...checkFailures(pull))
   failed.push(...diffFailures(pull, context))
   failed.push(...fixFailures(pull, context.permanentFix))
+  failed.push(...partsLeftFailures(pull, context.partsLeft))
   failed.push(...measuredFailures(pull, context.measure))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")

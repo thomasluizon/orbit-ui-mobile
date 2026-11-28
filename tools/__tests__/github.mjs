@@ -186,6 +186,9 @@ const fixCases = async () => {
   same(`${N}: a none section skips the check`, mergeBar(last(), fix("none")), [])
   same(`${N}: a pull request that is not the last one has no check`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 2" }), fix("missing")), [])
   same(`${N}: a pull request with no context field has no check`, mergeBar(last()), [])
+  same(`${N}: a last pull request while a part of its ticket has no merged pull request fails the bar`, mergeBar(last(), { partsLeft: [2, 3] }), ["parts-left:2,3"])
+  same(`${N}: a last pull request with no part left passes`, mergeBar(last(), { partsLeft: [] }), [])
+  same(`${N}: a pull request that is not the last one has no parts check`, mergeBar(last({ body: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: Part 2 of 3" }), { partsLeft: [2] }), [])
   const real = { measure: { real: true } }
   const measured = "Tracks thomasluizon/orbit-tickets#7\n\nMeasured: 14 ms per frame on a mid-range Android phone\n\nRemaining: none"
   same(`${N}: a last pull request with a real Measure and no Measured line fails the bar`, mergeBar(last(), real), [MEASURED_MISSING])
