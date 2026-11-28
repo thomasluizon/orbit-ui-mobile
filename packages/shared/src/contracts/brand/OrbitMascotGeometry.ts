@@ -103,10 +103,14 @@ export function orbitRingTurnProgress(elapsed: number, duration: number): number
   return linear < 0.5 ? 2 * linear * linear : 1 - (-2 * linear + 2) ** 2 / 2
 }
 
-const toRadians = (degrees: number) => (degrees * Math.PI) / 180
+const toRadians = (degrees: number) => {
+  'worklet'
+  return (degrees * Math.PI) / 180
+}
 
 /** One half of the ring as a closed band whose width grows toward the viewer. */
 export function orbitRingPath(from: number, to: number, tilt: number, opening: number, growth: number): string {
+  'worklet'
   const outer: string[] = []
   const inner: string[] = []
   const point = (angle: number) => {
@@ -135,6 +139,7 @@ export function orbitRingPath(from: number, to: number, tilt: number, opening: n
 const ORBIT_BLINK_CLOSE_PHASE = 0.92
 
 function blinkScaleAt(phase: number): number {
+  'worklet'
   if (phase < ORBIT_BLINK_CLOSE_PHASE) return 1
   if (phase < 0.96) return 1 - (0.9 * (phase - ORBIT_BLINK_CLOSE_PHASE)) / 0.04
   return 0.1 + (0.9 * (phase - 0.96)) / 0.04
@@ -147,6 +152,7 @@ export interface OrbitMascotTimings {
 }
 
 function ringTiltAt(milliseconds: number, tiltPeriod: number): number {
+  'worklet'
   return toRadians(
     ORBIT_MASCOT_RING_REST_TILT_DEGREES
       + ORBIT_MASCOT_RING_TILT_RANGE_DEGREES * Math.sin((milliseconds / tiltPeriod) * Math.PI * 2),
@@ -154,6 +160,7 @@ function ringTiltAt(milliseconds: number, tiltPeriod: number): number {
 }
 
 function moonAt(milliseconds: number, moonPeriod: number, tilt: number): { x: number; y: number; depth: number } {
+  'worklet'
   const moonAngle = ORBIT_MASCOT_MOON_REST_ANGLE + (milliseconds / moonPeriod) * Math.PI * 2
   const flatX = ORBIT_MASCOT_RING_RADIUS * Math.cos(moonAngle)
   const flatY = ORBIT_MASCOT_RING_RADIUS * ORBIT_MASCOT_RING_OPENING * Math.sin(moonAngle)
@@ -166,6 +173,7 @@ function moonAt(milliseconds: number, moonPeriod: number, tilt: number): { x: nu
 
 /** The frame at `milliseconds` of the idle loop. Zero is the rest frame every still face draws. `turn` is the progress of a ring turn from 0 to 1: the ring and the moon make one full turn about the planet and the eyes widen through it. */
 export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimings, turn = 0): OrbitMascotFrame {
+  'worklet'
   const tilt = ringTiltAt(milliseconds, timings.tiltPeriod) + turn * Math.PI * 2
   const moon = moonAt(milliseconds, timings.moonPeriod, tilt)
   const blinkPhase = (milliseconds % timings.blinkInterval) / timings.blinkInterval
@@ -187,6 +195,7 @@ export function orbitMascotFrame(milliseconds: number, timings: OrbitMascotTimin
 /** The frame an Orbit draws at `milliseconds`. A stopped Orbit keeps its pose with its eyes open, so no Orbit stops in a
  *  blink. `turn` is the progress of a ring turn from 0 to 1. */
 export function orbitMascotDrawnFrame(milliseconds: number, timings: OrbitMascotTimings, running: boolean, turn = 0): OrbitMascotFrame {
+  'worklet'
   const frame = orbitMascotFrame(milliseconds, timings, turn)
   return running ? frame : { ...frame, blinkScale: 1 }
 }
@@ -195,12 +204,14 @@ export function orbitMascotDrawnFrame(milliseconds: number, timings: OrbitMascot
  *  even-odd rule. The outline is a hole, not a paint, so it always shows the real surface behind the mascot:
  *  the canvas, a card, a sheet, a hover fill or a pill. */
 export function orbitOutlineCutout(viewBox: string, outline: string): string {
+  'worklet'
   const [x = 0, y = 0, width = 0, height = 0] = viewBox.split(' ').map(Number)
   return `M${x} ${y}H${x + width}V${y + height}H${x}Z${outline}`
 }
 
 /** The SVG matrix that closes one eye about its centre line by `scale`. */
 export function orbitBlinkMatrix(scale: number, centreY: number): string {
+  'worklet'
   return `matrix(1 0 0 ${scale.toFixed(3)} 0 ${(centreY * (1 - scale)).toFixed(3)})`
 }
 
@@ -273,14 +284,11 @@ export interface OrbitSmallFaceFrame {
 }
 
 function matrix(a: number, b: number, c: number, d: number, e: number, f: number): string {
+  'worklet'
   return `matrix(${[a, b, c, d, e, f].map((value) => Number(value.toFixed(3))).join(' ')})`
 }
 
-const smallFaceTurnShares = new Map<OrbitMascotSmallSize, number>()
-
 function smallFaceTurnShare(size: OrbitMascotSmallSize): number {
-  const known = smallFaceTurnShares.get(size)
-  if (known !== undefined) return known
   const face = ORBIT_SMALL_FACES[size]
   const width = size
   const height = size * ORBIT_SMALL_FACE_BOX_RATIO
@@ -296,9 +304,10 @@ function smallFaceTurnShare(size: OrbitMascotSmallSize): number {
   const fullTurn = toRadians(ORBIT_MASCOT_RING_TILT_RANGE_DEGREES)
   let share = 1
   while (share > 0 && !(fits(fullTurn * share) && fits(-fullTurn * share))) share -= 0.01
-  smallFaceTurnShares.set(size, share)
   return share
 }
+
+const SMALL_FACE_TURN_SHARES = { 16: smallFaceTurnShare(16), 20: smallFaceTurnShare(20), 24: smallFaceTurnShare(24) } as const satisfies Record<OrbitMascotSmallSize, number>
 
 /** The small face read motion `milliseconds` after the read starts. The live rig needs 40 px or more, so the 16 to
  *  24 px face moves its drawn paths instead: the moon orbits the ring once per ring turn and passes behind the planet,
@@ -307,13 +316,14 @@ function smallFaceTurnShare(size: OrbitMascotSmallSize): number {
  *  The drawn ring reaches the edges of the box and the moon is wider than the ring, so at the two ends of the ring the
  *  moon moves in toward the planet until its whole disc is inside the box. It stays on the ring band there. */
 export function orbitSmallFaceFrame(milliseconds: number, size: OrbitMascotSmallSize, timings: OrbitSmallFaceTimings): OrbitSmallFaceFrame {
+  'worklet'
   const width = size
   const height = size * ORBIT_SMALL_FACE_BOX_RATIO
   const centreX = width / 2
   const centreY = height / 2
   const drawn = ORBIT_SMALL_FACE_MOON[size]
   const restTilt = ringTiltAt(0, timings.tiltPeriod)
-  const turn = (ringTiltAt(milliseconds, timings.tiltPeriod) - restTilt) * smallFaceTurnShare(size)
+  const turn = (ringTiltAt(milliseconds, timings.tiltPeriod) - restTilt) * SMALL_FACE_TURN_SHARES[size]
   const rest = moonAt(0, timings.ringTurn, restTilt)
   const moon = moonAt(milliseconds, timings.ringTurn, restTilt + turn)
   const scale = Math.hypot(drawn.x - centreX, drawn.y - centreY) / Math.hypot(rest.x, rest.y)

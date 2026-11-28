@@ -60,7 +60,7 @@ function Rig({ state, frame, clipId, eyeOffset }: Readonly<{ state: NonNullable<
   const blink = face.blinkCentreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, face.blinkCentreY)
   return (
     <>
-      <path d={frame.ringBack} fill="currentColor" />
+      <path d={frame.ringBack} fill="currentColor" data-part="ring-back" />
       {frame.moon.front ? null : <Moon frame={frame} />}
       <Planet viewBox={ORBIT_MASCOT_VIEW_BOX} outline={frame.ringOutline} clipId={clipId}>
         <circle cx="0" cy="0" r={ORBIT_MASCOT_PLANET_RADIUS} fill="currentColor" />
@@ -70,7 +70,7 @@ function Rig({ state, frame, clipId, eyeOffset }: Readonly<{ state: NonNullable<
           ))}
         </g>
       </Planet>
-      <path d={frame.ringFront} fill="currentColor" />
+      <path d={frame.ringFront} fill="currentColor" data-part="ring-front" />
       {frame.moon.front ? <Moon frame={frame} /> : null}
     </>
   )
@@ -82,7 +82,7 @@ function SmallFace({ size, clipId, motion }: Readonly<{ size: OrbitMascotSmallSi
   const moonFront = motion?.moonFront ?? true
   return (
     <>
-      <path d={face.ringBack} transform={motion?.ring} fill="currentColor" />
+      <path d={face.ringBack} transform={motion?.ring} fill="currentColor" data-part="ring-back" />
       {moonFront ? null : moon}
       <Planet viewBox={face.viewBox} outline={face.ringOutline} outlineTransform={motion?.ring} clipId={clipId}>
         <path d={face.planet} fill="currentColor" />
@@ -90,7 +90,7 @@ function SmallFace({ size, clipId, motion }: Readonly<{ size: OrbitMascotSmallSi
           <path key={eye} d={eye} transform={motion?.eyes} fill="var(--bg)" data-part="eye" />
         ))}
       </Planet>
-      <path d={face.ringFront} transform={motion?.ring} fill="currentColor" />
+      <path d={face.ringFront} transform={motion?.ring} fill="currentColor" data-part="ring-front" />
       {moonFront ? moon : null}
     </>
   )

@@ -1,4 +1,5 @@
 import { act, render } from '@testing-library/react'
+import { Profiler } from 'react'
 import { ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
 import { setOrbitMotionEnabled } from '@orbit/shared/utils'
@@ -245,6 +246,20 @@ describe('Orbit idle loop on web', () => {
     expect(loopOf(container)).toBe('still')
   })
 
+  it('renders a running Orbit 0 times in a second of animation frames at 120 Hz, and still moves the pose', () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => window.setTimeout(() => callback(performance.now()), 8))
+    vi.stubGlobal('cancelAnimationFrame', (handle: number) => window.clearTimeout(handle))
+    const renders = vi.fn()
+    const { container, unmount } = render(<Profiler id="orbit" onRender={renders}><OrbitMascot size={96} /></Profiler>)
+    expect(loopOf(container)).toBe('running')
+    const rest = moonOf(container)
+    renders.mockClear()
+    for (let frame = 0; frame < 125; frame += 1) act(() => { vi.advanceTimersByTime(8) })
+    expect(renders).not.toHaveBeenCalled()
+    expect(moonOf(container)).not.toBe(rest)
+    unmount()
+  })
+
   it('cancels its frame when it unmounts', () => {
     const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame')
     const { unmount } = render(<OrbitMascot size={96} />)
@@ -305,6 +320,17 @@ describe('Hoje Orbit line with the conversation entry on web', () => {
     act(() => { observers[0]?.([{ isIntersecting: true }]) })
     expect([summaryLoop(container), entryLoop(container)]).toEqual(['running', 'running'])
     act(() => { vi.advanceTimersByTime(96) })
+    const [summaryMoon, , entryMoon] = moonsOf(container)
+    expect(summaryMoon).toBe(entryMoon)
+  })
+
+  it('renders neither the summary Orbit nor the entry while both run, and keeps one pose', () => {
+    const renders = vi.fn()
+    const { container } = render(<Profiler id="hoje" onRender={renders}>{hoje()}</Profiler>)
+    expect([summaryLoop(container), entryLoop(container)]).toEqual(['running', 'running'])
+    renders.mockClear()
+    for (let frame = 0; frame < 62; frame += 1) act(() => { vi.advanceTimersByTime(16) })
+    expect(renders).not.toHaveBeenCalled()
     const [summaryMoon, , entryMoon] = moonsOf(container)
     expect(summaryMoon).toBe(entryMoon)
   })
