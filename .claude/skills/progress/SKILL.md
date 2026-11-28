@@ -60,7 +60,7 @@ Rules for each part:
 
 ## --remaining
 
-Report the open tickets of the board and every held ticket and pull request that `/questions` step 1 lists. Use the same rules, and list no `parked` item.
+Report the open tickets of the board and every held ticket and pull request that `/questions` step 1 lists. Use the same rules, and list no `parked` item. List each open ticket that has the line `Filed by: driver` as its own group, with its `Finding:` line.
 
 ## Estimates
 

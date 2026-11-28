@@ -1,7 +1,7 @@
 ---
 name: ticket
-description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets. /ticket --auto --parked is the run of the driver that re-plans parked items, with no gate.
-argument-hint: "<a bug, an idea, a chore, a feature, or a list of problems> | --auto --parked"
+description: Turn anything, from a rough idea to a bug, into the best way to build it and 1 to N executable tickets, after one approval gate. Use for a new idea, a brainstorm, a feature, a bug, a chore or a list of problems. It researches, writes no code, and the driver builds the tickets. /ticket --auto is the run of the driver that files one finding, and /ticket --auto --parked is the run that re-plans parked items. Both have no gate.
+argument-hint: "<a bug, an idea, a chore, a feature, or a list of problems> | --auto <finding> | --auto --parked"
 effort: high
 ---
 
@@ -92,6 +92,18 @@ Each part names its files, its cascade edits and its checks. Add a `Paths:` line
 - Fix a body: `gh issue edit <N> --repo thomasluizon/orbit-tickets --body-file <file>`
 
 Copy every issue number from this run's output. Read the milestones live with `gh api 'repos/thomasluizon/orbit-tickets/milestones?state=all&per_page=100' --paginate --jq '.[].title'`. Never create a milestone named `Backlog`.
+
+## --auto
+
+The driver starts this run for one finding: an outside defect that a review named, a flaky check, a class of defect, a Sentry issue or a security alert. The input has a `Finding:` line, a `Title:` line, a `Labels:` line and the text of the finding. This run has no owner and no approval gate. It writes no code and sends no notification.
+
+1. Ask nothing. Decide each open choice with your recommendation.
+2. Use the `Task` tool for the research subagents of "Before the split: find the best way", one for each question.
+3. Search the board first. When an open ticket has the same `Finding:` line, create nothing and end.
+4. Create each ticket with `node tools/create-ticket.mjs`. Put the line `Filed by: driver` and the line `Finding: <key>` in the body, each on its own line. The key is the text after `Finding:` in the input.
+5. Use the title and the labels of the input, unless your research shows that others are correct. Keep each link and each id of the finding in the body.
+6. Never add `design-system`, `gate` or `flag:approved`. When a step needs the owner's yes (a feature flag, a feature removal or a locked path), add `needs:owner` to the ticket. Write one comment that starts with `<!-- orbit-drive:needs-owner -->` and names that step.
+7. End with one line: the number of each ticket that you created.
 
 ## --auto --parked
 

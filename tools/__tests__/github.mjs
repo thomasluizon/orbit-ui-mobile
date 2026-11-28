@@ -124,6 +124,7 @@ const ticketCases = async () => {
   const N = "lib/github.mjs: checkTicket"
   const check = (name, ticket, board, want, options = { primitives: null }) => same(`${N} ${name}`, checkTicket(ticket, board, options).length, want)
   const bugTicket = (body, labels = ["Bug"]) => ({ body, labels })
+  check("ignores a notice issue, which is no ticket", bugTicket("Restarted three times.", ["Bug", "notice"]), [], 0)
   check("accepts a sound Bug ticket", bugTicket(bug(`${FIX}Add \`eslint-rules/label-fit.cjs\`.`)), [], 0)
   check("refuses a Bug ticket with no Class line", bugTicket(`${FIX}Add eslint-rules/x.cjs`), [], 1)
   check("accepts a ticket of another type with no Class line", bugTicket("Problem", ["Improvement"]), [], 0)

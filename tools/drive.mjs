@@ -66,6 +66,11 @@ const USAGE = `usage: drive.mjs [--dry-run | --once | --probe | --allow-over-lim
   in 24 hours: /ticket --auto --parked on claude-opus-5-5, on the main account, with no worker slot. The review re-plans each
   parked item and removes parked. A park closes the open pull requests of the ticket and keeps their branches. A branch that launched before a park counts as used, so the new plan takes a new branch.
 
+  The driver files its findings (an Outside this change section, a flaky check, a class line, a Sentry issue, an alert) by running
+  /ticket --auto on claude-sonnet-5-5, one run at a time, with a 20 minute timeout, on one main slot. A run that files no ticket
+  runs once more, then opens a needs:owner notice. The driver files no ticket by itself. Its notices (pause, login, stop, rollback,
+  restart) carry the notice label, and the check and the launch ignore them.
+
   A notification goes to the owner's phone through the Telegram Bot API, with the Keychain items telegram-bot-token and
   telegram-chat-id. With one of them missing it is a macOS notification. When Telegram refuses one, it shows on the Mac
   and each later tick sends it to the phone again. The same item, head and cause is told once.
@@ -139,7 +144,15 @@ const HEAD_IN_REASON = / at [0-9a-f]{40}(?=:)/
  */
 const QUESTIONS_RUN = Object.freeze({ stem: "questions", slot: "questions", order: "/questions --auto" })
 const HARNESS_REVIEW_RUN = Object.freeze({ stem: "harness-review", slot: "harnessReview", order: "/ticket --auto --parked" })
-const COORDINATOR_RUNS = Object.freeze([QUESTIONS_RUN, HARNESS_REVIEW_RUN])
+/** The `/ticket --auto` run of one driver finding. It runs on the worker model, one at a time, and holds one worker slot while it runs. */
+const FINDING_RUN = Object.freeze({ stem: "finding", slot: "finding", order: "/ticket --auto" })
+const COORDINATOR_RUNS = Object.freeze([QUESTIONS_RUN, HARNESS_REVIEW_RUN, FINDING_RUN])
+const FINDINGS_FILE = "findings.json"
+/** A finding gets this many runs: one run, and one retry. Then it goes to the owner. */
+const FINDING_TRIES = 2
+const FINDING_TIMEOUT_MS = 20 * 60 * 1000
+const NOTICE = "notice"
+const NOTICE_LABEL = { name: NOTICE, color: "C5DEF5", description: "A driver notice. It is not a ticket, and the launch ignores it." }
 const SLEEP_WORDS = ["on", "off"]
 const REQUIRED_TOOLS = ["node", "git", "gh", "claude", "security", "osascript", "caffeinate"]
 const REPOSITORY_KEYS = ["ui", "api", "landing"]
@@ -400,7 +413,7 @@ export const ticketComment = ({ repository, ticket, part }) => {
 /** What one tick tells `health.json`: its good read, the pull requests at the bar, a merge, each blind part, its first error, a hold and the rate limit reset. */
 const newHealth = () => ({ read: null, green: [], merged: false, blind: [], failure: null, held: false, resetAt: null })
 
-export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, lastJudgeAt: 0, slow: null, stageTimesFailed: false, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), runner: "claude", orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
+export const createMemory = () => ({ running: new Map(), results: new Map(), lastProbeAt: null, reading: null, logged: new Map(), loggedSeen: new Set(), lastIntakeAt: 0, lastJudgeAt: 0, slow: null, stageTimesFailed: false, known: {}, wake: () => {}, woken: false, checkedRuns: new Set(), updateTypes: new Map(), merged: new Map(), mergedReadsLeft: 0, mergedReadThisTick: new Set(), unprepared: new Map(), health: newHealth(), account: null, probeOwed: false, stoppedUntil: null, worker: createWorkerAccount(), runner: "claude", orphans: new Map(), paceLoaded: false, saved: null, questions: null, harnessReview: null, finding: null, keptWorktrees: new Map(), readErrors: [], failedTicks: 0, holdUntil: 0 })
 
 const log = (env, item, action, reason = "") => env.log(`${new Date(env.now()).toISOString()} ${item} ${action}${reason === "" ? "" : ` (${reason})`}`)
 
@@ -578,6 +591,12 @@ const holdItem = (env, { link, reason, key = reason }) => {
 
 const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/issues/${number}`
 
+/** The one writer of a notice issue (pause, login, stop, rollback, restart). It carries the `notice` label, so the check and the launch ignore it. */
+const createNotice = async (env, { title, body, labels }) => {
+  await env.github.ensureLabel("tickets", NOTICE_LABEL)
+  return env.github.createTicket({ title, body, labels: [...labels, NOTICE] })
+}
+
 /**
  * Opens the `needs:owner` issue of a driver problem, then sends its notice with the link of the issue. A create that fails
  * still sends the notice, with no link.
@@ -585,7 +604,7 @@ const issueLink = (env, number) => `https://github.com/${env.slugOf("tickets")}/
 const openProblem = async (env, { title, body, notice }) => {
   let link = null
   try {
-    const created = await env.github.createTicket({ title, body, labels: [OWNER] })
+    const created = await createNotice(env, { title, body, labels: [OWNER] })
     link = issueLink(env, created.number)
     holdItem(env, { link, reason: title })
     return created
@@ -595,13 +614,13 @@ const openProblem = async (env, { title, body, notice }) => {
 }
 
 /**
- * Opens a Bug ticket for a driver problem that needs no owner step, then sends its notice with the link. It carries no
- * `needs:owner` label and no sleep item, so the driver builds it like every other ticket. `notice` is optional.
+ * Opens the issue of a driver problem that needs no owner step, then sends its notice with the link. It carries no
+ * `needs:owner` label and no sleep item. With a `notice` it is a notice issue. Without one it is a Bug ticket that the driver builds.
  */
 const openBug = async (env, { title, body, notice = null }) => {
   let link = null
   try {
-    const created = await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS })
+    const created = notice === null ? await env.github.createTicket({ title, body, labels: HARNESS_BUG_LABELS }) : await createNotice(env, { title, body, labels: HARNESS_BUG_LABELS })
     link = issueLink(env, created.number)
     return created
   } finally {
@@ -1458,19 +1477,84 @@ const recordCommits = async (env, repoKey, number, sessionId, shas) => {
   for (const sha of shas) await env.github.comment(repoKey, number, marked("record", `worker ${sessionId} -> ${sha}`))
 }
 
-const outsideTicket = async (env, repoKey, pull) => {
+const readFindings = (stateDir) => {
+  try {
+    const list = JSON.parse(readFileSync(join(stateDir, FINDINGS_FILE), "utf8"))
+    return Array.isArray(list) ? list : []
+  } catch {
+    return []
+  }
+}
+
+const writeFindings = (stateDir, list) => writeFileSync(join(stateDir, FINDINGS_FILE), `${JSON.stringify(list)}\n`)
+
+const findingLine = (key) => `Finding: ${key}`
+
+/** True when the body holds the line `Finding: <key>`. */
+const holdsFinding = (body, key) => String(body ?? "").split("\n").some((line) => line.trim() === findingLine(key))
+
+/** True when the queue or an open ticket of `tickets` holds the finding. */
+const findingHeld = (env, tickets, key) => readFindings(env.stateDir).some((entry) => entry.key === key) || tickets.some((ticket) => ticket.state !== "CLOSED" && holdsFinding(ticket.body, key))
+
+/**
+ * Queues one finding for a `/ticket --auto` run. It writes no ticket and runs nothing: `startFinding` runs the queue outside the tick.
+ * The key is the `Finding:` line. A key that the queue or an open ticket holds is queued once. Returns true when it queued the finding.
+ */
+const fileFinding = (env, tickets, { key, title, labels, body }) => {
+  if (env.dryRun || findingHeld(env, tickets, key)) return false
+  writeFindings(env.stateDir, [...readFindings(env.stateDir), { key, title, labels, body, tries: 0 }])
+  log(env, "finding", "queued", key)
+  return true
+}
+
+/** The order of a finding run: the finding is the input of `/ticket --auto`. */
+const findingOrder = ({ key, title, labels, body }) => `${FINDING_RUN.order}\n\n${findingLine(key)}\nTitle: ${title}\nLabels: ${labels.join(", ")}\n\n${body}`
+
+/** The ticket that holds the finding, among the newest tickets in `state`, or null. A list read has no search lag. */
+const filedFinding = async (env, key, state) => {
+  const issues = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", state, "--limit", state === "open" ? "1000" : "200", "--json", "number,body"]))
+  return issues.find((issue) => holdsFinding(issue.body, key)) ?? null
+}
+
+const dropFinding = (env, key) => writeFindings(env.stateDir, readFindings(env.stateDir).filter((entry) => entry.key !== key))
+
+/** After a finding run: a ticket with the key ends the finding. No ticket keeps it for the retry, and the second miss opens a `needs:owner` notice. */
+const endFinding = async (env, finding, result) => {
+  let filed
+  try { filed = await filedFinding(env, finding.key, "all") } catch (error) { return log(env, "finding", "unread", `${finding.key}: ${error.message}`) }
+  if (filed !== null) return dropFinding(env, finding.key)
+  const tries = readFindings(env.stateDir).find((entry) => entry.key === finding.key)?.tries ?? FINDING_TRIES
+  const cause = result.killReason ?? (result.exitCode === 0 ? "the run filed no ticket" : `exit ${result.exitCode ?? result.spawnError ?? "none"}`)
+  if (tries < FINDING_TRIES) return log(env, "finding", "retry", `${finding.key}: ${cause}`)
+  dropFinding(env, finding.key)
+  await openProblem(env, { title: `The driver could not file a finding: ${cut(finding.key, 80)}`, body: `Two \`/ticket --auto\` runs filed no ticket for ${findingLine(finding.key)}. Last cause: ${cause}.\n\nTitle: ${finding.title}\n\n${finding.body}`, notice: { key: `finding ${finding.key}`, lines: ["The Orbit driver could not file a finding.", cut(finding.key, DETAIL_LIMIT)] } })
+}
+
+/**
+ * Starts the `/ticket --auto` run of the first queued finding when no finding run is live, a main slot is free and nothing blocks the
+ * main account. The run is a detached child with a timeout and holds the slot until it ends. An open ticket with the key ends the finding first.
+ */
+const startFinding = async (env, mem, { blocked, free }) => {
+  if (!env.driverWorktree || blocked !== null || free.main <= 0 || runLive(env, mem, FINDING_RUN)) return
+  const [next] = readFindings(env.stateDir)
+  if (next === undefined) return
+  if (await filedFinding(env, next.key, "open") !== null) return dropFinding(env, next.key)
+  writeFindings(env.stateDir, readFindings(env.stateDir).map((entry) => (entry.key === next.key ? { ...entry, tries: entry.tries + 1 } : entry)))
+  free.main -= 1
+  await startRunOf(env, mem, { ...FINDING_RUN, order: findingOrder(next) }, env.worker.findingInvocation, { limits: { ...env.worker.WORKER_LIMITS, hardCeilingMs: FINDING_TIMEOUT_MS }, onExit: (result) => endFinding(env, next, result) })
+}
+
+const outsideTicket = async (env, ctx, pull) => {
   const sections = sectionsOutside(pull.reviews)
   if (sections.length === 0) return
-  const slug = env.slugOf(repoKey)
-  await env.github.createTicket({ title: `Outside this change: ${slug}#${pull.number}`, body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}`, labels: [`repo:${repoKey}`, "Bug"] })
+  const slug = env.slugOf(ctx.repoKey)
+  fileFinding(env, ctx.tickets, { key: `outside ${slug}#${pull.number}`, title: `Outside this change: ${slug}#${pull.number}`, labels: [`repo:${ctx.repoKey}`, "Bug"], body: `Pullfrog reported blocking-class defects outside ${slug}#${pull.number}:\n\n${sections.map((text) => `> ${text.split("\n").join("\n> ")}`).join("\n\n")}` })
 }
 
 const classBody = ({ key, repoKey, check, at, sentence, slug, number, closed }) => {
   const earlier = closed.length === 0 ? "none" : closed.map((ticket) => `#${ticket.number} ${ticket.title}`).join("\n")
   const said = sentence.replace(/[.!?]+$/, "")
   return `Class: ${key}
-Filed by: driver
-Finding: class ${repoKey} ${key}
 
 ## Problem and why
 
@@ -1490,23 +1574,20 @@ Add one ${check} that fails on every instance of this class in the repository. F
 ${earlier}`
 }
 
-/** True when an open ticket of the repository holds the class key in a `Class: <key>` line. */
-const classHeld = (tickets, repoKey, key) => tickets.some((ticket) => ticket.labels.includes(`repo:${repoKey}`) && (ticket.body ?? "").split("\n").some((line) => line.trim().toLowerCase() === `class: ${key}`))
-
-/** Files one Improvement ticket for each class that the `## Class checks` sections of the reviews name, unless an open ticket of the repository holds the key. */
+/** Queues one Improvement finding for each class that the `## Class checks` sections of the reviews name, unless the queue or an open ticket holds its `Finding:` line. */
 const classTickets = async (env, ctx, pull) => {
   const { repoKey } = ctx
   for (const line of classLines(pull.reviews)) {
-    if (classHeld(ctx.tickets, repoKey, line.key) || ctx.classes.has(`${repoKey} ${line.key}`)) {
+    const key = `class ${repoKey} ${line.key}`
+    if (findingHeld(env, ctx.tickets, key)) {
       log(env, "class-ticket", `held ${line.key}`)
       continue
     }
-    ctx.classes.add(`${repoKey} ${line.key}`)
     let closed = []
     try { closed = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "closed", "--search", `"Class: ${line.key}" in:body`, "--json", "number,title", "--limit", "20"])) } catch (error) { log(env, "class-ticket", "closed-unread", `${line.key}: ${error.message}`) }
     const slug = env.slugOf(repoKey)
     const title = `A ${line.check} finds every case of: ${line.sentence}`.slice(0, 100)
-    await env.github.createTicket({ title, body: classBody({ ...line, repoKey, slug, number: pull.number, closed }), labels: [`repo:${repoKey}`, "Improvement", ...(repoKey === "ui" ? ["parity:no"] : [])] })
+    fileFinding(env, ctx.tickets, { key, title, body: classBody({ ...line, repoKey, slug, number: pull.number, closed }), labels: [`repo:${repoKey}`, "Improvement", ...(repoKey === "ui" ? ["parity:no"] : [])] })
     log(env, "class-ticket", `${line.key} ${repoKey}`)
   }
 }
@@ -1518,15 +1599,12 @@ const updateBranch = async (env, repoKey, pull) => {
   if (head !== pull.headSha) await env.github.comment(repoKey, pull.number, marked("record", `driver update-branch -> ${head}`))
 }
 
-/** Files one Bug ticket for a check that failed and then passed on a rerun at the same head, unless an open ticket holds it. */
+/** Queues one Bug finding for a check that failed and then passed on a rerun at the same head, unless the queue or an open ticket holds it. */
 const fileFlake = async (env, ctx, pull, action) => {
   const title = `Flaky check: ${action.name}`
   const slug = env.slugOf(ctx.repoKey)
-  if (!ctx.tickets.some((ticket) => ticket.title === title && ticket.repoKey === ctx.repoKey) && !ctx.flaky.has(title)) {
-    ctx.flaky.add(title)
-    const body = `The check "${action.name}" failed on ${slug}#${pull.number} at the head \`${pull.headSha}\` and passed on a rerun of the run ${action.runId} at the same head. The test is flaky.\n\nFailed lines:\n\n\`\`\`\n${action.lines}\n\`\`\`\n\nFind the test that failed. Remove the timing or the shared state that makes it fail.`
-    await env.github.createTicket({ title, body, labels: [`repo:${ctx.repoKey}`, "Bug"] })
-  }
+  const body = `The check "${action.name}" failed on ${slug}#${pull.number} at the head \`${pull.headSha}\` and passed on a rerun of the run ${action.runId} at the same head. The test is flaky.\n\nFailed lines:\n\n\`\`\`\n${action.lines}\n\`\`\`\n\nFind the test that failed. Remove the timing or the shared state that makes it fail.`
+  fileFinding(env, ctx.tickets, { key: `flake ${ctx.repoKey} ${action.name}`, title, body, labels: [`repo:${ctx.repoKey}`, "Bug"] })
   await env.github.comment(ctx.repoKey, pull.number, marked("record", `driver flake-filed ${flakeKey(action.runId, action.name)}`))
 }
 
@@ -1700,7 +1778,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       // A child that stacks on the branch of this pull request reads a parent that is gone and takes the retarget path.
       // Admission still reads `state.pulls`, so the list keeps the pull request and this set holds it.
       ctx.mergedPulls.add(pull)
-      await outsideTicket(env, repoKey, pull)
+      await outsideTicket(env, ctx, pull)
       await classTickets(env, ctx, pull)
       return undefined
     default: return undefined
@@ -1722,7 +1800,7 @@ const planOrder = (state) => [...state.pulls].sort((left, right) => left.number 
  */
 const planPullRequests = (env, mem, repoKey, state, tickets, { running, stopped, gate, limitSeen }) => {
   const ticketMap = new Map(tickets.map((ticket) => [ticket.number, ticket]))
-  const ctx = { repoKey, state, ticketMap, tickets, flaky: new Set(), classes: new Set(), mergedPulls: new Set(), now: env.now(), running }
+  const ctx = { repoKey, state, ticketMap, tickets, mergedPulls: new Set(), now: env.now(), running }
   const repoPath = env.config.repos[repoKey]
   const planOne = async (pull) => {
     const item = `${repoKey}#${pull.number}`
@@ -2586,7 +2664,7 @@ const ticketVerdict = async (env, mem, states, tickets, ticket, { settled = null
   const stop = (reason) => ({ reason })
   const repoLabels = labels.filter((label) => label.startsWith("repo:"))
   if (repoLabels.length !== 1) return stop("needs exactly one repo label")
-  for (const label of [OWNER, PARKED, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
+  for (const label of [OWNER, PARKED, NOTICE, "needs:conversation", "owner-work"]) if (labels.includes(label)) return stop(`carries ${label}`)
   const open = ticket.blockedBy.filter((blocker) => blocker.open)
   if (open.length > 0) return stop(`blocked by ${open.map((blocker) => blocker.number).join(", ")}`)
   const waiting = runsLastOpen(tickets, ticket)
@@ -2859,7 +2937,7 @@ const intake = async (env, mem) => {
     ]) {
       let alerts = []
       try { alerts = JSON.parse(await env.gh(["api", `repos/${slug}/${path}/alerts?state=open&per_page=100`])) } catch (error) { log(env, "intake", "alerts-unread", `${kind} of ${slug}: ${error.message}`) }
-      for (const alert of alerts) candidates.push({ repoKey: key, title: `${kind}: ${describeAlert(alert)}`.slice(0, 120), body: `${describeAlert(alert)}\n\n${alert.html_url}`, held: (text) => holds(text, alert.html_url), label: alert.html_url })
+      for (const alert of alerts) candidates.push({ repoKey: key, title: `${kind}: ${describeAlert(alert)}`.slice(0, 120), body: `${describeAlert(alert)}\n\n${alert.html_url}`, held: (text) => holds(text, alert.html_url), label: alert.html_url, finding: `alert ${alert.html_url}` })
     }
   }
   if (candidates.length === 0) return
@@ -2871,7 +2949,7 @@ const intake = async (env, mem) => {
     if (earlier === null) continue
     log(env, "intake", "ticket", candidate.label)
     const body = earlier.length === 0 ? candidate.body : `${candidate.body}\n\nThe issue regressed after the fix of ${earlier.map((number) => `#${number}`).join(", ")}.`
-    if (!env.dryRun) await env.github.createTicket({ title: candidate.title, body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
+    if (!env.dryRun) fileFinding(env, known.filter((ticket) => ticket.state === "OPEN"), { key: candidate.finding, title: candidate.title, body, labels: [`repo:${candidate.repoKey}`, "Bug"] })
   }
 }
 
@@ -2987,7 +3065,7 @@ const runLive = (env, mem, { stem, slot }) => mem[slot] !== null || pidFileOf(en
  * worktree, so a driver switch does not wait for it. It runs on the main account with the coordinator model and the owner's gh login.
  * The start goes to `<stem>.json` before the launch.
  */
-const startRunOf = async (env, mem, run, invocationOf) => {
+const startRunOf = async (env, mem, run, invocationOf, { limits = null, onExit = null } = {}) => {
   const { stem, slot, order } = run
   // The worker token cannot read the ticket repository, so the run uses the owner's gh login and never falls back to the worker token.
   const token = await env.worker.readOwnerToken({ parentEnvironment: process.env })
@@ -2997,11 +3075,13 @@ const startRunOf = async (env, mem, run, invocationOf) => {
   const startedAt = env.now()
   writeFileSync(join(env.stateDir, `${stem}.json`), `${JSON.stringify({ startedAt: new Date(startedAt).toISOString() })}\n`)
   const logFile = join(env.stateDir, "logs", `${stem}-${new Date(startedAt).toISOString().replace(/[:.]/g, "-")}.log`)
-  const running = env.worker.launch({ invocation, worktree, order, logFile, pidFile: join(env.stateDir, `${stem}.pid`) })
+  const running = env.worker.launch({ invocation, worktree, order, logFile, pidFile: join(env.stateDir, `${stem}.pid`), ...(limits === null ? {} : { limits }) })
   log(env, stem, "launch")
-  mem[slot] = running.then((result) => {
-    mem[slot] = null
+  mem[slot] = running.then(async (result) => {
     log(env, stem, "exit", String(result.exitCode ?? result.spawnError ?? result.killReason ?? "none"))
+    // The slot stays held until `onExit` settles the run, so no second run starts on the same finding.
+    if (onExit !== null) await onExit(result).catch((error) => log(env, stem, "error", error.message))
+    mem[slot] = null
     mem.woken = true
     mem.wake()
   })
@@ -3138,6 +3218,8 @@ const runTick = async (env, mem) => {
   if (account.ok) await syncStop(env, tickets, paces.main)
   const stoppedAll = ACCOUNT_NAMES.every((name) => paces[name].state === "absent" || paces[name].stopped)
   const free = { main: paces.main.free, worker: paces.worker.free }
+  // A live finding run holds one slot of the main account.
+  if (runLive(env, mem, FINDING_RUN)) free.main = Math.max(0, free.main - 1)
   const full = stoppedAll ? "the weekly usage stop holds every worker" : "every free worker slot is taken"
   // The plan of this tick can open the pause issue, so each launch reads the hold again.
   const held = () => paused || pauseIssue(tickets) || !account.ok
@@ -3221,6 +3303,7 @@ const runTick = async (env, mem) => {
     const runBlock = holdReason ?? (paces.main.stopped ? "the main account is stopped" : limitSeen.found ? LIMIT_STOP : null)
     await startQuestions(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, QUESTIONS_RUN.stem, "error", error.message))
     await startHarnessReview(env, mem, { tickets, states, blocked: runBlock }).catch((error) => log(env, HARNESS_REVIEW_RUN.stem, "error", error.message))
+    await startFinding(env, mem, { blocked: runBlock, free }).catch((error) => log(env, FINDING_RUN.stem, "error", error.message))
   }
   if (!env.dryRun && env.now() - mem.lastIntakeAt >= HOUR_MS) {
     mem.lastIntakeAt = env.now()

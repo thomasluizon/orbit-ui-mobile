@@ -146,11 +146,11 @@ export const workerSettings = ({ hotPath, skillNames, keepSkills = [SKILL_KEPT_O
 })
 
 /** The worker command. The order goes in on stdin, never in argv. */
-export const workerCommand = (settingsJson, model = WORKER_MODEL) => ({
+export const workerCommand = (settingsJson, model = WORKER_MODEL, denied = WORKER_DENIED_TOOLS) => ({
   executable: "claude",
   args: [
     "-p", "--model", model, "--effort", EFFORT, "--output-format", "stream-json", "--verbose", "--strict-mcp-config",
-    "--permission-mode", "bypassPermissions", "--disallowed-tools", ...WORKER_DENIED_TOOLS, "--settings", settingsJson,
+    "--permission-mode", "bypassPermissions", "--disallowed-tools", ...denied, "--settings", settingsJson,
   ],
 })
 
@@ -227,11 +227,11 @@ export const workerAccountEnvironment = (parentEnvironment, configDirectory) => 
  * The command and the environment of every worker run: a launch and a probe use the same ones. The main account has no
  * `configDirectory`. The worker account sets `CLAUDE_CONFIG_DIR` to its directory, and nothing else changes.
  */
-export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = WORKER_MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null, gate = undefined }) => {
+export const workerInvocation = ({ home, parentEnvironment, token, configDirectory = null, model = WORKER_MODEL, keepSkills = [SKILL_KEPT_ON], codeWorker = true, own = null, gate = undefined, allowTask = false }) => {
   const settings = workerSettings({ hotPath: join(home, "Developer", "brain", "hot.md"), skillNames: listSkillNames(join(home, ".claude", "skills")), keepSkills, codeWorker, own, gate })
   const environment = workerEnvironmentFor(parentEnvironment, token)
   if (configDirectory !== null) environment.CLAUDE_CONFIG_DIR = configDirectory
-  return { command: workerCommand(JSON.stringify(settings), model), environment }
+  return { command: workerCommand(JSON.stringify(settings), model, allowTask ? WORKER_DENIED_TOOLS.filter((name) => name !== "Task") : WORKER_DENIED_TOOLS), environment }
 }
 
 /**
@@ -285,6 +285,12 @@ export const questionsInvocation = (options) => coordinatorInvocation(options, Q
 
 /** The harness review keeps the `ticket` skill on. */
 export const harnessReviewInvocation = (options) => coordinatorInvocation(options, HARNESS_REVIEW_SKILLS)
+
+/**
+ * The `/ticket --auto` run of one driver finding: the worker model at effort high, the owner's gh login, the `ticket` skill on and the
+ * `Task` tool allowed for its research subagents. It writes tickets and no code, so it has no GitHub limits of a code worker.
+ */
+export const findingInvocation = ({ home, parentEnvironment, token }) => workerInvocation({ home, parentEnvironment, token, keepSkills: HARNESS_REVIEW_SKILLS, codeWorker: false, allowTask: true })
 
 /**
  * The prefixes that the installed claude CLI (2.1.329) classifies as a reached usage limit. The CLI tags such a
