@@ -651,6 +651,21 @@ const pushCases = async () => {
   await noText.run()
   await noText.run()
   same("drive: a new branch with no orbit-pull.md is pushed and opens no pull request", [pushes(noText).length, creates(noText).length, noText.messages.some((line) => line.includes("push-no-text"))], [1, 0, true])
+
+  const labelArgs = []
+  const labeled = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("labels", "Build the web side (Part 7 of 12)\nLabels: parity:exempt, Bug\n\nTracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n")], heads(HEAD, NEXT_HEAD), ["ls-remote", ""], ["log --format=%H", `${NEXT_HEAD}\n`]], workerRuns: (file, args) => { if (file === "gh") labelArgs.push([args.filter((_, index) => args[index - 1] === "--label"), readFileSync(args[args.indexOf("--body-file") + 1], "utf8")]); return undefined } })
+  await labeled.run()
+  await labeled.run()
+  same("drive: the Labels line of orbit-pull.md gives one --label for each label, and the body leaves the line out", labelArgs, [[["parity:exempt", "Bug"], "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n"]])
+
+  const rebuilt = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("rebuilt", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n\nRemaining: none\n")], ["ls-remote", `${HEAD}\trefs/heads/chore/ticket-7\n`], ["rev-list --count origin/main..HEAD", "2\n"]] })
+  await rebuilt.run()
+  await rebuilt.run()
+  same("drive: a build run that adds no commit to a pushed branch with no pull request gets no push and one gh pr create", [pushes(rebuilt).length, creates(rebuilt).length], [0, 1])
+  const empty = scenario({ tickets: [ticket(7)], routes: [["--head chore/ticket-7", "\n"]], gitRoutes: [["--absolute-git-dir", pullDir("empty", "Build the thing (Part 7 of 12)\n\nTracks thomasluizon/orbit-tickets#7\n")], ["ls-remote", ""]] })
+  await empty.run()
+  await empty.run()
+  same("drive: a build run with no commit on a branch that main holds gets no push and no pull request", [pushes(empty).length, creates(empty).length], [0, 0])
 }
 
 const pullfrogRun = (databaseId, createdOffset, updatedOffset, status = "completed") => ({ databaseId, displayTitle: `Respond to mention on #7 [run${databaseId}]`, status, conclusion: status === "completed" ? "success" : null, createdAt: iso(createdOffset), updatedAt: iso(updatedOffset) })

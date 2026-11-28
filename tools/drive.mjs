@@ -2068,7 +2068,7 @@ const queuePush = (env, entry) => {
   writePushes(env, [...list.filter((other) => other !== earlier), { ...entry, shas: [...(earlier?.shas ?? []), ...entry.shas] }])
 }
 
-/** The pull request text that the worker wrote in the git directory of its worktree: the first line is the title and the rest is the body. Null when it is missing or has no title. */
+/** The pull request text that the worker wrote in the git directory of its worktree: the first line is the title, an optional `Labels:` line follows it, and the rest is the body. Null when it is missing or has no title. */
 const pullText = async (env, worktree) => {
   const dir = await env.git(worktree, ["rev-parse", "--absolute-git-dir"])
   if (dir.status !== 0) return null
@@ -2076,7 +2076,9 @@ const pullText = async (env, worktree) => {
   try { written = readFileSync(join(dir.stdout.trim(), "orbit-pull.md"), "utf8") } catch { return null }
   const [first, ...rest] = written.split("\n")
   const title = first.replace(/^#+\s*/, "").trim()
-  return title === "" ? null : { title, body: rest.join("\n").trim() }
+  const labelLine = /^Labels:(.*)$/i.exec(rest[0] ?? "")
+  const labels = labelLine ? labelLine[1].split(",").map((label) => label.trim()).filter(Boolean) : []
+  return title === "" ? null : { title, labels, body: (labelLine ? rest.slice(1) : rest).join("\n").trim() }
 }
 
 /**
@@ -2106,7 +2108,7 @@ const pushOne = async (env, entry) => {
     } else {
       const bodyFile = join(env.stateDir, "pull-body.md")
       writeFileSync(bodyFile, `${pull.body}\n`)
-      const created = await env.workerRun(worktree, "gh", ["pr", "create", "--base", "main", "--head", branch, "--title", pull.title, "--body-file", bodyFile])
+      const created = await env.workerRun(worktree, "gh", ["pr", "create", "--base", "main", "--head", branch, "--title", pull.title, "--body-file", bodyFile, ...pull.labels.flatMap((label) => ["--label", label])])
       rmSync(bodyFile, { force: true })
       if (created.status !== 0) throw new Error(`gh pr create failed: ${created.stderr.trim()}`)
       number = Number(/\/pull\/(\d+)/.exec(created.stdout)?.[1])
@@ -2429,7 +2431,11 @@ const reapExit = async (env, mem, tickets, states, exit) => {
     const listed = await env.git(worktree, ["log", "--format=%H", `${headBefore}..HEAD`])
     const shas = listed.status === 0 ? listed.stdout.trim().split("\n").filter(Boolean).reverse() : []
     const found = findPullByBranch(states, branch)
-    if (shas.length > 0) queuePush(env, { repoKey, branch, kind, ticketNumber: ticket.number, partNumber: partNumber ?? null, prNumber: prNumber ?? found?.pull.number ?? null, head: headAfter, finishedAt: new Date(env.now()).toISOString(), gate, worktree, sessionId: result.sessionId ?? null, shas })
+    const pullNumber = prNumber ?? found?.pull.number ?? null
+    // A build branch that an earlier run pushed with no pull request still needs one when this run adds no commit.
+    const unopened = shas.length === 0 && pullNumber === null && (kind === "build" || kind === "build part")
+      && Number((await env.git(worktree, ["rev-list", "--count", "origin/main..HEAD"])).stdout.trim()) > 0
+    if (shas.length > 0 || unopened) queuePush(env, { repoKey, branch, kind, ticketNumber: ticket.number, partNumber: partNumber ?? null, prNumber: pullNumber, head: headAfter, finishedAt: new Date(env.now()).toISOString(), gate, worktree, sessionId: result.sessionId ?? null, shas })
   }
   if (result.result.usageLimitReached || result.result.authenticationFailed) {
     const message = result.result.error ?? "the worker stopped"

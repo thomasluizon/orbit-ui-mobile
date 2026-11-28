@@ -1276,6 +1276,7 @@ const orderCases = async () => {
     T(`lib/order.mjs: the ${kind} order tells a worker to push nothing and names the driver as the one that pushes`, reads || (text.includes("Push nothing and open no pull request.") && text.includes("The driver pushes your commits")))
     T(`lib/order.mjs: the ${kind} order holds no instruction to push`, text.replace(/[Pp]ush nothing|[Tt]he driver pushes|after it pushes|never force-push/g, "").match(/push/gi) === null)
     T(`lib/order.mjs: the ${kind} order of a new branch tells the worker to write orbit-pull.md in the git directory`, !opens || (text.includes("`orbit-pull.md`") && text.includes("`git rev-parse --absolute-git-dir`") && text.includes("The first line is the title.")))
+    T(`lib/order.mjs: the ${kind} order of a new branch tells the worker to give labels on a Labels line after the title`, !opens || text.includes("To give the pull request labels, write `Labels: parity:exempt` (labels separated by commas) on the second line."))
     T(`lib/order.mjs: the ${kind} brief asks for verification evidence only when the order makes a change`, reads
       ? !text.includes("Report each command") && !text.includes("Spend at most 25 minutes")
       : text.includes("Report each command with its exit code") && text.includes("Spend at most 25 minutes"))
