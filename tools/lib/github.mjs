@@ -46,6 +46,10 @@ export const OWNER_BAR_FAILURES = new Set(["diff-unknown", "lint-missing", "clos
 export const OWNER_FIX_FAILURES = new Set(["permanent-fix-missing", "permanent-fix-unchanged"])
 /** The line of a pull request body when no part of the ticket stays open. */
 export const REMAINING_NONE = /^Remaining: none\s*$/m
+/** The line that the last pull request of a ticket with a real `Measure:` carries: `Measured: <value> on <where>`. */
+const MEASURED_LINE = /^Measured:[ \t]*\S.*\bon\b[ \t]*\S.*$/m
+/** The failure of the merge bar for a last pull request that has no `Measured:` line. */
+export const MEASURED_MISSING = "measured-missing"
 
 const BUG_LABEL = "Bug"
 /** The labels of the owner that unlock a locked path or a feature flag. A ticket that the driver filed never carries one. */
@@ -248,6 +252,19 @@ export const FIRST_STEP_PROBLEMS = Object.freeze([NO_CLASS_LINE, NO_FIX_SECTION]
 const lf = (text) => String(text ?? "").replace(/\r\n/g, "\n")
 /** The value of the `Class:` line of a ticket body, or null. */
 export const classOf = (body) => CLASS_NAME_LINE.exec(lf(body))?.[1] ?? null
+
+/**
+ * The `Measure:` line of the `## Best approach` section of a ticket body as `{ real }`, or null when the body has no section or no line.
+ * `real` is false for `Measure: none: <reason>`: no number decides the ticket, so its last pull request needs no `Measured:` line.
+ */
+export const measureOf = (body) => {
+  const lines = lf(body).split("\n")
+  const start = lines.findIndex((line) => line.trimEnd() === "## Best approach")
+  if (start < 0) return null
+  const end = lines.findIndex((line, index) => index > start && line.startsWith("## "))
+  const value = lines.slice(start + 1, end < 0 ? undefined : end).map((line) => /^Measure:[ \t]*(.*)$/.exec(line)?.[1]).find((found) => found !== undefined)
+  return value === undefined ? null : { real: !/^none(?::|\s*$)/i.test(value.trim()) }
+}
 
 /** The paths in a text: each word with a slash, with its backticks, its line number and its end mark removed. A link is no path. */
 const pathsIn = (text) => [...new Set(text.split(/[\s`,;"'<>]+/)
@@ -697,12 +714,18 @@ const fixFailures = (pull, fix) => {
 }
 
 /**
+ * The failure of the measured number, for the pull request that ends a ticket (`Remaining: none`). `measure` is the context field:
+ * `{ real }`, true when the `Measure:` line of the ticket names a number. A real measure needs a `Measured: <value> on <where>` line in the body.
+ */
+const measuredFailures = (pull, measure) => (measure?.real && REMAINING_NONE.test(pull.body ?? "") && !MEASURED_LINE.test(pull.body ?? "") ? [MEASURED_MISSING] : [])
+
+/**
  * The failed conditions of the merge bar at the exact head; an empty list means the bar holds.
  * `context`: `fixLaunches`, `wholeDiffRequests` (ISO time of the request, by head sha), `cleanMerges` (shas of empty
  * remerge diffs), `blockers` (open blockedBy numbers), `ticketLabels` (label names of the tracked ticket), `reportHeld`
  * (true while a `needs-owner` report holds a pull request with no open ticket), `lintCheck` (the name of the lint check of the repository,
  * which `lintCheckOf` gives; none means the repository has no lint check and the bar asks for none), `permanentFix` (for the pull request
- * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
+ * of a Bug ticket: `{ section: "paths" | "none" | "missing", paths, changedOnMain }`), `measure` (for the last pull request of a ticket: `{ real }`) and, for a Dependabot pull request, `updateTypes`. `pull.files` is the list of `git diff --name-only --no-renames` and `pull.commitMessages` the messages of the commits
  * between base and head, both read by the driver.
  */
 export const mergeBar = (pull, context = {}) => {
@@ -716,6 +739,7 @@ export const mergeBar = (pull, context = {}) => {
   failed.push(...checkFailures(pull))
   failed.push(...diffFailures(pull, context))
   failed.push(...fixFailures(pull, context.permanentFix))
+  failed.push(...measuredFailures(pull, context.measure))
   const review = newestReview(pull)
   if (review === null || (review.commit !== pull.headSha && carriedApproval(pull) === null) || review.state !== "APPROVED") failed.push("review-not-approved-at-head")
   if (needsWholeDiff(pull, context) && !wholeDiffApproved(pull, context)) failed.push("whole-diff-review-missing")

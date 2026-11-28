@@ -23,7 +23,7 @@ import { CLEAN_STATUS_ARGUMENTS, HIDDEN_CHANGE_ARGUMENTS, WORKTREE_REMOVE_ARGUME
 import { repositorySlug } from "./lib/github-auth.mjs"
 import { REQUIRED_CHECKS_FILE } from "./lib/github-read.mjs"
 import * as githubApi from "./lib/github.mjs"
-import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
+import { APPROVAL_CHECK_MISSING, approvalTime, carriedApproval, classLines, classifyCheckFailure, failedChecks, holds, isDeterministicCheck, isRateLimited, isReviewPass, lintCheckOf, measureOf, MEASURED_MISSING, mergeBar, needsWholeDiff, OWNER_BAR_FAILURES, OWNER_FIX_FAILURES, passedChecks, permanentFixOf, protectionForMerge, REMAINING_NONE, reviewSection, runInProgress, sameRequiredChecks, sentryCandidate, sentryIssues, setReviewerToken, touchesPath, wholeDiffApproved } from "./lib/github.mjs"
 import { runBounded } from "./lib/bounded-process.mjs"
 import { CODEX_MODEL, codexHomeDirectory, codexLogEvent, codexResultText } from "./lib/codex-runner.mjs"
 import { highestTotal, ownerParts, parseReplanAnswer, partOf, partProblem, renderOrder, renderResumeOrder, splitProblem, withTotal } from "./lib/order.mjs"
@@ -168,6 +168,8 @@ const PLAN_PARALLEL = 4
 /** How long a tick waits for the pull request plan before a free slot takes an admitted build order. */
 const PLAN_WINDOW_MS = 15 * 1000
 const REMAINING_LINE = /^Remaining:.*$/m
+/** The one comment on a last pull request whose ticket has a real `Measure:` and whose body has no `Measured:` line. */
+const MEASURED_REQUEST = "Add the line `Measured: <value> on <where>` to the body of this pull request. The ticket has a `Measure:` line with a number, and the last pull request of the ticket needs the measured value on the real target. The driver merges this pull request after the body has the line."
 /** A Remaining item that only the owner, another ticket or a release can meet starts with `owner:` or `blocked by` and a ticket reference. */
 const OWNER_ITEM = /^(owner:|blocked by\s+(#\d+|ORB-\d+))/i
 const MISSING_AFTER_RUN_MS = 15 * 60 * 1000
@@ -1400,7 +1402,7 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (need.park) return park(need.park)
   if (need.request) return [...actions, request(need.request)]
   if (need.wait) return [...actions, { type: "none", reason: need.wait }]
-  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
+  const context = { fixLaunches: launches.length, wholeDiffRequests: wholeDiffRequestTimes(pull, runs), cleanMerges: pull.cleanMerges ?? [], blockers: [], lintCheck: lintCheckOf(repoKey), ticketLabels: ticket?.labels ?? [], reportHeld: heldByReport(env, pull, ticket), permanentFix: await permanentFixOfTicket(env, repoKey, pull, ticket), measure: ticket !== null && REMAINING_NONE.test(pull.body) ? measureOf(ticket.body) ?? undefined : undefined, updateTypes: dependabot ? await dependabotTypes(env, mem, repoKey, pull) : undefined }
   const bar = mergeBar(pull, context)
   if (dependabot && bar.includes("dependabot-major")) return park(`Dependabot pull request ${item} is a major update`)
   if (bar.length === 0) {
@@ -1422,6 +1424,8 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   if (fixFailures.length > 0) return [...actions, { type: "needs-owner", ticket, reason: fixReason(item, fixFailures, context.permanentFix) }]
   const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
   if (ownerFailures.length > 0) return park(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}`)
+  // A last pull request of a ticket with a real `Measure:` stays open until its body carries the `Measured:` line. One comment names the line.
+  if (bar.includes(MEASURED_MISSING)) return [...actions, pull.comments.some((entry) => entry.kind === "measured") ? { type: "none", reason: "the body has no Measured line" } : { type: "measured-missing" }]
   const checkGap = bar.includes(APPROVAL_CHECK_MISSING)
   const rest = bar.filter((failure) => failure !== APPROVAL_CHECK_MISSING && !(checkGap && failure === "merge-state:BLOCKED"))
   if (checkGap && rest.length === 0) return [...actions, checkOnlyPlan({ pull, runs, now, request, park: parked })]
@@ -1680,6 +1684,7 @@ const executeAction = async (env, mem, ctx, pull, action) => {
       await env.github.comment(repoKey, pull.number, marked("record", `driver rerun ${action.runId}`))
       for (const suspect of action.suspects ?? []) await env.github.comment(repoKey, pull.number, marked("record", `driver flake-suspect ${flakeKey(action.runId, suspect.name)}\n${suspect.lines.join("\n")}`))
       return undefined
+    case "measured-missing": return env.github.comment(repoKey, pull.number, marked("measured", MEASURED_REQUEST))
     case "file-flake": return fileFlake(env, ctx, pull, action)
     case "needs-owner": return needsOwner(env, mem, { ticket: action.ticket, reason: action.reason })
     case "park": return action.ticket ? parkTicket(env, ctx.tickets, ctx.state.pulls.filter((entry) => entry.tracks === action.ticket.number), action) : parkPull(env, { repoKey, pull, reason: action.reason })

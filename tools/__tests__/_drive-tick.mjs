@@ -4422,6 +4422,32 @@ const permanentFixCases = async () => {
   same("drive: a read of main that fails gives no merge and no report", [only(broken.calls, "merge").length, reported(broken)], [0, 0])
 }
 
+/** The last pull request of a ticket with a real `Measure:` merges only when its body carries `Measured: <value> on <where>`. */
+const measuredCases = async () => {
+  const withMeasure = (measure) => `Animate the mascot.\n\n## Best approach\n\nPrecedent: Duolingo uses Rive: https://rive.app/blog/a\nMeasure: ${measure}\nRejected: a GIF, because of its size.\n`
+  const real = withMeasure("frame time under 16 ms on a mid-range Android phone")
+  const settled = async ({ body = real, pullBody, comments } = {}) => {
+    const entry = scenario({ tickets: [ticket(7, { body })], pulls: { ui: [pull(30, { ...(pullBody ? { body: pullBody } : {}), ...(comments ? { comments } : {}) })], api: [], landing: [] } })
+    await entry.run()
+    return entry
+  }
+  const measuredComments = (entry) => commentsOf(entry.calls, 30).filter((text) => text.startsWith(marked("measured", "")))
+  const missing = await settled()
+  same("drive: measured: a last pull request with a real Measure and no Measured line stays open with one comment", [only(missing.calls, "merge").length, measuredComments(missing).length], [0, 1])
+  T("drive: measured: the comment names the Measured line", measuredComments(missing)[0]?.includes("Measured: <value> on <where>") === true, measuredComments(missing).join(" | "))
+  same("drive: measured: the missing line parks nothing and launches no worker", [needsOwnerComments(missing.calls, 7).length, missing.launched.length], [0, 0])
+  const present = await settled({ pullBody: "Tracks thomasluizon/orbit-tickets#7\n\nMeasured: 9 ms per frame on a mid-range Android phone\n\nRemaining: none" })
+  same("drive: measured: a body with the Measured line merges with no comment", [only(present.calls, "merge").length, measuredComments(present).length], [1, 0])
+  const again = await settled({ comments: [comment("ticket", "Ticket"), comment("request", PLAIN, -20 * MINUTE), comment("measured", "Add the line.", -5 * MINUTE)] })
+  same("drive: measured: a second tick adds no second comment", [only(again.calls, "merge").length, measuredComments(again).length], [0, 0])
+  const none = await settled({ body: withMeasure("none: no number can decide a copy change") })
+  same("drive: measured: a Measure none merges with no comment", [only(none.calls, "merge").length, measuredComments(none).length], [1, 0])
+  const earlier = await settled({ pullBody: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 3" })
+  same("drive: measured: a pull request that is not the last one merges with no comment", [only(earlier.calls, "merge").length, measuredComments(earlier).length], [1, 0])
+  const old = await settled({ body: "Do the work." })
+  same("drive: measured: a ticket with no Best approach section has no Measured check", [only(old.calls, "merge").length, measuredComments(old).length], [1, 0])
+}
+
 const CHECKS_FILE = ".github/required-checks.json"
 const MERGE_BASE = "d".repeat(40)
 const requiredList = (...contexts) => ({ strict: false, checks: contexts.map((context) => ({ context, app_id: context === "pullfrog-approval" ? APP : 15368 })) })
@@ -4733,6 +4759,7 @@ const runnerSwitchCases = async () => {
 export const driverUnit = async () => {
   await diffBarCases()
   await permanentFixCases()
+  await measuredCases()
   await requiredChecksDriftCases()
   await requiredChecksMergeCases()
   await noticeCases()
