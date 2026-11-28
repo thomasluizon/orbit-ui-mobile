@@ -31,7 +31,7 @@ The driver `tools/drive.mjs` works every open ticket of the board and merges at 
 5. Report the driver's own state. Product progress is `/progress`, so repeat none of it here.
    1. Read the newest `pace` line of the log.
    2. Run `node tools/drive.mjs --release-status` and report the newest release train: what it released and where it stopped.
-   3. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on) or runs with its pace off. Then the count of held decisions, as `/questions` step 1 lists the held tickets and pull requests. `/questions` answers them.
+   3. Report: the week used on each account, and whether one stopped at 90% (`/over-limit` lets it go on), runs with its pace off, or has the owner's stop (`--pace <account> stop`). Then the count of held decisions, as `/questions` step 1 lists the held tickets and pull requests. `/questions` answers them.
 
 ## /driver stop
 
@@ -79,7 +79,7 @@ The driver has no stall alarm and opens no stall issue. The checker outside the 
 The switch `--runner claude|codex` sets what runs in the worker slots. The main account always runs Claude. So do Pullfrog, the questions run, the harness review and the re-plan run. An order on the coordinator model never takes a Codex slot.
 
 - `claude` is the default. It is also the value when `runner-setting.json` does not exist in the state directory.
-- `codex` runs `codex exec` on the private Codex home `$HOME/.codex-orbit-workers`. The pace, the slot count, the 90% stop and `--pace worker on|off` work on the Codex weekly reading.
+- `codex` runs `codex exec` on the private Codex home `$HOME/.codex-orbit-workers`. The pace, the slot count, the 90% stop and `--pace worker on|off|stop` work on the Codex weekly reading.
 - The next tick reads the setting, with no restart.
 - A Codex order starts cold. It never resumes a session.
 - A Codex launch runs the same size hooks and the same gate hook as a Claude launch. Each hook reads the worktree, the run and the head from the `ORBIT_WORKER_*` variables of the launch.
@@ -100,7 +100,7 @@ Run `--runner-check` again after each update of `codex`. Run `node tools/drive.m
 - Runs `/questions` for the held decisions.
 - Runs `/sleep` and `/over-limit`.
 - Switches the worker slots between Claude and Codex when the owner says so (section `Codex runner`).
-- Sets an account's weekly pace when the owner says so: `node tools/drive.mjs --pace worker off` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` runs that account at 3 workers with no line and no 90% stop, until its usage limit. `--pace worker on` restores the pace. The next tick reads it, with no restart.
+- Sets an account's weekly pace when the owner says so: `node tools/drive.mjs --pace worker off` in `$HOME/orca/workspaces/orbit-ui-mobile/orbit-drive` runs that account at 3 workers with no line and no 90% stop, until its usage limit. `--pace main stop` starts no worker and no probe on that account. A stop of the main account also holds Pullfrog, the questions run and the harness review, as its 90% stop does. `--pace main on` restores the pace. The next tick reads it, with no restart.
 - The driver reruns each failed job once before any launch, and files a Bug ticket for a check that passes on the rerun at the same head. A job that fails at its setup, at its checkout, at a gateway timeout or at a step that requires another job gets the rerun and no ticket. A `ci-fix` launch for a check that fails on a clean merge of the base, after a green commit, does not count toward the 1 fix launch. After 1 launch of a pull request or an order, the driver starts 1 launch on `claude-opus-5-5`. Its order holds the section `## Earlier launches`, which lists the facts of each earlier launch. That cap writes no label, no comment and no notice.
 - When the Opus launch fails too, the driver starts one read-only re-plan run on `claude-opus-5-5`. The run answers `Plan: fresh` or `Plan: split`. The driver closes the stuck pull request and writes a `replan` record. A `fresh` plan builds on a new `-r<n>` branch. A `split` plan posts a new part set. The new plan gets its own launches. A ticket has at most 1 re-plan. When the ladder after the re-plan fails, the driver gives the ticket the label `parked`, and writes one `parked` comment that lists each open pull request and its branch. It closes each of those pull requests and keeps its branch. It sends no notice. The driver starts no launch for a parked item.
 - While an open item carries `parked`, the driver runs the harness review (`/ticket --auto --parked`) by itself, at most once a day. No owner run starts it.

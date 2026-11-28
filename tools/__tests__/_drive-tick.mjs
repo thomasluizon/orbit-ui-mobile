@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process"
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
+import { accountFrom, allowOverLimit, readRunnerCheck, runnerCheck, setRunner, createMemory, guardStart, launchesOf, main, marked, missingTools, pathsOverlap, paceState, parseArguments, pushOutputs, rankTickets, readRunner, readSleep, readStopped, readUnpaced, recordStart, resultText, setPace, setSleep, smokeArguments, tick, ticketComment } from "../drive.mjs"
 import { changesDriver, endRun, lastLine, markSwitch, readPin } from "../lib/driver-pin.mjs"
 import { bodyFindings, runsNaming } from "../lib/github.mjs"
 import { directoryHolders, isUsageLimitMessage, isWorkerProcess, KILL_REASONS, logContextTokens, progressWatch, readSnapshot, usageLimitIn, WORKER_LIMITS } from "../lib/worker.mjs"
@@ -3137,6 +3137,12 @@ const sleepCases = async () => {
   const afterOff = readUnpaced(cli.env.stateDir)
   const paceOn = setPace(cli.env, "worker", "on", { out: (line) => paceOutputs.push(line) })
   same("drive: --pace worker off turns off only the worker account's pace, and on turns it back on", [paceOff, afterOff, paceOn, readUnpaced(cli.env.stateDir), paceOutputs], [0, ["worker"], 0, [], ["The worker account runs 3 workers with no weekly pace until a worker ends on its usage limit.", "The worker account follows the weekly pace."]])
+  const stopOutputs = []
+  const paceStop = setPace(cli.env, "main", "stop", { out: (line) => stopOutputs.push(line) })
+  const afterStop = [readStopped(cli.env.stateDir), readUnpaced(cli.env.stateDir)]
+  const paceBack = setPace(cli.env, "main", "on", { out: (line) => stopOutputs.push(line) })
+  same("drive: --pace main stop stops only the main account, and on turns it back on", [paceStop, afterStop, paceBack, readStopped(cli.env.stateDir), stopOutputs], [0, [["main"], []], 0, [], ["The main account starts no worker and Pullfrog posts no request until --pace main on or off.", "The main account follows the weekly pace."]])
+  same("drive: --pace takes stop as its third word", parseArguments(["--pace", "main", "stop"]), { help: false, mode: "pace", account: "main", word: "stop" })
   same("drive: --pace takes an account and on or off, and nothing else", [parseArguments(["--pace", "worker", "off"]), parseArguments(["--pace", "main", "on"]).account, parseArguments(["--pace", "worker"]).error !== undefined, parseArguments(["--pace", "other", "off"]).error !== undefined, parseArguments(["--pace", "worker", "off", "--once"]).error !== undefined], [{ help: false, mode: "pace", account: "worker", word: "off" }, "main", true, true, true])
 }
 
@@ -3567,6 +3573,12 @@ const twoAccountCases = async () => {
   await unpaced.run()
   const unpacedLine = unpaced.messages.find((entry) => entry.includes(" pace "))
   same("drive: the worker account with its pace off runs 3 workers over 90%, and the main account keeps its 90% stop", [unpaced.launched.map(accountOfLaunch), unpacedLine.includes(`worker ${WORKER_ACCOUNT.key}: utilization 0.920, line unknown, slots 3, running 0, free 3, stop no`), unpacedLine.includes(`main ${ACCOUNT.key}: utilization 0.920`) && unpacedLine.includes("stop yes")], [[WORKER_DIRECTORY, WORKER_DIRECTORY, WORKER_DIRECTORY], true, true])
+
+  const ownerStop = scenario({ tickets: [ticket(7), ticket(8), ticket(9), ticket(10), ticket(11)], pulls: { ui: [waitingPull] }, reading: null, workerAuth: WORKER_AUTH, workerReading: below })
+  writeFileSync(join(ownerStop.env.stateDir, "pace-setting.json"), `${JSON.stringify({ main: { paced: true, stopped: true }, worker: { paced: false } })}\n`)
+  await ownerStop.run()
+  const ownerStopLine = ownerStop.messages.find((entry) => entry.includes(" pace "))
+  same("drive: the main account that the owner stopped starts no worker, posts no Pullfrog request, runs no probe and opens no stop issue, while the worker account runs 3 workers", [ownerStop.launched.map(accountOfLaunch), commentsOf(ownerStop.calls, 30).length, only(ownerStop.calls, "probe").filter((entry) => entry[1] === "main").length, only(ownerStop.calls, "createTicket").some((entry) => entry[1].title === STOP_ISSUE_TITLE), /main \S+: utilization \S+, line unknown, slots 0, running 0, free 0, stop yes/.test(ownerStopLine)], [[WORKER_DIRECTORY, WORKER_DIRECTORY, WORKER_DIRECTORY], 0, 0, false, true])
 
   const running = scenario({ tickets: [ticket(7), ticket(8), ticket(9)], reading: below, workerAuth: WORKER_AUTH, workerReading: below })
   leftBehind(running, {}, "", "chore-ticket-6")
