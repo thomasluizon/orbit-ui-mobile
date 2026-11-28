@@ -3270,17 +3270,18 @@ const questionsCases = async () => {
 }
 
 const FINDING = { key: "flake ui Tool Tests", title: "Flaky check: Tool Tests", labels: ["repo:ui", "Bug"], body: "The check failed.", tries: 0 }
-const FINDING_ORDER = "/ticket --auto\n\nFinding: flake ui Tool Tests\nTitle: Flaky check: Tool Tests\nLabels: repo:ui, Bug\n\nThe check failed."
+const FINDING_ORDER = "/ticket --auto\n\nThis run has no owner and no approval gate. Ask nothing and decide each choice with your recommendation. Write the lines `Filed by: driver` and `Finding: flake ui Tool Tests` in each ticket body.\n\nFinding: flake ui Tool Tests\nTitle: Flaky check: Tool Tests\nLabels: repo:ui, Bug\n\nThe check failed."
 const findingRuns = (scene) => scene.launched.filter((entry) => entry.order.startsWith("/ticket --auto\n"))
 const writeQueue = (scene, list) => writeFileSync(join(scene.env.stateDir, "findings.json"), `${JSON.stringify(list)}\n`)
 
 /** The driver files a finding only through a `/ticket --auto` run: it queues the finding, runs it outside the tick, and ends it on a ticket with the key. */
 const findingCases = async () => {
-  const filedTicket = ["--state all", JSON.stringify([{ number: 70, body: "Filed by: driver\nFinding: flake ui Tool Tests\n" }])]
+  let filed = false
+  const filedTicket = ["--state open", () => JSON.stringify(filed ? [{ number: 70, body: "Filed by: driver\nFinding: flake ui Tool Tests\n" }] : [])]
   const first = scenario({ driver: {}, routes: [filedTicket] })
   writeQueue(first, [FINDING])
   let finish
-  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => resolve({ exitCode: 0 }) }) }
+  first.env.worker.launch = (options) => { first.launched.push(options); return new Promise((resolve) => { finish = () => { filed = true; resolve({ exitCode: 0 }) } }) }
   await first.run()
   const [run] = findingRuns(first)
   same("drive: finding: a queued finding starts one /ticket --auto run with the finding as its order", [findingRuns(first).length, run?.order], [1, FINDING_ORDER])
@@ -3308,6 +3309,13 @@ const findingCases = async () => {
   const notice = only(miss.calls, "createTicket")[0]?.[1]
   same("drive: finding: the second run that files no ticket opens one needs:owner notice and drops the finding", [findingRuns(miss).length, queued(miss).length, notice?.title, notice?.labels, notice?.body.includes("the hard ceiling")], [2, 0, "The driver could not file a finding: flake ui Tool Tests", NOTICE_OWNER, true])
   same("drive: finding: the notice creates the notice label first", only(miss.calls, "ensureLabel").map((entry) => [entry[1], entry[2].name]), [["tickets", "notice"]])
+  // A closed ticket of an earlier finding holds the same key. Only an open ticket ends a finding, so a run that files nothing still gets its retry.
+  const closedHolds = scenario({ driver: {}, routes: [["issue list", (args) => JSON.stringify(args.includes("open") ? [] : [{ number: 5, body: "Finding: flake ui Tool Tests" }])]] })
+  writeQueue(closedHolds, [FINDING])
+  closedHolds.env.worker.launch = (options) => { closedHolds.launched.push(options); return Promise.resolve({ exitCode: 0 }) }
+  await closedHolds.run()
+  await closedHolds.mem.finding
+  same("drive: finding: a closed ticket with the key does not end a finding whose run filed nothing", [queued(closedHolds).map((entry) => entry.tries), only(closedHolds.calls, "createTicket").length], [[1], 0])
   const held = scenario({ driver: {}, routes: [["--state open", JSON.stringify([{ number: 70, body: "Finding: flake ui Tool Tests" }])]] })
   writeQueue(held, [FINDING])
   await held.run()

@@ -1507,12 +1507,12 @@ const fileFinding = (env, tickets, { key, title, labels, body }) => {
   return true
 }
 
-/** The order of a finding run: the finding is the input of `/ticket --auto`. */
-const findingOrder = ({ key, title, labels, body }) => `${FINDING_RUN.order}\n\n${findingLine(key)}\nTitle: ${title}\nLabels: ${labels.join(", ")}\n\n${body}`
+/** The order of a finding run: the finding is the input of `/ticket --auto`. The order states the run rules, so no copy of the skill has to hold them. */
+const findingOrder = ({ key, title, labels, body }) => `${FINDING_RUN.order}\n\nThis run has no owner and no approval gate. Ask nothing and decide each choice with your recommendation. Write the lines \`Filed by: driver\` and \`${findingLine(key)}\` in each ticket body.\n\n${findingLine(key)}\nTitle: ${title}\nLabels: ${labels.join(", ")}\n\n${body}`
 
-/** The ticket that holds the finding, among the newest tickets in `state`, or null. A list read has no search lag. */
-const filedFinding = async (env, key, state) => {
-  const issues = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", state, "--limit", state === "open" ? "1000" : "200", "--json", "number,body"]))
+/** The open ticket that holds the finding, or null. A closed ticket of an earlier finding holds the same key and never counts. A list read has no search lag. */
+const filedFinding = async (env, key) => {
+  const issues = JSON.parse(await env.gh(["issue", "list", "--repo", env.config.tickets.repository, "--state", "open", "--limit", "1000", "--json", "number,body"]))
   return issues.find((issue) => holdsFinding(issue.body, key)) ?? null
 }
 
@@ -1521,7 +1521,7 @@ const dropFinding = (env, key) => writeFindings(env.stateDir, readFindings(env.s
 /** After a finding run: a ticket with the key ends the finding. No ticket keeps it for the retry, and the second miss opens a `needs:owner` notice. */
 const endFinding = async (env, finding, result) => {
   let filed
-  try { filed = await filedFinding(env, finding.key, "all") } catch (error) { return log(env, "finding", "unread", `${finding.key}: ${error.message}`) }
+  try { filed = await filedFinding(env, finding.key) } catch (error) { return log(env, "finding", "unread", `${finding.key}: ${error.message}`) }
   if (filed !== null) return dropFinding(env, finding.key)
   const tries = readFindings(env.stateDir).find((entry) => entry.key === finding.key)?.tries ?? FINDING_TRIES
   const cause = result.killReason ?? (result.exitCode === 0 ? "the run filed no ticket" : `exit ${result.exitCode ?? result.spawnError ?? "none"}`)
@@ -1538,7 +1538,7 @@ const startFinding = async (env, mem, { blocked, free }) => {
   if (!env.driverWorktree || blocked !== null || free.main <= 0 || runLive(env, mem, FINDING_RUN)) return
   const [next] = readFindings(env.stateDir)
   if (next === undefined) return
-  if (await filedFinding(env, next.key, "open") !== null) return dropFinding(env, next.key)
+  if (await filedFinding(env, next.key) !== null) return dropFinding(env, next.key)
   writeFindings(env.stateDir, readFindings(env.stateDir).map((entry) => (entry.key === next.key ? { ...entry, tries: entry.tries + 1 } : entry)))
   free.main -= 1
   await startRunOf(env, mem, { ...FINDING_RUN, order: findingOrder(next) }, env.worker.findingInvocation, { limits: { ...env.worker.WORKER_LIMITS, hardCeilingMs: FINDING_TIMEOUT_MS }, onExit: (result) => endFinding(env, next, result) })
