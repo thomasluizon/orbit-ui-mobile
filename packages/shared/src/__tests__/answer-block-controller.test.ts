@@ -136,4 +136,51 @@ describe('shared answer controller', () => {
     expect(getAnswerBlockView(saved, controller.getSnapshot(), t)).toMatchObject({ closed: 'saved', answered: true })
     expect(new AnswerBlockController(saved).focusWhenClosed).toBe(false)
   })
+
+  it('closes a choice at once, calls the request once and gives the composer the focus', async () => {
+    const close = vi.fn(async (): Promise<BlockAnswerResult> => ({ ok: true }))
+    const input = props({ close })
+    const controller = new AnswerBlockController(input)
+    const pending = controller.close(input, t)
+    expect(getAnswerBlockView(input, controller.getSnapshot(), t)).toMatchObject({ closed: 'closed', answered: false, closeDisabled: true })
+    expect(controller.focusWhenClosed).toBe(false)
+    await pending
+    await controller.close(input, t)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledWith(choiceBlockFixture.blockId)
+    expect(input.interaction!.send).not.toHaveBeenCalled()
+  })
+
+  it.each([{ status: 500 }, { throws: true }])('reopens a failed close with the answers kept and the error %o', async failure => {
+    const input = props({ close: async () => { if ('throws' in failure) throw new Error('offline'); return { ok: false, status: failure.status! } } })
+    const controller = new AnswerBlockController(input)
+    controller.select('morning')
+    await controller.close(input, t)
+    expect(getAnswerBlockView(input, controller.getSnapshot(), t)).toMatchObject({ closed: null, status: 'error', statusError: true })
+    expect(controller.getSnapshot().selectedIds).toEqual(['morning'])
+    expect(controller.focusWhenClosed).toBe(true)
+  })
+
+  it('settles an already answered choice with its own line', async () => {
+    const input = props({ close: async () => ({ ok: false, status: 409 }) })
+    const controller = new AnswerBlockController(input)
+    await controller.close(input, t)
+    expect(getAnswerBlockView(input, controller.getSnapshot(), t).closed).toBe('alreadyAnswered')
+  })
+
+  it('renders a choice that carries closedAtUtc closed and without terminal focus', () => {
+    const input = { ...props({ close: async () => ({ ok: true }) }), definition: { kind: 'choice' as const, block: { ...choiceBlockFixture, closedAtUtc: '2026-11-27T10:00:00Z' } } }
+    expect(getAnswerBlockView(input, new AnswerBlockController(input).getSnapshot(), t)).toMatchObject({ closed: 'closed', closeDisabled: true })
+    expect(new AnswerBlockController(input).focusWhenClosed).toBe(false)
+  })
+
+  it('disables the close offline, while acting, for a pick list and without a close request', () => {
+    const open = props({ close: async () => ({ ok: true }) })
+    const state = new AnswerBlockController(open).getSnapshot()
+    expect(getAnswerBlockView(open, state, t)).toMatchObject({ closable: true, closeDisabled: false })
+    expect(getAnswerBlockView({ ...open, interaction: { ...open.interaction!, isOnline: false } }, state, t).closeDisabled).toBe(true)
+    expect(getAnswerBlockView(open, { ...state, acting: true }, t).closeDisabled).toBe(true)
+    expect(getAnswerBlockView(props(), state, t)).toMatchObject({ closable: false, closeDisabled: true })
+    expect(getAnswerBlockView({ ...open, definition: { kind: 'pickList', block: pickListBlockFixture } }, state, t)).toMatchObject({ closable: false, closeDisabled: true })
+  })
 })

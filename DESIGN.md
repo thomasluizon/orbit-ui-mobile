@@ -451,6 +451,8 @@ line at default text size. Every row is at least 48 high. Selection labels use `
 and `--fg-2` at rest; completed habit rows retain their completion colours. Acting, offline, limit
 and inline errors share one status line below the trailing action. Review prepares a preview.
 
+A block that waits for an answer has a close X at the end of its title row; a close ends the block with its closed line and never sends a message.
+
 Answers become the next user turn, with labels formatted by `Intl.ListFormat` in the person's
 locale and ids carried separately in `blockAnswer`. An answered block collapses to a glyph and one
 `--fg-3` line naming the selection. A later message other than the block's own answer or reply, or a 404 or 410, closes an unanswered block;

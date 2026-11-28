@@ -1,7 +1,7 @@
 import type { Question, QuestionAnswer, QuestionBlock } from '../types/question-block'
 import { isOnQuestionStep, questionAnswerSchema } from '../types/question-block'
 import type { BlockAnswer } from '../types/chat'
-import { blockAnswerErrorKey, formatBlockAnswer, isSameBlockAnswer, type AnswerBlockProps } from './block-answer'
+import { blockAnswerErrorKey, blockCloseOutcome, formatBlockAnswer, isSameBlockAnswer, type AnswerBlockProps } from './block-answer'
 
 export type QuestionBlockProps = Omit<AnswerBlockProps, 'definition'> & { block: QuestionBlock }
 export type QuestionWords = { yes: string; no: string; answered: (options: string) => string; closed: string; alreadyAnswered: string; invalid: string; error: string; offline: string; limit: string; acting: string }
@@ -83,16 +83,17 @@ function payload(block: QuestionBlock, answers: QuestionBlockState['answers']): 
   }) }
 }
 
-export function questionBlockStatus(props: QuestionBlockProps, state: QuestionBlockState, words: QuestionWords): { closed: string | null; answered: boolean; status: string; statusError: boolean; disabled: boolean; submitDisabled: boolean; completed: number } {
+export function questionBlockStatus(props: QuestionBlockProps, state: QuestionBlockState, words: QuestionWords): { closed: string | null; answered: boolean; status: string; statusError: boolean; disabled: boolean; submitDisabled: boolean; closeDisabled: boolean; completed: number } {
   const { interaction } = props
   const settled = props.savedAnswer ?? state.settled
-  const closed = settled?.text ?? ((props.expired || Date.parse(props.block.expiresAtUtc) <= Date.now()) && !state.acting ? words.closed : null)
+  const closed = settled?.text ?? ((props.expired || props.block.closedAtUtc !== undefined || Date.parse(props.block.expiresAtUtc) <= Date.now()) && !state.acting ? words.closed : null)
   const recovery = isSameBlockAnswer(payload(props.block, state.answers), state.uncertainAnswer)
   const status = state.acting ? words.acting : interaction && !interaction.isOnline ? words.offline
     : interaction?.atMessageLimit && !recovery ? words.limit : state.error ?? ''
   return { closed, answered: settled?.answered === true, status, statusError: Boolean(state.error && status === state.error),
     disabled: Boolean(closed || state.acting || interaction?.isSending || interaction?.dailyBudgetReached),
     submitDisabled: Boolean(closed || !interaction || state.acting || interaction.isSending || interaction.dailyBudgetReached || !interaction.isOnline || (interaction.atMessageLimit && !recovery)),
+    closeDisabled: Boolean(closed || !interaction?.close || state.acting || !interaction.isOnline),
     completed: props.block.questions.filter(question => isQuestionAnswered(question, state.answers[question.id])).length }
 }
 
@@ -122,6 +123,16 @@ export class QuestionBlockController {
   setFreeText = (question: Question, freeText: string): void => {
     const previous = question.type === 'multipleChoice' ? this.state.answers[question.id] : undefined
     this.setAnswer(question, { ...previous, freeText: freeText || undefined })
+  }
+  /** Closes the card at once and asks the API to keep it closed. A failure reopens the card with its answers kept. */
+  async close(props: QuestionBlockProps, words: QuestionWords): Promise<void> {
+    if (questionBlockStatus(props, this.state, words).closeDisabled) return
+    this.update({ settled: { text: words.closed, answered: false }, error: null })
+    try {
+      const outcome = blockCloseOutcome(await props.interaction!.close!(props.block.blockId))
+      if (outcome === 'alreadyAnswered') this.update({ settled: { text: words.alreadyAnswered, answered: false } })
+      else if (outcome === 'error') this.update({ settled: null, error: words.error })
+    } catch { this.update({ settled: null, error: words.error }) }
   }
   async submit(props: QuestionBlockProps, words: QuestionWords, locale: string): Promise<void> {
     if (questionBlockStatus(props, this.state, words).submitDisabled) return

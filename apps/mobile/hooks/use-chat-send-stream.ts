@@ -2,7 +2,7 @@ import { captureError } from '@/lib/sentry'
 import { canRetryComposerSend,retryComposerSend,type ComposerRetryDraft,createComposerFailureHandlers,runComposerStream,settleComposerResponse,CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { isChatReplyActive,prepareConversationSend,resolveChatRequestContext } from '@orbit/shared/chat'
 import { conversationHistory } from '@/lib/conversation-history'
-import { buildRecentChatHistory } from '@orbit/shared/utils'
+import { ApiClientError, buildRecentChatHistory } from '@orbit/shared/utils'
 import { readBodyChunks } from '@orbit/shared/utils/body-reader'
 import { randomUUID } from 'expo-crypto'
 import { useCallback,useEffect,useState } from "react"
@@ -10,7 +10,7 @@ import * as ImagePicker from "expo-image-picker"
 import { File } from "expo-file-system"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import { useTranslation } from "react-i18next"
-import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn,resolveChatImageMimeType } from "@orbit/shared/chat"
+import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,closeBlock,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn,resolveChatImageMimeType } from "@orbit/shared/chat"
 import { hasComposerContent } from "@orbit/shared/contracts/composer"
 import { habitKeys,profileKeys } from "@orbit/shared/query"
 import type { ChatClientContext } from "@orbit/shared/types"
@@ -20,6 +20,8 @@ import { useChatStore } from "@/stores/chat-store"
 import type { ChatStoreState } from "@orbit/shared/stores"
 import { useUIStore } from "@/stores/ui-store"
 import { getAccountGeneration } from "@/lib/session-epoch"
+import { apiClient } from "@/lib/api-client"
+import { API } from "@orbit/shared/api"
 import type { ByteStream,AttemptedSend,UseChatComposerOptions } from './use-chat-composer-types'
 import type { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { type useChatComposerAttachmentState,buildImageFileName } from './use-chat-composer-attachments'
@@ -162,7 +164,16 @@ export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered')
       },
     }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, isOnline, i18n.language, queryClient, runStreamingSend, t])
-  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer }
+  const closeBlockRequest = useCallback((blockId: string): Promise<BlockAnswerResult> => closeBlock(useChatStore.getState(), blockId, async id => {
+    const generation = getAccountGeneration()
+    try {
+      await apiClient(API.chat.closeBlock(id), { method: 'POST', silent: true, isCurrent: () => generation === getAccountGeneration() })
+      return { ok: true }
+    } catch (error) {
+      return { ok: false, status: error instanceof ApiClientError ? error.status : null }
+    }
+  }, t('chat.choice.closed'), t('chat.choice.alreadyAnswered')), [t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer, close: closeBlockRequest }
 
   const queueAttempt = useCallback((attempted: AttemptedSend, sendsComposerDraft: boolean) => {
     const accepted = enqueueChatPrompt(useChatStore.getState(), createChatMessageId(), attempted, performSend)

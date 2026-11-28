@@ -11,7 +11,7 @@ import type {
   PendingOperationRevisionResult,
   RevisePendingOperationRequest,
 } from '@orbit/shared'
-import { gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
+import { blockAnswerSchema, gamificationReadBlockResponseSchema, habitMonthReadBlockResponseSchema, readBlockResponseSchema, type ChatClientContext } from '@orbit/shared/types/chat'
 import { pendingOperationRevisionResultSchema, proactiveItemSchema, proactiveItemStatusSchema } from '@orbit/shared/types'
 import { serverAuthFetch, serverAuthMutate } from '@/lib/server-fetch'
 import { wrapServerAction, type ServerActionResult } from './action-result'
@@ -23,6 +23,11 @@ export async function dismissChatOffers(conversationId: string, offerKeys: strin
   return wrapServerAction(() => serverAuthMutate(API.chat.dismissOffers, {
     method: 'POST', body: JSON.stringify(request),
   }, intendedAccountId))
+}
+
+export async function closeChatBlock(blockId: string, intendedAccountId: string | null) {
+  const id = blockAnswerSchema.shape.blockId.parse(blockId)
+  return wrapServerAction(() => serverAuthMutate(API.chat.closeBlock(id), { method: 'POST' }, intendedAccountId))
 }
 
 // react-doctor-disable-next-line server-auth-actions -- FP: serverAuthMutate enforces auth (resolveServerSession throws 401 before any request); RD cannot trace the call nested in wrapServerAction. https://github.com/thomasluizon/orbit-ui-mobile/issues/243

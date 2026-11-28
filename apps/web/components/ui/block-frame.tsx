@@ -30,6 +30,7 @@ import {
   Pencil,
   RefreshCw,
   ShieldAlert,
+  X,
   XCircle,
 } from '@/components/ui/icons'
 import { PersonalText } from '@/components/ui/personal-text'
@@ -186,7 +187,7 @@ function FrameFooter({ frameProps, canRenderActions, hasIrreversibleItem }: Read
   )
 }
 
-export function BlockFrame(props: Readonly<BlockFrameProps>) {
+export function BlockFrame(props: Readonly<BlockFrameProps & { close?: { label: string; onClose: () => void; disabled?: boolean } | undefined }>) {
   const configuration = useConversationMotion()
   const [clamped, setClamped] = useState(false)
   const titleRef = useRef<HTMLHeadingElement>(null)
@@ -219,6 +220,7 @@ export function BlockFrame(props: Readonly<BlockFrameProps>) {
             <span className="font-sans text-xs tabular-nums text-[var(--fg-3)]">{props.count ?? props.items.length}</span>
           ) : null}
           {props.titleMode === 'typed' ? <PersonalTextDetails iconOnly clamped={clamped}>{props.title}</PersonalTextDetails> : null}
+          {props.close ? <IconButton label={props.close.label} disabled={props.close.disabled} onClick={props.close.onClose}><X size={20} strokeWidth={1.5} color="var(--fg-2)" aria-hidden="true" /></IconButton> : null}
         </div>
       </header>
       <ConversationChange changeKey={`${props.state}:${props.title}`} className="flex min-h-0 flex-col gap-3"><FrameStaleMessage frameProps={props} />

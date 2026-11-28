@@ -16,7 +16,7 @@ import { API } from '@orbit/shared/api'
 import type { ChatClientContext } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import { hasComposerContent } from '@orbit/shared/contracts/composer'
-import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn } from '@orbit/shared/chat'
+import { type ChatStreamRequest,type BlockAnswerRequest,type BlockAnswerResult,closeBlock,buildChatMessageWithFileContent,buildChatClientContext,type ChatTurnOptions,enqueueChatPrompt,sendChatPrompt,sendQueuedChatPrompt,nextQueuedChatPrompt,type PreparedChatTurn } from '@orbit/shared/chat'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { sessionAwareFetch } from '@/lib/api-fetch'
 import { buildRecentChatHistory } from '@orbit/shared/utils'
@@ -26,6 +26,7 @@ import type { ChatStoreState } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import { getHeldAccountId } from '@/stores/auth-store'
 import { ACCOUNT_CHANGED_ERROR_CODE } from '@/app/actions/action-result'
+import { closeChatBlock } from '@/app/actions/chat'
 import { getAccountGeneration } from '@/lib/session-epoch'
 import type { useChatComposerAttachments } from './use-chat-composer-attachments'
 import type { ChatComposerState,useChatComposerScroll,useChatComposerSession,useChatComposerAvailability } from './use-chat-composer-state'
@@ -157,7 +158,11 @@ export function useChatSendQueue(threadScroll: ChatSendQueueInputs['threadScroll
         closed: t('chat.choice.closed'), alreadyAnswered: t('chat.choice.alreadyAnswered')
       },
     }), [atMessageLimit, beginSend, blockSubmission, dailyBudgetReached, handleAllowanceExceeded, handleDailyBudgetExceeded, isOnline, locale, queryClient, runStreamingSend, t])
-  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer }
+  const closeBlockRequest = useCallback((blockId: string): Promise<BlockAnswerResult> => closeBlock(useChatStore.getState(), blockId, async id => {
+    const result = await closeChatBlock(id, getHeldAccountId())
+    return result.ok ? { ok: true } : { ok: false, status: result.status }
+  }, t('chat.choice.closed'), t('chat.choice.alreadyAnswered')), [t])
+  const blockAnswerInteraction = { isOnline, isSending, atMessageLimit, dailyBudgetReached, allowance: aiMessagesLimit, limitReason: allowanceText('chat.choice.limit', { allowance: aiMessagesLimit }), send: sendBlockAnswer, close: closeBlockRequest }
 
   const queueAttempt = useCallback((attempted: AttemptedSend, sendsComposerDraft: boolean) => {
     const accepted = enqueueChatPrompt(useChatStore.getState(), crypto.randomUUID(), attempted, performSend)

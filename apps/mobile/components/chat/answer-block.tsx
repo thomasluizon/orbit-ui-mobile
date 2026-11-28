@@ -16,6 +16,7 @@ import { Proposed } from '@/components/ui/proposed'
 import { Input } from '@/components/ui/input'
 import { OptionCard, optionGridStyle } from '@/components/ui/option-card'
 import { useFlag } from '@/hooks/use-flag'
+import { focusComposerInput } from '@/lib/composer-focus'
 import { Check, Lock, ArrowUp } from '@/components/ui/icons'
 
 type AnswerContentProps = Readonly<{
@@ -84,9 +85,15 @@ export function AnswerBlock(props: AnswerBlockProps) {
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot)
   const view = getAnswerBlockView(props, state, t)
   const submit = () => controller.submit(props, t, i18n.language)
+  const close = () => {
+    void controller.close(props, t)
+    focusComposerInput()
+    AccessibilityInfo.announceForAccessibility(t('closed'))
+  }
 
   return <View style={{ minWidth: 0 }} testID={`answer-block-${props.definition.kind}`}>
     {view.closed ? <TerminalAnswer text={view.closed} answered={view.answered} focus={controller.focusWhenClosed} /> : <BlockFrame state={view.acting ? 'acting' : 'resting'} title={view.title} wrapTitle items={[]}
+      close={view.closable ? { label: translate('chat.question.close'), disabled: view.closeDisabled, onClose: close } : undefined}
       body={<AnswerBody view={view} state={state} controller={controller} submit={submit} />}
       actions={<AnswerSubmit view={view} submit={submit} />} />}
   </View>

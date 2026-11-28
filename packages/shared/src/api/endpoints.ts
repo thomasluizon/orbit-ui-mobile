@@ -149,6 +149,7 @@ export const API = {
     deleteConversation: (id: string) => `/api/chat/conversations/${id}` as const,
     conversationImage: (conversationId: string, turnId: string) => `/api/chat/conversations/${conversationId}/images/${turnId}` as const,
     dismissOffers: '/api/chat/offers/dismiss',
+    closeBlock: (blockId: string) => `/api/chat/blocks/${blockId}/close` as const,
     refineHabitSuggestion: '/api/chat/habit-suggestions/refine',
     previewHabitSuggestion: '/api/chat/habit-suggestions/preview',
     previewAllHabitSuggestions: '/api/chat/habit-suggestions/preview-all',

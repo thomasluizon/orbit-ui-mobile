@@ -22,6 +22,7 @@ import { useAppToastStore } from '@/stores/app-toast-store'
 import { useAuthStore } from '@/stores/auth-store'
 import { getAccountGeneration, subscribeToAccountGeneration } from '@/lib/session-epoch'
 import { useUIStore } from '@/stores/ui-store'
+import { registerComposerInput } from '@/lib/composer-focus'
 import { InsetFocusPressable } from '@/components/ui/inset-focus-pressable'
 import { ArrowUp, Clipboard as ClipboardIcon, FileText, Image, Mic, Plus, RefreshCw, Square, X } from '@/components/ui/icons'
 import { ThemedIconButton } from '@/components/ui/icon-button'
@@ -598,6 +599,7 @@ export function Composer(props: Readonly<MobileComposerProps>) {
   const canRetry = props.onRetry !== undefined
 
   const focusTarget = useRef<TextInput>(null)
+  useEffect(() => registerComposerInput(focusTarget), [])
   const composerRef = useRef<View>(null)
   const focusedTarget = useRef<'container' | 'input' | null>(null)
   const autoFocusApplied = useRef(false)

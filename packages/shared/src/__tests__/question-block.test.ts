@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { questionBlockSchema, questionSliderTick, questionSliderValue, questionSliderValueAtTick } from '../types/question-block'
 import { blockAnswerSchema, chatPartSchema } from '../types/chat'
 import type { BlockAnswerInteraction } from '../chat/block-answer'
-import { isSameBlockAnswer } from '../chat/block-answer'
+import { closeBlock, isSameBlockAnswer } from '../chat/block-answer'
 import { QuestionBlockController, formatQuestionNumber, isQuestionAnswered, questionAnswerLabels, questionBlockStatus, type QuestionWords } from '../chat/question-block-core'
 import { questionBlockFixture as block, questionAnswersFixture as answers } from '../test-support/question-fixtures'
 
@@ -110,5 +110,69 @@ describe('question block contract and state', () => {
     for (const questions of [[], [block.questions[0], block.questions[0]], [{ ...block.questions[2], options: [] }], [{ ...block.questions[3], step: 0.4 }], [{ ...block.questions[1], options: [{ id: 'a', label: 'A', recommended: true }, { id: 'b', label: 'B' }] }]]) {
       expect(questionBlockSchema.safeParse({ ...block, questions }).success).toBe(false)
     }
+  })
+})
+
+describe('question block close', () => {
+  const closing = (close: NonNullable<BlockAnswerInteraction['close']>) => ({ block, interaction: { ...interaction(), close } })
+  it('settles the block closed at once and calls the request once with the block id', async () => {
+    const close = vi.fn<NonNullable<BlockAnswerInteraction['close']>>(async () => ({ ok: true as const }))
+    const props = closing(close)
+    const controller = new QuestionBlockController()
+    const pending = controller.close(props, words)
+    expect(questionBlockStatus(props, controller.getSnapshot(), words).closed).toBe('Closed')
+    await pending
+    await controller.close(props, words)
+    expect(close).toHaveBeenCalledTimes(1)
+    expect(close).toHaveBeenCalledWith(block.blockId)
+    expect(props.interaction.send).not.toHaveBeenCalled()
+    expect(controller.getSnapshot().settled).toEqual({ text: 'Closed', answered: false })
+  })
+  it.each([{ status: 500 }, { status: null }, { throws: true }])('reopens with the answers kept and the error after %o', async failure => {
+    const close = vi.fn(async () => { if ('throws' in failure) throw new Error('offline'); return { ok: false as const, status: failure.status ?? null } })
+    const props = closing(close)
+    const controller = new QuestionBlockController()
+    complete(controller)
+    await controller.close(props, words)
+    const view = questionBlockStatus(props, controller.getSnapshot(), words)
+    expect(view).toMatchObject({ closed: null, status: 'Error', statusError: true, completed: 5 })
+    expect(Object.keys(controller.getSnapshot().answers)).toHaveLength(5)
+  })
+  it('settles an already answered block with its own line', async () => {
+    const props = closing(async () => ({ ok: false as const, status: 409 }))
+    const controller = new QuestionBlockController()
+    await controller.close(props, words)
+    expect(questionBlockStatus(props, controller.getSnapshot(), words).closed).toBe('Answered')
+  })
+  it('renders a block that carries closedAtUtc closed', () => {
+    const props = { block: { ...block, closedAtUtc: '2026-11-27T10:00:00Z' }, interaction: interaction() }
+    expect(questionBlockStatus(props, new QuestionBlockController().getSnapshot(), words)).toMatchObject({ closed: 'Closed', closeDisabled: true })
+  })
+  it('disables the close offline, while acting, and without a close request', () => {
+    const state = new QuestionBlockController().getSnapshot()
+    const base = closing(async () => ({ ok: true as const }))
+    expect(questionBlockStatus(base, state, words).closeDisabled).toBe(false)
+    expect(questionBlockStatus({ ...base, interaction: { ...base.interaction, isOnline: false } }, state, words).closeDisabled).toBe(true)
+    expect(questionBlockStatus({ ...base, interaction: interaction() }, state, words).closeDisabled).toBe(true)
+    expect(questionBlockStatus(base, { ...state, acting: true }, words).closeDisabled).toBe(true)
+  })
+  it('keeps the close available at the message limit because a close costs no message', () => {
+    const base = closing(async () => ({ ok: true as const }))
+    expect(questionBlockStatus({ ...base, interaction: { ...base.interaction, atMessageLimit: true, dailyBudgetReached: true } }, new QuestionBlockController().getSnapshot(), words).closeDisabled).toBe(false)
+  })
+})
+
+describe('closeBlock', () => {
+  const chat = () => ({ transitionMessage: vi.fn(), messages: [{ id: 'm1', role: 'assistant', content: '', timestamp: new Date(), parts: [{ type: 'block', kind: 'question', block }] }] as never })
+  it.each([[{ ok: true as const }, 'Closed'], [{ ok: false as const, status: 409 }, 'Answered']])('keeps the line for %o in the chat store', async (result, text) => {
+    const store = chat()
+    await expect(closeBlock(store, block.blockId, async () => result, 'Closed', 'Answered')).resolves.toBe(result)
+    const [, update] = store.transitionMessage.mock.calls[0]!
+    expect(update({ id: 'm1' }).blockAnswers[block.blockId]).toEqual({ text, answered: false })
+  })
+  it('records nothing after a failure that reopens the card', async () => {
+    const store = chat()
+    await closeBlock(store, block.blockId, async () => ({ ok: false, status: 500 }), 'Closed', 'Answered')
+    expect(store.transitionMessage).not.toHaveBeenCalled()
   })
 })
