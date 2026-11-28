@@ -11,11 +11,11 @@ import {
   VOICE_MOBILE_SPEECH_RMS_THRESHOLD,
   VOICE_SILENCE_TIMEOUT_MS,
 } from '@orbit/shared/chat'
+import { publishComposerVoiceLevel, voiceLevelFromRms } from '@orbit/shared/hooks'
 import { getErrorSurface, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { File } from 'expo-file-system'
 import { apiClient } from '@/lib/api-client'
 import { useThrottleStore } from '@/stores/throttle-store'
-export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
 interface TranscriptionResponse {
   text: string
@@ -124,6 +124,7 @@ export function useSpeechToText() {
   const handleAnalysis = useCallback(async (event: AudioAnalysis) => {
     const latest = event.dataPoints.at(-1)
     if (!latest) return
+    publishComposerVoiceLevel(voiceLevelFromRms(latest.rms))
 
     if (latest.rms > VOICE_MOBILE_SPEECH_RMS_THRESHOLD) {
       speechDetectedRef.current = true

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { API } from '@orbit/shared/api'
+import { subscribeComposerVoiceLevel, voiceLevelFromRms } from '@orbit/shared/hooks'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useThrottleStore } from '@/stores/throttle-store'
 import { getErrorSurface } from '@orbit/shared/utils'
@@ -278,6 +279,27 @@ describe('useSpeechToText', () => {
       expect(result.current.isRecording).toBe(false)
       act(() => { result.current.clearError() })
       expect(result.current.error).toBeNull()
+    })
+
+    it('publishes one voice level for each analysis sample until the recording stops', async () => {
+      vi.useFakeTimers()
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 })))
+      vi.stubGlobal('AudioContext', class {
+        createMediaStreamSource = () => ({ connect: vi.fn() })
+        createAnalyser = () => ({ fftSize: 2048, getByteTimeDomainData: (buffer: Uint8Array) => buffer.fill(134) })
+        close = vi.fn(async () => {})
+      })
+      const levels: number[] = []
+      const unsubscribe = subscribeComposerVoiceLevel((level) => levels.push(level))
+      const { result } = renderHook(() => useSpeechToText())
+      await act(async () => { await result.current.startRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS * 3) })
+      const level = voiceLevelFromRms(6 / 128)
+      expect(levels).toEqual([level, level, level])
+      await act(async () => { result.current.stopRecording() })
+      await act(async () => { await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS * 3) })
+      expect(levels).toHaveLength(3)
+      unsubscribe()
     })
 
     it('auto-stops and transcribes after a silence once speech is detected', async () => {

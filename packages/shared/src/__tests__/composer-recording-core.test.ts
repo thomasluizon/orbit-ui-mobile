@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { subscribeComposerRecordingTime } from '../hooks/composer-recording-core'
+import {
+  nextVoiceBars,
+  publishComposerVoiceLevel,
+  pushVoiceBar,
+  subscribeComposerRecordingTime,
+  subscribeComposerVoiceLevel,
+  voiceBarCount,
+  voiceBarScale,
+  voiceLevelFromRms,
+} from '../hooks/composer-recording-core'
 
 describe('subscribeComposerRecordingTime', () => {
   beforeEach(() => {
@@ -48,5 +57,42 @@ describe('subscribeComposerRecordingTime', () => {
     expect(first).toEqual(['00:01', '00:02'])
     stopSecond()
     expect(vi.getTimerCount()).toBe(0)
+  })
+})
+
+describe('composer voice level', () => {
+  it('maps RMS to a perceived level from 0 to 1', () => {
+    expect(voiceLevelFromRms(0)).toBe(0)
+    expect(voiceLevelFromRms(Number.NaN)).toBe(0)
+    expect(voiceLevelFromRms(0.05)).toBeCloseTo(0.5)
+    expect(voiceLevelFromRms(0.2)).toBe(1)
+    expect(voiceLevelFromRms(3)).toBe(1)
+  })
+
+  it('keeps the bar count, adds at the end and drops the oldest bar', () => {
+    expect(pushVoiceBar([], 0.5, 3)).toEqual([0, 0, 0.5])
+    expect(pushVoiceBar([0.1, 0.2, 0.3], 0.4, 3)).toEqual([0.2, 0.3, 0.4])
+    expect(pushVoiceBar([0.1, 0.2, 0.3], 0.4, 2)).toEqual([0.3, 0.4])
+    expect(pushVoiceBar([0.1], 0.4, 0)).toEqual([])
+  })
+
+  it('updates every bar in place with reduced motion and scrolls without it', () => {
+    expect(nextVoiceBars([0.1, 0.2], 0.4, 2, true)).toEqual([0.4, 0.4])
+    expect(nextVoiceBars([0.1, 0.2], 0.4, 2, false)).toEqual([0.2, 0.4])
+  })
+
+  it('fits 3 wide bars with a 3 gap and scales them from 4 to 24 high', () => {
+    expect([0, 2, 3, 8, 9, 120].map(voiceBarCount)).toEqual([0, 0, 1, 1, 2, 20])
+    expect(voiceBarScale(0) * 24).toBe(4)
+    expect(voiceBarScale(1) * 24).toBe(24)
+  })
+
+  it('delivers each published level until the subscriber leaves', () => {
+    const levels: number[] = []
+    const unsubscribe = subscribeComposerVoiceLevel((level) => levels.push(level))
+    publishComposerVoiceLevel(0.3)
+    unsubscribe()
+    publishComposerVoiceLevel(0.9)
+    expect(levels).toEqual([0.3])
   })
 })
