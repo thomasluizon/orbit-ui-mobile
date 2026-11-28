@@ -1748,6 +1748,17 @@ export const PostApiChatReadsRefreshResponse = zod.object({
 })
 
 
+export const PostApiChatBlocksBlockIdCloseParams = zod.object({
+  "blockId": zod.uuid()
+})
+
+export const PostApiChatBlocksBlockIdCloseHeader = zod.object({
+  "api-version": zod.string().optional()
+})
+
+export const PostApiChatBlocksBlockIdCloseResponse = zod.void()
+
+
 export const GetApiChatRecordsKindParams = zod.object({
   "kind": zod.string()
 })
