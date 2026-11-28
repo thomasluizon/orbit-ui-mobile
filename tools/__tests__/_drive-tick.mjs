@@ -4377,10 +4377,10 @@ const permanentFixCases = async () => {
   const bugTicket = (body) => ticket(7, { labels: ["repo:ui", "Bug"], createdAt: CREATED, body })
   const withFix = (section) => `Broken label.\n\nClass: clipped label\n\n## Permanent fix\n\n${section}\n`
   const named = withFix("Lint rule \`eslint-rules/no-clip.cjs\` holds the class.")
-  const settled = async ({ body = named, files = ["tools/README.md"], pullBody, gitRoutes = [] }) => {
+  const settled = async ({ body = named, files = ["tools/README.md"], pullBody, gitRoutes = [], siblings = [] }) => {
     // A lintable path needs a green Lint, so the pull request of a rule file carries one.
     const lint = files.some((file) => file.startsWith("eslint-rules/")) ? [check("Checks", "SUCCESS", { databaseId: 31 })] : []
-    const entry = scenario({ tickets: [bugTicket(body)], gitRoutes, pulls: { ui: [pull(30, { files, checks: [check("Unit Tests"), approvalCheck(), ...lint], ...(pullBody ? { body: pullBody } : {}) })], api: [], landing: [] } })
+    const entry = scenario({ tickets: [bugTicket(body)], gitRoutes, pulls: { ui: [...siblings, pull(30, { files, checks: [check("Unit Tests"), approvalCheck(), ...lint], ...(pullBody ? { body: pullBody } : {}) })], api: [], landing: [] } })
     await entry.run()
     return entry
   }
@@ -4405,6 +4405,15 @@ const permanentFixCases = async () => {
   same("drive: a failed fix check launches no worker", never.launched.length, 0)
   const earlier = await settled({ pullBody: "Tracks thomasluizon/orbit-tickets#7\n\nRemaining: part 2", gitRoutes: [["--since=", ""]] })
   same("drive: a pull request that is not the last one has no check and no git read of main", [only(earlier.calls, "merge").length, since(earlier).length, reported(earlier)], [1, 0, 0])
+
+  // An earlier part of the ticket can still change the path, so its open pull request keeps the last one waiting. Only a missing section is final.
+  const sibling = pull(29, { headRef: "chore/ticket-7-part-1", draft: true, body: `Tracks ${REPOSITORY}#7\n\nRemaining: part 2`, files: ["eslint-rules/no-clip.cjs"] })
+  const waiting = await settled({ siblings: [sibling], gitRoutes: [["--since=", ""]] })
+  same("drive: an unchanged section path waits while another open pull request of the ticket runs, with no report and no label", [only(waiting.calls, "merge").length, reported(waiting), labelled(waiting)], [0, 0, []])
+  const lone = await settled({ siblings: [pull(29, { headRef: "chore/ticket-8-part-1", tracks: 8, draft: true, body: `Tracks ${REPOSITORY}#8\n\nRemaining: part 2` })], gitRoutes: [["--since=", ""]] })
+  same("drive: an open pull request of another ticket does not hold the check", [reported(lone), labelled(lone)], [1, ["needs:owner"]])
+  const absent = await settled({ siblings: [sibling], body: "Broken label.\n\nClass: clipped label" })
+  same("drive: a missing section still goes to the owner while another pull request of the ticket is open", [reported(absent), labelled(absent)], [1, ["needs:owner"]])
 
   const broken = scenario({ tickets: [bugTicket(named)], pulls: { ui: [pull(30)], api: [], landing: [] } })
   const fake = broken.env.git

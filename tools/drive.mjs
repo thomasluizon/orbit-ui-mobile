@@ -1416,6 +1416,9 @@ const planPull = async (env, mem, { repoKey, state, ticketMap, now, runs, runnin
   // Only a Pullfrog pass clears a missing approval check, and a blocked merge state follows from it, so neither is a reason to wait.
   // The lint workflow runs only for a pull request into the default branch, so a stacked one gets its check after the retarget.
   const fixFailures = bar.filter((failure) => OWNER_FIX_FAILURES.has(failure))
+  // Another open pull request of the ticket can still change the named path, and a report would label the ticket and hold that pull request too. Only the unchanged-path failure waits for it.
+  const partOpen = state.pulls.some((other) => other !== pull && other.tracks === pull.tracks && !mergedPulls.has(other))
+  if (fixFailures.length > 0 && partOpen && fixFailures.every((failure) => failure === "permanent-fix-unchanged")) return [...actions, { type: "none", reason: "another open pull request of the ticket can still change the permanent fix" }]
   if (fixFailures.length > 0) return [...actions, { type: "needs-owner", ticket, reason: fixReason(item, fixFailures, context.permanentFix) }]
   const ownerFailures = bar.filter((failure) => OWNER_BAR_FAILURES.has(failure) && !(failure === "lint-missing" && pull.baseRef !== state.defaultBranch))
   if (ownerFailures.length > 0) return park(`${item} cannot merge: the bar fails on ${ownerFailures.join(", ")}`)
