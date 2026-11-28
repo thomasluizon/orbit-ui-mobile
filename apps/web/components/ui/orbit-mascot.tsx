@@ -1,10 +1,14 @@
 'use client'
 
 import {
+  ORBIT_MASCOT_FACES,
+  ORBIT_MASCOT_VIEW_BOX,
   isOrbitMascotSmallSize,
+  orbitBlinkMatrix,
   orbitEyeOffset,
   orbitMascotDrawnFrame,
   orbitMascotSizeFor,
+  orbitOutlineCutout,
   orbitRingTurnProgress,
   orbitSmallFaceFrame,
   resolveOrbitShownState,
@@ -20,21 +24,19 @@ import {
   runOrbitReadClock,
   subscribeOrbitLoop,
 } from '@orbit/shared/utils'
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useViewportMatch } from '@/hooks/use-viewport-match'
 import { useOrbitOverlay } from '@/components/ui/orbit-overlay-layer'
 import { useOrbitReadMotionAllowed } from '@/components/ui/orbit-read-motion'
 import { OrbitMascotDrawing } from '@/components/ui/orbit-mascot-drawing'
 
-function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: React.RefObject<SVGSVGElement | null>) {
+function useOrbitLoopState(wantsLoop: boolean, role: OrbitLiveRole, target: React.RefObject<SVGSVGElement | null>) {
   const [claim] = useState(() => Symbol('orbit-mascot'))
   const overlay = useOrbitOverlay()
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const candidate = wantsLoop && !reducedMotion
   const [onScreen, setOnScreen] = useState(true)
   const [foreground, setForeground] = useState(true)
-  const [clock, setClock] = useState(0)
-  const drawn = useRef(0)
   useSyncExternalStore(subscribeOrbitLoop, getOrbitLoopVersion, getOrbitLoopVersion)
 
   useEffect(() => (candidate && onScreen ? claimOrbitLiveSlot(claim, overlay, role) : undefined), [candidate, onScreen, claim, overlay, role])
@@ -55,17 +57,63 @@ function useOrbitLoopClock(wantsLoop: boolean, role: OrbitLiveRole, target: Reac
     return () => document.removeEventListener('visibilitychange', update)
   }, [candidate, claim])
 
-  const running = candidate && onScreen && foreground && mayOrbitRunLoop(claim)
+  return { candidate, running: candidate && onScreen && foreground && mayOrbitRunLoop(claim) }
+}
+
+function setParts(svg: SVGSVGElement, name: string, attributes: Record<string, string | number | undefined>) {
+  for (const part of svg.querySelectorAll(`[data-part="${name}"]`)) {
+    for (const [key, value] of Object.entries(attributes)) {
+      if (value === undefined) part.removeAttribute(key)
+      else part.setAttribute(key, String(value))
+    }
+  }
+}
+
+function placeMoon(svg: SVGSVGElement, front: boolean) {
+  const moon = svg.querySelector('[data-part="moon"]')
+  const anchor = svg.querySelector(`[data-part="ring-${front ? 'front' : 'back'}"]`)
+  if (moon && anchor && anchor.nextElementSibling !== moon) anchor.after(moon)
+}
+
+interface PoseInputs {
+  readonly size: OrbitMascotProps['size']
+  readonly state: NonNullable<OrbitMascotProps['state']>
+  readonly eyeOffset: { readonly x: number; readonly y: number }
+  readonly candidate: boolean
+  readonly running: boolean
+  readonly turn: number
+}
+
+function useOrbitPose(svgRef: React.RefObject<SVGSVGElement | null>, inputs: PoseInputs) {
+  const { size, state, eyeOffset, candidate, running, turn } = inputs
+  const time = useRef(0)
+  const paint = useRef(() => {})
+
+  useLayoutEffect(() => {
+    paint.current = () => {
+      const svg = svgRef.current
+      if (!svg || isOrbitMascotSmallSize(size)) return
+      const frame = orbitMascotDrawnFrame(candidate ? time.current : 0, mascotMotion, running, turn)
+      const centreY = ORBIT_MASCOT_FACES[state].blinkCentreY
+      setParts(svg, 'ring-back', { d: frame.ringBack })
+      setParts(svg, 'ring-front', { d: frame.ringFront })
+      setParts(svg, 'outline-cutout', { d: orbitOutlineCutout(ORBIT_MASCOT_VIEW_BOX, frame.ringOutline) })
+      setParts(svg, 'moon', { cx: frame.moon.x, cy: frame.moon.y, r: frame.moon.radius })
+      placeMoon(svg, frame.moon.front)
+      setParts(svg, 'eyes', { transform: `translate(${eyeOffset.x} ${eyeOffset.y})${frame.eyeWiden === 1 ? '' : ` scale(${frame.eyeWiden} 1)`}` })
+      setParts(svg, 'eye', { transform: centreY === null ? undefined : orbitBlinkMatrix(frame.blinkScale, centreY) })
+    }
+    paint.current()
+  })
 
   useEffect(() => {
     if (!running) return undefined
-    return runOrbitLoopClock(globalThis, drawn.current, (time) => {
-      drawn.current = time
-      setClock(time)
+    return runOrbitLoopClock(globalThis, time.current, (next) => {
+      if (next === time.current) return
+      time.current = next
+      paint.current()
     })
   }, [running])
-
-  return { clock: candidate ? clock : 0, running }
 }
 
 function useRingTurn(turnKey: string | number | undefined, enabled: boolean): number {
@@ -108,11 +156,11 @@ export function OrbitMascot({ size, state = 'parado', still = false, reading = f
   const clipId = `orbit-planet-${useId().replaceAll(':', '')}`
   const svgRef = useRef<SVGSVGElement | null>(null)
   const small = isOrbitMascotSmallSize(size)
-  const { clock, running } = useOrbitLoopClock(!small && !still, live, svgRef)
+  const { candidate, running } = useOrbitLoopState(!small && !still, live, svgRef)
   const reducedMotion = useViewportMatch('(prefers-reduced-motion: reduce)')
   const turn = useRingTurn(turnKey, !small && !still && !reducedMotion)
-  const frame = orbitMascotDrawnFrame(clock, mascotMotion, running, turn)
   const eyeOffset = orbitEyeOffset(lookAt, reducedMotion || still)
+  useOrbitPose(svgRef, { size, state, eyeOffset, candidate, running, turn })
   const read = useOrbitReadClock(small && reading)
   const smallMotion = small && read.running ? orbitSmallFaceFrame(read.clock, size, mascotMotion) : undefined
 
@@ -124,7 +172,6 @@ export function OrbitMascot({ size, state = 'parado', still = false, reading = f
       shownState={small ? state : resolveOrbitShownState(state, lookAt)}
       color={color}
       clipId={clipId}
-      frame={frame}
       smallMotion={smallMotion}
       running={running || read.running}
       turning={turn > 0}

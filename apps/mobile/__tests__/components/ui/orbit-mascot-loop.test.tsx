@@ -1,4 +1,4 @@
-import type { Context, ReactElement } from 'react'
+import { Profiler, type Context, type ReactElement } from 'react'
 import { AccessibilityInfo, AppState, View } from 'react-native'
 import { ORBIT_MASCOT_FACES, ORBIT_MASCOT_VIEW_BOX, ORBIT_SMALL_FACES, orbitMascotFrame, orbitOutlineCutout } from '@orbit/shared/contracts/brand'
 import { mascotMotion } from '@orbit/shared/theme'
@@ -47,9 +47,13 @@ function setReducedMotion(enabled: boolean) {
   TestRenderer.act(() => { for (const listener of [...reduceMotionListeners]) listener(enabled) })
 }
 
+function drawn(node: TestNode): Readonly<Record<string, unknown>> {
+  return { ...node.props, ...(node.props.animatedProps as object | undefined) }
+}
+
 function eyeScaleOf(tree: TestTree) {
-  const eye = tree.root.findAll((node) => typeof node.type === 'string' && typeof node.props.transform === 'string' && String(node.props.transform).startsWith('matrix('))[0]
-  return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(String(eye?.props.transform))?.[1])
+  const eye = tree.root.findAll((node) => typeof node.type === 'string' && String(drawn(node).transform).startsWith('matrix('))[0]
+  return Number(/^matrix\(1 0 0 ([\d.]+) /.exec(String(eye && drawn(eye).transform))?.[1])
 }
 
 const mounted: TestTree[] = []
@@ -73,9 +77,18 @@ function loopsByState(tree: TestTree) {
   return Object.fromEntries(mascots(tree).map((node) => [node.props['data-orbit-state'], node.props['data-orbit-loop']]))
 }
 
+function moonIn(root: TestNode) {
+  const moon = root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)[0]
+  const props = moon ? drawn(moon) : {}
+  return `${String(props.cx)},${String(props.cy)}`
+}
+
 function moonOf(tree: TestTree) {
-  const moon = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)[0]
-  return `${String(moon?.props.cx)},${String(moon?.props.cy)}`
+  return moonIn(tree.root)
+}
+
+function moonsOf(tree: TestTree) {
+  return mascots(tree).map(moonIn)
 }
 
 function moonJump(from: string, to: string) {
@@ -352,6 +365,21 @@ describe('Orbit idle loop on Android', () => {
     tree.unmount()
   })
 
+  it('renders a running Orbit 0 times in a second of animation frames at 120 Hz, and still moves the pose', () => {
+    vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => setTimeout(() => callback(performance.now()), 8))
+    vi.stubGlobal('cancelAnimationFrame', (handle: ReturnType<typeof setTimeout>) => clearTimeout(handle))
+    const renders = vi.fn()
+    const tree = render(<Profiler id="orbit" onRender={renders}><OrbitMascot size={96} /></Profiler>)
+    expect(loops(tree)).toEqual(['running'])
+    const rest = moonOf(tree)
+    renders.mockClear()
+    for (let frame = 0; frame < 125; frame += 1) advance(8)
+    expect(renders).not.toHaveBeenCalled()
+    expect(moonOf(tree)).not.toBe(rest)
+    TestRenderer.act(() => { tree.unmount() })
+    vi.unstubAllGlobals()
+  })
+
   it('cancels its frame when it unmounts', () => {
     const tree = render(<OrbitMascot size={96} />)
     advance(100)
@@ -469,9 +497,20 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
     const tree = render(hoje())
     expect([...pair(tree), loopsByState(tree).feliz]).toEqual(['running', 'running', 'still'])
     advance(480)
-    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
-      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    const moons = moonsOf(tree)
     expect(moons[0]).toBe(moons[2])
+    expect(moons[0]).not.toBe(moonOf(render(<OrbitMascot size={48} still />)))
+  })
+
+  it('renders neither the summary Orbit nor the entry while both run, and keeps one pose', () => {
+    const renders = vi.fn()
+    const tree = render(<Profiler id="hoje" onRender={renders}><View><TodayAstraLine text="Two habits left today." destination="Opens the conversation" onPress={() => {}} /><AstraButton /></View></Profiler>)
+    expect(pair(tree)).toEqual(['running', 'running'])
+    renders.mockClear()
+    for (let frame = 0; frame < 62; frame += 1) advance(16)
+    expect(renders).not.toHaveBeenCalled()
+    const moons = moonsOf(tree)
+    expect(moons[0]).toBe(moons[1])
     expect(moons[0]).not.toBe(moonOf(render(<OrbitMascot size={48} still />)))
   })
 
@@ -506,8 +545,7 @@ describe('Hoje Orbit line with the conversation entry on Android', () => {
     advance(250)
     expect(pair(tree)).toEqual(['running', 'running'])
     advance(96)
-    const moons = tree.root.findAll((node) => typeof node.type === 'string' && node.props.fill === moonFill && node.props.cx !== undefined)
-      .map((moon) => `${String(moon.props.cx)},${String(moon.props.cy)}`)
+    const moons = moonsOf(tree)
     expect(moons[0]).toBe(moons[1])
   })
 

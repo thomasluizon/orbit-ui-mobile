@@ -123,7 +123,8 @@ describe('ChatEmptyState (mobile)', () => {
       typeof node.type === 'string' && node.props?.testID === 'empty-state-mark',
     )).toHaveLength(1)
     const rendered = JSON.stringify(tree.toJSON())
-    expect(rendered.split(tokens.primary)).toHaveLength(2)
+    const moonCircles = 2
+    expect(rendered.split(tokens.primary)).toHaveLength(moonCircles + 1)
     expect(rendered).not.toContain(tokens.primaryRgb)
   })
 

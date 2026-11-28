@@ -37,17 +37,20 @@ export function useAnimatedStyle<T>(updater: () => T): T {
   }
 }
 
-export function useAnimatedProps<T>(updater: () => T): T {
-  try {
-    return updater()
-  } catch {
-    return {} as T
+/** The real props follow their shared values on the UI thread with no React render. Each key of the double reads the updater again, so a test sees the current values without a render. */
+export function useAnimatedProps<T extends object>(updater: () => T): T {
+  const read = () => {
+    try {
+      return updater()
+    } catch {
+      return {} as T
+    }
   }
+  return Object.defineProperties({}, Object.fromEntries(Object.keys(read()).map((key) => [key, { enumerable: true, get: () => read()[key as keyof T] }]))) as T
 }
 
 export function useDerivedValue<Value>(updater: () => Value) {
-  const value = updater()
-  return { value }
+  return { get value() { return updater() } }
 }
 
 export function useAnimatedScrollHandler() {
