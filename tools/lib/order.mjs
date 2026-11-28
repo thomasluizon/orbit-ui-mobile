@@ -1,5 +1,7 @@
 /** The delivery driver's work orders: the seven kinds of order and the one generic brief that every worker reads. */
 
+import { fileURLToPath } from "node:url"
+
 import { parityExemptTerms } from "./parity-scope.mjs"
 
 export const ORDER_KINDS = Object.freeze(["build", "build part", "fix", "ci-fix", "merge-forward", "find", "replan"])
@@ -213,8 +215,18 @@ const earlierLaunchesSection = (history) => {
 /** A fix, ci-fix or merge-forward order pushes to the branch of an open pull request and opens none. */
 const pushesToOpenPull = (kind) => kind === "fix" || kind === "ci-fix" || kind === "merge-forward"
 
+/** The one GitHub write that a class step adds to the writes of the brief. */
+const CLASS_STEP_WRITE = " The `update-ticket.mjs body` write of the first step is also allowed."
+
+/** The ticket tool of this checkout. Only the `ui` repository holds `tools/update-ticket.mjs`, so a worker of another repository runs this file. */
+const TICKET_TOOL = fileURLToPath(new URL("../update-ticket.mjs", import.meta.url))
+
+/** The first step of an order for a Bug ticket that has no `Class:` line or no `## Permanent fix` section. */
+const classStepSection = (number, repoKey) =>
+  `This Bug ticket has no \`Class:\` line or no \`## Permanent fix\` section. Before any code, read the ticket and the code, then write both into the body with \`node ${repoKey === "ui" ? "tools/update-ticket.mjs" : TICKET_TOOL} body --ticket ${number} --body-file <file> --confirm-replace\`. Name the code that holds the class, or write \`none: <reason>\`.\n\n`
+
 /** The delivery rules. A find order has no delivery, so it does not get them. */
-const deliverySection = ({ ticket, kind }) => {
+const deliverySection = ({ ticket, kind, classStep }) => {
   const repository = ticket.repository
   const pushes = pushesToOpenPull(kind)
   const pullRequest = pushes
@@ -222,7 +234,7 @@ const deliverySection = ({ ticket, kind }) => {
     : `Open one non-draft pull request with \`gh pr create\`. The body holds \`Tracks ${repository}#${ticket.number}\` \`## Assumptions\`, \`## Manual steps\`, \`## Test evidence\` and a \`Remaining:\` line. The line says \`Remaining: none\`, or lists the parts that stay open, separated by semicolons. Start an item with \`owner:\` only for a step that needs the owner's hands, as section 6 of \`.claude/skills/questions/SKILL.md\` lists them. Start an item that waits on another ticket or on a release with \`blocked by #<ticket>\`. Write a technical step that stays open as a plain item.`
   const parity = `The \`## Parity\` line of a \`parity:exempt\` pull request names one of these terms: ${parityExemptTerms.join(", ")}.`
   const pushRule = pushes ? "" : " Commit and push after each finished step, and open the pull request after the first push."
-  const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.`
+  const writes = `Write to GitHub only with ${pushes ? "`git push`" : "`git push`, `gh pr create`"} and, on the pull request of your own branch, \`gh pr edit\` (only \`--body-file\`, \`--add-label\`, \`--remove-label\`) and \`gh pr comment\` (only \`--body\`, \`--body-file\`). Start the Bash call with that command, from your working tree, with no \`-R\`.${classStep ? CLASS_STEP_WRITE : ""}`
   const metadata = "After your last push, read the `PR Metadata` check with `gh pr checks`. When it fails on the body or a label, fix it yourself in this run. A label change starts no `PR Metadata` run. Change the label first. Then change the body text with `gh pr edit --body-file` (an `edited` event) or push, and read the check again. Never end with `NEEDS_DECISION` for a pull request body or label."
   return `**Delivery.** Commit after each coherent piece.${pushRule} ${pullRequest} ${parity} The title and body pass the dash ban: write no em dash and no en dash. Add no attribution line (\`Co-Authored-By\`, \`Generated with\`) to a commit or a pull request body. Delete tracked files with \`git rm\` and other files with Node \`rmSync\`, never \`rm\`. Stage named paths only. Never merge and never force-push. ${writes}\n\n**Size.** ${SIZE_LINE}\n\n**PR Metadata.** ${metadata}`
 }
@@ -242,7 +254,7 @@ const RUNNER_WORDS = Object.freeze({
 })
 
 /** The generic brief. It names no ticket, feature or screen: the ticket is the order, in the owner's words. */
-export const renderBrief = ({ kind, place, ticket, runner = "claude" }) => {
+export const renderBrief = ({ kind, place, ticket, runner = "claude", classStep = false }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if (!Object.hasOwn(RUNNER_WORDS, runner)) throw new Error(`unknown runner: ${runner}`)
   const words = RUNNER_WORDS[runner]
@@ -264,7 +276,7 @@ ${reads ? "" : "- Spend at most 25 minutes on verification. Report each command 
 
 **Copy.** ${words.copy}
 
-${reads ? "**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub." : deliverySection({ ticket, kind })}
+${reads ? `**Delivery.** This is a read-only order. Change no file, make no commit and write nothing to GitHub.${classStep ? CLASS_STEP_WRITE : ""}` : deliverySection({ ticket, kind, classStep })}
 
 **Commands.** Keep each shell command plain. Never put \`$(\`, a backtick, \`eval\` or a variable in a path or a redirect. ${words.search} Write a longer check as a \`.mjs\` file in the system temporary directory and run it with \`node\`.${words.approval}
 
@@ -295,8 +307,9 @@ export const renderResumeOrder = ({ kind, pull, review = null, failure = null })
  * The order text for one worker. It holds the ticket body, the owner's part comments (the full comment of the
  * part it builds and the first line of each other part), the `findings` comments of an apply part, the work of its kind, and the brief.
  * Another comment of the driver never reaches the worker, so a later part does not read an earlier launch again.
+ * `classStep` puts the class step of a Bug ticket first in the section "This order".
  */
-export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], place, partNumber = null, replan = null, runner = "claude" }) => {
+export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pull = null, review = null, failure = null, history = [], place, partNumber = null, replan = null, runner = "claude", classStep = false }) => {
   if (!ORDER_KINDS.includes(kind)) throw new Error(`unknown order kind: ${kind}`)
   if (kind === "replan" && !(typeof replan?.stuckBranch === "string" && Array.isArray(replan.mergedParts) && Number.isInteger(replan.currentTotal) && Number.isInteger(replan.highestTotal))) throw new Error("a replan order needs its stuck branch, its merged parts and its part totals")
   if ((kind === "build part" || kind === "find") && !Number.isInteger(partNumber)) throw new Error(`a ${kind} order needs the number of its part`)
@@ -306,5 +319,5 @@ export const renderOrder = ({ kind, ticket, partComments = [], findings = [], pu
   }
   const parts = kind === "build" ? "" : kind === "replan" ? wholePartSection(partComments) : partSection(partComments, partNumber)
   const partTotal = kind === "build part" ? partOf(ownerParts(partComments).findLast((comment) => partOf(comment).number === partNumber)).total : null
-  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}\n\n${renderBrief({ kind, place, ticket, runner })}`
+  return `# ${ticket.title}\n\n${trimmed(ticket.body)}${parts}${findingsSection(findings)}\n\n---\n\n## This order (${kind})\n\n${classStep ? classStepSection(ticket.number, place.repoKey) : ""}${kindSection({ kind, pull, review, failure, partNumber, partTotal, replan })}${earlierLaunchesSection(history)}\n\n${renderBrief({ kind, place, ticket, runner, classStep })}`
 }
